@@ -230,25 +230,13 @@ class DataModule(LightningDataModule):
             targets.extend(sample.targets)
             if sample.relevance is not None:
                 relevances.append(torch.tensor(sample.relevance))
-        query_length = (
-            self.config.query_length if self.config.query_expansion else self.max_length
-        )
         query_encoding = self.tokenizer.encode_queries(
             queries,
             return_tensors="pt",
-            padding="max_length" if self.config.query_expansion else True,
+            padding=True,
             truncation=True,
-            max_length=query_length,
+            max_length=self.max_length,
         )
-        if self.config.query_expansion:
-            input_ids = query_encoding["input_ids"]
-            input_ids[input_ids == self.tokenizer.pad_token_id] = (
-                self.tokenizer.mask_token_id
-            )
-            query_encoding["input_ids"] = input_ids
-            query_encoding["attention_mask"] = torch.ones_like(
-                query_encoding.attention_mask
-            )
         doc_encoding = self.tokenizer.encode_docs(
             docs,
             return_tensors="pt",

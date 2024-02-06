@@ -1,6 +1,8 @@
 from collections import defaultdict
+import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Tuple
+from abc import ABC
 
 import torch
 from lightning import LightningModule
@@ -110,6 +112,12 @@ class ScoringFunction:
     ) -> torch.Tensor:
         batch_size, query_len, embedding_dim = query_embeddings.shape
 
+        masked_tokens = doc_embeddings.eq(self.MASK_VALUE).all(-1)
+        if masked_tokens.any():
+            if doc_attention_mask is None:
+                doc_attention_mask = torch.ones_like(masked_tokens)
+            doc_attention_mask = (doc_attention_mask.bool() & ~masked_tokens).long()
+
         doc_embeddings, doc_attention_mask, similarity_mask, num_docs = (
             self.reformat_docs(
                 doc_embeddings, doc_attention_mask, num_docs, batch_size, embedding_dim
@@ -145,10 +153,14 @@ class MVRConfig(PretrainedConfig):
         similarity_function: Literal["cosine", "l2"] = "cosine",
         query_aggregation_function: Literal["sum", "mean", "max"] = "sum",
         doc_aggregation_function: Literal["sum", "mean", "max"] = "max",
-        query_expansion: bool = True,
+        query_expansion: bool = False,
         query_length: int = 32,
+        doc_expansion: bool = False,
+        doc_length: int = 512,
         normalize: bool = True,
         add_marker_tokens: bool = True,
+        embedding_dim: int = 128,
+        linear_bias: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -157,16 +169,38 @@ class MVRConfig(PretrainedConfig):
         self.doc_aggregation_function = doc_aggregation_function
         self.query_expansion = query_expansion
         self.query_length = query_length
+        self.doc_expansion = doc_expansion
+        self.doc_length = doc_length
         self.normalize = normalize
         self.add_marker_tokens = add_marker_tokens
+        self.embedding_dim = embedding_dim
+        self.linear_bias = linear_bias
+
+    def to_mvr_dict(self) -> Dict[str, Any]:
+        return {
+            "similarity_function": self.similarity_function,
+            "query_aggregation_function": self.query_aggregation_function,
+            "doc_aggregation_function": self.doc_aggregation_function,
+            "query_expansion": self.query_expansion,
+            "query_length": self.query_length,
+            "doc_expansion": self.doc_expansion,
+            "doc_length": self.doc_length,
+            "normalize": self.normalize,
+            "add_marker_tokens": self.add_marker_tokens,
+            "embedding_dim": self.embedding_dim,
+            "linear_bias": self.linear_bias,
+        }
 
 
-class MVRModel(torch.nn.Module):
-    def __init__(self, encoder: PreTrainedModel) -> None:
-        super().__init__()
-        self.encoder = encoder
-        self.config = encoder.config
-        self.scoring_function = ScoringFunction(
+class MVRMixin:
+
+    config: MVRConfig
+    encoder: PreTrainedModel
+    linear: torch.nn.Linear
+
+    @property
+    def scoring_function(self) -> ScoringFunction:
+        return ScoringFunction(
             self.config.similarity_function,
             self.config.query_aggregation_function,
             self.config.doc_aggregation_function,
@@ -177,7 +211,15 @@ class MVRModel(torch.nn.Module):
     ) -> torch.Tensor:
         raise NotImplementedError()
 
-    def encode(
+    def forward(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        token_type_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return self._encode(input_ids, attention_mask, token_type_ids)
+
+    def _encode(
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
@@ -186,9 +228,26 @@ class MVRModel(torch.nn.Module):
         embedding = self.encoder.forward(
             input_ids, attention_mask, token_type_ids
         ).last_hidden_state
+        embedding = self.linear(embedding)
         if self.config.normalize:
             embedding = torch.nn.functional.normalize(embedding, dim=-1)
         return embedding
+
+    def encode_queries(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        token_type_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return self._encode(input_ids, attention_mask, token_type_ids)
+
+    def encode_docs(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        token_type_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return self._encode(input_ids, attention_mask, token_type_ids)
 
     def score(
         self,
@@ -208,6 +267,10 @@ class MVRModel(torch.nn.Module):
         return score
 
 
+class MVRModel(ABC, MVRMixin):
+    pass
+
+
 class MVRTokenizer(BertTokenizerFast):
 
     def __init__(
@@ -224,6 +287,10 @@ class MVRTokenizer(BertTokenizerFast):
         doc_token: str = "[DOC]",
         tokenize_chinese_chars: bool = True,
         strip_accents: bool | None = None,
+        query_expansion: bool = False,
+        query_length: int = 32,
+        doc_expansion: bool = False,
+        doc_length: int = 512,
         add_marker_tokens: bool = True,
         **kwargs,
     ):
@@ -238,9 +305,17 @@ class MVRTokenizer(BertTokenizerFast):
             mask_token,
             tokenize_chinese_chars,
             strip_accents,
+            query_expansion=query_expansion,
+            query_length=query_length,
+            doc_expansion=doc_expansion,
+            doc_length=doc_length,
             add_marker_tokens=add_marker_tokens,
             **kwargs,
         )
+        self.query_expansion = query_expansion
+        self.query_length = query_length
+        self.doc_expansion = doc_expansion
+        self.doc_length = doc_length
 
         self._query_token = query_token
         self._doc_token = doc_token
@@ -302,6 +377,14 @@ class MVRTokenizer(BertTokenizerFast):
             return self.added_tokens_encoder[self.doc_token]
         return None
 
+    def __call__(self, *args, internal: bool = False, **kwargs) -> BatchEncoding:
+        if not internal:
+            warnings.warn(
+                "MVRTokenizer is directly called. Use encode_queries or encode_docs "
+                "if marker_tokens should be added and query/doc expansion applied."
+            )
+        return super().__call__(*args, **kwargs)
+
     def _encode(
         self,
         text: str | List[str],
@@ -312,21 +395,40 @@ class MVRTokenizer(BertTokenizerFast):
         orig_post_processor = self._tokenizer.post_processor
         if post_processor is not None:
             self._tokenizer.post_processor = post_processor
-        encoding = self(text, *args, **kwargs)
+        encoding = self(text, *args, internal=True, **kwargs)
         self._tokenizer.post_processor = orig_post_processor
+        return encoding
+
+    def _expand(self, encoding: BatchEncoding) -> BatchEncoding:
+        input_ids = encoding["input_ids"]
+        input_ids[input_ids == self.pad_token_id] = self.mask_token_id
+        encoding["input_ids"] = input_ids
+        encoding["attention_mask"] = None
         return encoding
 
     def encode_queries(
         self, queries: List[str] | str, *args, **kwargs
     ) -> BatchEncoding:
-        return self._encode(
+        if self.query_expansion:
+            kwargs["max_length"] = self.query_length
+            kwargs["padding"] = "max_length"
+        encoding = self._encode(
             queries, post_processor=self.query_post_processor, *args, **kwargs
         )
+        if self.query_expansion:
+            self._expand(encoding)
+        return encoding
 
     def encode_docs(self, docs: List[str] | str, *args, **kwargs) -> BatchEncoding:
-        return self._encode(
+        if self.doc_expansion:
+            kwargs["max_length"] = self.doc_length
+            kwargs["padding"] = "max_length"
+        encoding = self._encode(
             docs, post_processor=self.doc_post_processor, *args, **kwargs
         )
+        if self.doc_expansion:
+            self._expand(encoding)
+        return encoding
 
 
 class MVRModule(LightningModule):
@@ -352,8 +454,8 @@ class MVRModule(LightningModule):
         self.validation_step_outputs = []
 
     def forward(self, batch: Batch):
-        query_embeddings = self.model.encode(**batch.query_encoding)
-        doc_embeddings = self.model.encode(**batch.doc_encoding)
+        query_embeddings = self.model.encode_queries(**batch.query_encoding)
+        doc_embeddings = self.model.encode_docs(**batch.doc_encoding)
         num_docs = [len(docs) for docs in batch.doc_ids]
         scores = self.model.score(
             query_embeddings,

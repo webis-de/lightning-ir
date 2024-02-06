@@ -1,14 +1,22 @@
 import pytest
+import torch
+from colbert.modeling.checkpoint import Checkpoint
+from colbert.modeling.colbert import colbert_score
+from transformers import AutoConfig
 
-from tide.colbert import ColBERTModel, ColBERTModule
+from tide.colbert import ColBERTModel, ColBERTModule, ColBERTConfig
 from tide.datamodule import DataModule
 from tide.loss import LocalizedContrastive, MarginMSE, RankNet
-from tide.mvr import MVRConfig
+from tide.mvr import MVRTokenizer
 
 
 @pytest.fixture(scope="module")
 def colbert_model(model_name_or_path: str) -> ColBERTModel:
-    return ColBERTModel(model_name_or_path, MVRConfig(query_expansion=True))
+    config = AutoConfig.from_pretrained(model_name_or_path)
+    colbert_config = ColBERTConfig()
+    config.update(colbert_config.to_mvr_dict())
+    model = ColBERTModel.from_pretrained(model_name_or_path, config=config)
+    return model
 
 
 @pytest.fixture(scope="module")
@@ -52,3 +60,70 @@ def test_colbert_localized_contrastive(
     batch = next(iter(dataloader))
     loss = localized_contrastive_module.training_step(batch, 0)
     assert loss
+
+
+def test_seralize_deserialize(
+    colbert_model: ColBERTModel, tmpdir_factory: pytest.TempdirFactory
+):
+    save_dir = tmpdir_factory.mktemp("colbert")
+    colbert_model.save_pretrained(save_dir)
+    new_model = ColBERTModel.from_pretrained(save_dir, mask_punctuation=False)
+    for key, value in colbert_model.config.__dict__.items():
+        if key in (
+            "torch_dtype",
+            "_name_or_path",
+            "_commit_hash",
+            "transformers_version",
+        ):
+            continue
+        if key == "mask_punctuation":
+            assert value and not getattr(new_model.config, key)
+            continue
+        assert getattr(new_model.config, key) == value
+    for key, value in colbert_model.state_dict().items():
+        assert new_model.state_dict()[key].equal(value)
+
+
+def test_same_as_colbert():
+    query = "What is the capital of France?"
+    documents = [
+        "Paris is the capital of France.",
+        "France is a country in Europe.",
+        "The Eiffel Tower is in Paris.",
+    ]
+
+    model = ColBERTModel.from_colbert_checkpoint("colbert-ir/colbertv2.0")
+    tokenizer = MVRTokenizer.from_pretrained(
+        "colbert-ir/colbertv2.0", add_marker_tokens=True
+    )
+    query_encoding = tokenizer.encode_queries(query, return_tensors="pt")
+    doc_encoding = tokenizer.encode_docs(
+        documents, return_tensors="pt", padding=True, truncation=True
+    )
+    query_embedding = model.encode_queries(
+        query_encoding.input_ids, query_encoding.attention_mask
+    )
+    doc_embedding = model.encode_docs(
+        doc_encoding.input_ids, doc_encoding.attention_mask
+    )
+    scores = model.score(
+        query_embedding,
+        query_encoding.attention_mask,
+        doc_embedding,
+        doc_encoding.attention_mask,
+        None,
+    )
+
+    orig_model = Checkpoint("colbert-ir/colbertv2.0")
+    orig_query = orig_model.queryFromText([query])
+    orig_docs = orig_model.docFromText(documents)
+    d_mask = ~(orig_docs == 0).all(-1)
+    # we truncate the mask tokens, because the original model actually uses them
+    # in scoring, despite the model not being able to attend to them
+    # i.e., orig_model.colbert_config.attend_to_mask_tokens = False
+    orig_query = orig_query[:, : query_embedding.shape[1]]
+    orig_scores = colbert_score(orig_query, orig_docs, d_mask)
+
+    assert torch.allclose(query_embedding, orig_query)
+    assert torch.allclose(doc_embedding[d_mask], orig_docs[d_mask])
+    assert torch.allclose(scores, orig_scores)

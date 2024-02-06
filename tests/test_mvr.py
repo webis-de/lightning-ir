@@ -1,17 +1,39 @@
+from pathlib import Path
+
 import pytest
-from transformers import AutoModel
+import torch
+from transformers import BertModel
 
 from tide.datamodule import DataModule
-from tide.mvr import MVRConfig, MVRModel, MVRModule
 from tide.loss import LocalizedContrastive, MarginMSE, RankNet
+from tide.mvr import MVRConfig, MVRModel, MVRModule
+
+
+class TestModel(MVRModel):
+    def __init__(self, model_name_or_path: Path | str) -> None:
+        super().__init__()
+        self.config = MVRConfig.from_pretrained(model_name_or_path)
+        self.bert = BertModel.from_pretrained(
+            model_name_or_path, config=self.config, add_pooling_layer=False
+        )
+        vocab_size = self.config.vocab_size
+        if self.config.add_marker_tokens:
+            vocab_size += 2
+        self.bert.resize_token_embeddings(vocab_size, 8)
+        self.linear = torch.nn.Linear(
+            self.config.hidden_size,
+            self.config.embedding_dim,
+            bias=self.config.linear_bias,
+        )
+
+    @property
+    def encoder(self) -> torch.nn.Module:
+        return self.bert
 
 
 @pytest.fixture(scope="module")
 def mvr_model(model_name_or_path: str) -> MVRModel:
-    model = AutoModel.from_pretrained(model_name_or_path)
-    model.config.update(MVRConfig().to_diff_dict())
-    model.resize_token_embeddings(model.config.vocab_size, 8)
-    return MVRModel(model)
+    return TestModel(model_name_or_path)
 
 
 @pytest.fixture(scope="module")
@@ -37,8 +59,8 @@ def test_doc_padding(relevance_run_datamodule: DataModule, mvr_model: MVRModel):
     doc_encoding["attention_mask"] = doc_encoding["attention_mask"][:-1]
     doc_encoding["token_type_ids"] = doc_encoding["token_type_ids"][:-1]
 
-    query_embedding = model.encode(**batch.query_encoding)
-    doc_embedding = model.encode(**batch.doc_encoding)
+    query_embedding = model.encode_queries(**batch.query_encoding)
+    doc_embedding = model.encode_docs(**batch.doc_encoding)
     with pytest.raises(ValueError):
         model.score(
             query_embedding,

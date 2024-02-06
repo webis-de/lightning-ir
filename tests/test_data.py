@@ -46,17 +46,6 @@ def test_triples_dataset(triples_datamodule: DataModule):
     assert batch.targets.shape[0] == triples_datamodule.batch_size * 2
 
 
-def test_query_expansion(triples_datamodule: DataModule):
-    triples_datamodule.config.query_expansion = True
-    dataloader = triples_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    assert (
-        batch.query_encoding["input_ids"].shape[1]
-        == triples_datamodule.config.query_length
-    )
-    triples_datamodule.config.query_expansion = False
-
-
 def test_tokenizer(triples_datamodule: DataModule):
     triples_datamodule.config.query_expansion = True
     dataloader = triples_datamodule.train_dataloader()
