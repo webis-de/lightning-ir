@@ -1,18 +1,15 @@
-from typing import Any, Optional, Union
-
 import torch
 from lightning import LightningModule, Trainer
 from lightning.fabric.loggers.logger import _DummyExperiment as DummyExperiment
 from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
 from lightning.pytorch.loggers import WandbLogger
-from torch.optim import Optimizer
 from typing_extensions import override
 
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
 
 
-class SparseCrossEncoderSaveConfigCallback(SaveConfigCallback):
+class CustomSaveConfigCallback(SaveConfigCallback):
     @override
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         if stage == "predict":
@@ -64,7 +61,7 @@ def main():
 
     """
     CustomLightningCLI(
-        save_config_callback=SparseCrossEncoderSaveConfigCallback,
+        save_config_callback=CustomSaveConfigCallback,
         save_config_kwargs={"config_filename": "pl_config.yaml", "overwrite": True},
     )
 
