@@ -1,17 +1,20 @@
-from pathlib import Path
 import json
+from pathlib import Path
 from string import punctuation
 from typing import Any, Dict
 
-from transformers import BertPreTrainedModel, BertConfig, BertModel, AutoTokenizer
-from huggingface_hub import hf_hub_download
 import torch
+from huggingface_hub import hf_hub_download
+from transformers import AutoTokenizer, BertConfig, BertModel, BertPreTrainedModel
 
 from .loss import LossFunction
-from .mvr import MVRConfig, MVRModel, MVRModule
+from .mvr import MVRConfig, MVRModel, MVRModule, MVRTokenizer
 
 
 class ColBERTConfig(BertConfig, MVRConfig):
+
+    model_type = "colbert"
+
     def __init__(self, mask_punctuation: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.mask_punctuation = mask_punctuation
@@ -34,7 +37,7 @@ class ColBERTModel(MVRModel, BertPreTrainedModel):
         self.mask_tokens = None
         if self.config.mask_punctuation:
             try:
-                tokenizer = AutoTokenizer.from_pretrained(self.config.name_or_path)
+                tokenizer = MVRTokenizer.from_pretrained(self.config.name_or_path)
             except OSError:
                 raise ValueError(
                     "Can't use mask_punctuation if the checkpoint does not "
@@ -119,7 +122,20 @@ class ColBERTModel(MVRModel, BertPreTrainedModel):
 class ColBERTModule(MVRModule):
     def __init__(
         self,
-        model: ColBERTModel,
-        loss_function: LossFunction,
+        model_name_or_path: str | None = None,
+        config: MVRConfig | ColBERTConfig | None = None,
+        loss_function: LossFunction | None = None,
     ) -> None:
+        if model_name_or_path is None:
+            if config is None:
+                raise ValueError(
+                    "Either model_name_or_path or config must be provided."
+                )
+            if not isinstance(config, ColBERTConfig):
+                raise ValueError(
+                    "config initializing a new model pass a ColBERTConfig."
+                )
+            model = ColBERTModel(config)
+        else:
+            model = ColBERTModel.from_pretrained(model_name_or_path, config=config)
         super().__init__(model, loss_function)

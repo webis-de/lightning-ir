@@ -1,0 +1,14 @@
+data:
+  class_path: MVRDataModule
+  init_args:
+    num_workers: 2
+    batch_size: 32
+    train_dataset: null
+    inference_datasets: null
+    train_run_config:
+      class_path: RunDatasetConfig
+      init_args:
+        targets: rank
+        depth: 100
+        sample_size: 100
+        sampling_strategy: top

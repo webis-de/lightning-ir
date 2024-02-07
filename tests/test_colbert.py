@@ -2,40 +2,40 @@ import pytest
 import torch
 from colbert.modeling.checkpoint import Checkpoint
 from colbert.modeling.colbert import colbert_score
-from transformers import AutoConfig
 
 from tide.colbert import ColBERTModel, ColBERTModule, ColBERTConfig
-from tide.datamodule import DataModule
+from tide.datamodule import MVRDataModule
 from tide.loss import LocalizedContrastive, MarginMSE, RankNet
 from tide.mvr import MVRTokenizer
 
 
 @pytest.fixture(scope="module")
 def colbert_model(model_name_or_path: str) -> ColBERTModel:
-    config = AutoConfig.from_pretrained(model_name_or_path)
-    colbert_config = ColBERTConfig()
-    config.update(colbert_config.to_mvr_dict())
+    config = ColBERTConfig.from_pretrained(model_name_or_path)
     model = ColBERTModel.from_pretrained(model_name_or_path, config=config)
     return model
 
 
 @pytest.fixture(scope="module")
-def margin_mse_module(colbert_model: ColBERTModel) -> ColBERTModule:
-    return ColBERTModule(colbert_model, MarginMSE())
+def margin_mse_module(model_name_or_path: str) -> ColBERTModule:
+    config = ColBERTConfig.from_pretrained(model_name_or_path)
+    return ColBERTModule(model_name_or_path, config, MarginMSE())
 
 
 @pytest.fixture(scope="module")
-def ranknet_module(colbert_model: ColBERTModel) -> ColBERTModule:
-    return ColBERTModule(colbert_model, RankNet())
+def ranknet_module(model_name_or_path: str) -> ColBERTModule:
+    config = ColBERTConfig.from_pretrained(model_name_or_path)
+    return ColBERTModule(model_name_or_path, config, RankNet())
 
 
 @pytest.fixture(scope="module")
-def localized_contrastive_module(colbert_model: ColBERTModel) -> ColBERTModule:
-    return ColBERTModule(colbert_model, LocalizedContrastive())
+def localized_contrastive_module(model_name_or_path: str) -> ColBERTModule:
+    config = ColBERTConfig.from_pretrained(model_name_or_path)
+    return ColBERTModule(model_name_or_path, config, LocalizedContrastive())
 
 
 def test_colbert_margin_mse(
-    margin_mse_module: ColBERTModule, triples_datamodule: DataModule
+    margin_mse_module: ColBERTModule, triples_datamodule: MVRDataModule
 ):
     dataloader = triples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
@@ -44,7 +44,7 @@ def test_colbert_margin_mse(
 
 
 def test_colbert_ranknet(
-    ranknet_module: ColBERTModule, rank_run_datamodule: DataModule
+    ranknet_module: ColBERTModule, rank_run_datamodule: MVRDataModule
 ):
     dataloader = rank_run_datamodule.train_dataloader()
     batch = next(iter(dataloader))
@@ -54,7 +54,7 @@ def test_colbert_ranknet(
 
 def test_colbert_localized_contrastive(
     localized_contrastive_module: ColBERTModule,
-    single_relevant_run_datamodule: DataModule,
+    single_relevant_run_datamodule: MVRDataModule,
 ):
     dataloader = single_relevant_run_datamodule.train_dataloader()
     batch = next(iter(dataloader))
@@ -74,6 +74,7 @@ def test_seralize_deserialize(
             "_name_or_path",
             "_commit_hash",
             "transformers_version",
+            "model_type",
         ):
             continue
         if key == "mask_punctuation":

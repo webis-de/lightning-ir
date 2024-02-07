@@ -1,9 +1,9 @@
 import torch
 from tide.data import Batch
-from tide.datamodule import DataModule, RunDatasetConfig
+from tide.datamodule import MVRDataModule, RunDatasetConfig
 
 
-def test_rank_run_dataset(rank_run_datamodule: DataModule):
+def test_rank_run_dataset(rank_run_datamodule: MVRDataModule):
     datamodule = rank_run_datamodule
     dataloader = datamodule.train_dataloader()
     config = datamodule.train_run_config
@@ -17,7 +17,7 @@ def test_rank_run_dataset(rank_run_datamodule: DataModule):
     ).all()
 
 
-def test_relevance_run_dataset(relevance_run_datamodule: DataModule):
+def test_relevance_run_dataset(relevance_run_datamodule: MVRDataModule):
     datamodule = relevance_run_datamodule
     dataloader = datamodule.train_dataloader()
     config = datamodule.train_run_config
@@ -31,7 +31,7 @@ def test_relevance_run_dataset(relevance_run_datamodule: DataModule):
     ).any()
 
 
-def test_single_relevant_run_dataset(single_relevant_run_datamodule: DataModule):
+def test_single_relevant_run_dataset(single_relevant_run_datamodule: MVRDataModule):
     datamodule = single_relevant_run_datamodule
     dataloader = datamodule.train_dataloader()
 
@@ -40,13 +40,13 @@ def test_single_relevant_run_dataset(single_relevant_run_datamodule: DataModule)
     assert batch.relevance is None
 
 
-def test_triples_dataset(triples_datamodule: DataModule):
+def test_triples_dataset(triples_datamodule: MVRDataModule):
     dataloader = triples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     assert batch.targets.shape[0] == triples_datamodule.batch_size * 2
 
 
-def test_tokenizer(triples_datamodule: DataModule):
+def test_tokenizer(triples_datamodule: MVRDataModule):
     triples_datamodule.config.query_expansion = True
     dataloader = triples_datamodule.train_dataloader()
     batch = next(iter(dataloader))

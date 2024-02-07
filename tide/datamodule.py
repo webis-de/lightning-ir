@@ -127,10 +127,10 @@ class TriplesDataset(IRDataset, IterableDataset):
             )
 
 
-class DataModule(LightningDataModule):
+class MVRDataModule(LightningDataModule):
     def __init__(
         self,
-        model_name_or_path: str,
+        model_name_or_path: str | Path,
         config: MVRConfig | None,
         num_workers: int,
         batch_size: int,

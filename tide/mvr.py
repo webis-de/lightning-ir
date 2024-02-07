@@ -1,21 +1,21 @@
-from collections import defaultdict
 import warnings
+from abc import ABC
+from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Tuple
-from abc import ABC
 
 import torch
 from lightning import LightningModule
 from tokenizers.processors import TemplateProcessing
+from torchmetrics.functional.retrieval import (
+    retrieval_normalized_dcg,
+    retrieval_reciprocal_rank,
+)
 from transformers import (
     BatchEncoding,
     BertTokenizerFast,
     PretrainedConfig,
     PreTrainedModel,
-)
-from torchmetrics.functional.retrieval import (
-    retrieval_normalized_dcg,
-    retrieval_reciprocal_rank,
 )
 
 from tide.data import Batch
@@ -148,6 +148,8 @@ class ScoringFunction:
 
 
 class MVRConfig(PretrainedConfig):
+
+    model_type = "mvr"
 
     ADDED_ARGS = [
         "similarity_function",
@@ -483,14 +485,14 @@ class MVRTokenizer(BertTokenizerFast):
 
 
 class MVRModule(LightningModule):
-    def __init__(self, model: MVRModel, loss_function: LossFunction) -> None:
+    def __init__(self, model: MVRModel, loss_function: LossFunction | None) -> None:
         super().__init__()
         self.model: MVRModel = model
         self.encoder: PreTrainedModel = model.encoder
         self.config = self.model.config
-        self.loss_function: LossFunction = loss_function
+        self.loss_function: LossFunction | None = loss_function
         self.tokenizer: MVRTokenizer = MVRTokenizer.from_pretrained(
-            self.config.name_or_path, self.config.to_tokenizer_dict()
+            self.config.name_or_path, **self.config.to_tokenizer_dict()
         )
         if (
             self.config.add_marker_tokens
@@ -519,6 +521,8 @@ class MVRModule(LightningModule):
     def training_step(self, batch: Batch, batch_idx: int) -> torch.Tensor:
         scores = self.forward(batch)
         targets = batch.targets.view_as(scores)
+        if self.loss_function is None:
+            raise ValueError("Loss function is not set")
         loss = self.loss_function(scores, targets)
         return loss
 

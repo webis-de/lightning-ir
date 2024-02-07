@@ -4,7 +4,7 @@ import pytest
 import torch
 from transformers import BertModel
 
-from tide.datamodule import DataModule
+from tide.datamodule import MVRDataModule
 from tide.loss import LocalizedContrastive, MarginMSE, RankNet
 from tide.mvr import MVRConfig, MVRModel, MVRModule
 
@@ -51,7 +51,7 @@ def localized_contrastive_module(mvr_model: MVRModel) -> MVRModule:
     return MVRModule(mvr_model, LocalizedContrastive())
 
 
-def test_doc_padding(relevance_run_datamodule: DataModule, mvr_model: MVRModel):
+def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRModel):
     batch = next(iter(relevance_run_datamodule.train_dataloader()))
     model = mvr_model
     doc_encoding = batch.doc_encoding
@@ -98,14 +98,14 @@ def test_doc_padding(relevance_run_datamodule: DataModule, mvr_model: MVRModel):
     assert (scores == model.scoring_function.MASK_VALUE).sum() == 1
 
 
-def test_margin_mse(margin_mse_module: MVRModule, triples_datamodule: DataModule):
+def test_margin_mse(margin_mse_module: MVRModule, triples_datamodule: MVRDataModule):
     dataloader = triples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = margin_mse_module.training_step(batch, 0)
     assert loss
 
 
-def test_ranknet(ranknet_module: MVRModule, rank_run_datamodule: DataModule):
+def test_ranknet(ranknet_module: MVRModule, rank_run_datamodule: MVRDataModule):
     dataloader = rank_run_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = ranknet_module.training_step(batch, 0)
@@ -114,7 +114,7 @@ def test_ranknet(ranknet_module: MVRModule, rank_run_datamodule: DataModule):
 
 def test_localized_contrastive(
     localized_contrastive_module: MVRModule,
-    single_relevant_run_datamodule: DataModule,
+    single_relevant_run_datamodule: MVRDataModule,
 ):
     dataloader = single_relevant_run_datamodule.train_dataloader()
     batch = next(iter(dataloader))
@@ -124,7 +124,7 @@ def test_localized_contrastive(
 
 def test_validation_step(
     margin_mse_module: MVRModule,
-    relevance_run_datamodule: DataModule,
+    relevance_run_datamodule: MVRDataModule,
 ):
     dataloader = relevance_run_datamodule.val_dataloader()[0]
     batch = next(iter(dataloader))
