@@ -5,7 +5,8 @@ from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
 from lightning.pytorch.loggers import WandbLogger
 from typing_extensions import override
 
-from tide.colbert import ColBERTModule, ColBERTConfig  # noqa
+from callbacks import PredictionWriter  # noqa
+from tide.colbert import ColBERTConfig, ColBERTModule  # noqa
 from tide.datamodule import MVRDataModule  # noqa
 
 if torch.cuda.is_available():
