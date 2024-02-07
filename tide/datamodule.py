@@ -140,11 +140,13 @@ class DataModule(LightningDataModule):
         inference_run_config: RunDatasetConfig | None = None,
     ) -> None:
         super().__init__()
-        self.config = AutoConfig.from_pretrained(model_name_or_path)
+        self.config = MVRConfig.from_other(
+            AutoConfig.from_pretrained(model_name_or_path)
+        )
         if config is not None:
-            self.config.update(config.to_diff_dict())
+            self.config.update(config.to_mvr_dict())
         self.tokenizer = MVRTokenizer.from_pretrained(
-            model_name_or_path, add_marker_tokens=self.config.add_marker_tokens
+            model_name_or_path, **self.config.to_tokenizer_dict()
         )
         self.max_length = self.config.max_position_embeddings
         self.num_workers = num_workers

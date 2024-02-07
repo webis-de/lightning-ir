@@ -148,6 +148,33 @@ class ScoringFunction:
 
 
 class MVRConfig(PretrainedConfig):
+
+    ADDED_ARGS = [
+        "similarity_function",
+        "query_aggregation_function",
+        "doc_aggregation_function",
+        "query_expansion",
+        "query_length",
+        "attend_to_query_expanded_tokens",
+        "doc_expansion",
+        "doc_length",
+        "attend_to_doc_expanded_tokens",
+        "normalize",
+        "add_marker_tokens",
+        "embedding_dim",
+        "linear_bias",
+    ]
+
+    TOKENIZER_ARGS = [
+        "query_expansion",
+        "query_length",
+        "attend_to_query_expanded_tokens",
+        "doc_expansion",
+        "doc_length",
+        "attend_to_doc_expanded_tokens",
+        "add_marker_tokens",
+    ]
+
     def __init__(
         self,
         similarity_function: Literal["cosine", "l2"] = "cosine",
@@ -182,18 +209,19 @@ class MVRConfig(PretrainedConfig):
 
     def to_mvr_dict(self) -> Dict[str, Any]:
         return {
-            "similarity_function": self.similarity_function,
-            "query_aggregation_function": self.query_aggregation_function,
-            "doc_aggregation_function": self.doc_aggregation_function,
-            "query_expansion": self.query_expansion,
-            "query_length": self.query_length,
-            "doc_expansion": self.doc_expansion,
-            "doc_length": self.doc_length,
-            "normalize": self.normalize,
-            "add_marker_tokens": self.add_marker_tokens,
-            "embedding_dim": self.embedding_dim,
-            "linear_bias": self.linear_bias,
+            arg: getattr(self, arg) for arg in self.ADDED_ARGS if hasattr(self, arg)
         }
+
+    def to_tokenizer_dict(self) -> Dict[str, Any]:
+        return {arg: getattr(self, arg) for arg in self.TOKENIZER_ARGS}
+
+    @classmethod
+    def from_other(
+        cls,
+        config: PretrainedConfig,
+        **kwargs,
+    ) -> "MVRConfig":
+        return cls.from_dict({**config.to_dict(), **kwargs})
 
 
 class MVRMixin:
@@ -459,11 +487,10 @@ class MVRModule(LightningModule):
         super().__init__()
         self.model: MVRModel = model
         self.encoder: PreTrainedModel = model.encoder
-        self.config = self.encoder.config
+        self.config = self.model.config
         self.loss_function: LossFunction = loss_function
         self.tokenizer: MVRTokenizer = MVRTokenizer.from_pretrained(
-            self.config.name_or_path,
-            add_marker_tokens=self.config.add_marker_tokens,
+            self.config.name_or_path, self.config.to_tokenizer_dict()
         )
         if (
             self.config.add_marker_tokens
