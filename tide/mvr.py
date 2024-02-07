@@ -499,7 +499,7 @@ class MVRModule(LightningModule):
             and len(self.tokenizer) != self.config.vocab_size
         ):
             self.model.encoder.resize_token_embeddings(len(self.tokenizer), 8)
-        keys = MVRConfig().to_diff_dict().keys()
+        keys = MVRConfig().to_mvr_dict().keys()
         if any(not hasattr(self.config, key) for key in keys):
             raise ValueError(f"Model is missing MVR config attributes {keys}")
 
