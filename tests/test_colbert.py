@@ -94,18 +94,19 @@ def test_same_as_colbert():
 
     model = ColBERTModel.from_colbert_checkpoint("colbert-ir/colbertv2.0")
     tokenizer = MVRTokenizer.from_pretrained(
-        "colbert-ir/colbertv2.0", add_marker_tokens=True
+        "colbert-ir/colbertv2.0", **model.config.to_dict()
     )
     query_encoding = tokenizer.encode_queries(query, return_tensors="pt")
     doc_encoding = tokenizer.encode_docs(
         documents, return_tensors="pt", padding=True, truncation=True
     )
-    query_embedding = model.encode_queries(
-        query_encoding.input_ids, query_encoding.attention_mask
-    )
-    doc_embedding = model.encode_docs(
-        doc_encoding.input_ids, doc_encoding.attention_mask
-    )
+    with torch.no_grad():
+        query_embedding = model.encode_queries(
+            query_encoding.input_ids, query_encoding.attention_mask
+        )
+        doc_embedding = model.encode_docs(
+            doc_encoding.input_ids, doc_encoding.attention_mask
+        )
     scores = model.score(
         query_embedding,
         query_encoding.attention_mask,
@@ -118,10 +119,6 @@ def test_same_as_colbert():
     orig_query = orig_model.queryFromText([query])
     orig_docs = orig_model.docFromText(documents)
     d_mask = ~(orig_docs == 0).all(-1)
-    # we truncate the mask tokens, because the original model actually uses them
-    # in scoring, despite the model not being able to attend to them
-    # i.e., orig_model.colbert_config.attend_to_mask_tokens = False
-    orig_query = orig_query[:, : query_embedding.shape[1]]
     orig_scores = colbert_score(orig_query, orig_docs, d_mask)
 
     assert torch.allclose(query_embedding, orig_query)

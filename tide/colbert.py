@@ -91,10 +91,14 @@ class ColBERTModel(MVRModel, BertPreTrainedModel):
                 "similarity_function": colbert_config["similarity"],
                 "query_aggregation_function": "sum",
                 "doc_aggregation_function": "max",
-                "query_expansion": colbert_config["attend_to_mask_tokens"],
+                "query_expansion": True,
                 "query_length": colbert_config["query_maxlen"],
+                "attend_to_query_expanded_tokens": colbert_config[
+                    "attend_to_mask_tokens"
+                ],
                 "doc_expansion": False,
                 "doc_length": 512,
+                "attend_to_doc_expanded_tokens": False,
                 "normalize": True,
                 "add_marker_tokens": True,
                 "embedding_dim": colbert_config["dim"],

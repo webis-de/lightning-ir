@@ -155,8 +155,10 @@ class MVRConfig(PretrainedConfig):
         doc_aggregation_function: Literal["sum", "mean", "max"] = "max",
         query_expansion: bool = False,
         query_length: int = 32,
+        attend_to_query_expanded_tokens: bool = False,
         doc_expansion: bool = False,
         doc_length: int = 512,
+        attend_to_doc_expanded_tokens: bool = False,
         normalize: bool = True,
         add_marker_tokens: bool = True,
         embedding_dim: int = 128,
@@ -169,8 +171,10 @@ class MVRConfig(PretrainedConfig):
         self.doc_aggregation_function = doc_aggregation_function
         self.query_expansion = query_expansion
         self.query_length = query_length
+        self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
         self.doc_expansion = doc_expansion
         self.doc_length = doc_length
+        self.attend_to_doc_expanded_tokens = attend_to_doc_expanded_tokens
         self.normalize = normalize
         self.add_marker_tokens = add_marker_tokens
         self.embedding_dim = embedding_dim
@@ -257,6 +261,16 @@ class MVRMixin:
         doc_attention_mask: torch.Tensor | None,
         num_docs: List[int] | None,
     ) -> torch.Tensor:
+        query_attention_mask = (
+            torch.ones(query_embeddings.shape[:2], dtype=torch.long)
+            if self.config.query_expansion
+            else query_attention_mask
+        )
+        doc_attention_mask = (
+            torch.ones(doc_embeddings.shape[:2], dtype=torch.long)
+            if self.config.doc_expansion
+            else doc_attention_mask
+        )
         score = self.scoring_function(
             query_embeddings,
             query_attention_mask,
@@ -289,8 +303,10 @@ class MVRTokenizer(BertTokenizerFast):
         strip_accents: bool | None = None,
         query_expansion: bool = False,
         query_length: int = 32,
+        attend_to_query_expanded_tokens: bool = False,
         doc_expansion: bool = False,
         doc_length: int = 512,
+        attend_to_doc_expanded_tokens: bool = False,
         add_marker_tokens: bool = True,
         **kwargs,
     ):
@@ -307,15 +323,19 @@ class MVRTokenizer(BertTokenizerFast):
             strip_accents,
             query_expansion=query_expansion,
             query_length=query_length,
+            attend_to_query_expanded_tokens=attend_to_query_expanded_tokens,
             doc_expansion=doc_expansion,
             doc_length=doc_length,
+            attend_to_doc_expanded_tokens=attend_to_doc_expanded_tokens,
             add_marker_tokens=add_marker_tokens,
             **kwargs,
         )
         self.query_expansion = query_expansion
         self.query_length = query_length
+        self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
         self.doc_expansion = doc_expansion
         self.doc_length = doc_length
+        self.attend_to_doc_expanded_tokens = attend_to_doc_expanded_tokens
 
         self._query_token = query_token
         self._doc_token = doc_token
@@ -399,11 +419,14 @@ class MVRTokenizer(BertTokenizerFast):
         self._tokenizer.post_processor = orig_post_processor
         return encoding
 
-    def _expand(self, encoding: BatchEncoding) -> BatchEncoding:
+    def _expand(
+        self, encoding: BatchEncoding, attend_to_expanded_tokens: bool
+    ) -> BatchEncoding:
         input_ids = encoding["input_ids"]
         input_ids[input_ids == self.pad_token_id] = self.mask_token_id
         encoding["input_ids"] = input_ids
-        encoding["attention_mask"] = None
+        if attend_to_expanded_tokens:
+            encoding["attention_mask"] = None
         return encoding
 
     def encode_queries(
@@ -416,7 +439,7 @@ class MVRTokenizer(BertTokenizerFast):
             queries, post_processor=self.query_post_processor, *args, **kwargs
         )
         if self.query_expansion:
-            self._expand(encoding)
+            self._expand(encoding, self.attend_to_query_expanded_tokens)
         return encoding
 
     def encode_docs(self, docs: List[str] | str, *args, **kwargs) -> BatchEncoding:
@@ -427,7 +450,7 @@ class MVRTokenizer(BertTokenizerFast):
             docs, post_processor=self.doc_post_processor, *args, **kwargs
         )
         if self.doc_expansion:
-            self._expand(encoding)
+            self._expand(encoding, self.attend_to_doc_expanded_tokens)
         return encoding
 
 
