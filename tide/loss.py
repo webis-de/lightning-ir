@@ -36,7 +36,6 @@ class LossFunction:
 
 class MarginMSE(LossFunction):
     def __call__(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        assert logits.shape[-1] == 2
         mask = ((logits == PAD_VALUE) | (labels == PAD_VALUE)).any(-1)
         logit_diff = logits.unsqueeze(-1) - logits.unsqueeze(-2)
         label_diff = labels.unsqueeze(-1) - labels.unsqueeze(-2)
