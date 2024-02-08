@@ -1,6 +1,6 @@
 import torch
 from tide.data import Batch
-from tide.datamodule import MVRDataModule, RunDatasetConfig
+from tide.datamodule import MVRDataModule
 
 
 def test_rank_run_dataset(rank_run_datamodule: MVRDataModule):
@@ -10,10 +10,10 @@ def test_rank_run_dataset(rank_run_datamodule: MVRDataModule):
     assert config is not None
 
     batch: Batch = next(iter(dataloader))
-    assert batch.targets.shape[0] == datamodule.batch_size * config.sample_size
+    assert batch.targets.shape[0] == datamodule.train_batch_size * config.sample_size
     assert (
         batch.targets
-        == torch.arange(1, config.sample_size + 1).repeat(datamodule.batch_size)
+        == torch.arange(1, config.sample_size + 1).repeat(datamodule.train_batch_size)
     ).all()
 
 
@@ -24,10 +24,10 @@ def test_relevance_run_dataset(relevance_run_datamodule: MVRDataModule):
     assert config is not None
 
     batch: Batch = next(iter(dataloader))
-    assert batch.targets.shape[0] == datamodule.batch_size * config.sample_size
+    assert batch.targets.shape[0] == datamodule.train_batch_size * config.sample_size
     assert (
         batch.targets
-        != torch.arange(1, config.sample_size + 1).repeat(datamodule.batch_size)
+        != torch.arange(1, config.sample_size + 1).repeat(datamodule.train_batch_size)
     ).any()
 
 
@@ -36,14 +36,14 @@ def test_single_relevant_run_dataset(single_relevant_run_datamodule: MVRDataModu
     dataloader = datamodule.train_dataloader()
 
     batch: Batch = next(iter(dataloader))
-    assert (batch.targets > 0).sum() == datamodule.batch_size
+    assert (batch.targets > 0).sum() == datamodule.train_batch_size
     assert batch.relevance is None
 
 
 def test_triples_dataset(triples_datamodule: MVRDataModule):
     dataloader = triples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
-    assert batch.targets.shape[0] == triples_datamodule.batch_size * 2
+    assert batch.targets.shape[0] == triples_datamodule.train_batch_size * 2
 
 
 def test_tokenizer(triples_datamodule: MVRDataModule):

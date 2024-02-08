@@ -20,7 +20,8 @@ def rank_run_datamodule(model_name_or_path: str) -> MVRDataModule:
         model_name_or_path=model_name_or_path,
         config=MVRConfig(),
         num_workers=0,
-        batch_size=3,
+        train_batch_size=3,
+        inference_batch_size=3,
         train_dataset=str(
             Path(__file__).parent / "data" / "msmarco-passage-trec-dl-2019-judged.run"
         ),
@@ -49,7 +50,8 @@ def relevance_run_datamodule(model_name_or_path: str) -> MVRDataModule:
         model_name_or_path=model_name_or_path,
         config=MVRConfig(),
         num_workers=0,
-        batch_size=3,
+        train_batch_size=3,
+        inference_batch_size=3,
         train_dataset=str(
             Path(__file__).parent / "data" / "msmarco-passage-trec-dl-2019-judged.run"
         ),
@@ -81,7 +83,8 @@ def single_relevant_run_datamodule(model_name_or_path: str) -> MVRDataModule:
         model_name_or_path=model_name_or_path,
         config=MVRConfig(),
         num_workers=0,
-        batch_size=3,
+        train_batch_size=3,
+        inference_batch_size=3,
         train_dataset=str(
             Path(__file__).parent / "data" / "msmarco-passage-trec-dl-2019-judged.run"
         ),
@@ -108,7 +111,8 @@ def triples_datamodule(model_name_or_path: str) -> MVRDataModule:
         model_name_or_path=model_name_or_path,
         config=MVRConfig(),
         num_workers=0,
-        batch_size=3,
+        train_batch_size=3,
+        inference_batch_size=3,
         train_dataset="msmarco-passage/train/kd-docpairs",
     )
     datamodule.setup(stage="fit")

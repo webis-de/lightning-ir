@@ -132,9 +132,10 @@ class MVRDataModule(LightningDataModule):
         self,
         model_name_or_path: str | Path,
         config: MVRConfig | None,
-        num_workers: int,
-        batch_size: int,
-        train_dataset: str | None,
+        num_workers: int = 0,
+        train_batch_size: int | None = None,
+        inference_batch_size: int | None = None,
+        train_dataset: str | None = None,
         inference_datasets: Sequence[str] | None = None,
         train_run_config: RunDatasetConfig | None = None,
         inference_run_config: RunDatasetConfig | None = None,
@@ -150,8 +151,9 @@ class MVRDataModule(LightningDataModule):
         )
         self.max_length = self.config.max_position_embeddings
         self.num_workers = num_workers
-        self.batch_size = batch_size
 
+        self.train_batch_size = train_batch_size
+        self.inference_batch_size = inference_batch_size
         self.train_dataset = train_dataset
         self.inference_datasets = inference_datasets
         self.train_run_config = train_run_config
@@ -194,7 +196,7 @@ class MVRDataModule(LightningDataModule):
             raise ValueError("No training dataset found.")
         return DataLoader(
             self._train_dataset,
-            batch_size=self.batch_size,
+            batch_size=self.train_batch_size,
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
         )
@@ -209,7 +211,7 @@ class MVRDataModule(LightningDataModule):
         return [
             DataLoader(
                 dataset,
-                batch_size=self.batch_size,
+                batch_size=self.inference_batch_size,
                 num_workers=self.num_workers,
                 collate_fn=self.collate_fn,
             )
