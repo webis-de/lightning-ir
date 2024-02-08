@@ -38,8 +38,10 @@ class CustomWandbLogger(WandbLogger):
 class CustomLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
         parser.link_arguments(
-            "model.init_args.model_name_or_path",
-            "data.init_args.model_name_or_path" "model.init",
+            "model.init_args.model_name_or_path", "data.init_args.model_name_or_path"
+        )
+        parser.link_arguments(
+            "model.init_args.config", "data.init_args.config"
         )
 
 
