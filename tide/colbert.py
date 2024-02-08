@@ -7,6 +7,7 @@ import torch
 from huggingface_hub import hf_hub_download
 from transformers import AutoTokenizer, BertConfig, BertModel, BertPreTrainedModel
 
+from .flash.flash_model import FlashClassFactory
 from .loss import LossFunction
 from .mvr import MVRConfig, MVRModel, MVRModule, MVRTokenizer
 
@@ -25,7 +26,7 @@ class ColBERTConfig(BertConfig, MVRConfig):
         return mvr_dict
 
 
-class ColBERTModel(MVRModel, BertPreTrainedModel):
+class ColBERTModel(BertPreTrainedModel, MVRModel):
     def __init__(self, colbert_config: ColBERTConfig) -> None:
         super().__init__(colbert_config)
         self.bert = BertModel(colbert_config, add_pooling_layer=False)
@@ -119,6 +120,9 @@ class ColBERTModel(MVRModel, BertPreTrainedModel):
         return model
 
 
+FlashColBERTModel = FlashClassFactory(ColBERTModel)
+
+
 class ColBERTModule(MVRModule):
     def __init__(
         self,
@@ -135,7 +139,7 @@ class ColBERTModule(MVRModule):
                 raise ValueError(
                     "config initializing a new model pass a ColBERTConfig."
                 )
-            model = ColBERTModel(config)
+            model = FlashColBERTModel(config)
         else:
-            model = ColBERTModel.from_pretrained(model_name_or_path, config=config)
+            model = FlashColBERTModel.from_pretrained(model_name_or_path, config=config)
         super().__init__(model, loss_function)
