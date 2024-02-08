@@ -6,6 +6,7 @@ from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter
 
 from tide.datamodule import RUN_HEADER, MVRDataModule
+from tide.mvr import MVRModule
 
 
 class PredictionWriter(BasePredictionWriter):
@@ -39,7 +40,7 @@ class PredictionWriter(BasePredictionWriter):
     def write_on_batch_end(
         self,
         trainer: Trainer,
-        pl_module: LightningModule,
+        pl_module: MVRModule,
         prediction: Any,
         batch_indices: Optional[Sequence[int]],
         batch: Any,
@@ -66,7 +67,7 @@ class PredictionWriter(BasePredictionWriter):
             .astype(int)
         )
         run_df["q0"] = 0
-        run_df["system"] = "set_encoder"
+        run_df["system"] = pl_module.config.name_or_path
         run_df = run_df[RUN_HEADER]
         run_file_path.parent.mkdir(exist_ok=True)
         if batch_idx == 0:
