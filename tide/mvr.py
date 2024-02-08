@@ -7,10 +7,7 @@ from typing import Any, Dict, List, Literal, Tuple
 import torch
 from lightning import LightningModule
 from tokenizers.processors import TemplateProcessing
-from torchmetrics.functional.retrieval import (
-    retrieval_normalized_dcg,
-    retrieval_reciprocal_rank,
-)
+from torchmetrics.retrieval import RetrievalNormalizedDCG, RetrievalMRR
 from transformers import (
     BatchEncoding,
     BertTokenizerFast,
@@ -539,8 +536,6 @@ class MVRModule(LightningModule):
         scores = torch.nn.functional.pad(
             scores, (0, relevance.shape[-1] - scores.shape[-1])
         )
-        ndcg = retrieval_normalized_dcg(scores, relevance, top_k=10)
-        mrr = retrieval_reciprocal_rank(scores, relevance.clamp(0, 1), top_k=depth)
         dataset_name = ""
         first_stage = ""
         try:
@@ -552,12 +547,19 @@ class MVRModule(LightningModule):
         except RuntimeError:
             pass
 
-        self.validation_step_outputs.append(
-            (f"{first_stage}{dataset_name}ndcg@10", ndcg)
+        metrics = (
+            RetrievalNormalizedDCG(top_k=10, aggregation=lambda x, dim: x),
+            RetrievalMRR(top_k=depth, aggregation=lambda x, dim: x),
         )
-        self.validation_step_outputs.append(
-            (f"{first_stage}{dataset_name}mrr@ranking", mrr)
-        )
+        for metric_name, metric in zip(("ndcg@10", "mrr@ranking"), (metrics)):
+            value = metric(
+                scores,
+                relevance.clamp(0, 1) if "mrr" in metric_name else relevance,
+                torch.arange(scores.shape[0])[:, None].expand_as(scores),
+            )
+            self.validation_step_outputs.append(
+                (f"{first_stage}{dataset_name}{metric_name}", value)
+            )
 
     def on_validation_epoch_end(self) -> None:
         aggregated = defaultdict(list)
