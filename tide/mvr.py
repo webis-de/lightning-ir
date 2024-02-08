@@ -521,6 +521,7 @@ class MVRModule(LightningModule):
         if self.loss_function is None:
             raise ValueError("Loss function is not set")
         loss = self.loss_function(scores, targets)
+        self.log("loss", loss, prog_bar=True)
         return loss
 
     def validation_step(
