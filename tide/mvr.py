@@ -308,7 +308,7 @@ class MVRMixin:
         return score
 
 
-class MVRModel(ABC, MVRMixin):
+class MVRModel(MVRMixin, PreTrainedModel, ABC):
     pass
 
 
@@ -576,11 +576,11 @@ class MVRModule(LightningModule):
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         if self.trainer is not None and self.trainer.log_dir is not None:
-            if self.trainer.global_rank != 0:
+            if not self.trainer.training or self.trainer.global_rank != 0:
                 return
             step = self.trainer.global_step
             self.config.save_step = step
             log_dir = Path(self.trainer.log_dir)
             save_path = log_dir / "huggingface_checkpoint"
-            self.encoder.save_pretrained(save_path)
+            self.model.save_pretrained(save_path)
             self.tokenizer.save_pretrained(save_path)
