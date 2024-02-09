@@ -16,7 +16,7 @@ if torch.cuda.is_available():
 class CustomSaveConfigCallback(SaveConfigCallback):
     @override
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
-        if stage == "predict":
+        if stage != "fit" or trainer.logger is None:
             return
         return super().setup(trainer, pl_module, stage)
 
