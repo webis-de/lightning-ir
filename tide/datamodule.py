@@ -41,7 +41,7 @@ class RunDataset(IRDataset, Dataset):
         run_dataset: Path,
         config: RunDatasetConfig,
     ) -> None:
-        super().__init__(DASHED_DATASET_MAP[run_dataset.stem])
+        super().__init__(DASHED_DATASET_MAP[run_dataset.stem.split("__")[-1]])
         self.run = pd.read_csv(
             run_dataset,
             sep=r"\s+",
@@ -149,7 +149,6 @@ class MVRDataModule(LightningDataModule):
         self.tokenizer = MVRTokenizer.from_pretrained(
             model_name_or_path, **self.config.to_tokenizer_dict()
         )
-        self.max_length = self.config.max_position_embeddings
         self.num_workers = num_workers
 
         self.train_batch_size = train_batch_size
@@ -239,14 +238,14 @@ class MVRDataModule(LightningDataModule):
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=self.max_length,
+            max_length=self.config.query_length,
         )
         doc_encoding = self.tokenizer.encode_docs(
             docs,
             return_tensors="pt",
             padding=True,
             truncation=True,
-            max_length=self.max_length,
+            max_length=self.config.doc_length,
         )
         targets = torch.tensor(targets)
         if relevances:
