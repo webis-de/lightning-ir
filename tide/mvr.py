@@ -462,7 +462,7 @@ class MVRTokenizer(BertTokenizerFast):
             encoding["attention_mask"] = None
         return encoding
 
-    def encode_queries(
+    def tokenize_queries(
         self, queries: List[str] | str, *args, **kwargs
     ) -> BatchEncoding:
         if self.query_expansion:
@@ -475,7 +475,7 @@ class MVRTokenizer(BertTokenizerFast):
             self._expand(encoding, self.attend_to_query_expanded_tokens)
         return encoding
 
-    def encode_docs(self, docs: List[str] | str, *args, **kwargs) -> BatchEncoding:
+    def tokenize_docs(self, docs: List[str] | str, *args, **kwargs) -> BatchEncoding:
         if self.doc_expansion:
             kwargs["max_length"] = self.doc_length
             kwargs["padding"] = "max_length"
