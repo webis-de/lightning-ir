@@ -11,8 +11,8 @@ from tide.mvr import MVRConfig, MVRModel, MVRModule
 
 class TestModel(MVRModel):
     def __init__(self, model_name_or_path: Path | str) -> None:
-        super().__init__()
-        self.config = MVRConfig.from_pretrained(model_name_or_path)
+        config = MVRConfig.from_pretrained(model_name_or_path)
+        super().__init__(config)
         self.bert = BertModel.from_pretrained(
             model_name_or_path, config=self.config, add_pooling_layer=False
         )
@@ -36,6 +36,13 @@ def mvr_model(model_name_or_path: str) -> MVRModel:
     return TestModel(model_name_or_path)
 
 
+@pytest.fixture()
+def xtr_model(model_name_or_path: str) -> MVRModel:
+    model = TestModel(model_name_or_path)
+    model.config.in_batch_k = 32
+    return model
+
+
 @pytest.fixture(scope="module")
 def margin_mse_module(mvr_model: MVRModel) -> MVRModule:
     return MVRModule(mvr_model, MarginMSE())
@@ -49,6 +56,16 @@ def ranknet_module(mvr_model: MVRModel) -> MVRModule:
 @pytest.fixture(scope="module")
 def localized_contrastive_module(mvr_model: MVRModel) -> MVRModule:
     return MVRModule(mvr_model, LocalizedContrastive())
+
+
+@pytest.fixture()
+def in_batch_negatives_module(mvr_model: MVRModel) -> MVRModule:
+    return MVRModule(mvr_model, MarginMSE(in_batch_negatives=True))
+
+
+@pytest.fixture()
+def xtr_module(xtr_model: MVRModel) -> MVRModule:
+    return MVRModule(xtr_model, MarginMSE())
 
 
 def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRModel):
@@ -119,6 +136,22 @@ def test_localized_contrastive(
     dataloader = single_relevant_run_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = localized_contrastive_module.training_step(batch, 0)
+    assert loss
+
+
+def test_in_batch_negatives(
+    in_batch_negatives_module: MVRModule, triples_datamodule: MVRDataModule
+):
+    dataloader = triples_datamodule.train_dataloader()
+    batch = next(iter(dataloader))
+    loss = in_batch_negatives_module.training_step(batch, 0)
+    assert loss
+
+
+def test_xtr(xtr_module: MVRModule, triples_datamodule: MVRDataModule):
+    dataloader = triples_datamodule.train_dataloader()
+    batch = next(iter(dataloader))
+    loss = xtr_module.training_step(batch, 0)
     assert loss
 
 

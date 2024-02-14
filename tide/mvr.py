@@ -27,6 +27,7 @@ class ScoringFunction:
         similarity_function: Literal["cosine", "l2", "dot"],
         query_aggregation_function: Literal["sum", "mean", "max"],
         doc_aggregation_function: Literal["sum", "mean", "max"],
+        in_batch_k: int | None = None,
     ) -> None:
         if similarity_function == "cosine":
             self.similarity_function = self.cosine_similarity
@@ -136,6 +137,15 @@ class ScoringFunction:
             )
 
         similarity = self.similarity_function(query_embeddings, doc_embeddings)
+
+        if self.in_batch_k is not None:
+            ib_similarity = similarity.transpose(1, 2).reshape(
+                batch_size, query_len, -1
+            )
+            top_k_similarity = ib_similarity.topk(self.in_batch_k, dim=-1)
+            cut_off_similarity = top_k_similarity.values[..., -1]
+            similarity[similarity < cut_off_similarity[:, None, :, None]] = 0
+
         if query_attention_mask is not None:
             query_mask = ~query_attention_mask.bool().expand_as(similarity)
             similarity[query_mask] = self.MASK_VALUE
@@ -158,6 +168,7 @@ class MVRConfig(PretrainedConfig):
         "similarity_function",
         "query_aggregation_function",
         "doc_aggregation_function",
+        "in_batch_k",
         "query_expansion",
         "query_length",
         "attend_to_query_expanded_tokens",
@@ -185,6 +196,7 @@ class MVRConfig(PretrainedConfig):
         similarity_function: Literal["cosine", "l2", "dot"] = "dot",
         query_aggregation_function: Literal["sum", "mean", "max"] = "sum",
         doc_aggregation_function: Literal["sum", "mean", "max"] = "max",
+        in_batch_k: int | None = None,
         query_expansion: bool = False,
         query_length: int = 32,
         attend_to_query_expanded_tokens: bool = False,
@@ -201,6 +213,7 @@ class MVRConfig(PretrainedConfig):
         self.similarity_function = similarity_function
         self.query_aggregation_function = query_aggregation_function
         self.doc_aggregation_function = doc_aggregation_function
+        self.in_batch_k = in_batch_k
         self.query_expansion = query_expansion
         self.query_length = query_length
         self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
@@ -241,6 +254,7 @@ class MVRMixin:
             self.config.similarity_function,
             self.config.query_aggregation_function,
             self.config.doc_aggregation_function,
+            self.config.in_batch_k,
         )
 
     def search(
