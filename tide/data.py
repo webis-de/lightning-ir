@@ -101,7 +101,7 @@ def register_colbert_docpairs():
             "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/"
             "resolve/main/examples.json?download=true"
         ),
-        "expected_md5": "4d99696386f96a7f1631076bcc53ac3c",
+        "expected_md5": "8be0c71e330ac54dcd77fba058d291c7",
         "cache_path": "train/colbert-docpairs",
     }
     ir_dataset = ir_datasets.load("msmarco-passage/train")
