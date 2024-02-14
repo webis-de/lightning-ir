@@ -111,7 +111,7 @@ class ScoringFunction:
         query_attention_mask: torch.Tensor | None,
         doc_embeddings: torch.Tensor,
         doc_attention_mask: torch.Tensor | None,
-        num_docs: List[int] | int | None,
+        num_docs: int | List[int] | None,
     ) -> torch.Tensor:
         batch_size, query_len, embedding_dim = query_embeddings.shape
 
@@ -292,7 +292,7 @@ class MVRMixin:
         query_attention_mask: torch.Tensor | None,
         doc_embeddings: torch.Tensor,
         doc_attention_mask: torch.Tensor | None,
-        num_docs: List[int] | None,
+        num_docs: List[int] | int | None,
     ) -> torch.Tensor:
         query_attention_mask = (
             torch.ones(query_embeddings.shape[:2], dtype=torch.long)
@@ -508,10 +508,20 @@ class MVRModule(LightningModule):
 
         self.validation_step_outputs = []
 
-    def forward(self, batch: Batch):
-        query_embeddings = self.model.encode_queries(**batch.query_encoding)
-        doc_embeddings = self.model.encode_docs(**batch.doc_encoding)
-        num_docs = [len(docs) for docs in batch.doc_ids]
+    def encode(self, batch: Batch) -> Tuple[torch.Tensor, torch.Tensor]:
+        query_encoding = self.model.encode_queries(**batch.query_encoding)
+        doc_encoding = self.model.encode_docs(**batch.doc_encoding)
+        return query_encoding, doc_encoding
+
+    def score(
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+        batch: Batch,
+        num_docs: List[int] | int | None = None,
+    ) -> torch.Tensor:
+        if num_docs is None:
+            num_docs = [len(docs) for docs in batch.doc_ids]
         scores = self.model.score(
             query_embeddings,
             batch.query_encoding.attention_mask,
@@ -521,12 +531,44 @@ class MVRModule(LightningModule):
         )
         return scores
 
+    def forward(self, batch: Batch) -> torch.Tensor:
+        query_embeddings, doc_embeddings = self.encode(batch)
+        scores = self.score(query_embeddings, doc_embeddings, batch)
+        return scores
+
     def training_step(self, batch: Batch, batch_idx: int) -> torch.Tensor:
-        scores = self.forward(batch)
-        targets = batch.targets.view_as(scores)
         if self.loss_function is None:
             raise ValueError("Loss function is not set")
-        loss = self.loss_function(scores, targets)
+        query_embeddings, doc_embeddings = self.encode(batch)
+        num_docs = None
+        batch_size = query_embeddings.shape[0]
+        if self.loss_function.in_batch_negatives:
+            # repeat docs and attention mask
+            doc_embeddings = doc_embeddings.repeat(batch_size, 1, 1)
+            num_docs = doc_embeddings.shape[0] // batch_size
+            attention_mask = batch.doc_encoding.attention_mask
+            if attention_mask is not None:
+                attention_mask = attention_mask.repeat(batch_size, 1)
+                batch.doc_encoding["attention_mask"] = attention_mask
+        scores = self.score(query_embeddings, doc_embeddings, batch, num_docs)
+        ib_loss = None
+        if self.loss_function.in_batch_negatives:
+            # grab in-batch scores
+            ib_scores = scores
+            num_docs = scores.shape[1]
+            num_ib_docs = num_docs // batch_size
+            ib_idcs = (
+                (torch.arange(batch_size).repeat_interleave(num_ib_docs) * num_docs)
+                + torch.arange(num_ib_docs).repeat(batch_size)
+                + torch.arange(batch_size)
+                .multiply(num_ib_docs)
+                .repeat_interleave(num_ib_docs)
+            )
+            scores = ib_scores.view(-1)[ib_idcs].view(batch_size, num_ib_docs)
+            ib_loss = self.loss_function.compute_in_batch_negative_loss(ib_scores)
+        targets = batch.targets.view_as(scores)
+        loss = self.loss_function.compute_loss(scores, targets)
+        loss = loss + ib_loss if ib_loss is not None else loss
         self.log("loss", loss, prog_bar=True)
         return loss
 
