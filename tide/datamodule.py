@@ -233,14 +233,14 @@ class MVRDataModule(LightningDataModule):
             targets.extend(sample.targets)
             if sample.relevance is not None:
                 relevances.append(torch.tensor(sample.relevance))
-        query_encoding = self.tokenizer.encode_queries(
+        query_encoding = self.tokenizer.tokenize_queries(
             queries,
             return_tensors="pt",
             padding=True,
             truncation=True,
             max_length=self.config.query_length,
         )
-        doc_encoding = self.tokenizer.encode_docs(
+        doc_encoding = self.tokenizer.tokenize_docs(
             docs,
             return_tensors="pt",
             padding=True,

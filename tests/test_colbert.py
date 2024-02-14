@@ -97,15 +97,15 @@ def test_same_as_colbert():
     tokenizer = MVRTokenizer.from_pretrained(
         "colbert-ir/colbertv2.0", **model.config.to_dict()
     )
-    query_encoding = tokenizer.encode_queries(query, return_tensors="pt")
-    doc_encoding = tokenizer.encode_docs(
+    query_encoding = tokenizer.tokenize_queries(query, return_tensors="pt")
+    doc_encoding = tokenizer.tokenize_docs(
         documents, return_tensors="pt", padding=True, truncation=True
     )
     with torch.no_grad():
-        query_embedding = model.encode_queries(
+        query_embedding = model.tokenize_queries(
             query_encoding.input_ids, query_encoding.attention_mask
         )
-        doc_embedding = model.encode_docs(
+        doc_embedding = model.tokenize_docs(
             doc_encoding.input_ids, doc_encoding.attention_mask
         )
     scores = model.score(

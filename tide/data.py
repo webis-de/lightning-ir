@@ -1,4 +1,5 @@
 import codecs
+import json
 from typing import NamedTuple, Tuple
 
 import ir_datasets
@@ -38,6 +39,34 @@ class KDDocPairs(BaseDocPairs):
         return ScoredDocPair
 
 
+class ScoredDocTuple(NamedTuple):
+    query_id: str
+    doc_ids: Tuple[str, ...]
+    scores: Tuple[float, ...]
+    num_docs: int
+
+
+class ScoredDocTuples(BaseDocPairs):
+    def __init__(self, docpairs_dlc):
+        self._docpairs_dlc = docpairs_dlc
+
+    def docpairs_path(self):
+        return self._docpairs_dlc.path()
+
+    def docpairs_iter(self):
+        with self._docpairs_dlc.stream() as f:
+            f = codecs.getreader("utf8")(f)
+            for line in f:
+                data = json.loads(line)
+                qid, *doc_data = data
+                pids, scores = zip(*doc_data)
+                pids = tuple(str(pid) for pid in pids)
+                yield ScoredDocTuple(str(qid), tuple(pids), tuple(scores), len(pids))
+
+    def docpairs_cls(self):
+        return ScoredDocTuple
+
+
 def register_kd_docpairs():
     if "msmarco-passage/train/kd-docpairs" in ir_datasets.registry._registered:
         return
@@ -62,7 +91,34 @@ def register_kd_docpairs():
     ir_datasets.registry.register("msmarco-passage/train/kd-docpairs", Dataset(dataset))
 
 
+def register_colbert_docpairs():
+    if "msmarco-passage/train/colbert-docpairs" in ir_datasets.registry._registered:
+        return
+    base_path = ir_datasets.util.home_path() / "msmarco-passage"
+    dlc = DownloadConfig.context("msmarco-passage", base_path)
+    dlc._contents["train/colbert-docpairs"] = {
+        "url": (
+            "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/"
+            "resolve/main/examples.json?download=true"
+        ),
+        "expected_md5": "4d99696386f96a7f1631076bcc53ac3c",
+        "cache_path": "train/colbert-docpairs",
+    }
+    ir_dataset = ir_datasets.load("msmarco-passage/train")
+    collection = ir_dataset.docs_handler()
+    queries = ir_dataset.queries_handler()
+    qrels = ir_dataset.qrels_handler()
+    docpairs = ScoredDocTuples(
+        Cache(dlc["train/colbert-docpairs"], base_path / "train" / "colbert_64way.json")
+    )
+    dataset = Dataset(collection, queries, qrels, docpairs)
+    ir_datasets.registry.register(
+        "msmarco-passage/train/colbert-docpairs", Dataset(dataset)
+    )
+
+
 register_kd_docpairs()
+register_colbert_docpairs()
 
 
 class Sample(NamedTuple):
