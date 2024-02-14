@@ -5,7 +5,7 @@ from typing import Any, Dict
 
 import torch
 from huggingface_hub import hf_hub_download
-from transformers import AutoTokenizer, BertConfig, BertModel, BertPreTrainedModel
+from transformers import AutoTokenizer, BertConfig, BertModel, BertPreTrainedModel, AutoModel, AutoConfig
 
 from .flash.flash_model import FlashClassFactory
 from .loss import LossFunction
@@ -27,6 +27,8 @@ class ColBERTConfig(BertConfig, MVRConfig):
 
 
 class ColBERTModel(BertPreTrainedModel, MVRModel):
+    config_class = ColBERTConfig
+
     def __init__(self, colbert_config: ColBERTConfig) -> None:
         super().__init__(colbert_config)
         self.bert = BertModel(colbert_config, add_pooling_layer=False)
@@ -143,3 +145,7 @@ class ColBERTModule(MVRModule):
         else:
             model = FlashColBERTModel.from_pretrained(model_name_or_path, config=config)
         super().__init__(model, loss_function)
+
+
+AutoConfig.register("colbert", ColBERTConfig)
+AutoModel.register(ColBERTConfig, ColBERTModel)
