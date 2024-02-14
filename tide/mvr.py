@@ -24,7 +24,7 @@ class ScoringFunction:
 
     def __init__(
         self,
-        similarity_function: Literal["cosine", "l2"],
+        similarity_function: Literal["cosine", "l2", "dot"],
         query_aggregation_function: Literal["sum", "mean", "max"],
         doc_aggregation_function: Literal["sum", "mean", "max"],
     ) -> None:
@@ -32,17 +32,23 @@ class ScoringFunction:
             self.similarity_function = self.cosine_similarity
         elif similarity_function == "l2":
             self.similarity_function = self.l2_similarity
+        elif similarity_function == "dot":
+            self.similarity_function = self.dot_similarity
         else:
             raise ValueError(f"Unknown similarity function {similarity_function}")
         self.query_aggregation_function = query_aggregation_function
         self.doc_aggregation_function = doc_aggregation_function
+        self.in_batch_k = in_batch_k
 
     def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
+        return torch.nn.functional.cosine_similarity(x, y, dim=-1)
 
     def l2_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         # TODO untested
         return 1 - torch.dist(x, y)
+
+    def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
     def aggregate(
         self,
@@ -176,7 +182,7 @@ class MVRConfig(PretrainedConfig):
 
     def __init__(
         self,
-        similarity_function: Literal["cosine", "l2"] = "cosine",
+        similarity_function: Literal["cosine", "l2", "dot"] = "dot",
         query_aggregation_function: Literal["sum", "mean", "max"] = "sum",
         doc_aggregation_function: Literal["sum", "mean", "max"] = "max",
         query_expansion: bool = False,
