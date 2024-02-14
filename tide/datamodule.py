@@ -29,7 +29,7 @@ class IRDataset:
 
 
 class RunDatasetConfig(NamedTuple):
-    targets: Literal["relevance", "rank"]
+    targets: Literal["relevance", "rank", "score"]
     depth: int
     sample_size: int
     sampling_strategy: Literal["single_relevant", "top"]
