@@ -486,6 +486,7 @@ class MVRModule(LightningModule):
         super().__init__()
         self.model: MVRModel = model
         self.encoder: PreTrainedModel = model.encoder
+        self.encoder.embeddings.position_embeddings.requires_grad_(False)
         self.config = self.model.config
         self.loss_function: LossFunction | None = loss_function
         self.tokenizer: MVRTokenizer = MVRTokenizer.from_pretrained(
