@@ -316,14 +316,14 @@ class MVRMixin:
             if self.config.doc_expansion
             else doc_attention_mask
         )
-        score = self.scoring_function(
+        scores = self.scoring_function(
             query_embeddings,
             query_attention_mask,
             doc_embeddings,
             doc_attention_mask,
             num_docs,
         )
-        return score
+        return scores
 
 
 class MVRModel(MVRMixin, PreTrainedModel, ABC):
