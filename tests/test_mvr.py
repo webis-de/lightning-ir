@@ -115,8 +115,8 @@ def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRMode
     assert (scores == model.scoring_function.MASK_VALUE).sum() == 1
 
 
-def test_margin_mse(margin_mse_module: MVRModule, triples_datamodule: MVRDataModule):
-    dataloader = triples_datamodule.train_dataloader()
+def test_margin_mse(margin_mse_module: MVRModule, tuples_datamodule: MVRDataModule):
+    dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = margin_mse_module.training_step(batch, 0)
     assert loss
@@ -140,16 +140,16 @@ def test_localized_contrastive(
 
 
 def test_in_batch_negatives(
-    in_batch_negatives_module: MVRModule, triples_datamodule: MVRDataModule
+    in_batch_negatives_module: MVRModule, tuples_datamodule: MVRDataModule
 ):
-    dataloader = triples_datamodule.train_dataloader()
+    dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = in_batch_negatives_module.training_step(batch, 0)
     assert loss
 
 
-def test_xtr(xtr_module: MVRModule, triples_datamodule: MVRDataModule):
-    dataloader = triples_datamodule.train_dataloader()
+def test_xtr(xtr_module: MVRModule, tuples_datamodule: MVRDataModule):
+    dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = xtr_module.training_step(batch, 0)
     assert loss
