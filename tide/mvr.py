@@ -139,12 +139,10 @@ class ScoringFunction:
         similarity = self.similarity_function(query_embeddings, doc_embeddings)
 
         if self.in_batch_k is not None:
-            ib_similarity = similarity.transpose(1, 2).reshape(
-                batch_size, query_len, -1
-            )
+            ib_similarity = similarity.permute(2, 0, 1, 3).reshape(query_len, -1)
             top_k_similarity = ib_similarity.topk(self.in_batch_k, dim=-1)
             cut_off_similarity = top_k_similarity.values[..., -1]
-            similarity[similarity < cut_off_similarity[:, None, :, None]] = 0
+            similarity[similarity < cut_off_similarity[:, None]] = 0
 
         if query_attention_mask is not None:
             query_mask = ~query_attention_mask.bool().expand_as(similarity)
