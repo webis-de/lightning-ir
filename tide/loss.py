@@ -129,7 +129,7 @@ class KLDivergence(LossFunction):
     def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         mask = (labels == PAD_VALUE) | (logits == PAD_VALUE)
         logits = torch.nn.functional.log_softmax(logits, dim=-1)
-        labels = torch.nn.functional.log_softmax(labels, dim=-1)
+        labels = torch.nn.functional.log_softmax(labels.to(logits), dim=-1)
         loss = torch.nn.functional.kl_div(
             logits, labels.to(logits), reduction="none", log_target=True
         )
