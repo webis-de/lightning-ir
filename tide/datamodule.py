@@ -35,6 +35,10 @@ class RunDatasetConfig(NamedTuple):
     sampling_strategy: Literal["single_relevant", "top"]
 
 
+class TupleDatasetConfig(NamedTuple):
+    num_docs: int | None
+
+
 class RunDataset(IRDataset, Dataset):
     def __init__(
         self,
@@ -104,26 +108,32 @@ class RunDataset(IRDataset, Dataset):
         return Sample(query_id, query, doc_ids, docs, targets, relevance)
 
 
-class TriplesDataset(IRDataset, IterableDataset):
-    def __init__(self, triples_dataset: str) -> None:
-        super().__init__(triples_dataset)
+class TuplesDataset(IRDataset, IterableDataset):
+    def __init__(self, tuples_dataset: str, config: TupleDatasetConfig) -> None:
+        super().__init__(tuples_dataset)
+        self.config = config
 
     def __iter__(self) -> Iterator[Sample]:
-        for doc in self.dataset.docpairs_iter():
-            query_id = doc.query_id
-            doc_id_a = doc.doc_id_a
-            doc_id_b = doc.doc_id_b
-            score_a = doc.score_a if hasattr(doc, "score_a") else 1
-            score_b = doc.score_b if hasattr(doc, "score_b") else 0
-            doc_a = self.docs.get(doc_id_a).default_text()
-            doc_b = self.docs.get(doc_id_b).default_text()
+        for sample in self.dataset.docpairs_iter():
+            query_id = sample.query_id
             query = self.queries.loc[query_id]
+
+            doc_ids = sample.doc_ids[: self.config.num_docs]
+            docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
+
+            scores = (
+                sample.scores
+                if sample.scores is not None
+                else tuple([1.0] + [0.0] * sample.num_docs)
+            )
+            scores = scores[: self.config.num_docs]
+
             yield Sample(
                 query_id,
                 query,
-                (doc_id_a, doc_id_b),
-                (doc_a, doc_b),
-                (score_a, score_b),
+                doc_ids,
+                docs,
+                scores,
             )
 
 
@@ -136,9 +146,9 @@ class MVRDataModule(LightningDataModule):
         train_batch_size: int | None = None,
         inference_batch_size: int | None = None,
         train_dataset: str | None = None,
+        train_dataset_config: RunDatasetConfig | TupleDatasetConfig | None = None,
         inference_datasets: Sequence[str] | None = None,
-        train_run_config: RunDatasetConfig | None = None,
-        inference_run_config: RunDatasetConfig | None = None,
+        inference_dataset_config: RunDatasetConfig | None = None,
     ) -> None:
         super().__init__()
         self.config = MVRConfig.from_other(
@@ -155,39 +165,36 @@ class MVRDataModule(LightningDataModule):
         self.inference_batch_size = inference_batch_size
         self.train_dataset = train_dataset
         self.inference_datasets = inference_datasets
-        self.train_run_config = train_run_config
-        self.inference_run_config = inference_run_config
+        self.train_dataset_config = train_dataset_config
+        self.inference_dataset_config = inference_dataset_config
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            if self.train_dataset is None:
-                raise ValueError("A training dataset must be provided.")
-            if Path(self.train_dataset).suffix == ".run":
-                if self.train_run_config is None:
-                    raise ValueError(
-                        "A train RunDatasetConfig must be provided when using a "
-                        "run file for training."
-                    )
+            if self.train_dataset is None or self.train_dataset_config is None:
+                raise ValueError("A training dataset and config must be provided.")
+            if isinstance(self.train_dataset_config, RunDatasetConfig):
                 self._train_dataset = RunDataset(
-                    Path(self.train_dataset), self.train_run_config
+                    Path(self.train_dataset), self.train_dataset_config
                 )
             else:
-                self._train_dataset = TriplesDataset(self.train_dataset)
+                self._train_dataset = TuplesDataset(
+                    self.train_dataset, self.train_dataset_config
+                )
         self._inference_datasets = []
         if self.inference_datasets is not None:
-            if self.inference_run_config is None:
+            if self.inference_dataset_config is None:
                 raise ValueError(
                     "An inference RunDatasetConfig must be provided when "
                     "providing a inference datasets."
                 )
-            if self.inference_run_config.sampling_strategy == "single_relevant":
+            if self.inference_dataset_config.sampling_strategy == "single_relevant":
                 raise ValueError(
                     "Inference RunDatasetConfig cannot use the single_relevant "
                     "sampling strategy."
                 )
             for dataset in self.inference_datasets:
                 self._inference_datasets.append(
-                    RunDataset(Path(dataset), self.inference_run_config)
+                    RunDataset(Path(dataset), self.inference_dataset_config)
                 )
 
     def train_dataloader(self) -> DataLoader:

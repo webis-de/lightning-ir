@@ -35,9 +35,9 @@ def localized_contrastive_module(model_name_or_path: str) -> ColBERTModule:
 
 
 def test_colbert_margin_mse(
-    margin_mse_module: ColBERTModule, triples_datamodule: MVRDataModule
+    margin_mse_module: ColBERTModule, tuples_datamodule: MVRDataModule
 ):
-    dataloader = triples_datamodule.train_dataloader()
+    dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = margin_mse_module.training_step(batch, 0)
     assert loss
@@ -102,10 +102,10 @@ def test_same_as_colbert():
         documents, return_tensors="pt", padding=True, truncation=True
     )
     with torch.no_grad():
-        query_embedding = model.tokenize_queries(
+        query_embedding = model.encode_queries(
             query_encoding.input_ids, query_encoding.attention_mask
         )
-        doc_embedding = model.tokenize_docs(
+        doc_embedding = model.encode_docs(
             doc_encoding.input_ids, doc_encoding.attention_mask
         )
     scores = model.score(
