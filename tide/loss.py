@@ -47,29 +47,10 @@ class LossFunction(ABC):
         raise ValueError(f"Unknown reduction {self.reduction}")
 
     def compute_in_batch_negative_loss(self, logits: torch.Tensor) -> torch.Tensor:
-        # softmax cross entropy over in-batch negatives
-        batch_size, num_docs = logits.shape
-        num_ib_docs = num_docs // batch_size
-        num_ob_docs = num_docs - num_ib_docs
-        mask = logits.eq(PAD_VALUE)
-        logits = logits.masked_fill(mask, torch.finfo(logits.dtype).min)
-        logits = logits - logits.max(dim=1, keepdim=True).values
-        exp_logits = logits.exp().view(-1)
-        ib_idcs = (
-            (torch.arange(batch_size).repeat_interleave(num_ib_docs) * num_docs)
-            + torch.arange(num_ib_docs).repeat(batch_size)
-            + torch.arange(batch_size)
-            .multiply(num_ib_docs)
-            .repeat_interleave(num_ib_docs)
-        )
-        all_idcs = torch.arange(logits.numel())
-        ob_idcs = all_idcs[all_idcs.not_equal(ib_idcs[:, None]).all(0)]
-        ib_exp_logits = exp_logits[ib_idcs].view(batch_size, num_ib_docs)
-        ob_exp_logits = exp_logits[ob_idcs].view(batch_size, num_ob_docs)
-        denominator = ib_exp_logits + ob_exp_logits.sum(dim=1, keepdim=True)
-        loss = -torch.log(ib_exp_logits / denominator)
-        mask = mask.view(-1)[ib_idcs].view(batch_size, num_ib_docs)
-        return self.aggregate(loss, mask)
+        # TODO maybe need mask, but probably not?!
+        labels = torch.arange(logits.shape[0], device=logits.device)
+        loss = torch.nn.functional.cross_entropy(logits, labels, reduction="none")
+        return self.aggregate(loss)
 
 
 class MarginMSE(LossFunction):

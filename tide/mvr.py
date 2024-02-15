@@ -553,34 +553,25 @@ class MVRModule(LightningModule):
         if self.loss_function is None:
             raise ValueError("Loss function is not set")
         query_embeddings, doc_embeddings = self.encode(batch)
-        num_docs = None
-        batch_size = query_embeddings.shape[0]
-        if self.loss_function.in_batch_negatives:
-            # repeat docs and attention mask
-            doc_embeddings = doc_embeddings.repeat(batch_size, 1, 1)
-            num_docs = doc_embeddings.shape[0] // batch_size
-            attention_mask = batch.doc_encoding.attention_mask
-            if attention_mask is not None:
-                attention_mask = attention_mask.repeat(batch_size, 1)
-                batch.doc_encoding["attention_mask"] = attention_mask
-        scores = self.score(query_embeddings, doc_embeddings, batch, num_docs)
+        scores = self.score(query_embeddings, doc_embeddings, batch)
+        targets = batch.targets.view_as(scores)
+        loss = self.loss_function.compute_loss(scores, targets)
         ib_loss = None
         if self.loss_function.in_batch_negatives:
             # grab in-batch scores
-            ib_scores = scores
-            num_docs = scores.shape[1]
-            num_ib_docs = num_docs // batch_size
-            ib_idcs = (
-                (torch.arange(batch_size).repeat_interleave(num_ib_docs) * num_docs)
-                + torch.arange(num_ib_docs).repeat(batch_size)
-                + torch.arange(batch_size)
-                .multiply(num_ib_docs)
-                .repeat_interleave(num_ib_docs)
+            batch_size = query_embeddings.shape[0]
+            num_docs = doc_embeddings.shape[0] // batch_size
+            doc_idcs = torch.arange(0, doc_embeddings.shape[0], num_docs)
+            doc_embeddings = doc_embeddings[doc_idcs].repeat(
+                query_embeddings.shape[0], 1, 1
             )
-            scores = ib_scores.view(-1)[ib_idcs].view(batch_size, num_ib_docs)
+            if batch.doc_encoding.attention_mask is not None:
+                attention_mask = batch.doc_encoding.attention_mask[doc_idcs].repeat(
+                    query_embeddings.shape[0], 1
+                )
+                batch.doc_encoding["attention_mask"] = attention_mask
+            ib_scores = self.score(query_embeddings, doc_embeddings, batch, batch_size)
             ib_loss = self.loss_function.compute_in_batch_negative_loss(ib_scores)
-        targets = batch.targets.view_as(scores)
-        loss = self.loss_function.compute_loss(scores, targets)
         loss = loss + ib_loss if ib_loss is not None else loss
         self.log("loss", loss, prog_bar=True)
         return loss
