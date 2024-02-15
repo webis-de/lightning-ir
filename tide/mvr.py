@@ -27,7 +27,7 @@ class ScoringFunction:
         similarity_function: Literal["cosine", "l2", "dot"],
         query_aggregation_function: Literal["sum", "mean", "max"],
         doc_aggregation_function: Literal["sum", "mean", "max"],
-        in_batch_k: int | None = None,
+        xtr_token_retrieval_k: int | None = None,
     ) -> None:
         if similarity_function == "cosine":
             self.similarity_function = self.cosine_similarity
@@ -39,7 +39,7 @@ class ScoringFunction:
             raise ValueError(f"Unknown similarity function {similarity_function}")
         self.query_aggregation_function = query_aggregation_function
         self.doc_aggregation_function = doc_aggregation_function
-        self.in_batch_k = in_batch_k
+        self.xtr_token_retrieval_k = xtr_token_retrieval_k
 
     def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
@@ -57,7 +57,7 @@ class ScoringFunction:
         aggregate_func: str,
     ) -> torch.Tensor:
         if aggregate_func == "max":
-            return similarity.max(-1)[0]
+            return similarity.max(-1).values
         mask = similarity == self.MASK_VALUE
         similarity[mask] = 0
         if aggregate_func == "sum":
@@ -113,6 +113,7 @@ class ScoringFunction:
         doc_embeddings: torch.Tensor,
         doc_attention_mask: torch.Tensor | None,
         num_docs: int | List[int] | None,
+        simulate_token_retrieval: bool = False,
     ) -> torch.Tensor:
         batch_size, query_len, embedding_dim = query_embeddings.shape
 
@@ -138,13 +139,15 @@ class ScoringFunction:
 
         similarity = self.similarity_function(query_embeddings, doc_embeddings)
 
-        if self.in_batch_k is not None:
+        if simulate_token_retrieval and self.xtr_token_retrieval_k is not None:
             ib_similarity = similarity.transpose(1, 2).reshape(
                 batch_size, query_len, -1
             )
-            top_k_similarity = ib_similarity.topk(self.in_batch_k, dim=-1)
+            top_k_similarity = ib_similarity.topk(self.xtr_token_retrieval_k, dim=-1)
             cut_off_similarity = top_k_similarity.values[..., -1]
-            similarity[similarity < cut_off_similarity[:, None, :, None]] = 0
+            similarity = similarity.masked_fill(
+                similarity < cut_off_similarity[:, None, :, None], 0
+            )
 
         if query_attention_mask is not None:
             query_mask = ~query_attention_mask.bool().expand_as(similarity)
@@ -168,7 +171,7 @@ class MVRConfig(PretrainedConfig):
         "similarity_function",
         "query_aggregation_function",
         "doc_aggregation_function",
-        "in_batch_k",
+        "xtr_token_retrieval_k",
         "query_expansion",
         "query_length",
         "attend_to_query_expanded_tokens",
@@ -196,7 +199,7 @@ class MVRConfig(PretrainedConfig):
         similarity_function: Literal["cosine", "l2", "dot"] = "dot",
         query_aggregation_function: Literal["sum", "mean", "max"] = "sum",
         doc_aggregation_function: Literal["sum", "mean", "max"] = "max",
-        in_batch_k: int | None = None,
+        xtr_token_retrieval_k: int | None = None,
         query_expansion: bool = False,
         query_length: int = 32,
         attend_to_query_expanded_tokens: bool = False,
@@ -213,7 +216,7 @@ class MVRConfig(PretrainedConfig):
         self.similarity_function = similarity_function
         self.query_aggregation_function = query_aggregation_function
         self.doc_aggregation_function = doc_aggregation_function
-        self.in_batch_k = in_batch_k
+        self.xtr_token_retrieval_k = xtr_token_retrieval_k
         self.query_expansion = query_expansion
         self.query_length = query_length
         self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
@@ -254,7 +257,7 @@ class MVRMixin:
             self.config.similarity_function,
             self.config.query_aggregation_function,
             self.config.doc_aggregation_function,
-            self.config.in_batch_k,
+            self.config.xtr_token_retrieval_k,
         )
 
     def search(
@@ -307,6 +310,7 @@ class MVRMixin:
         doc_embeddings: torch.Tensor,
         doc_attention_mask: torch.Tensor | None,
         num_docs: List[int] | int | None,
+        simulate_token_retrieval: bool = False,
     ) -> torch.Tensor:
         query_attention_mask = (
             torch.ones(query_embeddings.shape[:2], dtype=torch.long)
@@ -324,6 +328,7 @@ class MVRMixin:
             doc_embeddings,
             doc_attention_mask,
             num_docs,
+            simulate_token_retrieval,
         )
         return scores
 
@@ -534,6 +539,7 @@ class MVRModule(LightningModule):
         doc_embeddings: torch.Tensor,
         batch: Batch,
         num_docs: List[int] | int | None = None,
+        simulate_token_retrieval: bool = False,
     ) -> torch.Tensor:
         if num_docs is None:
             num_docs = [len(docs) for docs in batch.doc_ids]
@@ -543,6 +549,7 @@ class MVRModule(LightningModule):
             doc_embeddings,
             batch.doc_encoding.attention_mask,
             num_docs,
+            simulate_token_retrieval,
         )
         return scores
 
@@ -555,7 +562,9 @@ class MVRModule(LightningModule):
         if self.loss_function is None:
             raise ValueError("Loss function is not set")
         query_embeddings, doc_embeddings = self.encode(batch)
-        scores = self.score(query_embeddings, doc_embeddings, batch)
+        scores = self.score(
+            query_embeddings, doc_embeddings, batch, simulate_token_retrieval=True
+        )
         targets = batch.targets.view_as(scores)
         loss = self.loss_function.compute_loss(scores, targets)
         ib_loss = None
@@ -572,7 +581,13 @@ class MVRModule(LightningModule):
                     query_embeddings.shape[0], 1
                 )
                 batch.doc_encoding["attention_mask"] = attention_mask
-            ib_scores = self.score(query_embeddings, doc_embeddings, batch, batch_size)
+            ib_scores = self.score(
+                query_embeddings,
+                doc_embeddings,
+                batch,
+                num_docs=batch_size,
+                simulate_token_retrieval=True,
+            )
             ib_loss = self.loss_function.compute_in_batch_negative_loss(ib_scores)
         loss = loss + ib_loss if ib_loss is not None else loss
         self.log("loss", loss, prog_bar=True)
