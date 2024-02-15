@@ -10,39 +10,10 @@ from ir_datasets.util import Cache, DownloadConfig
 from transformers import BatchEncoding
 
 
-class ScoredDocPair(NamedTuple):
-    query_id: str
-    doc_id_a: str
-    doc_id_b: str
-    score_a: float
-    score_b: float
-
-
-class KDDocPairs(BaseDocPairs):
-    def __init__(self, docpairs_dlc):
-        self._docpairs_dlc = docpairs_dlc
-
-    def docpairs_path(self):
-        return self._docpairs_dlc.path()
-
-    def docpairs_iter(self):
-        with self._docpairs_dlc.stream() as f:
-            f = codecs.getreader("utf8")(f)
-            for line in f:
-                cols = line.rstrip().split()
-                pos_score, neg_score, qid, pid1, pid2 = cols
-                pos_score = float(pos_score)
-                neg_score = float(neg_score)
-                yield ScoredDocPair(qid, pid1, pid2, pos_score, neg_score)
-
-    def docpairs_cls(self):
-        return ScoredDocPair
-
-
 class ScoredDocTuple(NamedTuple):
     query_id: str
     doc_ids: Tuple[str, ...]
-    scores: Tuple[float, ...]
+    scores: Tuple[float, ...] | None
     num_docs: int
 
 
@@ -54,14 +25,27 @@ class ScoredDocTuples(BaseDocPairs):
         return self._docpairs_dlc.path()
 
     def docpairs_iter(self):
+        file_type = None
+        if self._docpairs_dlc.path().suffix == ".json":
+            file_type = "json"
+        elif self._docpairs_dlc.path().suffix in (".tsv", ".run"):
+            file_type = "tsv"
+        else:
+            raise ValueError(f"Unknown file type: {self._docpairs_dlc.path().suffix}")
         with self._docpairs_dlc.stream() as f:
             f = codecs.getreader("utf8")(f)
             for line in f:
-                data = json.loads(line)
-                qid, *doc_data = data
-                pids, scores = zip(*doc_data)
-                pids = tuple(str(pid) for pid in pids)
-                yield ScoredDocTuple(str(qid), tuple(pids), tuple(scores), len(pids))
+                if file_type == "json":
+                    data = json.loads(line)
+                    qid, *doc_data = data
+                    pids, scores = zip(*doc_data)
+                    pids = tuple(str(pid) for pid in pids)
+                else:
+                    cols = line.rstrip().split()
+                    pos_score, neg_score, qid, pid1, pid2 = cols
+                    pids = (pid1, pid2)
+                    scores = (float(pos_score), float(neg_score))
+                yield ScoredDocTuple(str(qid), pids, scores, len(pids))
 
     def docpairs_cls(self):
         return ScoredDocTuple
@@ -84,7 +68,7 @@ def register_kd_docpairs():
     collection = ir_dataset.docs_handler()
     queries = ir_dataset.queries_handler()
     qrels = ir_dataset.qrels_handler()
-    docpairs = KDDocPairs(
+    docpairs = ScoredDocTuples(
         Cache(dlc["train/kd-docpairs"], base_path / "train" / "kd.run")
     )
     dataset = Dataset(collection, queries, qrels, docpairs)
