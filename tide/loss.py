@@ -20,7 +20,6 @@ class LossFunction(ABC):
         self,
         reduction: Optional[Literal["mean", "sum"]] = "mean",
         in_batch_loss: Literal["ce", "hinge"] | None = None,
-        # TODO add multiple in batch losses (hinge)
     ):
         self.reduction = reduction
         self.in_batch_loss = in_batch_loss
