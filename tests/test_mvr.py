@@ -39,7 +39,7 @@ def mvr_model(model_name_or_path: str) -> MVRModel:
 @pytest.fixture()
 def xtr_model(model_name_or_path: str) -> MVRModel:
     model = TestModel(model_name_or_path)
-    model.config.in_batch_k = 32
+    model.config.xtr_token_retrieval_k = 32
     return model
 
 
