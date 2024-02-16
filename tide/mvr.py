@@ -568,7 +568,7 @@ class MVRModule(LightningModule):
         loss = self.loss_function.compute_loss(scores, targets)
         self.log("similarity loss", loss)
         ib_loss = None
-        if self.loss_function.in_batch_negatives:
+        if self.loss_function.in_batch_loss is not None:
             # grab in-batch scores
             batch_size = query_embeddings.shape[0]
             num_docs = doc_embeddings.shape[0] // batch_size
