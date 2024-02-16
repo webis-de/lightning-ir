@@ -133,11 +133,22 @@ class KLDivergence(LossFunction):
 
 
 class RankHinge(LossFunction):
+
+    def __init__(
+        self,
+        reduction: Literal["mean", "sum"] | None = "mean",
+        in_batch_loss: Literal["ce", "hinge"] | None = None,
+        margin: float = 0.05,
+    ):
+        super().__init__(reduction, in_batch_loss)
+        self.margin = margin
+
     def compute_loss(self, scores: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         greater = labels[..., None] > labels[:, None]
         scores_mask = scores.eq(PAD_VALUE)
         label_mask = labels.eq(PAD_VALUE)
         mask = scores_mask[..., None] | label_mask[..., None] | ~greater
         diff = scores[..., None] - scores[:, None]
-        loss = (-1 * diff).clamp(min=0)
+        loss = (-1 * diff + self.margin).clamp(min=0)
+        loss = loss.masked_fill(mask, 0)
         return self.aggregate(loss, mask)
