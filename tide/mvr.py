@@ -587,7 +587,7 @@ class MVRModule(LightningModule):
                 num_docs=batch_size,
                 simulate_token_retrieval=True,
             )
-            ib_loss = self.loss_function.compute_in_batch_negative_loss(ib_scores)
+            ib_loss = self.loss_function.compute_in_batch_loss(ib_scores)
         loss = loss + ib_loss if ib_loss is not None else loss
         self.log("loss", loss, prog_bar=True)
         return loss
