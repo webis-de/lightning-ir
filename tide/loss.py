@@ -53,11 +53,9 @@ class LossFunction(ABC):
         return self.aggregate(loss)
 
     def in_batch_hinge(self, scores: torch.Tensor) -> torch.Tensor:
-        labels = torch.eye(scores.shape[0], device=scores.device) * 2 - 1
-        scores = 1 - scores
-        loss = torch.nn.functional.hinge_embedding_loss(
-            scores, labels, reduction="none"
-        )
+        labels = torch.eye(scores.shape[0], device=scores.device)
+        abs_scores = scores.abs()
+        loss = (1 - abs_scores) * labels + abs_scores * (1 - labels)
         return self.aggregate(loss)
 
     def compute_in_batch_loss(self, scores: torch.Tensor) -> torch.Tensor:
@@ -136,11 +134,10 @@ class KLDivergence(LossFunction):
 
 class RankHinge(LossFunction):
     def compute_loss(self, scores: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
-        scores = 1 - scores
         greater = labels[..., None] > labels[:, None]
         scores_mask = scores.eq(PAD_VALUE)
         label_mask = labels.eq(PAD_VALUE)
         mask = scores_mask[..., None] | label_mask[..., None] | ~greater
         diff = scores[..., None] - scores[:, None]
-        loss = diff.masked_fill(mask, 0).clamp(min=0)
+        loss = (-1 * diff).clamp(min=0)
         return self.aggregate(loss, mask)
