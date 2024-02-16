@@ -566,6 +566,7 @@ class MVRModule(LightningModule):
         )
         targets = batch.targets.view_as(scores)
         loss = self.loss_function.compute_loss(scores, targets)
+        self.log("similarity loss", loss)
         ib_loss = None
         if self.loss_function.in_batch_negatives:
             # grab in-batch scores
@@ -588,6 +589,7 @@ class MVRModule(LightningModule):
                 simulate_token_retrieval=True,
             )
             ib_loss = self.loss_function.compute_in_batch_loss(ib_scores)
+            self.log("ib loss", ib_loss)
         loss = loss + ib_loss if ib_loss is not None else loss
         self.log("loss", loss, prog_bar=True)
         return loss
