@@ -1,3 +1,4 @@
+import os
 import torch
 from lightning import LightningModule, Trainer
 from lightning.fabric.loggers.logger import _DummyExperiment as DummyExperiment
@@ -11,6 +12,8 @@ from tide.datamodule import MVRDataModule  # noqa
 
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 class CustomSaveConfigCallback(SaveConfigCallback):
