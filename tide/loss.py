@@ -138,7 +138,7 @@ class RankHinge(LossFunction):
         self,
         reduction: Literal["mean", "sum"] | None = "mean",
         in_batch_loss: Literal["ce", "hinge"] | None = None,
-        margin: float = 0.05,
+        margin: float = 0.00,
     ):
         super().__init__(reduction, in_batch_loss)
         self.margin = margin
