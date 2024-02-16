@@ -45,8 +45,7 @@ class ScoringFunction:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
 
     def l2_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        # TODO untested
-        return 1 - torch.dist(x, y)
+        return -1 * torch.cdist(x, y).squeeze(-2)
 
     def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)

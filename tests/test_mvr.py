@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 import pytest
 import torch
@@ -115,26 +116,41 @@ def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRMode
     assert (scores == model.scoring_function.MASK_VALUE).sum() == 1
 
 
-def test_margin_mse(margin_mse_module: MVRModule, tuples_datamodule: MVRDataModule):
+@pytest.mark.parametrize("similarity_function", ["cosine", "dot", "l2"])
+def test_margin_mse(
+    similarity_function: Literal["cosine", "dot", "l2"],
+    margin_mse_module: MVRModule,
+    tuples_datamodule: MVRDataModule,
+):
     dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
+    margin_mse_module.config.similarity_function = similarity_function
     loss = margin_mse_module.training_step(batch, 0)
     assert loss
 
 
-def test_ranknet(ranknet_module: MVRModule, rank_run_datamodule: MVRDataModule):
+@pytest.mark.parametrize("similarity_function", ["cosine", "dot", "l2"])
+def test_ranknet(
+    similarity_function: Literal["cosine", "dot", "l2"],
+    ranknet_module: MVRModule,
+    rank_run_datamodule: MVRDataModule,
+):
     dataloader = rank_run_datamodule.train_dataloader()
     batch = next(iter(dataloader))
+    ranknet_module.config.similarity_function = similarity_function
     loss = ranknet_module.training_step(batch, 0)
     assert loss
 
 
+@pytest.mark.parametrize("similarity_function", ["cosine", "dot", "l2"])
 def test_localized_contrastive(
+    similarity_function: Literal["cosine", "dot", "l2"],
     localized_contrastive_module: MVRModule,
     single_relevant_run_datamodule: MVRDataModule,
 ):
     dataloader = single_relevant_run_datamodule.train_dataloader()
     batch = next(iter(dataloader))
+    localized_contrastive_module.config.similarity_function = similarity_function
     loss = localized_contrastive_module.training_step(batch, 0)
     assert loss
 
