@@ -135,7 +135,7 @@ class KLDivergence(LossFunction):
         return self.aggregate(loss, mask)
 
 
-class RankHingeLoss(LossFunction):
+class RankHinge(LossFunction):
     def compute_loss(self, scores: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         scores = 1 - scores
         greater = labels[..., None] > labels[:, None]

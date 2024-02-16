@@ -5,7 +5,7 @@ import torch
 
 from tide.loss import (
     PAD_VALUE,
-    RankHingeLoss,
+    RankHinge,
     KLDivergence,
     LocalizedContrastive,
     LossFunction,
@@ -38,7 +38,7 @@ def labels(shape: Tuple[int, int]):
 @pytest.mark.parametrize("in_batch_loss", ["ce", "hinge", None])
 @pytest.mark.parametrize("reduction", ["mean", "sum", None])
 @pytest.mark.parametrize(
-    "LossFunc", [LocalizedContrastive, MarginMSE, RankNet, KLDivergence, RankHingeLoss]
+    "LossFunc", [LocalizedContrastive, MarginMSE, RankNet, KLDivergence, RankHinge]
 )
 def test_loss_func(
     LossFunc: Type[LossFunction],
