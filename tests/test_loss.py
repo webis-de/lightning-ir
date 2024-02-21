@@ -3,7 +3,7 @@ from typing import Literal, Tuple, Type
 import pytest
 import torch
 
-from tide.loss import (
+from mvr.loss import (
     PAD_VALUE,
     RankHinge,
     KLDivergence,

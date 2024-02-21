@@ -1,9 +1,18 @@
+import os
 from pathlib import Path
 
 import pytest
 
-from tide.datamodule import MVRDataModule, RunDatasetConfig, TupleDatasetConfig
-from tide.mvr import MVRConfig
+from mvr.datamodule import (
+    DocDatasetConfig,
+    MVRDataModule,
+    QueryDatasetConfig,
+    RunDatasetConfig,
+    TupleDatasetConfig,
+)
+from mvr.mvr import MVRConfig
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 @pytest.fixture(scope="session")
@@ -106,7 +115,6 @@ def single_relevant_run_datamodule(model_name_or_path: str) -> MVRDataModule:
 
 @pytest.fixture(scope="session")
 def tuples_datamodule(model_name_or_path: str) -> MVRDataModule:
-    model_name_or_path = "sentence-transformers/all-MiniLM-L6-v2"
     datamodule = MVRDataModule(
         model_name_or_path=model_name_or_path,
         config=MVRConfig(),
@@ -117,4 +125,32 @@ def tuples_datamodule(model_name_or_path: str) -> MVRDataModule:
         train_dataset_config=TupleDatasetConfig(4),
     )
     datamodule.setup(stage="fit")
+    return datamodule
+
+
+@pytest.fixture(scope="session")
+def query_datamodule(model_name_or_path: str) -> MVRDataModule:
+    datamodule = MVRDataModule(
+        model_name_or_path=model_name_or_path,
+        config=MVRConfig(),
+        num_workers=0,
+        inference_batch_size=3,
+        inference_datasets=["msmarco-passage/trec-dl-2019/judged"],
+        inference_dataset_config=QueryDatasetConfig(),
+    )
+    datamodule.setup(stage="predict")
+    return datamodule
+
+
+@pytest.fixture(scope="session")
+def doc_datamodule(model_name_or_path: str) -> MVRDataModule:
+    datamodule = MVRDataModule(
+        model_name_or_path=model_name_or_path,
+        config=MVRConfig(),
+        num_workers=0,
+        inference_batch_size=3,
+        inference_datasets=["msmarco-passage"],
+        inference_dataset_config=DocDatasetConfig(num_docs=32),
+    )
+    datamodule.setup(stage="predict")
     return datamodule

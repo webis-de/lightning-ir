@@ -3,10 +3,10 @@ import torch
 from colbert.modeling.checkpoint import Checkpoint
 from colbert.modeling.colbert import colbert_score
 
-from tide.colbert import ColBERTModel, ColBERTModule, ColBERTConfig
-from tide.datamodule import MVRDataModule
-from tide.loss import LocalizedContrastive, MarginMSE, RankNet
-from tide.mvr import MVRTokenizer
+from mvr.colbert import ColBERTModel, ColBERTModule, ColBERTConfig
+from mvr.datamodule import MVRDataModule
+from mvr.loss import LocalizedContrastive, MarginMSE, RankNet
+from mvr.mvr import MVRTokenizer
 
 
 @pytest.fixture(scope="module")
