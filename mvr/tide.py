@@ -1,4 +1,4 @@
-from tide.mvr import MVRModel, MVRConfig
+from mvr.mvr import MVRModel, MVRConfig
 
 
 class TIDEConfig(MVRConfig):

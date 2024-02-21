@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Literal, Tuple
 import torch
 from lightning import LightningModule
 from tokenizers.processors import TemplateProcessing
-from torchmetrics.retrieval import RetrievalNormalizedDCG, RetrievalMRR
+from torchmetrics.retrieval import RetrievalMRR, RetrievalNormalizedDCG
 from transformers import (
     BatchEncoding,
     BertTokenizerFast,
@@ -15,8 +15,8 @@ from transformers import (
     PreTrainedModel,
 )
 
-from tide.data import Batch
-from tide.loss import LossFunction
+from mvr.data import IndexBatch, SearchBatch, TrainBatch
+from mvr.loss import LossFunction
 
 
 class ScoringFunction:
@@ -277,6 +277,7 @@ class MVRMixin:
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
+        mask_embeddings: bool = True,
     ) -> torch.Tensor:
         embedding = self.encoder.forward(
             input_ids, attention_mask, token_type_ids
@@ -284,6 +285,8 @@ class MVRMixin:
         embedding = self.linear(embedding)
         if self.config.normalize:
             embedding = torch.nn.functional.normalize(embedding, dim=-1)
+        if attention_mask is not None and mask_embeddings:
+            embedding = embedding * attention_mask.unsqueeze(-1)
         return embedding
 
     def encode_queries(
@@ -292,7 +295,9 @@ class MVRMixin:
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        return self._encode(input_ids, attention_mask, token_type_ids)
+        return self._encode(
+            input_ids, attention_mask, token_type_ids, not self.config.query_expansion
+        )
 
     def encode_docs(
         self,
@@ -300,7 +305,9 @@ class MVRMixin:
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        return self._encode(input_ids, attention_mask, token_type_ids)
+        return self._encode(
+            input_ids, attention_mask, token_type_ids, not self.config.doc_expansion
+        )
 
     def score(
         self,
@@ -506,7 +513,7 @@ class MVRTokenizer(BertTokenizerFast):
 
 
 class MVRModule(LightningModule):
-    def __init__(self, model: MVRModel, loss_function: LossFunction | None) -> None:
+    def __init__(self, model: MVRModel, loss_function: LossFunction | None = None):
         super().__init__()
         self.model: MVRModel = model
         self.encoder: PreTrainedModel = model.encoder
@@ -527,42 +534,47 @@ class MVRModule(LightningModule):
 
         self.validation_step_outputs = []
 
-    def encode(self, batch: Batch) -> Tuple[torch.Tensor, torch.Tensor]:
-        query_encoding = self.model.encode_queries(**batch.query_encoding)
-        doc_encoding = self.model.encode_docs(**batch.doc_encoding)
-        return query_encoding, doc_encoding
-
     def score(
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
-        batch: Batch,
+        batch: TrainBatch,
         num_docs: List[int] | int | None = None,
         simulate_token_retrieval: bool = False,
     ) -> torch.Tensor:
-        if num_docs is None:
+        if num_docs is None and batch.doc_ids is not None:
             num_docs = [len(docs) for docs in batch.doc_ids]
+        query_attention_mask = (
+            None
+            if batch.query_encoding is None
+            else batch.query_encoding.attention_mask
+        )
+        doc_attention_mask = (
+            None if batch.doc_encoding is None else batch.doc_encoding.attention_mask
+        )
         scores = self.model.score(
             query_embeddings,
-            batch.query_encoding.attention_mask,
+            query_attention_mask,
             doc_embeddings,
-            batch.doc_encoding.attention_mask,
+            doc_attention_mask,
             num_docs,
             simulate_token_retrieval,
         )
         return scores
 
-    def forward(self, batch: Batch) -> torch.Tensor:
-        query_embeddings, doc_embeddings = self.encode(batch)
-        scores = self.score(query_embeddings, doc_embeddings, batch)
+    def forward(self, batch: TrainBatch) -> torch.Tensor:
+        query_embedding = self.model.encode_queries(**batch.query_encoding)
+        doc_embedding = self.model.encode_docs(**batch.doc_encoding)
+        scores = self.score(query_embedding, doc_embedding, batch)
         return scores
 
-    def training_step(self, batch: Batch, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
         if self.loss_function is None:
             raise ValueError("Loss function is not set")
-        query_embeddings, doc_embeddings = self.encode(batch)
+        query_embedding = self.model.encode_queries(**batch.query_encoding)
+        doc_embedding = self.model.encode_docs(**batch.doc_encoding)
         scores = self.score(
-            query_embeddings, doc_embeddings, batch, simulate_token_retrieval=True
+            query_embedding, doc_embedding, batch, simulate_token_retrieval=True
         )
         targets = batch.targets.view_as(scores)
         loss = self.loss_function.compute_loss(scores, targets)
@@ -570,20 +582,20 @@ class MVRModule(LightningModule):
         ib_loss = None
         if self.loss_function.in_batch_loss is not None:
             # grab in-batch scores
-            batch_size = query_embeddings.shape[0]
-            num_docs = doc_embeddings.shape[0] // batch_size
-            doc_idcs = torch.arange(0, doc_embeddings.shape[0], num_docs)
-            doc_embeddings = doc_embeddings[doc_idcs].repeat(
-                query_embeddings.shape[0], 1, 1
+            batch_size = query_embedding.shape[0]
+            num_docs = doc_embedding.shape[0] // batch_size
+            doc_idcs = torch.arange(0, doc_embedding.shape[0], num_docs)
+            doc_embedding = doc_embedding[doc_idcs].repeat(
+                query_embedding.shape[0], 1, 1
             )
             if batch.doc_encoding.attention_mask is not None:
                 attention_mask = batch.doc_encoding.attention_mask[doc_idcs].repeat(
-                    query_embeddings.shape[0], 1
+                    query_embedding.shape[0], 1
                 )
                 batch.doc_encoding["attention_mask"] = attention_mask
             ib_scores = self.score(
-                query_embeddings,
-                doc_embeddings,
+                query_embedding,
+                doc_embedding,
                 batch,
                 num_docs=batch_size,
                 simulate_token_retrieval=True,
@@ -596,16 +608,16 @@ class MVRModule(LightningModule):
 
     def validation_step(
         self,
-        batch: Batch,
+        batch: TrainBatch,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
         scores = self.forward(batch)
         depth = scores.shape[-1]
-        relevance = batch.relevance
-        assert relevance is not None
+        relevances = batch.relevances
+        assert relevances is not None
         scores = torch.nn.functional.pad(
-            scores, (0, relevance.shape[-1] - scores.shape[-1])
+            scores, (0, relevances.shape[-1] - scores.shape[-1])
         )
         dataset_name = ""
         first_stage = ""
@@ -625,7 +637,7 @@ class MVRModule(LightningModule):
         for metric_name, metric in zip(("ndcg@10", "mrr@ranking"), (metrics)):
             value = metric(
                 scores,
-                relevance.clamp(0, 1) if "mrr" in metric_name else relevance,
+                relevances.clamp(0, 1) if "mrr" in metric_name else relevances,
                 torch.arange(scores.shape[0])[:, None].expand_as(scores),
             )
             self.validation_step_outputs.append(
@@ -643,6 +655,13 @@ class MVRModule(LightningModule):
             stacked = torch.stack(value)
             stacked[torch.isnan(stacked)] = 0
             self.log(key, stacked.mean(), sync_dist=True)
+
+    def predict_step(self, batch: IndexBatch | SearchBatch, *args, **kwargs) -> Any:
+        if isinstance(batch, IndexBatch):
+            return self.model.encode_docs(**batch.doc_encoding)
+        if isinstance(batch, SearchBatch):
+            return self.model.encode_queries(**batch.query_encoding)
+        raise ValueError(f"Unknown batch type {type(batch)}")
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         if self.trainer is not None and self.trainer.log_dir is not None:

@@ -6,9 +6,9 @@ from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
 from lightning.pytorch.loggers import WandbLogger
 from typing_extensions import override
 
-from callbacks import PredictionWriter  # noqa
-from tide.colbert import ColBERTConfig, ColBERTModule  # noqa
-from tide.datamodule import MVRDataModule  # noqa
+from mvr.callbacks import PredictionWriter  # noqa
+from mvr.colbert import ColBERTConfig, ColBERTModule  # noqa
+from mvr.datamodule import MVRDataModule  # noqa
 
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
@@ -43,9 +43,7 @@ class CustomLightningCLI(LightningCLI):
         parser.link_arguments(
             "model.init_args.model_name_or_path", "data.init_args.model_name_or_path"
         )
-        parser.link_arguments(
-            "model.init_args.config", "data.init_args.config"
-        )
+        parser.link_arguments("model.init_args.config", "data.init_args.config")
 
 
 def main():
