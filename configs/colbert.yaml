@@ -6,8 +6,7 @@ model:
       class_path: ColBERTConfig
       init_args:
         similarity_function: cosine
-        query_aggregation_function:  sum
-        doc_aggregation_function:  max
+        aggregation_function:  sum
         query_expansion: true
         query_length: 32
         attend_to_query_expanded_tokens: false

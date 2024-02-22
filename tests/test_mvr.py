@@ -5,9 +5,9 @@ import pytest
 import torch
 from transformers import BertModel
 
-from tide.datamodule import MVRDataModule
-from tide.loss import LocalizedContrastive, MarginMSE, RankNet
-from tide.mvr import MVRConfig, MVRModel, MVRModule
+from mvr.datamodule import MVRDataModule
+from mvr.loss import LocalizedContrastive, MarginMSE, RankNet
+from mvr.mvr import MVRConfig, MVRModel, MVRModule
 
 
 class TestModel(MVRModel):

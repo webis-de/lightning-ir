@@ -1,6 +1,6 @@
 import torch
-from tide.data import Batch
-from tide.datamodule import MVRDataModule
+from mvr.data import TrainBatch, IndexBatch, SearchBatch
+from mvr.datamodule import MVRDataModule
 
 
 def test_rank_run_dataset(rank_run_datamodule: MVRDataModule):
@@ -9,7 +9,10 @@ def test_rank_run_dataset(rank_run_datamodule: MVRDataModule):
     config = datamodule.train_dataset_config
     assert config is not None
 
-    batch: Batch = next(iter(dataloader))
+    batch: TrainBatch = next(iter(dataloader))
+    assert isinstance(batch, TrainBatch)
+    for value in batch:
+        assert value is not None
     assert batch.targets.shape[0] == datamodule.train_batch_size * config.sample_size
     assert (
         batch.targets
@@ -23,7 +26,10 @@ def test_relevance_run_dataset(relevance_run_datamodule: MVRDataModule):
     config = datamodule.train_dataset_config
     assert config is not None
 
-    batch: Batch = next(iter(dataloader))
+    batch: TrainBatch = next(iter(dataloader))
+    assert isinstance(batch, TrainBatch)
+    for value in batch:
+        assert value is not None
     assert batch.targets.shape[0] == datamodule.train_batch_size * config.sample_size
     assert (
         batch.targets
@@ -35,24 +41,68 @@ def test_single_relevant_run_dataset(single_relevant_run_datamodule: MVRDataModu
     datamodule = single_relevant_run_datamodule
     dataloader = datamodule.train_dataloader()
 
-    batch: Batch = next(iter(dataloader))
+    batch: TrainBatch = next(iter(dataloader))
+    assert isinstance(batch, TrainBatch)
+    for value in batch:
+        assert value is not None
     assert (batch.targets > 0).sum() == datamodule.train_batch_size
-    assert batch.relevance is None
 
 
 def test_tuples_dataset(tuples_datamodule: MVRDataModule):
     dataloader = tuples_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
+    config = tuples_datamodule.train_dataset_config
+    assert config is not None
+
+    batch: TrainBatch = next(iter(dataloader))
+    assert isinstance(batch, TrainBatch)
+    for field in batch._fields:
+        value = getattr(batch, field)
+        if field == "relevances":
+            assert value is None
+        else:
+            assert value is not None
     assert (
         batch.targets.shape[0]
         == dataloader.batch_size * dataloader.dataset.config.num_docs
     )
 
 
+def test_query_dataset(query_datamodule: MVRDataModule):
+    dataloader = query_datamodule.predict_dataloader()[0]
+
+    batch: SearchBatch = next(iter(dataloader))
+    assert isinstance(batch, SearchBatch)
+    for field in batch._fields:
+        value = getattr(batch, field)
+        if field in ("query_encoding", "query_ids"):
+            assert value is not None
+        else:
+            assert value is None
+
+
+def test_doc_dataset(doc_datamodule: MVRDataModule):
+    dataloader = doc_datamodule.predict_dataloader()[0]
+    batch: IndexBatch = next(iter(dataloader))
+
+    assert isinstance(batch, IndexBatch)
+    for field in batch._fields:
+        value = getattr(batch, field)
+        if field in ("doc_encoding", "doc_ids"):
+            assert value is not None
+        else:
+            assert value is None
+
+
 def test_tokenizer(tuples_datamodule: MVRDataModule):
     tuples_datamodule.config.query_expansion = True
     dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
+    for field in batch._fields:
+        value = getattr(batch, field)
+        if field == "relevances":
+            assert value is None
+        else:
+            assert value is not None
     assert (
         batch.query_encoding.input_ids[0, 1]
         == tuples_datamodule.tokenizer.query_token_id

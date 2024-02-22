@@ -3,10 +3,10 @@ import torch
 from colbert.modeling.checkpoint import Checkpoint
 from colbert.modeling.colbert import colbert_score
 
-from tide.colbert import ColBERTModel, ColBERTModule, ColBERTConfig
-from tide.datamodule import MVRDataModule
-from tide.loss import LocalizedContrastive, MarginMSE, RankNet
-from tide.mvr import MVRTokenizer
+from mvr.colbert import ColBERTModel, ColBERTModule, ColBERTConfig
+from mvr.datamodule import MVRDataModule
+from mvr.loss import LocalizedContrastive, MarginMSE, RankNet
+from mvr.mvr import MVRTokenizer
 
 
 @pytest.fixture(scope="module")
@@ -121,6 +121,12 @@ def test_same_as_colbert():
     orig_docs = orig_model.docFromText(documents)
     d_mask = ~(orig_docs == 0).all(-1)
     orig_scores = colbert_score(orig_query, orig_docs, d_mask)
+
+    iterator = zip(model.state_dict().items(), orig_model.state_dict().items())
+    for (key, weight), (orig_key, orig_weight) in iterator:
+        assert key == orig_key[6:]
+        if "word_embeddings" not in key:
+            assert torch.allclose(weight, orig_weight)
 
     assert torch.allclose(query_embedding, orig_query)
     assert torch.allclose(doc_embedding[d_mask], orig_docs[d_mask])

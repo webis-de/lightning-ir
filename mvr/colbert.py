@@ -5,7 +5,14 @@ from typing import Any, Dict
 
 import torch
 from huggingface_hub import hf_hub_download
-from transformers import AutoTokenizer, BertConfig, BertModel, BertPreTrainedModel, AutoModel, AutoConfig
+from transformers import (
+    AutoTokenizer,
+    BertConfig,
+    BertModel,
+    BertPreTrainedModel,
+    AutoModel,
+    AutoConfig,
+)
 
 from .flash.flash_model import FlashClassFactory
 from .loss import LossFunction
@@ -30,13 +37,9 @@ class ColBERTModel(BertPreTrainedModel, MVRModel):
     config_class = ColBERTConfig
 
     def __init__(self, colbert_config: ColBERTConfig) -> None:
-        super().__init__(colbert_config)
-        self.bert = BertModel(colbert_config, add_pooling_layer=False)
-        self.linear = torch.nn.Linear(
-            colbert_config.hidden_size,
-            colbert_config.embedding_dim,
-            bias=self.config.linear_bias,
-        )
+        bert = BertModel(colbert_config, add_pooling_layer=False)
+        super().__init__(colbert_config, bert)
+        self._modules["bert"] = self._modules.pop("encoder")
         self.mask_tokens = None
         if self.config.mask_punctuation:
             try:
@@ -53,7 +56,6 @@ class ColBERTModel(BertPreTrainedModel, MVRModel):
                 return_attention_mask=False,
                 return_token_type_ids=False,
             ).input_ids[0]
-        self.post_init()
 
     @property
     def encoder(self) -> torch.nn.Module:
@@ -95,8 +97,7 @@ class ColBERTModel(BertPreTrainedModel, MVRModel):
         config.update(
             {
                 "similarity_function": colbert_config["similarity"],
-                "query_aggregation_function": "sum",
-                "doc_aggregation_function": "max",
+                "aggregation_function": "sum",
                 "query_expansion": True,
                 "query_length": colbert_config["query_maxlen"],
                 "attend_to_query_expanded_tokens": colbert_config[
