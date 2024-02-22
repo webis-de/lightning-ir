@@ -13,7 +13,7 @@ class IndexConfig(NamedTuple):
     num_train_tokens: int
     num_centroids: int = 65536
     num_subquantizers: int = 16
-    code_size: int = 4
+    n_bits: int = 4
 
     @classmethod
     def from_pretrained(cls, index_path: Path) -> "IndexConfig":
@@ -51,7 +51,7 @@ class Indexer:
             )
         index_factory = (
             f"IVF{self.index_config.num_centroids},"
-            f"PQ{self.index_config.num_subquantizers}x{self.index_config.code_size}"
+            f"PQ{self.index_config.num_subquantizers}x{self.index_config.n_bits}"
         )
         if self.mvr_config.similarity_function == "cosine":
             index_factory = "L2norm," + index_factory

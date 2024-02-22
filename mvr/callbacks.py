@@ -15,14 +15,40 @@ from .searcher import SearchConfig, Searcher
 
 
 class IndexCallback(Callback):
-    def __init__(self, config: IndexConfig) -> None:
+    def __init__(
+        self,
+        index_path: Path | None,
+        num_train_tokens: int,
+        num_centroids: int = 65536,
+        num_subquantizers: int = 16,
+        n_bits: int = 4,
+    ) -> None:
         super().__init__()
-        self.config = config
+        self.index_path = index_path
+        self.num_train_tokens = num_train_tokens
+        self.num_centroids = num_centroids
+        self.num_subquantizers = num_subquantizers
+        self.n_bits = n_bits
+        self.config: IndexConfig
         self.indexer: Indexer
 
     def setup(self, trainer: Trainer, pl_module: MVRModule, stage: str) -> None:
         if stage != "predict":
             raise ValueError("IndexCallback can only be used in predict stage")
+        if self.index_path is None:
+            if Path(pl_module.config.name_or_path).exists():
+                self.index_path = Path(pl_module.config.name_or_path).parent / "indexes"
+            else:
+                raise ValueError(
+                    "No index_path provided and model_name_or_path is not a path"
+                )
+        self.config = IndexConfig(
+            index_path=self.index_path,
+            num_train_tokens=self.num_train_tokens,
+            num_centroids=self.num_centroids,
+            num_subquantizers=self.num_subquantizers,
+            n_bits=self.n_bits,
+        )
 
     def on_predict_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         dataloaders = trainer.predict_dataloaders
