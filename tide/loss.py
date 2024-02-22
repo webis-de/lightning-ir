@@ -71,9 +71,9 @@ class LossFunction(ABC):
 class MarginMSE(LossFunction):
     def compute_loss(self, scores: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         mask = scores.eq(PAD_VALUE) | labels.eq(PAD_VALUE)
-        logit_diff = scores.unsqueeze(-1) - scores.unsqueeze(-2)
+        score_diff = scores.unsqueeze(-1) - scores.unsqueeze(-2)
         label_diff = labels.unsqueeze(-1) - labels.unsqueeze(-2)
-        loss = torch.nn.functional.mse_loss(logit_diff, label_diff, reduction="none")
+        loss = torch.nn.functional.mse_loss(score_diff, label_diff, reduction="none")
         mask = ~torch.triu(~mask[..., None].expand_as(loss), diagonal=1)
         return self.aggregate(loss, mask)
 
