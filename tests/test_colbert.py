@@ -122,6 +122,12 @@ def test_same_as_colbert():
     d_mask = ~(orig_docs == 0).all(-1)
     orig_scores = colbert_score(orig_query, orig_docs, d_mask)
 
+    iterator = zip(model.state_dict().items(), orig_model.state_dict().items())
+    for (key, weight), (orig_key, orig_weight) in iterator:
+        assert key == orig_key[6:]
+        if "word_embeddings" not in key:
+            assert torch.allclose(weight, orig_weight)
+
     assert torch.allclose(query_embedding, orig_query)
     assert torch.allclose(doc_embedding[d_mask], orig_docs[d_mask])
     assert torch.allclose(scores, orig_scores)

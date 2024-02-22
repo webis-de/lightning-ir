@@ -54,14 +54,13 @@ class TupleDatasetConfig(NamedTuple):
 
 class DataParallelIterableDataset(IterableDataset):
     # https://github.com/Lightning-AI/pytorch-lightning/issues/15734
-
     def __init__(
         self, dataset: str, config: QueryDatasetConfig | DocDatasetConfig
     ) -> None:
         super().__init__()
         # TODO add support for multi-gpu and multi-worker inference; currently
         # doesn't work
-        self.dataset = ir_datasets.load(dataset)
+        self.ir_dataset: ir_datasets.Dataset = ir_datasets.load(dataset)
         self.config = config
         worker_info = get_worker_info()
         num_workers = worker_info.num_workers if worker_info is not None else 1
@@ -78,11 +77,11 @@ class DataParallelIterableDataset(IterableDataset):
         self.rank = process_rank * num_workers + worker_id
         if isinstance(config, QueryDatasetConfig):
             self._field = "queries"
-            self._iterator = self.dataset.queries_iter()
+            self._iterator = self.ir_dataset.queries_iter()
             self._sample_cls = QuerySample
         elif isinstance(config, DocDatasetConfig):
             self._field = "docs"
-            self._iterator = self.dataset.docs_iter()
+            self._iterator = self.ir_dataset.docs_iter()
             self._sample_cls = DocSample
         else:
             raise ValueError("Invalid dataset configuration.")
@@ -90,7 +89,7 @@ class DataParallelIterableDataset(IterableDataset):
     def __len__(self) -> int:
         return (
             getattr(self.config, f"num_{self._field}")
-            or getattr(self.dataset, f"{self._field}_count")()
+            or getattr(self.ir_dataset, f"{self._field}_count")()
         )
 
     def __iter__(self) -> Iterator[QuerySample | DocSample]:
