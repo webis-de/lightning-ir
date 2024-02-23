@@ -544,8 +544,8 @@ class MVRModule(LightningModule):
         )
         scores = self.model.score(
             query_embeddings,
-            query_attention_mask,
             doc_embeddings,
+            query_attention_mask,
             doc_attention_mask,
             num_docs,
             simulate_token_retrieval,
