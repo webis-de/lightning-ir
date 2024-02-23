@@ -14,6 +14,19 @@ from .mvr import MVRModule
 from .searcher import SearchConfig, Searcher
 
 
+def format_large_number(number):
+    suffixes = ["", "K", "M", "B", "T"]
+    suffix_index = 0
+
+    while number >= 1000 and suffix_index < len(suffixes) - 1:
+        number /= 1000.0
+        suffix_index += 1
+
+    formatted_number = "{:.2f}".format(number).rstrip("0").rstrip(".")
+
+    return f"{formatted_number} {suffixes[suffix_index]}"
+
+
 class IndexCallback(Callback):
     def __init__(
         self,
@@ -69,6 +82,7 @@ class IndexCallback(Callback):
         if pg_callback is None or not isinstance(pg_callback, TQDMProgressBar):
             return
         pg = pg_callback.predict_progress_bar
+        info = {k: format_large_number(v) for k, v in info.items()}
         if pg is not None:
             pg.set_postfix(info)
 
