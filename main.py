@@ -6,9 +6,9 @@ from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
 from lightning.pytorch.loggers import WandbLogger
 from typing_extensions import override
 
-from mvr.callbacks import PredictionWriter  # noqa
-from mvr.colbert import ColBERTConfig, ColBERTModule  # noqa
-from mvr.datamodule import MVRDataModule  # noqa
+import mvr.callbacks  # noqa
+import mvr.colbert  # noqa
+import mvr.datamodule  # noqa
 
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
