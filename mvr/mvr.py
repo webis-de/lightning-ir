@@ -245,6 +245,7 @@ class MVRModel(PreTrainedModel):
 
     def __init__(self, config: MVRConfig, encoder: PreTrainedModel):
         super().__init__(config)
+        self.config: MVRConfig
         self.encoder = encoder
         self.linear = torch.nn.Linear(
             self.config.hidden_size,
