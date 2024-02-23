@@ -24,7 +24,7 @@ def format_large_number(number: float) -> str:
 
     formatted_number = "{:.2f}".format(number).rstrip("0").rstrip(".")
 
-    suffix = {suffixes[suffix_index]}
+    suffix = suffixes[suffix_index]
     if suffix:
         formatted_number += f" {suffix}"
     return formatted_number
