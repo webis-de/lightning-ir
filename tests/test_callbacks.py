@@ -56,7 +56,7 @@ def test_index_callback(
 ):
     mvr_module.config.similarity_function = similarity
     index_path = tmp_path / "index"
-    index_callback = IndexCallback(IndexConfig(index_path, 1024, num_centroids=16))
+    index_callback = IndexCallback(index_path, 1024, num_centroids=16)
 
     trainer = Trainer(
         devices=devices,
@@ -97,9 +97,7 @@ def test_search_callback(
     save_dir = tmp_path / "runs"
     index_path = Path(__file__).parent / "data" / f"{similarity}-index"
 
-    search_callback = SearchCallback(
-        SearchConfig(index_path, 5, 10, imputation_strategy), save_dir=save_dir
-    )
+    search_callback = SearchCallback(save_dir, index_path, 5, 10, imputation_strategy)
 
     trainer = Trainer(
         logger=False,
