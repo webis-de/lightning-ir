@@ -13,23 +13,19 @@ from mvr.mvr import MVRConfig, MVRModel, MVRModule
 class TestModel(MVRModel):
     def __init__(self, model_name_or_path: Path | str) -> None:
         config = MVRConfig.from_pretrained(model_name_or_path)
-        super().__init__(config)
-        self.bert = BertModel.from_pretrained(
-            model_name_or_path, config=self.config, add_pooling_layer=False
+        bert = BertModel.from_pretrained(
+            model_name_or_path, config=config, add_pooling_layer=False
         )
+        super().__init__(config, bert)
         vocab_size = self.config.vocab_size
         if self.config.add_marker_tokens:
             vocab_size += 2
-        self.bert.resize_token_embeddings(vocab_size, 8)
+        self.encoder.resize_token_embeddings(vocab_size, 8)
         self.linear = torch.nn.Linear(
             self.config.hidden_size,
             self.config.embedding_dim,
             bias=self.config.linear_bias,
         )
-
-    @property
-    def encoder(self) -> torch.nn.Module:
-        return self.bert
 
 
 @pytest.fixture(scope="module")
@@ -61,7 +57,7 @@ def localized_contrastive_module(mvr_model: MVRModel) -> MVRModule:
 
 @pytest.fixture()
 def in_batch_negatives_module(mvr_model: MVRModel) -> MVRModule:
-    return MVRModule(mvr_model, MarginMSE(in_batch_negatives=True))
+    return MVRModule(mvr_model, MarginMSE(in_batch_loss="ce"))
 
 
 @pytest.fixture()
@@ -82,24 +78,24 @@ def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRMode
     with pytest.raises(ValueError):
         model.score(
             query_embedding,
-            batch.query_encoding.attention_mask,
             doc_embedding,
+            batch.query_encoding.attention_mask,
             batch.doc_encoding.attention_mask,
             None,
         )
     with pytest.raises(ValueError):
         model.score(
             query_embedding,
-            batch.query_encoding.attention_mask,
             doc_embedding,
+            batch.query_encoding.attention_mask,
             batch.doc_encoding.attention_mask,
             [doc_embedding.shape[0]],
         )
     with pytest.raises(ValueError):
         model.score(
             query_embedding,
-            batch.query_encoding.attention_mask,
             doc_embedding,
+            batch.query_encoding.attention_mask,
             batch.doc_encoding.attention_mask,
             [0] * query_embedding.shape[0],
         )
@@ -108,8 +104,8 @@ def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRMode
     num_docs[-1] = num_docs[-1] - 1
     scores = model.score(
         query_embedding,
-        batch.query_encoding.attention_mask,
         doc_embedding,
+        batch.query_encoding.attention_mask,
         batch.doc_encoding.attention_mask,
         num_docs,
     )
