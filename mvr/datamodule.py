@@ -65,6 +65,8 @@ class DataParallelIterableDataset(IterableDataset):
         worker_info = get_worker_info()
         num_workers = worker_info.num_workers if worker_info is not None else 1
         worker_id = worker_info.id if worker_info is not None else 0
+        self.dataset_id = self.ir_dataset.dataset_id()
+        self.docs_dataset_id = ir_datasets.docs_parent_id(self.dataset_id)
 
         try:
             world_size = get_world_size()
@@ -125,6 +127,8 @@ class IRDataset:
             "text"
         ]
         self.docs = self.dataset.docs_store()
+        self.dataset_id = self.ir_dataset.dataset_id()
+        self.docs_dataset_id = ir_datasets.docs_parent_id(self.dataset_id)
 
 
 class RunDataset(IRDataset, Dataset):
