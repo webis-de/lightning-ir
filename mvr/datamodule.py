@@ -122,11 +122,11 @@ class DocDataset(DataParallelIterableDataset):
 
 class IRDataset:
     def __init__(self, dataset: str) -> None:
-        self.dataset = ir_datasets.load(dataset)
-        self.queries = pd.DataFrame(self.dataset.queries_iter()).set_index("query_id")[
+        self.ir_dataset = ir_datasets.load(dataset)
+        self.queries = pd.DataFrame(self.ir_dataset.queries_iter()).set_index("query_id")[
             "text"
         ]
-        self.docs = self.dataset.docs_store()
+        self.docs = self.ir_dataset.docs_store()
         self.dataset_id = self.ir_dataset.dataset_id()
         self.docs_dataset_id = ir_datasets.docs_parent_id(self.dataset_id)
 
@@ -151,7 +151,7 @@ class RunDataset(IRDataset, Dataset):
         if self.depth != -1:
             self.run = self.run[self.run["rank"] <= config.depth]
 
-        self.qrels = pd.DataFrame(self.dataset.qrels_iter()).set_index(
+        self.qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).set_index(
             ["query_id", "doc_id"]
         )["relevance"]
         self.qrels = self.qrels.loc[
@@ -208,7 +208,7 @@ class TuplesDataset(IRDataset, IterableDataset):
         self.config = config
 
     def __iter__(self) -> Iterator[TrainSample]:
-        for sample in self.dataset.docpairs_iter():
+        for sample in self.ir_dataset.docpairs_iter():
             query_id = sample.query_id
             query = self.queries.loc[query_id]
 
