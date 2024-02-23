@@ -35,6 +35,8 @@ class IndexCallback(Callback):
     def setup(self, trainer: Trainer, pl_module: MVRModule, stage: str) -> None:
         if stage != "predict":
             raise ValueError("IndexCallback can only be used in predict stage")
+
+    def on_predict_start(self, trainer: Trainer, pl_module: MVRModule) -> None:
         dataloaders = trainer.predict_dataloaders
         if dataloaders is None:
             raise ValueError("No predict_dataloaders found")
@@ -114,9 +116,11 @@ class SearchCallback(BasePredictionWriter):
         self.config: SearchConfig
         self.searcher: Searcher
 
-    def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
+    def setup(self, trainer: Trainer, pl_module: MVRModule, stage: str) -> None:
         if stage != "predict":
             raise ValueError("SearchCallback can only be used in predict stage")
+
+    def on_predict_start(self, trainer: Trainer, pl_module: MVRModule) -> None:
         dataloaders = trainer.predict_dataloaders
         if dataloaders is None:
             raise ValueError("No predict_dataloaders found")
@@ -128,7 +132,7 @@ class SearchCallback(BasePredictionWriter):
             raise ValueError("All QueryDatasets must have the same docs_dataset_id")
         docs_dataset_id = docs_dataset_id[0]
 
-        index_path = None
+        index_path = self.index_path
         if index_path is None:
             if Path(pl_module.config.name_or_path).exists():
                 index_dir = Path(pl_module.config.name_or_path) / "indexes"
