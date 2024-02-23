@@ -159,4 +159,7 @@ class Indexer:
         if doc_lengths_fp is not None:
             doc_lengths_fp.flush()
 
+        if torch.cuda.is_available():
+            self.index = faiss.index_gpu_to_cpu(self.index)
+
         faiss.write_index(self.index, str(self.index_config.index_path / "index.faiss"))
