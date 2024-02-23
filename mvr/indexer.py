@@ -1,9 +1,10 @@
+import json
 from pathlib import Path
 from typing import NamedTuple
-import json
 
 import faiss
 import numpy as np
+import torch
 
 from .mvr import MVRConfig
 
@@ -63,9 +64,9 @@ class Indexer:
         else:
             self.index.make_direct_map()
 
-        self._train_embeddings = np.empty(
+        self._train_embeddings = torch.empty(
             (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
-            dtype=np.float32,
+            dtype=torch.float32,
         )
 
     def _grab_train_embeddings(self, token_embeddings: np.ndarray) -> np.ndarray:
@@ -77,7 +78,9 @@ class Indexer:
             if end > self.index_config.num_train_tokens:
                 end = self.index_config.num_train_tokens
             length = end - start
-            self._train_embeddings[start:end] = token_embeddings[:length]
+            self._train_embeddings[start:end] = torch.from_numpy(
+                token_embeddings[:length]
+            )
             self.num_embeddings += length
             token_embeddings = token_embeddings[length:]
         return token_embeddings
@@ -87,9 +90,14 @@ class Indexer:
             self._train_embeddings is not None
             and self.num_embeddings >= self.index_config.num_train_tokens
         ):
+            if torch.cuda.is_available():
+                self._train_embeddings = self._train_embeddings.cuda()
+                self.index = faiss.index_cpu_to_all_gpus(self.index)
             self.index.train(self._train_embeddings)
             self.index.add(self._train_embeddings)
             self._train_embeddings = None
+            if torch.cuda.is_available():
+                self.index = faiss.index_gpu_to_cpu(self.index)
 
     def add(
         self,
