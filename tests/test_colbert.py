@@ -110,8 +110,8 @@ def test_same_as_colbert():
         )
     scores = model.score(
         query_embedding,
-        query_encoding.attention_mask,
         doc_embedding,
+        query_encoding.attention_mask,
         doc_encoding.attention_mask,
         None,
     )
