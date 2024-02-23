@@ -55,6 +55,7 @@ class ColBERTModel(BertPreTrainedModel, MVRModel):
                 return_tensors="pt",
                 return_attention_mask=False,
                 return_token_type_ids=False,
+                internal=True,
             ).input_ids[0]
 
     @property
