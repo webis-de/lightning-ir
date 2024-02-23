@@ -138,11 +138,12 @@ class SearchCallback(BasePredictionWriter):
         masked = (prediction == 0).all(-1)
         query_lengths = masked.logical_not().sum(-1).cpu().numpy()
         query_tokens = prediction[masked.logical_not()].cpu().numpy().astype(np.float32)
-        scores, doc_ids = self.searcher.search(query_tokens, query_lengths)
+        scores, doc_ids, num_docs = self.searcher.search(query_tokens, query_lengths)
 
         query_ids = list(
             itertools.chain.from_iterable(
-                itertools.repeat(x, self.config.k) for x in batch.query_ids
+                itertools.repeat(query_id, num)
+                for query_id, num in zip(batch.query_ids, num_docs)
             )
         )
         run_df = pd.DataFrame(

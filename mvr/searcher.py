@@ -121,26 +121,33 @@ class Searcher:
 
     def filter_and_sort(
         self, doc_scores: np.ndarray, doc_idcs: np.ndarray, num_docs: List[int]
-    ) -> Tuple[np.ndarray, List[str]]:
-        split_idcs = np.cumsum(num_docs)[:-1]
+    ) -> Tuple[np.ndarray, List[str], List[int]]:
+        split_idcs = np.cumsum(num_docs[:-1])
         per_query_doc_scores = np.split(doc_scores, split_idcs)
         per_query_doc_idcs = np.split(doc_idcs, split_idcs)
-        k = self.search_config.k
-        top_k_idcs = [
-            np.argpartition(scores, -k)[-k:][::-1] for scores in per_query_doc_scores
-        ]
-        doc_scores = np.empty((len(num_docs), k))
+        top_k_idcs = []
+        num_retrieved_docs = 0
+        new_num_docs = []
+        for scores in per_query_doc_scores:
+            k = min(self.search_config.k, scores.shape[0])
+            top_k_idcs.append(np.argpartition(scores, -k)[-k:][::-1])
+            num_retrieved_docs += k
+            new_num_docs.append(k)
+        doc_scores = np.empty(num_retrieved_docs, dtype=doc_scores.dtype)
         doc_ids = []
+        start_idx = 0
         for query_idx, idcs in enumerate(top_k_idcs):
-            doc_scores[query_idx] = per_query_doc_scores[query_idx][idcs]
+            end_idx = start_idx + len(idcs)
+            doc_scores[start_idx:end_idx] = per_query_doc_scores[query_idx][idcs]
+            start_idx = end_idx
             ids = self.doc_ids[per_query_doc_idcs[query_idx][idcs]]
             ids = list(map(lambda doc_id: doc_id.decode("utf8").strip(), ids))
             doc_ids.extend(ids)
-        return doc_scores.reshape(-1), doc_ids
+        return doc_scores, doc_ids, new_num_docs
 
     def search(
         self, query_embeddings: np.ndarray, query_lengths: np.ndarray
-    ) -> Tuple[np.ndarray, List[str]]:
+    ) -> Tuple[np.ndarray, List[str], List[int]]:
 
         token_scores, token_doc_idcs = self.token_retrieval(
             query_embeddings, query_lengths
@@ -162,9 +169,11 @@ class Searcher:
                 f"Unknown imputation strategy {self.search_config.imputation_strategy}"
             )
 
-        doc_scores, doc_ids = self.filter_and_sort(doc_scores, doc_idcs, num_docs)
+        doc_scores, doc_ids, num_docs = self.filter_and_sort(
+            doc_scores, doc_idcs, num_docs
+        )
 
-        return doc_scores, doc_ids
+        return doc_scores, doc_ids, num_docs
 
     def _gather_imputation(
         self, token_doc_idcs: np.ndarray, query_lengths: np.ndarray
