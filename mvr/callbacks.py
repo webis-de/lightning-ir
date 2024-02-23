@@ -89,6 +89,8 @@ class IndexCallback(Callback):
 
             doc_ids = doc_ids.view(-1, 20).cpu().numpy()
             self.indexer.add(embeddings, doc_ids, doc_lengths)
+            pl_module.log("num_docs", self.indexer.num_docs, prog_bar=True)
+            pl_module.log("num_embeddings", self.indexer.num_embeddings, prog_bar=True)
 
     def on_predict_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.indexer.save()
