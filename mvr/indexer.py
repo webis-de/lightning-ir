@@ -91,8 +91,9 @@ class Indexer:
             and self.num_embeddings >= self.index_config.num_train_tokens
         ):
             if torch.cuda.is_available():
-                self._train_embeddings = self._train_embeddings.cuda()
-                self.index = faiss.index_cpu_to_all_gpus(self.index)
+                self.index = faiss.index_cpu_to_gpu(
+                    faiss.StandardGpuResources(), 0, self.index
+                )
             self.index.train(self._train_embeddings)
             self.index.add(self._train_embeddings)
             self._train_embeddings = None
