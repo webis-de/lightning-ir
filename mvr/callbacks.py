@@ -1,12 +1,12 @@
 import itertools
 from pathlib import Path
-from typing import Any, Literal, Optional, Sequence
+from typing import Any, Dict, Literal, Optional, Sequence
 
 import numpy as np
 import pandas as pd
 import torch
 from lightning import LightningModule, Trainer
-from lightning.pytorch.callbacks import BasePredictionWriter, Callback
+from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
 from .datamodule import RUN_HEADER, DocDataset, QueryDataset
 from .indexer import IndexConfig, Indexer
@@ -64,6 +64,14 @@ class IndexCallback(Callback):
         )
         self.indexer = Indexer(self.config, pl_module.config)
 
+    def log_to_pg(self, info: Dict[str, Any], trainer: Trainer):
+        pg_callback = trainer.progress_bar_callback
+        if pg_callback is None or not isinstance(pg_callback, TQDMProgressBar):
+            return
+        pg = pg_callback.predict_progress_bar
+        if pg is not None:
+            pg.set_postfix(info)
+
     def on_predict_batch_end(
         self,
         trainer: Trainer,
@@ -89,8 +97,13 @@ class IndexCallback(Callback):
 
             doc_ids = doc_ids.view(-1, 20).cpu().numpy()
             self.indexer.add(embeddings, doc_ids, doc_lengths)
-            pl_module.log("num_docs", self.indexer.num_docs, prog_bar=True)
-            pl_module.log("num_embeddings", self.indexer.num_embeddings, prog_bar=True)
+            self.log_to_pg(
+                {
+                    "num_docs": self.indexer.num_docs,
+                    "num_embeddings": self.indexer.num_embeddings,
+                },
+                trainer,
+            )
 
     def on_predict_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.indexer.save()
