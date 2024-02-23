@@ -14,7 +14,7 @@ from .mvr import MVRModule
 from .searcher import SearchConfig, Searcher
 
 
-def format_large_number(number):
+def format_large_number(number: float) -> str:
     suffixes = ["", "K", "M", "B", "T"]
     suffix_index = 0
 
@@ -24,7 +24,10 @@ def format_large_number(number):
 
     formatted_number = "{:.2f}".format(number).rstrip("0").rstrip(".")
 
-    return f"{formatted_number} {suffixes[suffix_index]}"
+    suffix = {suffixes[suffix_index]}
+    if suffix:
+        formatted_number += f" {suffix}"
+    return formatted_number
 
 
 class IndexCallback(Callback):
