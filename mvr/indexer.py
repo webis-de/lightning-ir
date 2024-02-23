@@ -64,9 +64,14 @@ class Indexer:
         else:
             self.index.make_direct_map()
 
-        self._train_embeddings = torch.empty(
+        if torch.cuda.is_available():
+            self.index = faiss.index_cpu_to_gpu(
+                faiss.StandardGpuResources(), 0, self.index
+            )
+
+        self._train_embeddings = np.empty(
             (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
-            dtype=torch.float32,
+            dtype=np.float32,
         )
 
     def _grab_train_embeddings(self, token_embeddings: np.ndarray) -> np.ndarray:
@@ -78,9 +83,7 @@ class Indexer:
             if end > self.index_config.num_train_tokens:
                 end = self.index_config.num_train_tokens
             length = end - start
-            self._train_embeddings[start:end] = torch.from_numpy(
-                token_embeddings[:length]
-            )
+            self._train_embeddings[start:end] = token_embeddings[:length]
             self.num_embeddings += length
             token_embeddings = token_embeddings[length:]
         return token_embeddings
@@ -90,15 +93,19 @@ class Indexer:
             self._train_embeddings is not None
             and self.num_embeddings >= self.index_config.num_train_tokens
         ):
-            if torch.cuda.is_available():
-                self.index = faiss.index_cpu_to_gpu(
-                    faiss.StandardGpuResources(), 0, self.index
-                )
             self.index.train(self._train_embeddings)
             self.index.add(self._train_embeddings)
             self._train_embeddings = None
             if torch.cuda.is_available():
+                # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
+                # move index to cpu but leave quantizer on gpu
                 self.index = faiss.index_gpu_to_cpu(self.index)
+                index_ivf = faiss.extract_index_ivf(self.index)
+                quantizer = index_ivf.quantizer
+                gpu_quantizer = faiss.index_cpu_to_gpu(
+                    faiss.StandardGpuResources(), 0, quantizer
+                )
+                index_ivf.quantizer = gpu_quantizer
 
     def add(
         self,
