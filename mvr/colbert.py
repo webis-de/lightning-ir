@@ -97,7 +97,7 @@ class ColBERTModel(BertPreTrainedModel, MVRModel):
         config = ColBERTConfig.from_pretrained(model_name_or_path)
         config.update(
             {
-                "similarity_function": colbert_config["similarity"],
+                "similarity_function": "dot",
                 "aggregation_function": "sum",
                 "query_expansion": True,
                 "query_length": colbert_config["query_maxlen"],
