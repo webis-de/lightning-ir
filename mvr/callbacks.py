@@ -38,6 +38,7 @@ class IndexCallback(Callback):
         num_centroids: int = 65536,
         num_subquantizers: int = 16,
         n_bits: int = 4,
+        verbose: bool = False,
     ) -> None:
         super().__init__()
         self.index_path = index_path
@@ -45,6 +46,7 @@ class IndexCallback(Callback):
         self.num_centroids = num_centroids
         self.num_subquantizers = num_subquantizers
         self.n_bits = n_bits
+        self.verbose = verbose
         self.config: IndexConfig
         self.indexer: Indexer
 
@@ -78,7 +80,7 @@ class IndexCallback(Callback):
             num_subquantizers=self.num_subquantizers,
             n_bits=self.n_bits,
         )
-        self.indexer = Indexer(self.config, pl_module.config)
+        self.indexer = Indexer(self.config, pl_module.config, self.verbose)
 
     def log_to_pg(self, info: Dict[str, Any], trainer: Trainer):
         pg_callback = trainer.progress_bar_callback

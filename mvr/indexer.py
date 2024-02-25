@@ -32,13 +32,16 @@ class IndexConfig(NamedTuple):
 
 
 class Indexer:
-    def __init__(self, index_config: IndexConfig, mvr_config: MVRConfig) -> None:
+    def __init__(
+        self, index_config: IndexConfig, mvr_config: MVRConfig, verbose: bool = False
+    ) -> None:
         self.index_config = index_config
         self.mvr_config = mvr_config
         self.doc_ids = []
         self.doc_lengths = []
         self.num_embeddings = 0
         self.num_docs = 0
+        self.verbose = verbose
 
         if self.mvr_config.similarity_function == "l2":
             # coarse_quantizer = faiss.IndexFlatL2(self.mvr_config.embedding_dim)
@@ -59,10 +62,7 @@ class Indexer:
         self.index = faiss.index_factory(
             self.mvr_config.embedding_dim, index_factory, metric_type
         )
-        if self.mvr_config.similarity_function == "cosine":
-            faiss.downcast_index(self.index.index).make_direct_map()
-        else:
-            self.index.make_direct_map()
+        self.index.verbose = self.verbose
 
         if torch.cuda.is_available():
             self.index = faiss.index_cpu_to_gpu(
