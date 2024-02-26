@@ -10,7 +10,7 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 
 from .datamodule import RUN_HEADER, DocDataset, QueryDataset
 from .indexer import IndexConfig, Indexer
-from .mvr import MVRModule
+from .mvr import MVRModule, ScoringFunction
 from .searcher import SearchConfig, Searcher
 
 
@@ -108,7 +108,7 @@ class IndexCallback(Callback):
         if trainer.is_global_zero:
             outputs = outputs.view(-1, *outputs.shape[-2:])
 
-            masked = (outputs == 0).all(-1)
+            masked = (outputs == ScoringFunction.MASK_VALUE).all(-1)
             doc_lengths = masked.logical_not().sum(-1).cpu().numpy().astype(np.uint16)
 
             outputs = outputs.view(-1, pl_module.config.embedding_dim)
