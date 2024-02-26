@@ -23,7 +23,7 @@ class IndexConfig(NamedTuple):
             data["index_path"] = Path(data["index_path"])
             return cls(**data)
 
-    def save_pretrained(self, index_path: Path) -> None:
+    def save(self, index_path: Path) -> None:
         index_path.mkdir(parents=True, exist_ok=True)
         with open(index_path / "config.json", "w") as f:
             data = self._asdict()
@@ -129,7 +129,7 @@ class Indexer:
 
     def save(self) -> None:
         self.index_config.index_path.mkdir(parents=True, exist_ok=True)
-        self.index_config.save_pretrained(self.index_config.index_path)
+        self.index_config.save(self.index_config.index_path)
         if not self.index.is_trained:
             raise ValueError("index is not trained")
         if self.num_embeddings != self.index.ntotal:
