@@ -54,6 +54,7 @@ class Indexer:
                 f"similarity_function {self.mvr_config.similarity_function} unknown"
             )
         index_factory = (
+            f"OPQ{self.index_config.num_subquantizers},"
             f"IVF{self.index_config.num_centroids},"
             f"PQ{self.index_config.num_subquantizers}x{self.index_config.n_bits}"
         )
