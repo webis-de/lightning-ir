@@ -10,7 +10,7 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 
 from .datamodule import RUN_HEADER, DocDataset, QueryDataset
 from .indexer import IndexConfig, Indexer
-from .mvr import MVRModule
+from .mvr import MVRModule, ScoringFunction
 from .searcher import SearchConfig, Searcher
 
 
@@ -22,7 +22,7 @@ def format_large_number(number: float) -> str:
         number /= 1000.0
         suffix_index += 1
 
-    formatted_number = "{:.2f}".format(number).rstrip("0").rstrip(".")
+    formatted_number = "{:.2f}".format(number)
 
     suffix = suffixes[suffix_index]
     if suffix:
@@ -38,6 +38,7 @@ class IndexCallback(Callback):
         num_centroids: int = 65536,
         num_subquantizers: int = 16,
         n_bits: int = 4,
+        verbose: bool = False,
     ) -> None:
         super().__init__()
         self.index_path = index_path
@@ -45,6 +46,7 @@ class IndexCallback(Callback):
         self.num_centroids = num_centroids
         self.num_subquantizers = num_subquantizers
         self.n_bits = n_bits
+        self.verbose = verbose
         self.config: IndexConfig
         self.indexer: Indexer
 
@@ -78,7 +80,7 @@ class IndexCallback(Callback):
             num_subquantizers=self.num_subquantizers,
             n_bits=self.n_bits,
         )
-        self.indexer = Indexer(self.config, pl_module.config)
+        self.indexer = Indexer(self.config, pl_module.config, self.verbose)
 
     def log_to_pg(self, info: Dict[str, Any], trainer: Trainer):
         pg_callback = trainer.progress_bar_callback
@@ -106,7 +108,7 @@ class IndexCallback(Callback):
         if trainer.is_global_zero:
             outputs = outputs.view(-1, *outputs.shape[-2:])
 
-            masked = (outputs == 0).all(-1)
+            masked = (outputs == ScoringFunction.MASK_VALUE).all(-1)
             doc_lengths = masked.logical_not().sum(-1).cpu().numpy().astype(np.uint16)
 
             outputs = outputs.view(-1, pl_module.config.embedding_dim)

@@ -32,13 +32,16 @@ class IndexConfig(NamedTuple):
 
 
 class Indexer:
-    def __init__(self, index_config: IndexConfig, mvr_config: MVRConfig) -> None:
+    def __init__(
+        self, index_config: IndexConfig, mvr_config: MVRConfig, verbose: bool = False
+    ) -> None:
         self.index_config = index_config
         self.mvr_config = mvr_config
         self.doc_ids = []
         self.doc_lengths = []
         self.num_embeddings = 0
         self.num_docs = 0
+        self.verbose = verbose
 
         if self.mvr_config.similarity_function == "l2":
             # coarse_quantizer = faiss.IndexFlatL2(self.mvr_config.embedding_dim)
@@ -51,6 +54,7 @@ class Indexer:
                 f"similarity_function {self.mvr_config.similarity_function} unknown"
             )
         index_factory = (
+            f"OPQ{self.index_config.num_subquantizers},"
             f"IVF{self.index_config.num_centroids},"
             f"PQ{self.index_config.num_subquantizers}x{self.index_config.n_bits}"
         )
@@ -59,15 +63,17 @@ class Indexer:
         self.index = faiss.index_factory(
             self.mvr_config.embedding_dim, index_factory, metric_type
         )
-        if self.mvr_config.similarity_function == "cosine":
-            faiss.downcast_index(self.index.index).make_direct_map()
-        else:
-            self.index.make_direct_map()
+        self.index.verbose = self.verbose
+        self.index.index.verbose = self.verbose
+        faiss.downcast_index(self.index.index).make_direct_map()
 
         if torch.cuda.is_available():
-            self.index = faiss.index_cpu_to_gpu(
-                faiss.StandardGpuResources(), 0, self.index
+            index_ivf = faiss.extract_index_ivf(self.index)
+            clustering_index = faiss.index_cpu_to_all_gpus(
+                faiss.IndexFlat(self.mvr_config.embedding_dim, metric_type)
             )
+            clustering_index.verbose = self.verbose
+            index_ivf.clustering_index = clustering_index
 
         self._train_embeddings = np.empty(
             (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
@@ -94,8 +100,6 @@ class Indexer:
             and self.num_embeddings >= self.index_config.num_train_tokens
         ):
             self.index.train(self._train_embeddings)
-            self.index.add(self._train_embeddings)
-            self._train_embeddings = None
             if torch.cuda.is_available():
                 # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
                 # move index to cpu but leave quantizer on gpu
@@ -106,6 +110,10 @@ class Indexer:
                     faiss.StandardGpuResources(), 0, quantizer
                 )
                 index_ivf.quantizer = gpu_quantizer
+            self.index.add(self._train_embeddings)
+            self._train_embeddings = None
+            self.index.verbose = False
+            self.index.index.verbose = False
 
     def add(
         self,
