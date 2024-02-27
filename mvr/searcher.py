@@ -176,9 +176,10 @@ class Searcher:
     def _gather_imputation(
         self, token_doc_idcs: np.ndarray, query_lengths: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray, List[int]]:
-        split_doc_idcs = np.split(
-            token_doc_idcs.reshape(-1), query_lengths[:-1].cumsum() * len(query_lengths)
-        )
+        split_doc_idcs = [
+            idcs.reshape(-1)
+            for idcs in np.split(token_doc_idcs, query_lengths[:-1].cumsum())
+        ]
         doc_idcs_per_query = [list(sorted(set(idcs))) for idcs in split_doc_idcs]
         num_docs = [len(idcs) for idcs in doc_idcs_per_query]
         doc_idcs = np.array(sum(doc_idcs_per_query, []))
