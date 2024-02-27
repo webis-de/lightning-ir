@@ -79,11 +79,11 @@ class DataParallelIterableDataset(IterableDataset):
         self.rank = process_rank * num_workers + worker_id
         if isinstance(config, QueryDatasetConfig):
             self._field = "queries"
-            self._iterator = self.ir_dataset.queries_iter()
+            self._iterator = self.ir_dataset.queries_iter
             self._sample_cls = QuerySample
         elif isinstance(config, DocDatasetConfig):
             self._field = "docs"
-            self._iterator = self.ir_dataset.docs_iter()
+            self._iterator = self.ir_dataset.docs_iter
             self._sample_cls = DocSample
         else:
             raise ValueError("Invalid dataset configuration.")
@@ -98,7 +98,7 @@ class DataParallelIterableDataset(IterableDataset):
         start = self.rank
         stop = getattr(self.config, f"num_{self._field}") or None
         step = self.num_replicas
-        for sample in islice(self._iterator, start, stop, step):
+        for sample in islice(self._iterator(), start, stop, step):
             yield self._sample_cls.from_ir_dataset_sample(sample)
 
 
