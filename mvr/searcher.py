@@ -57,7 +57,6 @@ class Searcher:
         self.scoring_function = ScoringFunction(
             self.mvr_config.similarity_function,
             self.mvr_config.aggregation_function,
-            self.mvr_config.xtr_token_retrieval_k,
         )
 
         self.index = faiss.read_index(
