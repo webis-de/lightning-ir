@@ -10,7 +10,7 @@ import torch
 from lightning import Trainer
 from transformers import BertModel
 
-from mvr.callbacks import IndexCallback, IndexConfig, SearchCallback, SearchConfig
+from mvr.callbacks import IndexCallback, SearchCallback
 from mvr.searcher import sparse_doc_aggregation
 from mvr.datamodule import MVRDataModule
 from mvr.mvr import MVRConfig, MVRModel, MVRModule
