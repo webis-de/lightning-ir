@@ -188,12 +188,19 @@ class Searcher:
         doc_lengths = self.doc_lengths[unique_doc_idcs]
         start_token_idcs = self.cumulative_doc_lengths[unique_doc_idcs - 1]
         start_token_idcs[unique_doc_idcs == 0] = 0
+        token_idcs = np.concatenate(
+            [
+                np.arange(start, start + length)
+                for start, length in zip(start_token_idcs, doc_lengths)
+            ]
+        )
+        doc_token_embeddings = self.index.reconstruct_batch(token_idcs)
         unique_doc_embeddings = torch.nn.utils.rnn.pad_sequence(
             [
-                torch.from_numpy(
-                    self.index.reconstruct_n(start_idx.item(), doc_length.item())
+                torch.from_numpy(_embeddings)
+                for _embeddings in np.split(
+                    doc_token_embeddings, doc_lengths[:-1].cumsum()
                 )
-                for start_idx, doc_length in zip(start_token_idcs, doc_lengths)
             ],
             batch_first=True,
             padding_value=self.scoring_function.MASK_VALUE,
