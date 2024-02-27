@@ -133,7 +133,6 @@ class KLDivergence(LossFunction):
 
 
 class RankHinge(LossFunction):
-
     def __init__(
         self,
         reduction: Literal["mean", "sum"] | None = "mean",

@@ -20,7 +20,6 @@ from mvr.loss import LossFunction
 
 
 class MVRConfig(PretrainedConfig):
-
     model_type = "mvr"
 
     ADDED_ARGS = [
@@ -201,10 +200,13 @@ class ScoringFunction:
                 doc_attention_mask = torch.ones_like(masked_tokens)
             doc_attention_mask = (doc_attention_mask.bool() & ~masked_tokens).long()
 
-        doc_embeddings, doc_attention_mask, similarity_mask, num_docs = (
-            self.reformat_docs(
-                doc_embeddings, doc_attention_mask, num_docs, batch_size, embedding_dim
-            )
+        (
+            doc_embeddings,
+            doc_attention_mask,
+            similarity_mask,
+            num_docs,
+        ) = self.reformat_docs(
+            doc_embeddings, doc_attention_mask, num_docs, batch_size, embedding_dim
         )
 
         query_embeddings = query_embeddings.view(
@@ -242,7 +244,6 @@ class ScoringFunction:
 
 
 class MVRModel(PreTrainedModel):
-
     def __init__(self, config: MVRConfig, encoder: PreTrainedModel):
         super().__init__(config)
         self.config: MVRConfig
@@ -281,9 +282,9 @@ class MVRModel(PreTrainedModel):
         if self.config.normalize:
             embedding = torch.nn.functional.normalize(embedding, dim=-1)
         if attention_mask is not None and mask_embeddings:
-            embedding[attention_mask.bool().logical_not()] = (
-                self.scoring_function.MASK_VALUE
-            )
+            embedding[
+                attention_mask.bool().logical_not()
+            ] = self.scoring_function.MASK_VALUE
         return embedding
 
     def encode_queries(
@@ -337,7 +338,6 @@ class MVRModel(PreTrainedModel):
 
 
 class MVRTokenizer(BertTokenizerFast):
-
     def __init__(
         self,
         vocab_file: str | Path | None = None,

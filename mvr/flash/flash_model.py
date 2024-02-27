@@ -10,7 +10,6 @@ from .flash_mixin import FlashMixin
 
 
 class AutoFlashModel(AutoModel):
-
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         config = AutoConfig.from_pretrained(pretrained_model_name_or_path)

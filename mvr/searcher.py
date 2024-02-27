@@ -18,7 +18,6 @@ class SearchConfig(NamedTuple):
 
 
 class SparseDocScores:
-
     def __init__(self, x: np.ndarray, y: np.ndarray, data: np.ndarray) -> None:
         self.x = x
         self.y = y
@@ -148,7 +147,6 @@ class Searcher:
     def search(
         self, query_embeddings: np.ndarray, query_lengths: np.ndarray
     ) -> Tuple[np.ndarray, List[str], List[int]]:
-
         token_scores, token_doc_idcs = self.token_retrieval(
             query_embeddings, query_lengths
         )
@@ -178,7 +176,6 @@ class Searcher:
     def _gather_imputation(
         self, token_doc_idcs: np.ndarray, query_lengths: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray, List[int]]:
-
         split_doc_idcs = np.split(
             token_doc_idcs.reshape(-1), query_lengths[:-1].cumsum() * len(query_lengths)
         )

@@ -20,7 +20,6 @@ from .mvr import MVRConfig, MVRModel, MVRModule, MVRTokenizer
 
 
 class ColBERTConfig(BertConfig, MVRConfig):
-
     model_type = "colbert"
 
     def __init__(self, mask_punctuation: bool = True, **kwargs) -> None:
