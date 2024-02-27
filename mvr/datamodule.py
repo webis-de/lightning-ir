@@ -123,9 +123,8 @@ class DocDataset(DataParallelIterableDataset):
 class IRDataset:
     def __init__(self, dataset: str) -> None:
         self.ir_dataset = ir_datasets.load(dataset)
-        self.queries = pd.DataFrame(self.ir_dataset.queries_iter()).set_index("query_id")[
-            "text"
-        ]
+        queries_iter = self.ir_dataset.queries_iter()
+        self.queries = pd.DataFrame(queries_iter).set_index("query_id")["text"]
         self.docs = self.ir_dataset.docs_store()
         self.dataset_id = self.ir_dataset.dataset_id()
         self.docs_dataset_id = ir_datasets.docs_parent_id(self.dataset_id)
