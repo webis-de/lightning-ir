@@ -123,6 +123,7 @@ class ScoringFunction:
     def compute_similarity(
         self, query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor
     ) -> torch.Tensor:
+        to_cpu = query_embeddings.is_cpu or doc_embeddings.is_cpu
         if torch.cuda.is_available():
             query_embeddings = query_embeddings.cuda()
             doc_embeddings = doc_embeddings.cuda()
@@ -152,7 +153,10 @@ class ScoringFunction:
                     doc_embeddings[start_idx:end_idx],
                 )
             )
-        return torch.cat(out, dim=0)
+        similarity = torch.cat(out, dim=0)
+        if to_cpu:
+            similarity = similarity.cpu()
+        return similarity
 
     def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
