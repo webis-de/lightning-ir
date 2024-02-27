@@ -66,9 +66,11 @@ class IndexCallback(Callback):
 
         index_path = self.index_path
         if index_path is None:
-            if Path(pl_module.config.name_or_path).exists():
-                index_dir = Path(pl_module.config.name_or_path) / "indexes"
+            default_index_path = Path(pl_module.config.name_or_path)
+            if default_index_path.exists():
+                index_dir = default_index_path / "indexes"
                 index_path = index_dir / dataset.docs_dataset_id
+                print(f"Using default index_path {index_path}")
             else:
                 raise ValueError(
                     "No index_path provided and model_name_or_path is not a path"
@@ -105,24 +107,25 @@ class IndexCallback(Callback):
             list(bytes(doc_id.rjust(20), "utf8") for doc_id in batch.doc_ids)
         )
         doc_ids = pl_module.all_gather(encoded_doc_ids)
-        if trainer.is_global_zero:
-            outputs = outputs.view(-1, *outputs.shape[-2:])
+        if not trainer.is_global_zero:
+            return
+        outputs = outputs.view(-1, *outputs.shape[-2:])
 
-            masked = (outputs == ScoringFunction.MASK_VALUE).all(-1)
-            doc_lengths = masked.logical_not().sum(-1).cpu().numpy().astype(np.uint16)
+        masked = (outputs == ScoringFunction.MASK_VALUE).all(-1)
+        doc_lengths = masked.logical_not().sum(-1).cpu().numpy().astype(np.uint16)
 
-            outputs = outputs.view(-1, pl_module.config.embedding_dim)
-            embeddings = outputs[~masked.view(-1)].cpu().numpy().astype(np.float32)
+        outputs = outputs.view(-1, pl_module.config.embedding_dim)
+        embeddings = outputs[~masked.view(-1)].cpu().numpy().astype(np.float32)
 
-            doc_ids = doc_ids.view(-1, 20).cpu().numpy()
-            self.indexer.add(embeddings, doc_ids, doc_lengths)
-            self.log_to_pg(
-                {
-                    "num_docs": self.indexer.num_docs,
-                    "num_embeddings": self.indexer.num_embeddings,
-                },
-                trainer,
-            )
+        doc_ids = doc_ids.view(-1, 20).cpu().numpy()
+        self.indexer.add(embeddings, doc_ids, doc_lengths)
+        self.log_to_pg(
+            {
+                "num_docs": self.indexer.num_docs,
+                "num_embeddings": self.indexer.num_embeddings,
+            },
+            trainer,
+        )
 
     def on_predict_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.indexer.save()
@@ -186,9 +189,14 @@ class SearchCallback(BasePredictionWriter):
         )
         self.searcher = Searcher(self.config, pl_module.config)
         if self.save_dir is None:
-            if not hasattr(trainer, "ckpt_path") or trainer.ckpt_path is None:
-                raise ValueError("No save_dir provided and ckpt_path is not set")
-            self.save_dir = Path(trainer.ckpt_path).parent.parent / "runs"
+            default_save_dir = Path(pl_module.config.name_or_path)
+            if default_save_dir.exists():
+                self.save_dir = default_save_dir / "runs"
+                print(f"Using default save_dir {self.save_dir}")
+            else:
+                raise ValueError(
+                    "No index_path provided and model_name_or_path is not a path"
+                )
 
     def get_run_path(self, trainer: Trainer, dataset_idx: int) -> Path:
         dataloaders = trainer.predict_dataloaders
@@ -218,7 +226,7 @@ class SearchCallback(BasePredictionWriter):
             return
 
         prediction = prediction.view(-1, *prediction.shape[-2:])
-        masked = (prediction == 0).all(-1)
+        masked = (prediction == self.searcher.scoring_function.MASK_VALUE).all(-1)
         query_lengths = masked.logical_not().sum(-1).cpu().numpy()
         query_tokens = prediction[masked.logical_not()].cpu().numpy().astype(np.float32)
         scores, doc_ids, num_docs = self.searcher.search(query_tokens, query_lengths)
