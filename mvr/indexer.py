@@ -12,9 +12,9 @@ from .mvr import MVRConfig
 class IndexConfig(NamedTuple):
     index_path: Path
     num_train_tokens: int
-    num_centroids: int = 65536
+    num_centroids: int = 262144
     num_subquantizers: int = 16
-    n_bits: int = 4
+    n_bits: int = 8
 
     @classmethod
     def from_pretrained(cls, index_path: Path) -> "IndexConfig":
@@ -63,17 +63,24 @@ class Indexer:
         self.index = faiss.index_factory(
             self.mvr_config.embedding_dim, index_factory, metric_type
         )
-        self.index.verbose = self.verbose
-        self.index.index.verbose = self.verbose
-        faiss.downcast_index(self.index.index).make_direct_map()
+        index_ivf_pq = faiss.downcast_index(self.index.index)
+        index_ivf_pq.make_direct_map()
+
+        for elem in (
+            self.index,
+            self.index.index,
+            index_ivf_pq.cp,
+            index_ivf_pq.pq,
+            index_ivf_pq.quantizer,
+        ):
+            setattr(elem, "verbose", self.verbose)
 
         if torch.cuda.is_available():
-            index_ivf = faiss.extract_index_ivf(self.index)
             clustering_index = faiss.index_cpu_to_all_gpus(
                 faiss.IndexFlat(self.mvr_config.embedding_dim, metric_type)
             )
             clustering_index.verbose = self.verbose
-            index_ivf.clustering_index = clustering_index
+            index_ivf_pq.clustering_index = clustering_index
 
         self._train_embeddings = np.empty(
             (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
@@ -104,12 +111,12 @@ class Indexer:
                 # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
                 # move index to cpu but leave quantizer on gpu
                 self.index = faiss.index_gpu_to_cpu(self.index)
-                index_ivf = faiss.extract_index_ivf(self.index)
-                quantizer = index_ivf.quantizer
+                index_ivf_pq = faiss.downcast_index(self.index.index)
+                quantizer = index_ivf_pq.quantizer
                 gpu_quantizer = faiss.index_cpu_to_gpu(
                     faiss.StandardGpuResources(), 0, quantizer
                 )
-                index_ivf.quantizer = gpu_quantizer
+                index_ivf_pq.quantizer = gpu_quantizer
             self.index.add(self._train_embeddings)
             self._train_embeddings = None
             self.index.verbose = False
@@ -123,9 +130,7 @@ class Indexer:
     ) -> None:
         if doc_ids.dtype != np.uint8:
             raise ValueError("doc_ids must be of type np.uint8")
-        self.doc_lengths.append(doc_lengths.astype(np.uint16))
         token_embeddings = self._grab_train_embeddings(token_embeddings)
-
         self._train()
 
         if token_embeddings.shape[0]:
@@ -133,6 +138,8 @@ class Indexer:
 
         self.num_embeddings += token_embeddings.shape[0]
         self.num_docs += doc_ids.shape[0]
+
+        self.doc_lengths.append(doc_lengths.astype(np.uint16))
         self.doc_ids.append(doc_ids)
 
     def save(self) -> None:
