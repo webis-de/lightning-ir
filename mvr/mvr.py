@@ -96,6 +96,10 @@ class MVRConfig(PretrainedConfig):
         return cls.from_dict({**config.to_dict(), **kwargs})
 
 
+def ceil_div(a: int, b: int) -> int:
+    return -(a // -b)
+
+
 class ScoringFunction:
     MASK_VALUE = -10000
 
@@ -115,6 +119,40 @@ class ScoringFunction:
             raise ValueError(f"Unknown similarity function {similarity_function}")
         self.aggregation_function = aggregation_function
         self.xtr_token_retrieval_k = xtr_token_retrieval_k
+
+    def compute_similarity(
+        self, query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor
+    ) -> torch.Tensor:
+        if torch.cuda.is_available():
+            query_embeddings = query_embeddings.cuda()
+            doc_embeddings = doc_embeddings.cuda()
+
+        query_dims = query_embeddings.shape[:-2]
+        doc_dims = doc_embeddings.shape[:-2]
+        if len(query_dims) != len(doc_dims) or any(
+            query_dim != 1 and doc_dim != 1 and query_dim != doc_dim
+            for query_dim, doc_dim in zip(query_dims, doc_dims)
+        ):
+            raise ValueError("Batch dimensions do not match")
+        dims = torch.Size(
+            query_dim if query_dim != 1 else doc_dim
+            for query_dim, doc_dim in zip(query_dims, doc_dims)
+        )
+        comparisons_per_batch = dims.numel() // dims[0]
+        batch_size = ceil_div(2048, comparisons_per_batch)
+        num_batches = ceil_div(dims[0], batch_size)
+
+        out = []
+        for batch_idx in range(num_batches):
+            start_idx = batch_idx * batch_size
+            end_idx = start_idx + batch_size
+            out.append(
+                self.similarity_function(
+                    query_embeddings[start_idx:end_idx],
+                    doc_embeddings[start_idx:end_idx],
+                )
+            )
+        return torch.cat(out, dim=0)
 
     def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
@@ -216,7 +254,7 @@ class ScoringFunction:
                 batch_size, 1, query_len, 1
             )
 
-        similarity = self.similarity_function(query_embeddings, doc_embeddings)
+        similarity = self.compute_similarity(query_embeddings, doc_embeddings)
 
         if simulate_token_retrieval and self.xtr_token_retrieval_k is not None:
             ib_similarity = similarity.transpose(1, 2).reshape(
