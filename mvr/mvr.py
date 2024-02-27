@@ -1,5 +1,4 @@
 import warnings
-from abc import ABC
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Tuple
@@ -282,9 +281,9 @@ class MVRModel(PreTrainedModel):
         if self.config.normalize:
             embedding = torch.nn.functional.normalize(embedding, dim=-1)
         if attention_mask is not None and mask_embeddings:
-            embedding[
-                attention_mask.bool().logical_not()
-            ] = self.scoring_function.MASK_VALUE
+            embedding[attention_mask.bool().logical_not()] = (
+                self.scoring_function.MASK_VALUE
+            )
         return embedding
 
     def encode_queries(
