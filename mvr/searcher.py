@@ -63,11 +63,13 @@ class Searcher:
             str(self.search_config.index_path / "index.faiss")
         )
         self.index.nprobe = self.search_config.n_probe
-        self.doc_ids = np.memmap(
+        doc_ids = np.memmap(
             self.search_config.index_path / "doc_ids.npy",
             dtype="S20",
             mode="r",
         )
+        self.doc_ids = np.empty_like(doc_ids)
+        self.doc_ids[:] = doc_ids[:]
         self.num_docs = self.doc_ids.shape[0]
         doc_lengths = np.memmap(
             self.search_config.index_path / "doc_lengths.npy",
