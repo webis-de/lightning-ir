@@ -78,20 +78,6 @@ class Searcher:
             raise ValueError("doc_lengths do not match index")
         self.cumulative_doc_lengths = torch.cumsum(self.doc_lengths, dim=0)
 
-    def score(
-        self,
-        query_embeddings: np.ndarray,
-        query_lengths: np.ndarray,
-        doc_embeddings: np.ndarray,
-        num_docs: List[int],
-    ):
-
-        torch_doc_embeddings = torch.from_numpy(doc_embeddings)
-        scores = self.scoring_function.score(
-            torch_query_embeddings, torch_doc_embeddings, num_docs=num_docs
-        )
-        return scores
-
     def token_retrieval(
         self, query_embeddings: torch.Tensor, query_scoring_mask: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor]:
