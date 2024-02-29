@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Type, TypeVar
 
 from transformers import PretrainedConfig, PreTrainedModel, AutoModel, AutoConfig
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
@@ -20,9 +20,10 @@ class AutoFlashModel(AutoModel):
         )
 
 
-def FlashClassFactory(
-    TransformerModel: Type[PreTrainedModel],
-) -> Type[PreTrainedModel]:
+T = TypeVar("T", bound=PreTrainedModel)
+
+
+def FlashClassFactory(TransformerModel: Type[T]) -> Type[T]:
     Mixin = get_mixin(TransformerModel)
 
     assert issubclass(TransformerModel.config_class, PretrainedConfig)

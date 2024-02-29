@@ -23,10 +23,9 @@ class FlashBertMixin(FlashMixin):
         *args,
         **kwargs,
     ) -> Tuple[torch.Tensor]:
-        key_value_hidden_states = hidden_states
         query = self.transpose_for_scores(self.query(hidden_states))
-        key = self.transpose_for_scores(self.key(key_value_hidden_states))
-        value = self.transpose_for_scores(self.value(key_value_hidden_states))
+        key = self.transpose_for_scores(self.key(hidden_states))
+        value = self.transpose_for_scores(self.value(hidden_states))
 
         if (
             flash_attn_func is not None
