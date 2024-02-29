@@ -108,12 +108,14 @@ def test_same_as_colbert():
         doc_embedding = model.encode_docs(
             doc_encoding.input_ids, doc_encoding.attention_mask
         )
-    scores = model.score(
-        query_embedding,
-        doc_embedding,
+    query_scoring_mask, doc_scoring_mask = model.scoring_masks(
+        query_encoding.input_ids,
+        doc_encoding.input_ids,
         query_encoding.attention_mask,
         doc_encoding.attention_mask,
-        None,
+    )
+    scores = model.score(
+        query_embedding, doc_embedding, query_scoring_mask, doc_scoring_mask, None
     )
 
     orig_model = Checkpoint("colbert-ir/colbertv2.0")

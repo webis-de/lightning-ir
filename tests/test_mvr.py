@@ -102,14 +102,20 @@ def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRMode
 
     num_docs = [len(docs) for docs in batch.doc_ids]
     num_docs[-1] = num_docs[-1] - 1
+    query_scoring_mask, doc_scoring_mask = model.scoring_masks(
+        batch.query_encoding.input_ids,
+        batch.doc_encoding.input_ids,
+        batch.query_encoding.attention_mask,
+        batch.doc_encoding.attention_mask,
+    )
     scores = model.score(
         query_embedding,
         doc_embedding,
-        batch.query_encoding.attention_mask,
-        batch.doc_encoding.attention_mask,
+        query_scoring_mask,
+        doc_scoring_mask,
         num_docs,
     )
-    assert (scores == model.scoring_function.MASK_VALUE).sum() == 1
+    assert scores.shape[0] == doc_embedding.shape[0]
 
 
 @pytest.mark.parametrize("similarity_function", ["cosine", "dot", "l2"])

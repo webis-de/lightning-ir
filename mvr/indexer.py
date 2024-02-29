@@ -82,12 +82,12 @@ class Indexer:
             clustering_index.verbose = self.verbose
             index_ivf_pq.clustering_index = clustering_index
 
-        self._train_embeddings = np.empty(
+        self._train_embeddings = torch.empty(
             (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
-            dtype=np.float32,
+            dtype=torch.float32,
         )
 
-    def _grab_train_embeddings(self, token_embeddings: np.ndarray) -> np.ndarray:
+    def _grab_train_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
         if self._train_embeddings is not None:
             # save training embeddings until num_train_tokens is reached
             # if num_train_tokens overflows, save the remaining embeddings
@@ -124,11 +124,11 @@ class Indexer:
 
     def add(
         self,
-        token_embeddings: np.ndarray,
-        doc_ids: np.ndarray,
-        doc_lengths: np.ndarray,
+        token_embeddings: torch.Tensor,
+        doc_ids: torch.Tensor,
+        doc_lengths: torch.Tensor,
     ) -> None:
-        if doc_ids.dtype != np.uint8:
+        if doc_ids.dtype != torch.uint8:
             raise ValueError("doc_ids must be of type np.uint8")
         token_embeddings = self._grab_train_embeddings(token_embeddings)
         self._train()
@@ -139,8 +139,8 @@ class Indexer:
         self.num_embeddings += token_embeddings.shape[0]
         self.num_docs += doc_ids.shape[0]
 
-        self.doc_lengths.append(doc_lengths.astype(np.uint16))
-        self.doc_ids.append(doc_ids)
+        self.doc_lengths.append(doc_lengths.cpu())
+        self.doc_ids.append(doc_ids.cpu())
 
     def save(self) -> None:
         self.index_config.index_path.mkdir(parents=True, exist_ok=True)
@@ -149,31 +149,10 @@ class Indexer:
             raise ValueError("index is not trained")
         if self.num_embeddings != self.index.ntotal:
             raise ValueError("number of embeddings does not match index.ntotal")
-        doc_ids_fp = np.memmap(
-            self.index_config.index_path / "doc_ids.npy",
-            dtype="uint8",
-            mode="w+",
-            shape=(self.num_docs, 20),
-        )
-        doc_lengths_fp = np.memmap(
-            self.index_config.index_path / "doc_lengths.npy",
-            dtype="uint16",
-            mode="w+",
-            shape=(self.num_docs,),
-        )
-        num_tokens = 0
-        iterator = zip(self.doc_ids, self.doc_lengths or [None] * len(self.doc_ids))
-        for doc_ids, doc_lengths in iterator:
-            start = num_tokens
-            end = start + doc_ids.shape[0]
-            num_tokens += doc_ids.shape[0]
-            doc_ids_fp[start:end] = doc_ids
-            if doc_lengths is not None and doc_lengths_fp is not None:
-                doc_lengths_fp[start:end] = doc_lengths
-        doc_ids_fp.flush()
-        if doc_lengths_fp is not None:
-            doc_lengths_fp.flush()
-
+        doc_lengths = torch.cat(self.doc_lengths)
+        doc_ids = torch.cat(self.doc_ids)
+        torch.save(doc_lengths, self.index_config.index_path / "doc_lengths.pt")
+        torch.save(doc_ids, self.index_config.index_path / "doc_ids.pt")
         if torch.cuda.is_available():
             self.index = faiss.index_gpu_to_cpu(self.index)
 

@@ -2,12 +2,12 @@ import itertools
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, Sequence
 
-import numpy as np
 import pandas as pd
 import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
+from .data import SearchBatch, IndexBatch
 from .datamodule import RUN_HEADER, DocDataset, QueryDataset
 from .indexer import IndexConfig, Indexer
 from .mvr import MVRModule, ScoringFunction
@@ -98,26 +98,26 @@ class IndexCallback(Callback):
         trainer: Trainer,
         pl_module: MVRModule,
         outputs: Any,
-        batch: Any,
+        batch: IndexBatch,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        outputs = pl_module.all_gather(outputs)
         encoded_doc_ids = torch.ByteTensor(
             list(bytes(doc_id.rjust(20), "utf8") for doc_id in batch.doc_ids)
         )
+        outputs = pl_module.all_gather(outputs)
         doc_ids = pl_module.all_gather(encoded_doc_ids)
         if not trainer.is_global_zero:
             return
         outputs = outputs.view(-1, *outputs.shape[-2:])
 
         masked = (outputs == ScoringFunction.MASK_VALUE).all(-1)
-        doc_lengths = masked.logical_not().sum(-1).cpu().numpy().astype(np.uint16)
 
         outputs = outputs.view(-1, pl_module.config.embedding_dim)
-        embeddings = outputs[~masked.view(-1)].cpu().numpy().astype(np.float32)
+        embeddings = outputs[~masked.view(-1)]
+        doc_ids = doc_ids.view(-1, 20)
+        doc_lengths = masked.logical_not().sum(-1)
 
-        doc_ids = doc_ids.view(-1, 20).cpu().numpy()
         self.indexer.add(embeddings, doc_ids, doc_lengths)
         self.log_to_pg(
             {
@@ -217,19 +217,19 @@ class SearchCallback(BasePredictionWriter):
         pl_module: MVRModule,
         prediction: Any,
         batch_indices: Optional[Sequence[int]],
-        batch: Any,
+        batch: SearchBatch,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        prediction = pl_module.all_gather(prediction)
+        query_embeddings = pl_module.all_gather(prediction)
+        mask = pl_module.all_gather(batch.query_encoding.attention_mask.bool())
         if not trainer.is_global_zero:
             return
 
-        prediction = prediction.view(-1, *prediction.shape[-2:])
-        masked = (prediction == self.searcher.scoring_function.MASK_VALUE).all(-1)
-        query_lengths = masked.logical_not().sum(-1).cpu().numpy()
-        query_tokens = prediction[masked.logical_not()].cpu().numpy().astype(np.float32)
-        scores, doc_ids, num_docs = self.searcher.search(query_tokens, query_lengths)
+        query_lengths = mask.sum(-1)
+        scores, doc_ids, num_docs = self.searcher.search(
+            query_embeddings, query_lengths
+        )
 
         query_ids = list(
             itertools.chain.from_iterable(

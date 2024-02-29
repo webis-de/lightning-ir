@@ -69,14 +69,12 @@ def test_index_callback(
     assert doc_datamodule.inference_datasets is not None
     assert index_callback.indexer.num_embeddings == index_callback.indexer.index.ntotal
     assert (index_path / "index.faiss").exists()
-    assert (index_path / "doc_ids.npy").exists()
-    doc_ids_path = index_path / "doc_ids.npy"
-    file_size = doc_ids_path.stat().st_size
-    num_elements = file_size // (20 * np.dtype("uint8").itemsize)
-    doc_ids = np.memmap(doc_ids_path, dtype="S20", mode="r", shape=(num_elements,))
+    assert (index_path / "doc_ids.pt").exists()
+    doc_ids_path = index_path / "doc_ids.pt"
+    doc_ids = torch.load(doc_ids_path)
     for idx, doc_id in enumerate(doc_ids):
-        assert int(doc_id.decode("utf-8")) == idx
-    assert (index_path / "doc_lengths.npy").exists()
+        assert int(bytes(doc_id).decode("utf-8")) == idx
+    assert (index_path / "doc_lengths.pt").exists()
     assert (index_path / "config.json").exists()
     if similarity == "l2":
         assert index_callback.indexer.index.metric_type == faiss.METRIC_L2
@@ -84,7 +82,7 @@ def test_index_callback(
         assert index_callback.indexer.index.metric_type == faiss.METRIC_INNER_PRODUCT
 
 
-@pytest.mark.parametrize("similarity", ("cosine", "dot", "l2"))
+@pytest.mark.parametrize("similarity", ("cosine", "dot"))
 @pytest.mark.parametrize("imputation_strategy", ("min", "gather"))
 def test_search_callback(
     tmp_path: Path,

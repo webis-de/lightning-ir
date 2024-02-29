@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from string import punctuation
-from typing import Any, Dict
+from typing import Any, Dict, List, Tuple
 
 import torch
 from huggingface_hub import hf_hub_download
@@ -16,7 +16,8 @@ from transformers import (
 
 from .flash.flash_model import FlashClassFactory
 from .loss import LossFunction
-from .mvr import MVRConfig, MVRModel, MVRModule, MVRTokenizer
+from .mvr import MVRConfig, MVRModel, MVRModule
+from .tokenizer import MVRTokenizer
 
 
 class ColBERTConfig(BertConfig, MVRConfig):
@@ -61,19 +62,24 @@ class ColBERTModel(BertPreTrainedModel, MVRModel):
     def encoder(self) -> torch.nn.Module:
         return self.bert
 
-    def encode_docs(
+    def scoring_masks(
         self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor | None,
-        token_type_ids: torch.Tensor | None = None,
-    ):
-        embedding = super().encode_docs(input_ids, attention_mask, token_type_ids)
+        query_input_ids: torch.Tensor,
+        doc_input_ids: torch.Tensor,
+        query_attention_mask: torch.Tensor | None,
+        doc_attention_mask: torch.Tensor | None = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        query_scoring_mask, doc_scoring_mask = super().scoring_masks(
+            query_input_ids, doc_input_ids, query_attention_mask, doc_attention_mask
+        )
         if self.mask_tokens is not None:
             punctuation_mask = (
-                input_ids[..., None].eq(self.mask_tokens.to(attention_mask)).any(-1)
+                doc_input_ids[..., None]
+                .eq(self.mask_tokens.to(doc_attention_mask))
+                .any(-1)
             )
-            embedding[punctuation_mask] = self.scoring_function.MASK_VALUE
-        return embedding
+            doc_scoring_mask = doc_scoring_mask & ~punctuation_mask
+        return query_scoring_mask, doc_scoring_mask
 
     @classmethod
     def from_colbert_checkpoint(cls, model_name_or_path: Path | str) -> "ColBERTModel":

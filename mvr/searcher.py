@@ -1,9 +1,10 @@
+import warnings
 from pathlib import Path
 from typing import List, Literal, NamedTuple, Tuple
 
-import scipy.sparse as sp
 import faiss
 import numpy as np
+import scipy.sparse as sp
 import torch
 
 from .mvr import MVRConfig, ScoringFunction
@@ -59,31 +60,23 @@ class Searcher:
             self.mvr_config.aggregation_function,
         )
 
+        if self.mvr_config.similarity_function == "l2":
+            warnings.warn("L2 similarity is not tested and may not work correctly")
+
         self.index = faiss.read_index(
             str(self.search_config.index_path / "index.faiss")
         )
         self.index.nprobe = self.search_config.n_probe
-        doc_ids = np.memmap(
-            self.search_config.index_path / "doc_ids.npy",
-            dtype="S20",
-            mode="r",
-        )
-        self.doc_ids = np.empty_like(doc_ids)
-        self.doc_ids[:] = doc_ids[:]
+        self.doc_ids = torch.load(self.search_config.index_path / "doc_ids.pt")
+        self.doc_ids = self.doc_ids.view(-1, 20)
+        self.doc_lengths = torch.load(self.search_config.index_path / "doc_lengths.pt")
         self.num_docs = self.doc_ids.shape[0]
-        doc_lengths = np.memmap(
-            self.search_config.index_path / "doc_lengths.npy",
-            dtype="uint16",
-            mode="r",
-        )
-        self.doc_lengths = np.empty_like(doc_lengths)
-        self.doc_lengths[:] = doc_lengths[:]
         if (
             self.doc_lengths.shape[0] != self.num_docs
             or self.doc_lengths.sum() != self.index.ntotal
         ):
             raise ValueError("doc_lengths do not match index")
-        self.cumulative_doc_lengths = np.cumsum(doc_lengths)
+        self.cumulative_doc_lengths = torch.cumsum(self.doc_lengths, dim=0)
 
     def score(
         self,
@@ -92,75 +85,70 @@ class Searcher:
         doc_embeddings: np.ndarray,
         num_docs: List[int],
     ):
-        split_query_embeddings = list(
-            torch.split(torch.from_numpy(query_embeddings), query_lengths.tolist())
-        )
-        torch_query_embeddings = torch.nn.utils.rnn.pad_sequence(
-            split_query_embeddings,
-            batch_first=True,
-            padding_value=self.scoring_function.MASK_VALUE,
-        )
+
         torch_doc_embeddings = torch.from_numpy(doc_embeddings)
         scores = self.scoring_function.score(
             torch_query_embeddings, torch_doc_embeddings, num_docs=num_docs
         )
-        scores = scores.numpy()
-        scores = scores[scores != self.scoring_function.MASK_VALUE]
         return scores
 
     def token_retrieval(
-        self, query_embeddings: np.ndarray, query_lengths: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray]:
+        self, query_embeddings: torch.Tensor, query_scoring_mask: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        query_embeddings = query_embeddings[query_scoring_mask]
         token_scores, token_idcs = self.index.search(
-            query_embeddings, self.search_config.candidate_k
+            query_embeddings.cpu(), self.search_config.candidate_k
         )
-        token_doc_idcs = np.searchsorted(
+        token_scores = torch.from_numpy(token_scores).to(query_embeddings.device)
+        token_idcs = torch.from_numpy(token_idcs).to(query_embeddings.device)
+        token_doc_idcs = torch.searchsorted(
             self.cumulative_doc_lengths, token_idcs, side="right"
         )
         return token_scores, token_doc_idcs
 
     def filter_and_sort(
-        self, doc_scores: np.ndarray, doc_idcs: np.ndarray, num_docs: List[int]
-    ) -> Tuple[np.ndarray, List[str], List[int]]:
-        split_idcs = np.cumsum(num_docs[:-1])
-        per_query_doc_scores = np.split(doc_scores, split_idcs)
-        per_query_doc_idcs = np.split(doc_idcs, split_idcs)
-        top_k_idcs = []
-        num_retrieved_docs = 0
+        self, doc_scores: torch.Tensor, doc_idcs: torch.Tensor, num_docs: List[int]
+    ) -> Tuple[torch.Tensor, List[str], List[int]]:
+        per_query_doc_scores = torch.split(doc_scores, num_docs)
+        per_query_doc_idcs = torch.split(doc_idcs, num_docs)
         new_num_docs = []
-        for scores in per_query_doc_scores:
-            k = min(self.search_config.k, scores.shape[0])
-            top_k_idcs.append(np.argpartition(scores, -k)[-k:][::-1])
-            num_retrieved_docs += k
-            new_num_docs.append(k)
-        doc_scores = np.empty(num_retrieved_docs, dtype=doc_scores.dtype)
+        _doc_scores = []
         doc_ids = []
-        start_idx = 0
-        for query_idx, idcs in enumerate(top_k_idcs):
-            end_idx = start_idx + len(idcs)
-            doc_scores[start_idx:end_idx] = per_query_doc_scores[query_idx][idcs]
-            start_idx = end_idx
+        for query_idx, scores in enumerate(per_query_doc_scores):
+            k = min(self.search_config.k, scores.shape[0])
+            values, idcs = torch.topk(scores, k)
+            _doc_scores.append(values)
             ids = self.doc_ids[per_query_doc_idcs[query_idx][idcs]]
-            ids = list(map(lambda doc_id: doc_id.decode("utf8").strip(), ids))
-            doc_ids.extend(ids)
+            doc_ids.extend(map(lambda x: bytes(x).decode("utf-8").strip(), ids))
+            new_num_docs.append(k)
+        doc_scores = torch.cat(_doc_scores)
         return doc_scores, doc_ids, new_num_docs
 
     def search(
-        self, query_embeddings: np.ndarray, query_lengths: np.ndarray
-    ) -> Tuple[np.ndarray, List[str], List[int]]:
-        token_scores, token_doc_idcs = self.token_retrieval(
-            query_embeddings, query_lengths
+        self, query_embeddings: torch.Tensor, query_lengths: torch.Tensor
+    ) -> Tuple[torch.Tensor, List[str], List[int]]:
+        query_scoring_mask = (
+            torch.arange(query_embeddings.shape[1]) < query_lengths[:, None]
         )
-
+        token_scores, token_doc_idcs = self.token_retrieval(
+            query_embeddings, query_scoring_mask
+        )
         if self.search_config.imputation_strategy == "gather":
-            doc_embeddings, doc_idcs, num_docs = self._gather_imputation(
+            doc_embeddings, doc_idcs, doc_lengths, num_docs = self.gather_imputation(
                 token_doc_idcs, query_lengths
             )
-            doc_scores = self.score(
-                query_embeddings, query_lengths, doc_embeddings, num_docs
+            doc_scoring_mask = (
+                torch.arange(doc_embeddings.shape[1]) < doc_lengths[:, None]
+            )
+            doc_scores = self.scoring_function.score(
+                query_embeddings,
+                doc_embeddings,
+                query_scoring_mask,
+                doc_scoring_mask,
+                num_docs,
             )
         elif self.search_config.imputation_strategy == "min":
-            doc_scores, doc_idcs, num_docs = self._min_imputation(
+            doc_scores, doc_idcs, num_docs = self.min_imputation(
                 token_scores, token_doc_idcs, query_lengths
             )
         else:
@@ -174,73 +162,95 @@ class Searcher:
 
         return doc_scores, doc_ids, num_docs
 
-    def _gather_imputation(
-        self, token_doc_idcs: np.ndarray, query_lengths: np.ndarray
-    ) -> Tuple[np.ndarray, np.ndarray, List[int]]:
-        split_doc_idcs = [
-            idcs.reshape(-1)
-            for idcs in np.split(token_doc_idcs, query_lengths[:-1].cumsum())
+    def gather_imputation(
+        self, token_doc_idcs: torch.Tensor, query_lengths: torch.Tensor
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List[int]]:
+        doc_idcs_per_query = [
+            list(sorted(set(idcs.reshape(-1).cpu().tolist())))
+            for idcs in torch.split(token_doc_idcs, query_lengths.tolist())
         ]
-        doc_idcs_per_query = [list(sorted(set(idcs))) for idcs in split_doc_idcs]
         num_docs = [len(idcs) for idcs in doc_idcs_per_query]
-        doc_idcs = np.array(sum(doc_idcs_per_query, []))
+        doc_idcs = torch.tensor(sum(doc_idcs_per_query, [])).to(token_doc_idcs)
 
-        unique_doc_idcs, inverse_idcs = np.unique(doc_idcs, return_inverse=True)
+        unique_doc_idcs, inverse_idcs = torch.unique(doc_idcs, return_inverse=True)
         doc_lengths = self.doc_lengths[unique_doc_idcs]
         start_token_idcs = self.cumulative_doc_lengths[unique_doc_idcs - 1]
         start_token_idcs[unique_doc_idcs == 0] = 0
-        token_idcs = np.concatenate(
+        token_idcs = torch.cat(
             [
-                np.arange(start, start + length)
+                torch.arange(start.item(), start.item() + length.item())
                 for start, length in zip(start_token_idcs, doc_lengths)
             ]
         )
         doc_token_embeddings = self.index.reconstruct_batch(token_idcs)
+        doc_token_embeddings = torch.from_numpy(doc_token_embeddings)
         unique_doc_embeddings = torch.nn.utils.rnn.pad_sequence(
             [
-                torch.from_numpy(_embeddings)
-                for _embeddings in np.split(
-                    doc_token_embeddings, doc_lengths[:-1].cumsum()
+                embeddings
+                for embeddings in torch.split(
+                    doc_token_embeddings, doc_lengths.tolist()
                 )
             ],
             batch_first=True,
             padding_value=self.scoring_function.MASK_VALUE,
         )
 
-        doc_embeddings = unique_doc_embeddings[inverse_idcs]
-        return doc_embeddings.numpy(), doc_idcs, num_docs
+        doc_embeddings = unique_doc_embeddings[inverse_idcs].to(token_doc_idcs.device)
+        doc_lengths = doc_lengths[inverse_idcs]
+        return doc_embeddings, doc_idcs, doc_lengths, num_docs
 
-    def _min_imputation(
+    def min_imputation(
         self,
-        token_scores: np.ndarray,
-        token_doc_idcs: np.ndarray,
-        query_lengths: np.ndarray,
-    ) -> Tuple[np.ndarray, np.ndarray, List[int]]:
-        # would be nice to vectorize over the query as well
-        query_token_scores = np.split(token_scores, query_lengths[:-1].cumsum())
-        query_token_doc_idcs = np.split(token_doc_idcs, query_lengths[:-1].cumsum())
-        doc_scores = []
-        num_docs = []
-        doc_idcs = []
-        for _token_scores, _token_doc_idcs in zip(
-            query_token_scores, query_token_doc_idcs
-        ):
-            unique_doc_idcs, inverse_doc_idcs = np.unique(
-                _token_doc_idcs, return_inverse=True
-            )
-            doc_token_scores = sparse_doc_aggregation(_token_scores, inverse_doc_idcs)
+        token_scores: torch.Tensor,
+        token_doc_idcs: torch.Tensor,
+        query_lengths: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
+        max_query_length = int(query_lengths.max())
 
-            is_nan = np.isnan(doc_token_scores)
-            doc_token_scores[is_nan] = np.repeat(
-                np.nanmin(doc_token_scores, -1), is_nan.sum(-1)
-            )
+        # grab unique doc ids per query token
+        query_idcs = torch.arange(query_lengths.shape[0]).repeat_interleave(
+            query_lengths
+        )
+        query_token_idcs = torch.cat(
+            [torch.arange(length.item()) for length in query_lengths]
+        )
+        paired_idcs = torch.stack(
+            [
+                query_idcs.repeat_interleave(token_scores.shape[1]),
+                query_token_idcs.repeat_interleave(token_scores.shape[1]),
+                token_doc_idcs.view(-1),
+            ]
+        ).T
+        unique_paired_idcs, inverse_idcs = torch.unique(
+            paired_idcs[:, [0, 2]], return_inverse=True, dim=0
+        )
+        doc_idcs = unique_paired_idcs[:, 1]
+        num_docs = unique_paired_idcs[:, 0].bincount()
+        ranking_doc_idcs = torch.arange(doc_idcs.shape[0])[inverse_idcs]
 
-            num_docs.append(doc_token_scores.shape[1])
-            doc_scores.append(
-                self.scoring_function.aggregate(
-                    torch.from_numpy(doc_token_scores.T)
-                ).numpy()
-            )
-            doc_idcs.append(unique_doc_idcs)
+        # accumulate max score per doc
+        idcs = ranking_doc_idcs * max_query_length + paired_idcs[:, 1]
+        shape = torch.Size((doc_idcs.shape[0], max_query_length))
+        scores = torch.scatter_reduce(
+            torch.full((shape.numel(),), float("inf")),
+            0,
+            idcs,
+            token_scores.view(-1),
+            "max",
+            include_self=False,
+        ).view(shape)
 
-        return np.hstack(doc_scores), np.hstack(doc_idcs), num_docs
+        # impute missing values
+        min_values = scores.min(0).values[None].expand_as(scores)
+        is_inf = torch.isinf(scores)
+        scores[is_inf] = min_values[is_inf]
+
+        # aggregate score per query token
+        mask = (
+            torch.arange(max_query_length) < query_lengths[:, None]
+        ).repeat_interleave(num_docs, dim=0)
+        flat_scores = scores[mask]
+        scores = self.scoring_function.aggregate(
+            flat_scores, mask, self.mvr_config.aggregation_function
+        )
+        return scores, doc_idcs, num_docs.tolist()
