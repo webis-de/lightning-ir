@@ -70,6 +70,8 @@ class Searcher:
         self.doc_ids = torch.load(self.search_config.index_path / "doc_ids.pt")
         self.doc_ids = self.doc_ids.view(-1, 20)
         self.doc_lengths = torch.load(self.search_config.index_path / "doc_lengths.pt")
+        if torch.cuda.is_available():
+            self.doc_lengths = self.doc_lengths.cuda()
         self.num_docs = self.doc_ids.shape[0]
         if (
             self.doc_lengths.shape[0] != self.num_docs
@@ -104,7 +106,7 @@ class Searcher:
             k = min(self.search_config.k, scores.shape[0])
             values, idcs = torch.topk(scores, k)
             _doc_scores.append(values)
-            ids = self.doc_ids[per_query_doc_idcs[query_idx][idcs]]
+            ids = self.doc_ids[per_query_doc_idcs[query_idx][idcs].cpu()]
             doc_ids.extend(map(lambda x: bytes(x).decode("utf-8").strip(), ids))
             new_num_docs.append(k)
         doc_scores = torch.cat(_doc_scores)
@@ -114,7 +116,8 @@ class Searcher:
         self, query_embeddings: torch.Tensor, query_lengths: torch.Tensor
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
         query_scoring_mask = (
-            torch.arange(query_embeddings.shape[1]) < query_lengths[:, None]
+            torch.arange(query_embeddings.shape[1], device=query_lengths.device)
+            < query_lengths[:, None]
         )
         token_scores, token_doc_idcs = self.token_retrieval(
             query_embeddings, query_scoring_mask
@@ -124,7 +127,8 @@ class Searcher:
                 token_doc_idcs, query_lengths
             )
             doc_scoring_mask = (
-                torch.arange(doc_embeddings.shape[1]) < doc_lengths[:, None]
+                torch.arange(doc_embeddings.shape[1], device=doc_lengths.device)
+                < doc_lengths[:, None]
             )
             doc_scores = self.scoring_function.score(
                 query_embeddings,
@@ -169,7 +173,9 @@ class Searcher:
             ]
         )
         doc_token_embeddings = self.index.reconstruct_batch(token_idcs)
-        doc_token_embeddings = torch.from_numpy(doc_token_embeddings)
+        doc_token_embeddings = torch.from_numpy(doc_token_embeddings).to(
+            token_doc_idcs.device
+        )
         unique_doc_embeddings = torch.nn.utils.rnn.pad_sequence(
             [
                 embeddings
@@ -181,7 +187,7 @@ class Searcher:
             padding_value=self.scoring_function.MASK_VALUE,
         )
 
-        doc_embeddings = unique_doc_embeddings[inverse_idcs].to(token_doc_idcs.device)
+        doc_embeddings = unique_doc_embeddings[inverse_idcs]
         doc_lengths = doc_lengths[inverse_idcs]
         return doc_embeddings, doc_idcs, doc_lengths, num_docs
 

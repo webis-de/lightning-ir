@@ -162,7 +162,11 @@ class ScoringFunction:
     ) -> torch.Tensor:
         shape = mask.shape[:-1]
         numel = shape.numel()
-        idcs = (torch.arange(numel).view(*shape, 1).expand_as(mask))[mask]
+        idcs = (
+            torch.arange(numel, device=similarity.device)
+            .view(*shape, 1)
+            .expand_as(mask)
+        )[mask]
         similarity = torch.scatter_reduce(
             torch.zeros(numel, device=similarity.device, dtype=similarity.dtype),
             -1,
@@ -190,7 +194,7 @@ class ScoringFunction:
                     "Docs are not evenly distributed in batch, but no num_docs provided"
                 )
             num_docs = [doc_embeddings.shape[0] // batch_size] * batch_size
-        return torch.tensor(num_docs)
+        return torch.tensor(num_docs, device=query_embeddings.device)
 
     def score_flat(
         self,

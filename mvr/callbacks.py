@@ -230,6 +230,7 @@ class SearchCallback(BasePredictionWriter):
         scores, doc_ids, num_docs = self.searcher.search(
             query_embeddings, query_lengths
         )
+        scores = scores.cpu().numpy()
 
         query_ids = list(
             itertools.chain.from_iterable(
