@@ -55,10 +55,7 @@ class Searcher:
     def __init__(self, search_config: SearchConfig, mvr_config: MVRConfig) -> None:
         self.search_config = search_config
         self.mvr_config = mvr_config
-        self.scoring_function = ScoringFunction(
-            self.mvr_config.similarity_function,
-            self.mvr_config.aggregation_function,
-        )
+        self.scoring_function = ScoringFunction(mvr_config)
 
         if self.mvr_config.similarity_function == "l2":
             warnings.warn("L2 similarity is not tested and may not work correctly")
@@ -87,10 +84,12 @@ class Searcher:
         token_scores, token_idcs = self.index.search(
             query_embeddings.cpu(), self.search_config.candidate_k
         )
-        token_scores = torch.from_numpy(token_scores).to(query_embeddings.device)
-        token_idcs = torch.from_numpy(token_idcs).to(query_embeddings.device)
+        token_scores = torch.from_numpy(token_scores)
+        token_idcs = torch.from_numpy(token_idcs)
         token_doc_idcs = torch.searchsorted(
-            self.cumulative_doc_lengths, token_idcs, side="right"
+            self.cumulative_doc_lengths,
+            token_idcs.to(self.cumulative_doc_lengths.device),
+            side="right",
         )
         return token_scores, token_doc_idcs
 
@@ -113,22 +112,25 @@ class Searcher:
         return doc_scores, doc_ids, new_num_docs
 
     def search(
-        self, query_embeddings: torch.Tensor, query_lengths: torch.Tensor
+        self, query_embeddings: torch.Tensor, query_attention_mask: torch.Tensor
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
-        query_scoring_mask = (
-            torch.arange(query_embeddings.shape[1], device=query_lengths.device)
-            < query_lengths[:, None]
+        query_scoring_mask = self.scoring_function.query_scoring_mask(
+            query_attention_mask=query_attention_mask
         )
         token_scores, token_doc_idcs = self.token_retrieval(
             query_embeddings, query_scoring_mask
         )
+        query_lengths = query_scoring_mask.sum(-1)
         if self.search_config.imputation_strategy == "gather":
             doc_embeddings, doc_idcs, doc_lengths, num_docs = self.gather_imputation(
                 token_doc_idcs, query_lengths
             )
-            doc_scoring_mask = (
-                torch.arange(doc_embeddings.shape[1], device=doc_lengths.device)
+            doc_attention_mask = (
+                torch.arange(doc_embeddings.shape[1], device=doc_embeddings.device)
                 < doc_lengths[:, None]
+            )
+            doc_scoring_mask = self.scoring_function.doc_scoring_mask(
+                doc_attention_mask=doc_attention_mask
             )
             doc_scores = self.scoring_function.score(
                 query_embeddings,
@@ -156,8 +158,8 @@ class Searcher:
         self, token_doc_idcs: torch.Tensor, query_lengths: torch.Tensor
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List[int]]:
         doc_idcs_per_query = [
-            list(sorted(set(idcs.reshape(-1).cpu().tolist())))
-            for idcs in torch.split(token_doc_idcs, query_lengths.tolist())
+            list(sorted(set(idcs.reshape(-1).tolist())))
+            for idcs in torch.split(token_doc_idcs.cpu(), query_lengths.tolist())
         ]
         num_docs = [len(idcs) for idcs in doc_idcs_per_query]
         doc_idcs = torch.tensor(sum(doc_idcs_per_query, [])).to(token_doc_idcs)
@@ -169,13 +171,11 @@ class Searcher:
         token_idcs = torch.cat(
             [
                 torch.arange(start.item(), start.item() + length.item())
-                for start, length in zip(start_token_idcs, doc_lengths)
+                for start, length in zip(start_token_idcs.cpu(), doc_lengths.cpu())
             ]
         )
         doc_token_embeddings = self.index.reconstruct_batch(token_idcs)
-        doc_token_embeddings = torch.from_numpy(doc_token_embeddings).to(
-            token_doc_idcs.device
-        )
+        doc_token_embeddings = torch.from_numpy(doc_token_embeddings)
         unique_doc_embeddings = torch.nn.utils.rnn.pad_sequence(
             [
                 embeddings
@@ -185,7 +185,7 @@ class Searcher:
             ],
             batch_first=True,
             padding_value=self.scoring_function.MASK_VALUE,
-        )
+        ).to(inverse_idcs.device)
 
         doc_embeddings = unique_doc_embeddings[inverse_idcs]
         doc_lengths = doc_lengths[inverse_idcs]

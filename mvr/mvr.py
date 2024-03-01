@@ -99,20 +99,20 @@ class ScoringFunction:
 
     def __init__(
         self,
-        similarity_function: Literal["cosine", "l2", "dot"],
-        aggregation_function: Literal["sum", "mean", "max"],
-        xtr_token_retrieval_k: int | None = None,
+        config: MVRConfig,
     ) -> None:
-        if similarity_function == "cosine":
+        self.config = config
+        if self.config.similarity_function == "cosine":
             self.similarity_function = self.cosine_similarity
-        elif similarity_function == "l2":
+        elif self.config.similarity_function == "l2":
             self.similarity_function = self.l2_similarity
-        elif similarity_function == "dot":
+        elif self.config.similarity_function == "dot":
             self.similarity_function = self.dot_similarity
         else:
-            raise ValueError(f"Unknown similarity function {similarity_function}")
-        self.aggregation_function = aggregation_function
-        self.xtr_token_retrieval_k = xtr_token_retrieval_k
+            raise ValueError(
+                f"Unknown similarity function {self.config.similarity_function}"
+            )
+        self.aggregation_function = self.config.aggregation_function
 
     def compute_similarity(
         self, query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor
@@ -207,6 +207,60 @@ class ScoringFunction:
         scores = self.aggregate(scores, mask.any(-1), self.aggregation_function)
         return scores
 
+    def query_scoring_mask(
+        self,
+        query_input_ids: torch.Tensor | None = None,
+        query_attention_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return self.scoring_mask(
+            input_ids=query_input_ids,
+            attention_mask=query_attention_mask,
+            query_expansion=self.config.query_expansion,
+        )
+
+    def doc_scoring_mask(
+        self,
+        doc_input_ids: torch.Tensor | None = None,
+        doc_attention_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return self.scoring_mask(
+            doc_input_ids, doc_attention_mask, self.config.doc_expansion
+        )
+
+    def scoring_mask(
+        self,
+        input_ids: torch.Tensor | None,
+        attention_mask: torch.Tensor | None,
+        query_expansion: bool,
+    ) -> torch.Tensor:
+        if input_ids is None:
+            if attention_mask is None:
+                return torch.ones(1, 1, 1, dtype=torch.bool)
+            else:
+                shape = attention_mask.shape
+                device = attention_mask.device
+        else:
+            shape = input_ids.shape
+            device = input_ids.device
+        scoring_mask = attention_mask
+        if query_expansion or scoring_mask is None:
+            scoring_mask = torch.ones(shape, dtype=torch.bool, device=device)
+        scoring_mask = scoring_mask.bool()
+        return scoring_mask
+
+    def scoring_masks(
+        self,
+        query_input_ids: torch.Tensor | None = None,
+        doc_input_ids: torch.Tensor | None = None,
+        query_attention_mask: torch.Tensor | None = None,
+        doc_attention_mask: torch.Tensor | None = None,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        query_scoring_mask = self.query_scoring_mask(
+            query_input_ids, query_attention_mask
+        )
+        doc_scoring_mask = self.doc_scoring_mask(doc_input_ids, doc_attention_mask)
+        return query_scoring_mask, doc_scoring_mask
+
     def score(
         self,
         query_embeddings: torch.Tensor,
@@ -254,11 +308,7 @@ class MVRModel(PreTrainedModel):
             bias=self.config.linear_bias,
         )
         self.config.similarity_function
-        self.scoring_function = ScoringFunction(
-            self.config.similarity_function,
-            self.config.aggregation_function,
-            self.config.xtr_token_retrieval_k,
-        )
+        self.scoring_function = ScoringFunction(config)
 
     def forward(
         self,
@@ -320,24 +370,14 @@ class MVRModel(PreTrainedModel):
 
     def scoring_masks(
         self,
-        query_input_ids: torch.Tensor,
-        doc_input_ids: torch.Tensor,
-        query_attention_mask: torch.Tensor | None,
+        query_input_ids: torch.Tensor | None = None,
+        doc_input_ids: torch.Tensor | None = None,
+        query_attention_mask: torch.Tensor | None = None,
         doc_attention_mask: torch.Tensor | None = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        query_scoring_mask = query_attention_mask
-        if self.config.query_expansion or query_scoring_mask is None:
-            query_scoring_mask = torch.ones(
-                query_input_ids.shape, dtype=torch.bool, device=query_input_ids.device
-            )
-        query_scoring_mask = query_scoring_mask.bool()
-        doc_scoring_mask = doc_attention_mask
-        if self.config.doc_expansion or doc_scoring_mask is None:
-            doc_scoring_mask = torch.ones(
-                doc_input_ids.shape, dtype=torch.bool, device=doc_input_ids.device
-            )
-        doc_scoring_mask = doc_scoring_mask.bool()
-        return query_scoring_mask, doc_scoring_mask
+        return self.scoring_function.scoring_masks(
+            query_input_ids, doc_input_ids, query_attention_mask, doc_attention_mask
+        )
 
     def score(
         self,

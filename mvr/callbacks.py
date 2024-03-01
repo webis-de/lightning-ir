@@ -222,13 +222,14 @@ class SearchCallback(BasePredictionWriter):
         dataloader_idx: int,
     ) -> None:
         query_embeddings = pl_module.all_gather(prediction)
-        mask = pl_module.all_gather(batch.query_encoding.attention_mask.bool())
+        query_attention_mask = pl_module.all_gather(
+            batch.query_encoding.attention_mask.bool()
+        )
         if not trainer.is_global_zero:
             return
 
-        query_lengths = mask.sum(-1)
         scores, doc_ids, num_docs = self.searcher.search(
-            query_embeddings, query_lengths
+            query_embeddings, query_attention_mask
         )
         scores = scores.cpu().numpy()
 
