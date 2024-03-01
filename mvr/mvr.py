@@ -156,25 +156,23 @@ class ScoringFunction:
 
     @staticmethod
     def aggregate(
-        similarity: torch.Tensor,
+        scores: torch.Tensor,
         mask: torch.Tensor,
-        aggregate_func: Literal["max", "sum", "mean"],
+        aggregate_func: Literal["amax", "sum", "mean"],
     ) -> torch.Tensor:
         shape = mask.shape[:-1]
         numel = shape.numel()
         idcs = (
-            torch.arange(numel, device=similarity.device)
-            .view(*shape, 1)
-            .expand_as(mask)
+            torch.arange(numel, device=scores.device).view(*shape, 1).expand_as(mask)
         )[mask]
-        similarity = torch.scatter_reduce(
-            torch.zeros(numel, device=similarity.device, dtype=similarity.dtype),
+        reduced_scores = torch.scatter_reduce(
+            torch.zeros(numel, device=scores.device, dtype=scores.dtype),
             -1,
             idcs,
-            similarity,
+            scores,
             aggregate_func,
         )
-        return similarity
+        return reduced_scores
 
     def _parse_num_docs(
         self,
@@ -203,7 +201,7 @@ class ScoringFunction:
         mask: torch.Tensor,
     ) -> torch.Tensor:
         similarity = self.compute_similarity(flat_query_embeddings, flat_doc_embeddings)
-        scores = self.aggregate(similarity, mask, "max")
+        scores = self.aggregate(similarity, mask, "amax")
         scores = self.aggregate(scores, mask.any(-1), self.aggregation_function)
         return scores
 
