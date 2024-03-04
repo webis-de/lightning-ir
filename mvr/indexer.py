@@ -43,10 +43,8 @@ class Indexer:
         self.verbose = verbose
 
         if self.mvr_config.similarity_function == "l2":
-            # coarse_quantizer = faiss.IndexFlatL2(self.mvr_config.embedding_dim)
             metric_type = faiss.METRIC_L2
         elif self.mvr_config.similarity_function in ("cosine", "dot"):
-            # coarse_quantizer = faiss.IndexFlatIP(self.mvr_config.embedding_dim)
             metric_type = faiss.METRIC_INNER_PRODUCT
         else:
             raise ValueError(
