@@ -33,13 +33,6 @@ def mvr_model(model_name_or_path: str) -> MVRModel:
     return TestModel(model_name_or_path)
 
 
-@pytest.fixture()
-def xtr_model(model_name_or_path: str) -> MVRModel:
-    model = TestModel(model_name_or_path)
-    model.config.xtr_token_retrieval_k = 32
-    return model
-
-
 @pytest.fixture(scope="module")
 def margin_mse_module(mvr_model: MVRModel) -> MVRModule:
     return MVRModule(mvr_model, MarginMSE())
@@ -58,11 +51,6 @@ def localized_contrastive_module(mvr_model: MVRModel) -> MVRModule:
 @pytest.fixture()
 def in_batch_negatives_module(mvr_model: MVRModel) -> MVRModule:
     return MVRModule(mvr_model, MarginMSE(in_batch_loss="ce"))
-
-
-@pytest.fixture()
-def xtr_module(xtr_model: MVRModel) -> MVRModule:
-    return MVRModule(xtr_model, MarginMSE())
 
 
 def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRModel):
@@ -163,13 +151,6 @@ def test_in_batch_negatives(
     dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = in_batch_negatives_module.training_step(batch, 0)
-    assert loss
-
-
-def test_xtr(xtr_module: MVRModule, tuples_datamodule: MVRDataModule):
-    dataloader = tuples_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    loss = xtr_module.training_step(batch, 0)
     assert loss
 
 
