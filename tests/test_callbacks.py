@@ -1,9 +1,7 @@
 from pathlib import Path
 from typing import Literal
-from collections import defaultdict
 
 import faiss
-import numpy as np
 import pandas as pd
 import pytest
 import torch
@@ -54,8 +52,9 @@ def test_index_callback(
     devices: int,
 ):
     mvr_module.config.similarity_function = similarity
-    index_path = tmp_path / "index"
-    index_callback = IndexCallback(index_path, 1024, num_centroids=16)
+    index_dir = tmp_path / "index"
+    index_path = index_dir / "msmarco-passage"
+    index_callback = IndexCallback(index_dir, 1024, num_centroids=16)
 
     trainer = Trainer(
         devices=devices,

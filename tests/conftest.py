@@ -149,7 +149,7 @@ def doc_datamodule(model_name_or_path: str) -> MVRDataModule:
         config=MVRConfig(),
         num_workers=0,
         inference_batch_size=3,
-        inference_datasets=["msmarco-passage"],
+        inference_datasets=["msmarco-passage", "msmarco-passage"],
         inference_dataset_config=DocDatasetConfig(num_docs=32),
     )
     datamodule.setup(stage="predict")
