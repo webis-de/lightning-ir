@@ -66,7 +66,9 @@ class DataParallelIterableDataset(IterableDataset):
         num_workers = worker_info.num_workers if worker_info is not None else 1
         worker_id = worker_info.id if worker_info is not None else 0
         self.dataset_id = self.ir_dataset.dataset_id()
-        self.docs_dataset_id = ir_datasets.docs_parent_id(self.dataset_id)
+        self.docs_dataset_id = ir_datasets.docs_parent_id(self.dataset_id).replace(
+            "/", "-"
+        )
 
         try:
             world_size = get_world_size()
