@@ -166,11 +166,12 @@ class ScoringFunction:
             torch.arange(numel, device=scores.device).view(*shape, 1).expand_as(mask)
         )[mask]
         reduced_scores = torch.scatter_reduce(
-            torch.zeros(numel, device=scores.device, dtype=scores.dtype),
+            torch.zeros(numel, device=scores.device),
             -1,
             idcs,
-            scores,
+            scores.float(),
             aggregate_func,
+            include_self=False,
         )
         return reduced_scores
 
@@ -468,7 +469,7 @@ class MVRModule(LightningModule):
             query_scoring_mask, doc_scoring_mask = self.model.scoring_masks(
                 batch.query_encoding.input_ids,
                 batch.doc_encoding.input_ids[doc_idcs].repeat(
-                    query_embeddings.shape[0], 1, 1
+                    query_embeddings.shape[0], 1
                 ),
                 batch.query_encoding.attention_mask,
                 doc_attention_mask,
