@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import NamedTuple
 
 import faiss
-import numpy as np
 import torch
 
 from .mvr import MVRConfig
