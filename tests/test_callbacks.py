@@ -67,11 +67,11 @@ def test_index_callback(
     assert doc_datamodule.inference_datasets is not None
     assert index_callback.indexer.num_embeddings == index_callback.indexer.index.ntotal
     assert (index_path / "index.faiss").exists()
-    assert (index_path / "doc_ids.pt").exists()
-    doc_ids_path = index_path / "doc_ids.pt"
-    doc_ids = torch.load(doc_ids_path)
+    assert (index_path / "doc_ids.txt").exists()
+    doc_ids_path = index_path / "doc_ids.txt"
+    doc_ids = doc_ids_path.read_text().split()
     for idx, doc_id in enumerate(doc_ids):
-        assert int(bytes(doc_id).decode("utf-8")) == idx
+        assert int(doc_id) == idx
     assert (index_path / "doc_lengths.pt").exists()
     assert (index_path / "config.json").exists()
     if similarity == "l2":
