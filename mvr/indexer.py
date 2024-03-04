@@ -98,10 +98,9 @@ class Indexer:
             token_embeddings = token_embeddings[length:]
         return token_embeddings
 
-    def _train(self):
-        if (
-            self._train_embeddings is not None
-            and self.num_embeddings >= self.index_config.num_train_tokens
+    def _train(self, force: bool = False):
+        if self._train_embeddings is not None and (
+            force or self.num_embeddings >= self.index_config.num_train_tokens
         ):
             self.index.train(self._train_embeddings)
             if torch.cuda.is_available():
@@ -129,7 +128,7 @@ class Indexer:
         self._train()
 
         if token_embeddings.shape[0]:
-            self.index.add(token_embeddings)
+            self.index.add(token_embeddings.cpu())
 
         self.num_embeddings += token_embeddings.shape[0]
         self.num_docs += len(doc_ids)
@@ -138,12 +137,12 @@ class Indexer:
         self.doc_ids.extend(doc_ids)
 
     def save(self) -> None:
-        self.index_config.index_path.mkdir(parents=True, exist_ok=True)
-        self.index_config.save(self.index_config.index_path)
-        if not self.index.is_trained:
-            raise ValueError("index is not trained")
         if self.num_embeddings != self.index.ntotal:
             raise ValueError("number of embeddings does not match index.ntotal")
+        if not self.index.is_trained:
+            self._train(force=True)
+        self.index_config.index_path.mkdir(parents=True, exist_ok=True)
+        self.index_config.save(self.index_config.index_path)
         doc_lengths = torch.cat(self.doc_lengths)
         torch.save(doc_lengths, self.index_config.index_path / "doc_lengths.pt")
         (self.index_config.index_path / "doc_ids.txt").write_text(
