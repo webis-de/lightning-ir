@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Sequence
 
 import faiss
 import torch
@@ -122,11 +122,9 @@ class Indexer:
     def add(
         self,
         token_embeddings: torch.Tensor,
-        doc_ids: torch.Tensor,
+        doc_ids: Sequence[str],
         doc_lengths: torch.Tensor,
     ) -> None:
-        if doc_ids.dtype != torch.uint8:
-            raise ValueError("doc_ids must be of type np.uint8")
         token_embeddings = self._grab_train_embeddings(token_embeddings)
         self._train()
 
@@ -134,10 +132,10 @@ class Indexer:
             self.index.add(token_embeddings)
 
         self.num_embeddings += token_embeddings.shape[0]
-        self.num_docs += doc_ids.shape[0]
+        self.num_docs += len(doc_ids)
 
         self.doc_lengths.append(doc_lengths.cpu())
-        self.doc_ids.append(doc_ids.cpu())
+        self.doc_ids.extend(doc_ids)
 
     def save(self) -> None:
         self.index_config.index_path.mkdir(parents=True, exist_ok=True)
@@ -147,9 +145,10 @@ class Indexer:
         if self.num_embeddings != self.index.ntotal:
             raise ValueError("number of embeddings does not match index.ntotal")
         doc_lengths = torch.cat(self.doc_lengths)
-        doc_ids = torch.cat(self.doc_ids)
         torch.save(doc_lengths, self.index_config.index_path / "doc_lengths.pt")
-        torch.save(doc_ids, self.index_config.index_path / "doc_ids.pt")
+        (self.index_config.index_path / "doc_ids.txt").write_text(
+            "\n".join(self.doc_ids)
+        )
         if torch.cuda.is_available():
             self.index = faiss.index_gpu_to_cpu(self.index)
 

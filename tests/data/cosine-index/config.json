@@ -1,1 +1,7 @@
-{"index_path": "/tmp/pytest-of-fschlatt/pytest-10/test_index_callback_1_cosine_0/index", "num_train_tokens": 1024, "num_centroids": 16, "num_subquantizers": 16, "code_size": 4}
+{
+    "index_path": "/tmp/pytest-of-fschlatt/pytest-16/test_index_callback_1_cosine_0/index/msmarco-passage",
+    "num_train_tokens": 1024,
+    "num_centroids": 16,
+    "num_subquantizers": 16,
+    "n_bits": 4
+}

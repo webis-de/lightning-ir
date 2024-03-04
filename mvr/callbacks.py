@@ -111,11 +111,12 @@ class IndexCallback(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+        doc_id_length = max(2, max(len(doc_id) for doc_id in batch.doc_ids))
         encoded_doc_ids = torch.ByteTensor(
-            list(bytes(doc_id.rjust(20), "utf8") for doc_id in batch.doc_ids)
+            list(bytes(doc_id.rjust(doc_id_length), "utf8") for doc_id in batch.doc_ids)
         )
         outputs = pl_module.all_gather(outputs)
-        doc_ids = pl_module.all_gather(encoded_doc_ids)
+        encoded_doc_ids = pl_module.all_gather(encoded_doc_ids)
         if not trainer.is_global_zero:
             return
         outputs = outputs.view(-1, *outputs.shape[-2:])
@@ -124,7 +125,7 @@ class IndexCallback(Callback):
 
         outputs = outputs.view(-1, pl_module.config.embedding_dim)
         embeddings = outputs[~masked.view(-1)]
-        doc_ids = doc_ids.view(-1, 20)
+        doc_ids = [bytes(doc_id).decode("utf-8").strip() for doc_id in encoded_doc_ids]
         doc_lengths = masked.logical_not().sum(-1)
 
         if batch_idx == 0:

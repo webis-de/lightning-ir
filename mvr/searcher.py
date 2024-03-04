@@ -38,12 +38,13 @@ class Searcher:
             str(self.search_config.index_path / "index.faiss")
         )
         self.index.nprobe = self.search_config.n_probe
-        self.doc_ids = torch.load(self.search_config.index_path / "doc_ids.pt")
-        self.doc_ids = self.doc_ids.view(-1, 20)
+        self.doc_ids = (
+            (self.search_config.index_path / "doc_ids.txt").read_text().split()
+        )
         self.doc_lengths = torch.load(self.search_config.index_path / "doc_lengths.pt")
         if torch.cuda.is_available():
             self.doc_lengths = self.doc_lengths.cuda()
-        self.num_docs = self.doc_ids.shape[0]
+        self.num_docs = len(self.doc_ids)
         if (
             self.doc_lengths.shape[0] != self.num_docs
             or self.doc_lengths.sum() != self.index.ntotal
@@ -79,8 +80,12 @@ class Searcher:
             k = min(self.search_config.k, scores.shape[0])
             values, idcs = torch.topk(scores, k)
             _doc_scores.append(values)
-            ids = self.doc_ids[per_query_doc_idcs[query_idx][idcs].cpu()]
-            doc_ids.extend(map(lambda x: bytes(x).decode("utf-8").strip(), ids))
+            doc_ids.extend(
+                [
+                    self.doc_ids[doc_idx]
+                    for doc_idx in per_query_doc_idcs[query_idx][idcs].cpu()
+                ]
+            )
             new_num_docs.append(k)
         doc_scores = torch.cat(_doc_scores)
         return doc_scores, doc_ids, new_num_docs
