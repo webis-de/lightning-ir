@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from string import punctuation
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import torch
 from huggingface_hub import hf_hub_download
