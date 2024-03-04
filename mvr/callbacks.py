@@ -1,6 +1,7 @@
 import itertools
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, Sequence
+import math
 
 import pandas as pd
 import torch
@@ -34,8 +35,8 @@ class IndexCallback(Callback):
     def __init__(
         self,
         index_dir: Path | None,
-        num_train_tokens: int,
-        num_centroids: int = 65536,
+        num_train_tokens: int | None = None,
+        num_centroids: int | None = None,
         num_subquantizers: int = 16,
         n_bits: int = 4,
         verbose: bool = False,
@@ -83,10 +84,37 @@ class IndexCallback(Callback):
         dataset = dataloaders[dataset_idx].dataset
 
         index_path = self.get_index_path(pl_module, dataset)
+
+        num_docs = dataset.ir_dataset.docs_count()
+        approx_num_tokens = int(
+            (
+                sum(
+                    len(doc.default_text().split())
+                    for _, doc in zip(range(100), dataset.ir_dataset.docs_iter())
+                )
+                / 100
+            )
+            * num_docs
+        )
+        # default faiss values
+        # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
+        max_points_per_centroid = 256
+
+        num_centroids = self.num_centroids
+        num_train_tokens = self.num_train_tokens
+        # max 100M training tokens
+        approx_num_tokens = int(min(1e8, num_train_tokens or approx_num_tokens))
+        if num_centroids is None:
+            num_centroids = 2 ** math.floor(
+                math.log2(approx_num_tokens / max_points_per_centroid)
+            )
+        if num_train_tokens is None:
+            num_train_tokens = approx_num_tokens
+
         config = IndexConfig(
             index_path=index_path,
-            num_train_tokens=self.num_train_tokens,
-            num_centroids=self.num_centroids,
+            num_train_tokens=num_train_tokens,
+            num_centroids=num_centroids,
             num_subquantizers=self.num_subquantizers,
             n_bits=self.n_bits,
         )
@@ -111,9 +139,17 @@ class IndexCallback(Callback):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+
+        if batch_idx == 0:
+            if hasattr(self, "indexer"):
+                self.indexer.save()
+            self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
+
         doc_id_length = max(2, max(len(doc_id) for doc_id in batch.doc_ids))
         encoded_doc_ids = torch.ByteTensor(
-            list(bytes(doc_id.rjust(doc_id_length), "utf8") for doc_id in batch.doc_ids)
+            list(
+                bytes(doc_id.rjust(doc_id_length), "utf32") for doc_id in batch.doc_ids
+            )
         )
         outputs = pl_module.all_gather(outputs)
         encoded_doc_ids = pl_module.all_gather(encoded_doc_ids)
@@ -125,13 +161,8 @@ class IndexCallback(Callback):
 
         outputs = outputs.view(-1, pl_module.config.embedding_dim)
         embeddings = outputs[~masked.view(-1)]
-        doc_ids = [bytes(doc_id).decode("utf-8").strip() for doc_id in encoded_doc_ids]
+        doc_ids = [bytes(doc_id).decode("utf32").strip() for doc_id in encoded_doc_ids]
         doc_lengths = masked.logical_not().sum(-1)
-
-        if batch_idx == 0:
-            if hasattr(self, "indexer"):
-                self.indexer.save()
-            self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
 
         self.indexer.add(embeddings, doc_ids, doc_lengths)
         self.log_to_pg(
