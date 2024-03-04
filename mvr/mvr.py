@@ -122,21 +122,7 @@ class ScoringFunction:
             query_embeddings = query_embeddings.cuda()
             doc_embeddings = doc_embeddings.cuda()
 
-        batch_size = 16384
-        num_comparisons = query_embeddings.shape[0]
-        num_batches = ceil_div(num_comparisons, 16384)
-
-        out = []
-        for batch_idx in range(num_batches):
-            start_idx = batch_idx * batch_size
-            end_idx = start_idx + batch_size
-            out.append(
-                self.similarity_function(
-                    query_embeddings[start_idx:end_idx],
-                    doc_embeddings[start_idx:end_idx],
-                )
-            )
-        similarity = torch.cat(out, dim=0)
+        similarity = self.similarity_function(query_embeddings, doc_embeddings)
         if to_cpu:
             similarity = similarity.cpu()
         return similarity
