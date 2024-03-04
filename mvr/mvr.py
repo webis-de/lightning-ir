@@ -115,7 +115,10 @@ class ScoringFunction:
         self.aggregation_function = self.config.aggregation_function
 
     def compute_similarity(
-        self, query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+        mask: torch.Tensor,
     ) -> torch.Tensor:
         to_cpu = query_embeddings.is_cpu or doc_embeddings.is_cpu
         if torch.cuda.is_available():
@@ -187,7 +190,9 @@ class ScoringFunction:
         flat_doc_embeddings: torch.Tensor,
         mask: torch.Tensor,
     ) -> torch.Tensor:
-        similarity = self.compute_similarity(flat_query_embeddings, flat_doc_embeddings)
+        similarity = self.compute_similarity(
+            flat_query_embeddings, flat_doc_embeddings, mask
+        )
         scores = self.aggregate(similarity, mask, "amax")
         scores = self.aggregate(scores, mask.any(-1), self.aggregation_function)
         return scores
