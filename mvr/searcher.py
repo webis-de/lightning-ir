@@ -25,32 +25,6 @@ class SparseDocScores:
         self.data = data
 
 
-def sparse_doc_aggregation(
-    token_scores: np.ndarray, doc_idcs: np.ndarray
-) -> np.ndarray:
-    # doc aggregation step:
-    # need to handle the special case where tokens from the same doc are retrieved
-    # by the same query. we need to efficiently aggregate these tokens scores.
-    # solution: we can simply invert the idcs and scores for each doc and use the
-    # scipy sparse dok matrix to handle duplicate index assignment.
-    # scores are already sorted by faiss. we can simply use the last score as
-    # the maximum (ip) or minimum (l2) score for each doc.
-    # https://stackoverflow.com/questions/40723534/overwrite-instead-of-add-for-duplicate-triplets-when-creating-sparse-matrix-in-scipy
-    # https://stackoverflow.com/questions/15973827/handling-of-duplicate-indices-in-numpy-assignments
-    num_tokens, k = token_scores.shape
-    query_token_idcs = np.arange(num_tokens).repeat(k)
-    doc_scores = sp.dok_matrix(
-        (num_tokens, doc_idcs.max() + 1), dtype=token_scores.dtype
-    )
-    inv_query_token_idcs = query_token_idcs[::-1]
-    inv_doc_idcs = doc_idcs.flatten()[::-1]
-    inv_token_scores = token_scores.flatten()[::-1]
-    doc_scores._update(zip(zip(inv_query_token_idcs, inv_doc_idcs), inv_token_scores))
-    doc_scores = doc_scores.toarray()
-    doc_scores[doc_scores == 0] = np.nan
-    return doc_scores
-
-
 class Searcher:
     def __init__(self, search_config: SearchConfig, mvr_config: MVRConfig) -> None:
         self.search_config = search_config

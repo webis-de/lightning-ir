@@ -11,7 +11,6 @@ from lightning import Trainer
 from transformers import BertModel
 
 from mvr.callbacks import IndexCallback, SearchCallback
-from mvr.searcher import sparse_doc_aggregation
 from mvr.datamodule import MVRDataModule
 from mvr.mvr import MVRConfig, MVRModel, MVRModule
 
@@ -115,30 +114,3 @@ def test_search_callback(
             names=["query_id", "Q0", "doc_id", "rank", "score", "system"],
         )
         assert run_df["query_id"].nunique() == len(dataset)
-
-
-def test_sparse_doc_aggregation():
-    batch_size = 32
-    max_doc = 16
-    k = 10
-    token_scores = np.random.randint(1, 100, (batch_size, k)).astype(np.float32)
-    token_scores.sort(axis=1)
-    doc_idcs = np.random.choice(max_doc, (batch_size, k))
-    manual_doc_scores = []
-    for i in range(batch_size):
-        doc_scores = defaultdict(list)
-        for j in range(k):
-            doc_scores[doc_idcs[i, j]].append(token_scores[i, j])
-        manual_doc_scores.append({k: min(v) for k, v in doc_scores.items()})
-
-    doc_scores = sparse_doc_aggregation(token_scores, doc_idcs)
-
-    assert doc_scores.shape == (batch_size, max_doc)
-    for i in range(batch_size):
-        for j in range(max_doc):
-            doc_score = doc_scores[i, j]
-            manual_doc_score = manual_doc_scores[i].get(j, None)
-            if manual_doc_score is None:
-                assert np.isnan(doc_score)
-            else:
-                assert doc_score == manual_doc_score
