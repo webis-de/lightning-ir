@@ -48,7 +48,7 @@ class LossFunction(ABC):
         raise ValueError(f"Unknown reduction {self.reduction}")
 
     def in_batch_cross_entropy(self, scores: torch.Tensor) -> torch.Tensor:
-        labels = torch.ones(scores.shape[0], dtype=torch.long, device=scores.device)
+        labels = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
         loss = torch.nn.functional.cross_entropy(scores, labels, reduction="none")
         return self.aggregate(loss)
 
