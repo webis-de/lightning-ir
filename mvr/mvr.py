@@ -456,7 +456,7 @@ class MVRModule(LightningModule):
         pos_mask = torch.arange(num_queries * num_docs)[None].greater_equal(
             min_idx
         ) & torch.arange(num_queries * num_docs)[None].less(max_idx)
-        pos_scores = ib_scores[pos_mask].view(12, -1)
+        pos_scores = ib_scores[pos_mask].view(-1, 1)
         neg_scores = (
             ib_scores[~pos_mask].view(num_queries, -1).repeat_interleave(num_docs, 0)
         )
