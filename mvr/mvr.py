@@ -134,35 +134,26 @@ class ScoringFunction:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
 
     def l2_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        x = x.unsqueeze(-2)
-        y = y.unsqueeze(-2)
-        return -1 * torch.cdist(x, y).squeeze(-2, -1)
+        return -1 * torch.cdist(x, y).squeeze(-2)
 
     def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        x = x.unsqueeze(-2)
-        y = y.unsqueeze(-2).transpose(-1, -2)
-        return torch.matmul(x, y).squeeze(-2, -1)
+        return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
     @staticmethod
     def aggregate(
         scores: torch.Tensor,
         mask: torch.Tensor,
-        aggregate_func: Literal["amax", "sum", "mean"],
+        aggregation_function: Literal["max", "sum", "mean"],
     ) -> torch.Tensor:
-        shape = mask.shape[:-1]
-        numel = shape.numel()
-        idcs = (
-            torch.arange(numel, device=scores.device).view(*shape, 1).expand_as(mask)
-        )[mask]
-        reduced_scores = torch.scatter_reduce(
-            torch.zeros(numel, device=scores.device),
-            -1,
-            idcs,
-            scores.float(),
-            aggregate_func,
-            include_self=False,
-        )
-        return reduced_scores
+        scores[~mask] = 0
+        if aggregation_function == "max":
+            return scores.max(-1).values
+        if aggregation_function == "sum":
+            return scores.sum(-1)
+        if aggregation_function == "mean":
+            num_non_masked = mask.logical_not().sum(-1)
+            return scores.sum(-1) / num_non_masked
+        raise ValueError(f"Unknown aggregation {aggregation_function}")
 
     def _parse_num_docs(
         self,
@@ -183,19 +174,6 @@ class ScoringFunction:
                 )
             num_docs = [doc_embeddings.shape[0] // batch_size] * batch_size
         return torch.tensor(num_docs, device=query_embeddings.device)
-
-    def score_flat(
-        self,
-        flat_query_embeddings: torch.Tensor,
-        flat_doc_embeddings: torch.Tensor,
-        mask: torch.Tensor,
-    ) -> torch.Tensor:
-        similarity = self.compute_similarity(
-            flat_query_embeddings, flat_doc_embeddings, mask
-        )
-        scores = self.aggregate(similarity, mask, "amax")
-        scores = self.aggregate(scores, mask.any(-1), self.aggregation_function)
-        return scores
 
     def query_scoring_mask(
         self,
@@ -261,29 +239,21 @@ class ScoringFunction:
     ) -> torch.Tensor:
         num_docs_t = self._parse_num_docs(query_embeddings, doc_embeddings, num_docs)
 
-        exp_query_embeddings = (
-            query_embeddings.repeat_interleave(num_docs_t, dim=0)
-            .unsqueeze(2)
-            .expand(-1, -1, doc_embeddings.shape[1], -1)
-        )
-        exp_doc_embeddings = doc_embeddings.unsqueeze(1).expand(
-            -1, query_embeddings.shape[1], -1, -1
-        )
+        exp_query_embeddings = query_embeddings.repeat_interleave(
+            num_docs_t, dim=0
+        ).unsqueeze(2)
+        exp_doc_embeddings = doc_embeddings.unsqueeze(1)
         exp_query_scoring_mask = (
-            query_scoring_mask.bool()
-            .repeat_interleave(num_docs_t, dim=0)
-            .unsqueeze(2)
-            .expand(-1, -1, doc_embeddings.shape[1])
+            query_scoring_mask.bool().repeat_interleave(num_docs_t, dim=0).unsqueeze(2)
         )
-        exp_doc_scoring_mask = (
-            doc_scoring_mask.bool()
-            .unsqueeze(1)
-            .expand(-1, query_embeddings.shape[1], -1)
-        )
+        exp_doc_scoring_mask = doc_scoring_mask.bool().unsqueeze(1)
         mask = exp_query_scoring_mask & exp_doc_scoring_mask
-        flat_query_embeddings = exp_query_embeddings[mask]
-        flat_doc_embeddings = exp_doc_embeddings[mask]
-        scores = self.score_flat(flat_query_embeddings, flat_doc_embeddings, mask)
+
+        similarity = self.compute_similarity(
+            exp_query_embeddings, exp_doc_embeddings, mask
+        )
+        scores = self.aggregate(similarity, mask, "max")
+        scores = self.aggregate(scores, mask.any(-1), self.aggregation_function)
         return scores
 
 
@@ -447,36 +417,52 @@ class MVRModule(LightningModule):
         self.log("similarity loss", loss)
         ib_loss = None
         if self.loss_function.in_batch_loss is not None:
-            # grab in-batch scores
-            batch_size, num_docs = scores.shape
-            doc_idcs = torch.arange(0, doc_embeddings.shape[0], num_docs)
-            doc_embeddings = doc_embeddings[doc_idcs].repeat(
-                query_embeddings.shape[0], 1, 1
-            )
-            if batch.doc_encoding.attention_mask is not None:
-                doc_attention_mask = batch.doc_encoding.attention_mask[doc_idcs].repeat(
-                    query_embeddings.shape[0], 1
-                )
-            query_scoring_mask, doc_scoring_mask = self.model.scoring_masks(
-                batch.query_encoding.input_ids,
-                batch.doc_encoding.input_ids[doc_idcs].repeat(
-                    query_embeddings.shape[0], 1
-                ),
-                batch.query_encoding.attention_mask,
-                doc_attention_mask,
-            )
-            ib_scores = self.model.score(
-                query_embeddings,
-                doc_embeddings,
-                query_scoring_mask,
-                doc_scoring_mask,
-            )
-            ib_scores = ib_scores.view(batch_size, batch_size)
-            ib_loss = self.loss_function.compute_in_batch_loss(ib_scores)
+            ib_loss = self.compute_ib_loss(batch, query_embeddings, doc_embeddings)
             self.log("ib loss", ib_loss)
         loss = loss + ib_loss if ib_loss is not None else loss
         self.log("loss", loss, prog_bar=True)
         return loss
+
+    def compute_ib_loss(
+        self,
+        batch: TrainBatch,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+    ) -> torch.Tensor:
+        if self.loss_function is None:
+            raise ValueError("Loss function is not set")
+        num_queries = query_embeddings.shape[0]
+        num_docs = len(batch.doc_ids[0])
+        doc_embeddings = doc_embeddings.repeat(query_embeddings.shape[0], 1, 1)
+        if batch.doc_encoding.attention_mask is not None:
+            doc_attention_mask = batch.doc_encoding.attention_mask.repeat(
+                query_embeddings.shape[0], 1
+            )
+        query_scoring_mask, doc_scoring_mask = self.model.scoring_masks(
+            batch.query_encoding.input_ids,
+            batch.doc_encoding.input_ids.repeat(query_embeddings.shape[0], 1),
+            batch.query_encoding.attention_mask,
+            doc_attention_mask,
+        )
+        ib_scores = self.model.score(
+            query_embeddings,
+            doc_embeddings,
+            query_scoring_mask,
+            doc_scoring_mask,
+        )
+        ib_scores = ib_scores.view(num_queries, num_docs * num_queries)
+        min_idx = torch.arange(num_queries)[:, None] * num_docs
+        max_idx = min_idx + num_docs
+        pos_mask = torch.arange(num_queries * num_docs)[None].greater_equal(
+            min_idx
+        ) & torch.arange(num_queries * num_docs)[None].less(max_idx)
+        pos_scores = ib_scores[pos_mask].view(12, -1)
+        neg_scores = (
+            ib_scores[~pos_mask].view(num_queries, -1).repeat_interleave(num_docs, 0)
+        )
+        ib_scores = torch.cat((pos_scores, neg_scores), dim=1)
+        ib_loss = self.loss_function.compute_in_batch_loss(ib_scores)
+        return ib_loss
 
     def validation_step(
         self,

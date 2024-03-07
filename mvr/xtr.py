@@ -41,14 +41,9 @@ class XTRScoringFunction(ScoringFunction):
         similarity = super().compute_similarity(query_embeddings, doc_embeddings, mask)
 
         if self.xtr_token_retrieval_k is not None:
-            full_similarity = torch.zeros(mask.shape)
-            full_similarity[torch.nonzero(mask, as_tuple=True)] = similarity
-            top_k_similarity = full_similarity.topk(self.xtr_token_retrieval_k, dim=-1)
-            cut_off_similarity = top_k_similarity.values[..., -1]
-            full_similarity = full_similarity.masked_fill(
-                full_similarity < cut_off_similarity[..., None], 0
-            )
-            similarity = full_similarity[mask]
+            top_k_similarity = similarity.topk(self.xtr_token_retrieval_k, dim=1)
+            cut_off_similarity = top_k_similarity.values[:, [-1]]
+            similarity = similarity.masked_fill(similarity < cut_off_similarity, 0)
         return similarity
 
 
