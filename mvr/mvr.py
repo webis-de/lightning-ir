@@ -151,7 +151,7 @@ class ScoringFunction:
         if aggregation_function == "sum":
             return scores.sum(-1)
         if aggregation_function == "mean":
-            num_non_masked = mask.logical_not().sum(-1)
+            num_non_masked = mask.sum(-1)
             return scores.sum(-1) / num_non_masked
         raise ValueError(f"Unknown aggregation {aggregation_function}")
 
