@@ -128,7 +128,7 @@ class Indexer:
         self._train()
 
         if token_embeddings.shape[0]:
-            self.index.add(token_embeddings.cpu())
+            self.index.add(token_embeddings.float().cpu())
 
         self.num_embeddings += token_embeddings.shape[0]
         self.num_docs += len(doc_ids)

@@ -56,7 +56,7 @@ class Searcher:
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         query_embeddings = query_embeddings[query_scoring_mask]
         token_scores, token_idcs = self.index.search(
-            query_embeddings.cpu(), self.search_config.candidate_k
+            query_embeddings.float().cpu(), self.search_config.candidate_k
         )
         token_scores = torch.from_numpy(token_scores)
         token_idcs = torch.from_numpy(token_idcs)
