@@ -102,8 +102,10 @@ class IndexCallback(Callback):
 
         num_centroids = self.num_centroids
         num_train_tokens = self.num_train_tokens
-        # max 100M training tokens
-        approx_num_tokens = int(min(1e8, num_train_tokens or approx_num_tokens))
+        # max 2^18 * max_points_per_centroid training tokens
+        approx_num_tokens = int(
+            min(2**18 * max_points_per_centroid, num_train_tokens or approx_num_tokens)
+        )
         if num_centroids is None:
             num_centroids = 2 ** math.floor(
                 math.log2(approx_num_tokens / max_points_per_centroid)
