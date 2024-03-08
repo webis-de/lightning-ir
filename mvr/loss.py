@@ -129,7 +129,7 @@ class MarginMSE(LossFunction):
             )
         else:
             raise ValueError("")
-        loss = torch.nn.functional.mse_loss(margin, target_margin)
+        loss = torch.nn.functional.mse_loss(margin, target_margin.clamp(min=0))
         return {"similarity loss": loss}
 
 
