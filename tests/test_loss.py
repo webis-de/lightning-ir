@@ -1,67 +1,83 @@
-from typing import Literal, Tuple, Type
+from typing import Type
 
 import pytest
 import torch
 
 from mvr.loss import (
-    PAD_VALUE,
-    RankHinge,
+    ConstantMarginMSE,
+    DocMarginMSE,
+    InBatchCrossEntropyKLDivergence,
+    InBatchCrossEntropyRankNet,
+    InBatchDocMarginMSE,
+    InBatchHingeKLDivergence,
+    InBatchHingeRankNet,
     KLDivergence,
-    LocalizedContrastive,
     LossFunction,
-    MarginMSE,
     RankNet,
+    SupvervisedMarginMSE,
 )
+from mvr.mvr import MVRConfig, ScoringFunction
 
 torch.manual_seed(42)
 
 
 @pytest.fixture(scope="module")
-def shape():
-    return (32, 64)
+def num_queries() -> int:
+    return 4
 
 
 @pytest.fixture(scope="module")
-def logits(shape: Tuple[int, int]):
-    tensor = torch.randn(shape)
-    tensor[torch.rand(shape) < 0.1] = PAD_VALUE
+def num_docs() -> int:
+    return 10
+
+
+@pytest.fixture(scope="module")
+def query_embeddings(num_queries: int):
+    tensor = torch.randn(num_queries, 32, 128, requires_grad=True)
     return tensor
 
 
 @pytest.fixture(scope="module")
-def labels(shape: Tuple[int, int]):
-    tensor = torch.randint(0, 5, shape)
-    tensor[torch.rand(shape) < 0.1] = PAD_VALUE
+def doc_embeddings(num_queries: int, num_docs: int):
+    tensor = torch.randn(num_queries * num_docs, 64, 128, requires_grad=True)
     return tensor
 
 
-@pytest.mark.parametrize("in_batch_loss", ["ce", "hinge", None])
-@pytest.mark.parametrize("reduction", ["mean", "sum", None])
+@pytest.fixture(scope="module")
+def labels(num_queries: int, num_docs: int):
+    tensor = torch.randint(0, 5, (num_queries * num_docs,))
+    return tensor
+
+
 @pytest.mark.parametrize(
-    "LossFunc", [LocalizedContrastive, MarginMSE, RankNet, KLDivergence, RankHinge]
+    "LossFunc",
+    [
+        ConstantMarginMSE,
+        DocMarginMSE,
+        InBatchCrossEntropyKLDivergence,
+        InBatchCrossEntropyRankNet,
+        InBatchHingeKLDivergence,
+        InBatchHingeRankNet,
+        InBatchDocMarginMSE,
+        KLDivergence,
+        RankNet,
+        SupvervisedMarginMSE,
+    ],
 )
 def test_loss_func(
-    LossFunc: Type[LossFunction],
-    logits: torch.Tensor,
+    query_embeddings: torch.Tensor,
+    doc_embeddings: torch.Tensor,
     labels: torch.Tensor,
-    reduction: Literal["mean", "sum"] | None,
-    in_batch_loss: Literal["ce", "hinge"] | None,
+    LossFunc: Type[LossFunction],
 ):
-    loss_func = LossFunc(reduction=reduction, in_batch_loss=in_batch_loss)
-    loss = loss_func.compute_loss(logits, labels)
-    ib_logits = logits[:, [0]].repeat(1, logits.shape[0])
-    ib_loss = loss_func.compute_in_batch_loss(ib_logits)
-    if reduction is not None:
-        loss = loss + ib_loss
-    if reduction is None:
-        assert loss.shape[0] == logits.shape[0]
-        assert loss.mean()
-    else:
-        assert loss
-    if in_batch_loss:
-        if reduction is None:
-            assert ib_loss.mean()
-        else:
-            assert ib_loss
-    else:
-        assert not ib_loss
+    query_scoring_mask = torch.ones(query_embeddings.shape[:-1])
+    doc_scoring_mask = torch.ones(doc_embeddings.shape[:-1])
+    loss_func = LossFunc(
+        MVRConfig(similarity_function="cosine", aggregation_function="mean")
+    )
+    loss = loss_func.compute_loss(
+        query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask, labels
+    )
+    for _, value in loss.items():
+        assert value >= 0
+        assert value.requires_grad

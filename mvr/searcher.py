@@ -162,7 +162,6 @@ class Searcher:
                 )
             ],
             batch_first=True,
-            padding_value=self.scoring_function.MASK_VALUE,
         ).to(inverse_idcs.device)
 
         doc_embeddings = unique_doc_embeddings[inverse_idcs]

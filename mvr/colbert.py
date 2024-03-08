@@ -6,17 +6,18 @@ from typing import Any, Dict, Tuple
 import torch
 from huggingface_hub import hf_hub_download
 from transformers import (
+    AutoConfig,
+    AutoModel,
     AutoTokenizer,
     BertConfig,
     BertModel,
     BertPreTrainedModel,
-    AutoModel,
-    AutoConfig,
 )
 
 from .flash.flash_model import FlashClassFactory
 from .loss import LossFunction
-from .mvr import MVRConfig, MVRModel, MVRModule
+from .module import MVRModule
+from .mvr import MVRConfig, MVRModel
 from .tokenizer import MVRTokenizer
 
 

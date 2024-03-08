@@ -1,7 +1,7 @@
 import itertools
+import math
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional, Sequence
-import math
 
 import pandas as pd
 import torch
@@ -11,7 +11,7 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 from .data import IndexBatch, SearchBatch
 from .datamodule import RUN_HEADER, DocDataset, QueryDataset
 from .indexer import IndexConfig, Indexer
-from .mvr import MVRModule, ScoringFunction
+from .module import MVRModule
 from .searcher import SearchConfig, Searcher
 
 
@@ -155,16 +155,18 @@ class IndexCallback(Callback):
         )
         outputs = pl_module.all_gather(outputs)
         encoded_doc_ids = pl_module.all_gather(encoded_doc_ids)
+        attention_mask = batch.doc_encoding.attention_mask
+        if attention_mask is None:
+            attention_mask = torch.ones(batch.doc_encoding.input_ids.shape)
+        attention_mask = pl_module.all_gather(attention_mask)
         if not trainer.is_global_zero:
             return
         outputs = outputs.view(-1, *outputs.shape[-2:])
 
-        masked = (outputs == ScoringFunction.MASK_VALUE).all(-1)
-
         outputs = outputs.view(-1, pl_module.config.embedding_dim)
-        embeddings = outputs[~masked.view(-1)]
+        embeddings = outputs[attention_mask.bool().view(-1)]
         doc_ids = [bytes(doc_id).decode("utf32").strip() for doc_id in encoded_doc_ids]
-        doc_lengths = masked.logical_not().sum(-1)
+        doc_lengths = attention_mask.sum(-1)
 
         self.indexer.add(embeddings, doc_ids, doc_lengths)
         self.log_to_pg(

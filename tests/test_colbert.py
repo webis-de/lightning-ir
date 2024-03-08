@@ -3,10 +3,10 @@ import torch
 from colbert.modeling.checkpoint import Checkpoint
 from colbert.modeling.colbert import colbert_score
 
-from mvr.colbert import ColBERTModel, ColBERTModule, ColBERTConfig
+from mvr.colbert import ColBERTConfig, ColBERTModel, ColBERTModule
 from mvr.datamodule import MVRDataModule
-from mvr.loss import LocalizedContrastive, MarginMSE, RankNet
-from mvr.mvr import MVRTokenizer
+from mvr.loss import SupvervisedMarginMSE
+from mvr.tokenizer import MVRTokenizer
 
 
 @pytest.fixture(scope="module")
@@ -17,48 +17,15 @@ def colbert_model(model_name_or_path: str) -> ColBERTModel:
 
 
 @pytest.fixture(scope="module")
-def margin_mse_module(model_name_or_path: str) -> ColBERTModule:
+def colbert_module(model_name_or_path: str) -> ColBERTModule:
     config = ColBERTConfig.from_pretrained(model_name_or_path)
-    return ColBERTModule(model_name_or_path, config, MarginMSE())
+    return ColBERTModule(model_name_or_path, config, SupvervisedMarginMSE(config))
 
 
-@pytest.fixture(scope="module")
-def ranknet_module(model_name_or_path: str) -> ColBERTModule:
-    config = ColBERTConfig.from_pretrained(model_name_or_path)
-    return ColBERTModule(model_name_or_path, config, RankNet())
-
-
-@pytest.fixture(scope="module")
-def localized_contrastive_module(model_name_or_path: str) -> ColBERTModule:
-    config = ColBERTConfig.from_pretrained(model_name_or_path)
-    return ColBERTModule(model_name_or_path, config, LocalizedContrastive())
-
-
-def test_colbert_margin_mse(
-    margin_mse_module: ColBERTModule, tuples_datamodule: MVRDataModule
-):
+def test_training_step(colbert_module: ColBERTModule, tuples_datamodule: MVRDataModule):
     dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
-    loss = margin_mse_module.training_step(batch, 0)
-    assert loss
-
-
-def test_colbert_ranknet(
-    ranknet_module: ColBERTModule, rank_run_datamodule: MVRDataModule
-):
-    dataloader = rank_run_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    loss = ranknet_module.training_step(batch, 0)
-    assert loss
-
-
-def test_colbert_localized_contrastive(
-    localized_contrastive_module: ColBERTModule,
-    single_relevant_run_datamodule: MVRDataModule,
-):
-    dataloader = single_relevant_run_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    loss = localized_contrastive_module.training_step(batch, 0)
+    loss = colbert_module.training_step(batch, 0)
     assert loss
 
 

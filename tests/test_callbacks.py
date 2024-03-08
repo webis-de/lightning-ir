@@ -10,7 +10,8 @@ from transformers import BertModel
 
 from mvr.callbacks import IndexCallback, SearchCallback
 from mvr.datamodule import MVRDataModule
-from mvr.mvr import MVRConfig, MVRModel, MVRModule
+from mvr.mvr import MVRConfig, MVRModel
+from mvr.module import MVRModule
 
 
 class TestModel(MVRModel):

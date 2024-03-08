@@ -6,8 +6,9 @@ import torch
 from transformers import BertModel
 
 from mvr.datamodule import MVRDataModule
-from mvr.loss import LocalizedContrastive, MarginMSE, RankNet
-from mvr.mvr import MVRConfig, MVRModel, MVRModule
+from mvr.loss import SupvervisedMarginMSE
+from mvr.mvr import MVRConfig, MVRModel
+from mvr.module import MVRModule
 
 
 class TestModel(MVRModel):
@@ -34,23 +35,8 @@ def mvr_model(model_name_or_path: str) -> MVRModel:
 
 
 @pytest.fixture(scope="module")
-def margin_mse_module(mvr_model: MVRModel) -> MVRModule:
-    return MVRModule(mvr_model, MarginMSE())
-
-
-@pytest.fixture(scope="module")
-def ranknet_module(mvr_model: MVRModel) -> MVRModule:
-    return MVRModule(mvr_model, RankNet())
-
-
-@pytest.fixture(scope="module")
-def localized_contrastive_module(mvr_model: MVRModel) -> MVRModule:
-    return MVRModule(mvr_model, LocalizedContrastive())
-
-
-@pytest.fixture()
-def in_batch_negatives_module(mvr_model: MVRModel) -> MVRModule:
-    return MVRModule(mvr_model, MarginMSE(in_batch_loss="ce"))
+def mvr_module(mvr_model: MVRModel) -> MVRModule:
+    return MVRModule(mvr_model, SupvervisedMarginMSE(mvr_model.config))
 
 
 def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRModel):
@@ -63,39 +49,39 @@ def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRMode
 
     query_embedding = model.encode_queries(**batch.query_encoding)
     doc_embedding = model.encode_docs(**batch.doc_encoding)
-    with pytest.raises(ValueError):
-        model.score(
-            query_embedding,
-            doc_embedding,
-            batch.query_encoding.attention_mask,
-            batch.doc_encoding.attention_mask,
-            None,
-        )
-    with pytest.raises(ValueError):
-        model.score(
-            query_embedding,
-            doc_embedding,
-            batch.query_encoding.attention_mask,
-            batch.doc_encoding.attention_mask,
-            [doc_embedding.shape[0]],
-        )
-    with pytest.raises(ValueError):
-        model.score(
-            query_embedding,
-            doc_embedding,
-            batch.query_encoding.attention_mask,
-            batch.doc_encoding.attention_mask,
-            [0] * query_embedding.shape[0],
-        )
-
-    num_docs = [len(docs) for docs in batch.doc_ids]
-    num_docs[-1] = num_docs[-1] - 1
     query_scoring_mask, doc_scoring_mask = model.scoring_masks(
         batch.query_encoding.input_ids,
         batch.doc_encoding.input_ids,
         batch.query_encoding.attention_mask,
         batch.doc_encoding.attention_mask,
     )
+    with pytest.raises(ValueError):
+        model.score(
+            query_embedding,
+            doc_embedding,
+            query_scoring_mask,
+            doc_scoring_mask,
+            None,
+        )
+    with pytest.raises(ValueError):
+        model.score(
+            query_embedding,
+            doc_embedding,
+            query_scoring_mask,
+            doc_scoring_mask,
+            [doc_embedding.shape[0]],
+        )
+    with pytest.raises(ValueError):
+        model.score(
+            query_embedding,
+            doc_embedding,
+            query_scoring_mask,
+            doc_scoring_mask,
+            [0] * query_embedding.shape[0],
+        )
+
+    num_docs = [len(docs) for docs in batch.doc_ids]
+    num_docs[-1] = num_docs[-1] - 1
     scores = model.score(
         query_embedding,
         doc_embedding,
@@ -107,61 +93,26 @@ def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRMode
 
 
 @pytest.mark.parametrize("similarity_function", ["cosine", "dot", "l2"])
-def test_margin_mse(
+def test_training_step(
     similarity_function: Literal["cosine", "dot", "l2"],
-    margin_mse_module: MVRModule,
+    mvr_module: MVRModule,
     tuples_datamodule: MVRDataModule,
 ):
     dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
-    margin_mse_module.config.similarity_function = similarity_function
-    loss = margin_mse_module.training_step(batch, 0)
-    assert loss
-
-
-@pytest.mark.parametrize("similarity_function", ["cosine", "dot", "l2"])
-def test_ranknet(
-    similarity_function: Literal["cosine", "dot", "l2"],
-    ranknet_module: MVRModule,
-    rank_run_datamodule: MVRDataModule,
-):
-    dataloader = rank_run_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    ranknet_module.config.similarity_function = similarity_function
-    loss = ranknet_module.training_step(batch, 0)
-    assert loss
-
-
-@pytest.mark.parametrize("similarity_function", ["cosine", "dot", "l2"])
-def test_localized_contrastive(
-    similarity_function: Literal["cosine", "dot", "l2"],
-    localized_contrastive_module: MVRModule,
-    single_relevant_run_datamodule: MVRDataModule,
-):
-    dataloader = single_relevant_run_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    localized_contrastive_module.config.similarity_function = similarity_function
-    loss = localized_contrastive_module.training_step(batch, 0)
-    assert loss
-
-
-def test_in_batch_negatives(
-    in_batch_negatives_module: MVRModule, tuples_datamodule: MVRDataModule
-):
-    dataloader = tuples_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    loss = in_batch_negatives_module.training_step(batch, 0)
+    mvr_module.config.similarity_function = similarity_function
+    loss = mvr_module.training_step(batch, 0)
     assert loss
 
 
 def test_validation_step(
-    margin_mse_module: MVRModule,
+    mvr_module: MVRModule,
     relevance_run_datamodule: MVRDataModule,
 ):
     dataloader = relevance_run_datamodule.val_dataloader()[0]
     batch = next(iter(dataloader))
-    margin_mse_module.validation_step(batch, 0, 0)
-    outputs = margin_mse_module.validation_step_outputs
+    mvr_module.validation_step(batch, 0, 0)
+    outputs = mvr_module.validation_step_outputs
     assert len(outputs) == 2
     assert outputs[0][0] == "ndcg@10"
     assert outputs[1][0] == "mrr@ranking"

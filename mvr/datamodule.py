@@ -1,20 +1,15 @@
 import warnings
 from collections import defaultdict
+from itertools import islice
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal, NamedTuple, Sequence
-from itertools import islice
 
 import ir_datasets
 import pandas as pd
 import torch
 from lightning import LightningDataModule
 from torch.distributed import get_rank, get_world_size
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    IterableDataset,
-    get_worker_info,
-)
+from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
 from transformers import AutoConfig
 
 from mvr.data import (
@@ -25,7 +20,9 @@ from mvr.data import (
     TrainBatch,
     TrainSample,
 )
-from mvr.mvr import MVRConfig, MVRTokenizer
+
+from .mvr import MVRConfig
+from .tokenizer import MVRTokenizer
 
 DASHED_DATASET_MAP = {
     dataset.replace("/", "-"): dataset for dataset in ir_datasets.registry._registered

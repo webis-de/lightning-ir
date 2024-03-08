@@ -6,7 +6,8 @@ from transformers import AutoConfig, AutoModel
 from .colbert import ColBERTConfig, ColBERTModel
 from .flash.flash_model import FlashClassFactory
 from .loss import LossFunction
-from .mvr import MVRConfig, MVRModule, ScoringFunction
+from .module import MVRModule
+from .mvr import MVRConfig, ScoringFunction
 
 
 class XTRConfig(ColBERTConfig):

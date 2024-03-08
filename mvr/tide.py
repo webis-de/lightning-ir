@@ -1,4 +1,5 @@
-from typing import Dict, Any, Sequence
+from typing import Any, Dict, Sequence
+
 import torch
 from transformers import (
     AutoConfig,
@@ -8,9 +9,10 @@ from transformers import (
     BertPreTrainedModel,
 )
 
-from mvr.flash.flash_model import FlashClassFactory
-from mvr.loss import LossFunction
-from mvr.mvr import MVRConfig, MVRModel, MVRModule
+from .flash.flash_model import FlashClassFactory
+from .loss import LossFunction
+from .module import MVRModule
+from .mvr import MVRConfig, MVRModel
 
 
 class TideConfig(BertConfig, MVRConfig):
