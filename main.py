@@ -1,4 +1,5 @@
 import os
+
 import torch
 from lightning import LightningModule, Trainer
 from lightning.fabric.loggers.logger import _DummyExperiment as DummyExperiment
@@ -9,6 +10,9 @@ from typing_extensions import override
 import mvr.callbacks  # noqa
 import mvr.colbert  # noqa
 import mvr.datamodule  # noqa
+import mvr.module  # noqa
+import mvr.tide  # noqa
+import mvr.xtr  # noqa
 
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
