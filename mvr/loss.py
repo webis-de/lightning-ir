@@ -6,23 +6,6 @@ import torch
 from .mvr import ScoringFunction, MVRConfig
 
 
-# scores = self.model.score(
-#     query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
-# )
-# scores = scores.view(query_embeddings.shape[0], -1)
-# targets = batch.targets.view_as(scores)
-# loss = self.loss_function.compute_loss(scores, targets)
-# self.log("similarity loss", loss)
-# ib_loss = None
-# if self.loss_function.in_batch_loss is not None:
-#     ib_loss = self.compute_ib_loss(batch, query_embeddings, doc_embeddings)
-#     self.log("ib loss", ib_loss)
-# loss = loss + ib_loss if ib_loss is not None else loss
-
-
-# return ib_loss
-
-
 class LossFunction(ABC):
     def __init__(self, config: MVRConfig):
         self.scoring_function = ScoringFunction(config)
