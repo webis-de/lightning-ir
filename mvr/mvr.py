@@ -18,7 +18,6 @@ class MVRConfig(PretrainedConfig):
     ADDED_ARGS = [
         "similarity_function",
         "aggregation_function",
-        "xtr_token_retrieval_k",
         "query_expansion",
         "query_length",
         "attend_to_query_expanded_tokens",
@@ -45,7 +44,6 @@ class MVRConfig(PretrainedConfig):
         self,
         similarity_function: Literal["cosine", "l2", "dot"] = "dot",
         aggregation_function: Literal["sum", "mean", "max"] = "sum",
-        xtr_token_retrieval_k: int | None = None,
         query_expansion: bool = False,
         query_length: int = 32,
         attend_to_query_expanded_tokens: bool = False,
@@ -61,7 +59,6 @@ class MVRConfig(PretrainedConfig):
         super().__init__(**kwargs)
         self.similarity_function = similarity_function
         self.aggregation_function = aggregation_function
-        self.xtr_token_retrieval_k = xtr_token_retrieval_k
         self.query_expansion = query_expansion
         self.query_length = query_length
         self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
@@ -95,7 +92,6 @@ def ceil_div(a: int, b: int) -> int:
 
 
 class ScoringFunction:
-    MASK_VALUE = -10000
 
     def __init__(
         self,

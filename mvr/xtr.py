@@ -12,6 +12,8 @@ from .mvr import MVRConfig, MVRModule, ScoringFunction
 class XTRConfig(ColBERTConfig):
     model_type = "xtr"
 
+    ADDED_ARGS = ColBERTConfig.ADDED_ARGS + ["token_retrieval_k"]
+
     def __init__(
         self,
         token_retrieval_k: int | None = None,

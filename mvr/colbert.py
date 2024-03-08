@@ -23,6 +23,8 @@ from .tokenizer import MVRTokenizer
 class ColBERTConfig(BertConfig, MVRConfig):
     model_type = "colbert"
 
+    ADDED_ARGS = MVRConfig.ADDED_ARGS + ["mask_punctuation"]
+
     def __init__(self, mask_punctuation: bool = True, **kwargs) -> None:
         super().__init__(**kwargs)
         self.mask_punctuation = mask_punctuation
