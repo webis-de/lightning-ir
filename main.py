@@ -12,6 +12,8 @@ import mvr.colbert  # noqa
 import mvr.datamodule  # noqa
 import mvr.module  # noqa
 import mvr.tide  # noqa
+import mvr.warmup_schedulers  # noqa
+from mvr.warmup_schedulers import LR_SCHEDULERS
 import mvr.xtr  # noqa
 
 if torch.cuda.is_available():
@@ -44,10 +46,17 @@ class CustomWandbLogger(WandbLogger):
 
 class CustomLightningCLI(LightningCLI):
     def add_arguments_to_parser(self, parser):
+        parser.add_lr_scheduler_args(tuple(LR_SCHEDULERS))
         parser.link_arguments(
             "model.init_args.model_name_or_path", "data.init_args.model_name_or_path"
         )
         parser.link_arguments("model.init_args.config", "data.init_args.config")
+        parser.link_arguments(
+            "model.init_args.config", "model.init_args.loss_function.init_args.config"
+        )
+        parser.link_arguments(
+            "trainer.max_steps", "lr_scheduler.init_args.num_training_steps"
+        )
 
 
 def main():
