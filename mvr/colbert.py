@@ -148,9 +148,7 @@ class ColBERTModule(MVRModule):
                     "Either model_name_or_path or config must be provided."
                 )
             if not isinstance(config, ColBERTConfig):
-                raise ValueError(
-                    "config initializing a new model pass a ColBERTConfig."
-                )
+                raise ValueError("To initialize a new model pass a ColBERTConfig.")
             model = FlashColBERTModel(config)
         else:
             model = FlashColBERTModel.from_pretrained(model_name_or_path, config=config)

@@ -74,7 +74,7 @@ class XTRModule(MVRModule):
                     "Either model_name_or_path or config must be provided."
                 )
             if not isinstance(config, XTRConfig):
-                raise ValueError("config initializing a new model pass a XTRConfig.")
+                raise ValueError("To initialize a new model pass a XTRConfig.")
             model = FlashXTRModel(config)
         else:
             model = FlashXTRModel.from_pretrained(model_name_or_path, config=config)
