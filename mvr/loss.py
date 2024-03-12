@@ -128,7 +128,7 @@ class MarginMSE(LossFunction):
                 doc_scoring_mask[query_idx * num_docs + neg_idx],
             )
         else:
-            raise ValueError("")
+            raise ValueError("invalid margin type")
         loss = torch.nn.functional.mse_loss(margin, target_margin.clamp(min=0))
         return {"similarity loss": loss}
 
@@ -163,14 +163,20 @@ class InBatchDocMarginMSE(DocMarginMSE):
         num_queries = query_embeddings.shape[0]
         num_docs = doc_embeddings.shape[0] // num_queries
         min_idx = torch.arange(num_queries)[:, None] * num_docs
-        max_idx = min_idx + num_docs
-        labels = (
-            torch.arange(num_queries * num_docs)[None].greater_equal(min_idx)
-            & torch.arange(num_queries * num_docs)[None].less(max_idx)
-        ).long()
+        # max_idx = min_idx + num_docs
+        # labels = (
+        #     torch.arange(num_queries * num_docs)[None].greater_equal(min_idx)
+        #     & torch.arange(num_queries * num_docs)[None].less(max_idx)
+        # ).long()
+        labels = torch.zeros(
+            (num_queries, num_queries * num_docs),
+            device=labels.device,
+            dtype=torch.long,
+        )
+        labels[(torch.arange(num_queries), min_idx[:, 0])] = 1
 
-        doc_embeddings = doc_embeddings.repeat(query_embeddings.shape[0], 1, 1)
-        doc_scoring_mask = doc_scoring_mask.repeat(query_embeddings.shape[0], 1)
+        doc_embeddings = doc_embeddings.repeat(num_queries, 1, 1)
+        doc_scoring_mask = doc_scoring_mask.repeat(num_queries, 1)
 
         return super().compute_loss(
             query_embeddings,
