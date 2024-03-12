@@ -1,3 +1,4 @@
+from typing import Any
 import os
 
 import torch
@@ -13,7 +14,7 @@ import mvr.datamodule  # noqa
 import mvr.module  # noqa
 import mvr.tide  # noqa
 import mvr.warmup_schedulers  # noqa
-from mvr.warmup_schedulers import LR_SCHEDULERS
+from mvr.warmup_schedulers import LR_SCHEDULERS, WarmupScheduler
 import mvr.xtr  # noqa
 
 if torch.cuda.is_available():
@@ -45,6 +46,20 @@ class CustomWandbLogger(WandbLogger):
 
 
 class CustomLightningCLI(LightningCLI):
+
+    @staticmethod
+    def configure_optimizers(
+        lightning_module: LightningModule,
+        optimizer: torch.optim.Optimizer,
+        lr_scheduler: WarmupScheduler | None = None,
+    ) -> Any:
+        if lr_scheduler is None:
+            return optimizer
+
+        return [optimizer], [
+            {"scheduler": lr_scheduler, "interval": lr_scheduler.interval}
+        ]
+
     def add_arguments_to_parser(self, parser):
         parser.add_lr_scheduler_args(tuple(LR_SCHEDULERS))
         parser.link_arguments(
