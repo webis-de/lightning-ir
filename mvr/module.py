@@ -21,6 +21,8 @@ class MVRModule(LightningModule):
         self.encoder.embeddings.position_embeddings.requires_grad_(False)
         self.config = self.model.config
         self.loss_function: LossFunction | None = loss_function
+        if self.loss_function is not None:
+            self.loss_function.set_scoring_function(self.model.scoring_function)
         self.tokenizer: MVRTokenizer = MVRTokenizer.from_pretrained(
             self.config.name_or_path, **self.config.to_tokenizer_dict()
         )

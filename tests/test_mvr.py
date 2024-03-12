@@ -36,7 +36,7 @@ def mvr_model(model_name_or_path: str) -> MVRModel:
 
 @pytest.fixture(scope="module")
 def mvr_module(mvr_model: MVRModel) -> MVRModule:
-    return MVRModule(mvr_model, SupervisedMarginMSE(mvr_model.config))
+    return MVRModule(mvr_model, SupervisedMarginMSE())
 
 
 def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRModel):

@@ -3,12 +3,15 @@ from typing import Dict, Literal
 
 import torch
 
-from .mvr import ScoringFunction, MVRConfig
+from .mvr import ScoringFunction
 
 
 class LossFunction(ABC):
-    def __init__(self, config: MVRConfig):
-        self.scoring_function = ScoringFunction(config)
+    def __init__(self):
+        self.scoring_function: ScoringFunction
+
+    def set_scoring_function(self, scoring_function: ScoringFunction):
+        self.scoring_function = scoring_function
 
     @abstractmethod
     def compute_loss(
@@ -87,12 +90,8 @@ class InBatchHingeLossFunction(InBatchLossFunction):
 
 class MarginMSE(LossFunction):
 
-    def __init__(
-        self,
-        config: MVRConfig,
-        margin: float | Literal["labels", "doc_scores"] = 1.0,
-    ):
-        super().__init__(config)
+    def __init__(self, margin: float | Literal["labels", "doc_scores"] = 1.0):
+        super().__init__()
         self.margin = margin
 
     def compute_loss(
@@ -134,24 +133,21 @@ class MarginMSE(LossFunction):
 
 
 class ConstantMarginMSE(MarginMSE):
-    def __init__(self, config: MVRConfig, margin: float = 1.0):
-        super().__init__(config, margin)
+    def __init__(self, margin: float = 1.0):
+        super().__init__(margin)
 
 
 class SupervisedMarginMSE(MarginMSE):
-    def __init__(self, config: MVRConfig):
-        super().__init__(config, "labels")
+    def __init__(self):
+        super().__init__("labels")
 
 
 class DocMarginMSE(MarginMSE):
-    def __init__(self, config: MVRConfig):
-        super().__init__(config, "doc_scores")
+    def __init__(self):
+        super().__init__("doc_scores")
 
 
 class InBatchDocMarginMSE(DocMarginMSE):
-    def __init__(self, config: MVRConfig):
-        super().__init__(config)
-
     def compute_loss(
         self,
         query_embeddings: torch.Tensor,
