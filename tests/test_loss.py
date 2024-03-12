@@ -14,7 +14,7 @@ from mvr.loss import (
     KLDivergence,
     LossFunction,
     RankNet,
-    SupvervisedMarginMSE,
+    SupervisedMarginMSE,
 )
 from mvr.mvr import MVRConfig, ScoringFunction
 
@@ -61,7 +61,7 @@ def labels(num_queries: int, num_docs: int):
         InBatchDocMarginMSE,
         KLDivergence,
         RankNet,
-        SupvervisedMarginMSE,
+        SupervisedMarginMSE,
     ],
 )
 def test_loss_func(

@@ -5,7 +5,7 @@ from colbert.modeling.colbert import colbert_score
 
 from mvr.colbert import ColBERTConfig, ColBERTModel, ColBERTModule
 from mvr.datamodule import MVRDataModule
-from mvr.loss import SupvervisedMarginMSE
+from mvr.loss import SupervisedMarginMSE
 from mvr.tokenizer import MVRTokenizer
 
 
@@ -19,7 +19,7 @@ def colbert_model(model_name_or_path: str) -> ColBERTModel:
 @pytest.fixture(scope="module")
 def colbert_module(model_name_or_path: str) -> ColBERTModule:
     config = ColBERTConfig.from_pretrained(model_name_or_path)
-    return ColBERTModule(model_name_or_path, config, SupvervisedMarginMSE(config))
+    return ColBERTModule(model_name_or_path, config, SupervisedMarginMSE(config))
 
 
 def test_training_step(colbert_module: ColBERTModule, tuples_datamodule: MVRDataModule):

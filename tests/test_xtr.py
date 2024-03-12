@@ -2,7 +2,7 @@ import pytest
 
 from mvr.xtr import XTRModel, XTRModule, XTRConfig
 from mvr.datamodule import MVRDataModule
-from mvr.loss import LocalizedContrastive, MarginMSE, RankNet
+from mvr.loss import SupervisedMarginMSE
 
 
 @pytest.fixture(scope="module")
@@ -13,44 +13,15 @@ def xtr_model(model_name_or_path: str) -> XTRModel:
 
 
 @pytest.fixture(scope="module")
-def margin_mse_module(model_name_or_path: str) -> XTRModule:
+def xtr_module(model_name_or_path: str) -> XTRModule:
     config = XTRConfig.from_pretrained(model_name_or_path, token_retrieval_k=10)
-    return XTRModule(model_name_or_path, config, MarginMSE())
+    return XTRModule(model_name_or_path, config, SupervisedMarginMSE())
 
 
-@pytest.fixture(scope="module")
-def ranknet_module(model_name_or_path: str) -> XTRModule:
-    config = XTRConfig.from_pretrained(model_name_or_path, token_retrieval_k=10)
-    return XTRModule(model_name_or_path, config, RankNet())
-
-
-@pytest.fixture(scope="module")
-def localized_contrastive_module(model_name_or_path: str) -> XTRModule:
-    config = XTRConfig.from_pretrained(model_name_or_path, token_retrieval_k=10)
-    return XTRModule(model_name_or_path, config, LocalizedContrastive())
-
-
-def test_xtr_margin_mse(margin_mse_module: XTRModule, tuples_datamodule: MVRDataModule):
+def test_training_step(xtr_module: XTRModule, tuples_datamodule: MVRDataModule):
     dataloader = tuples_datamodule.train_dataloader()
     batch = next(iter(dataloader))
-    loss = margin_mse_module.training_step(batch, 0)
-    assert loss
-
-
-def test_xtr_ranknet(ranknet_module: XTRModule, rank_run_datamodule: MVRDataModule):
-    dataloader = rank_run_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    loss = ranknet_module.training_step(batch, 0)
-    assert loss
-
-
-def test_xtr_localized_contrastive(
-    localized_contrastive_module: XTRModule,
-    single_relevant_run_datamodule: MVRDataModule,
-):
-    dataloader = single_relevant_run_datamodule.train_dataloader()
-    batch = next(iter(dataloader))
-    loss = localized_contrastive_module.training_step(batch, 0)
+    loss = xtr_module.training_step(batch, 0)
     assert loss
 
 

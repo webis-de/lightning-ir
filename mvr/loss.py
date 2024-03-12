@@ -138,7 +138,7 @@ class ConstantMarginMSE(MarginMSE):
         super().__init__(config, margin)
 
 
-class SupvervisedMarginMSE(MarginMSE):
+class SupervisedMarginMSE(MarginMSE):
     def __init__(self, config: MVRConfig):
         super().__init__(config, "labels")
 
