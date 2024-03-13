@@ -218,8 +218,7 @@ class Searcher:
         mask = (
             torch.arange(max_query_length) < query_lengths[:, None]
         ).repeat_interleave(num_docs, dim=0)
-        flat_scores = scores[mask]
         scores = self.scoring_function.aggregate(
-            flat_scores, mask, self.mvr_config.aggregation_function
+            scores, mask, self.mvr_config.aggregation_function
         )
         return scores, doc_idcs, num_docs.tolist()
