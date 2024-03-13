@@ -72,9 +72,8 @@ def test_loss_func(
 ):
     query_scoring_mask = torch.ones(query_embeddings.shape[:-1])
     doc_scoring_mask = torch.ones(doc_embeddings.shape[:-1])
-    loss_func = LossFunc(
-        MVRConfig(similarity_function="cosine", aggregation_function="mean")
-    )
+    loss_func = LossFunc()
+    loss_func.set_scoring_function(ScoringFunction(MVRConfig()))
     loss = loss_func.compute_loss(
         query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask, labels
     )

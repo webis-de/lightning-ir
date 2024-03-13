@@ -46,7 +46,7 @@ def test_seralize_deserialize(
 ):
     save_dir = tmpdir_factory.mktemp("tide")
     tide_model.save_pretrained(save_dir)
-    new_model = TideModel.from_pretrained(save_dir, mask_punctuation=False)
+    new_model = TideModel.from_pretrained(save_dir)
     for key, value in tide_model.config.__dict__.items():
         if key in (
             "torch_dtype",
@@ -55,9 +55,6 @@ def test_seralize_deserialize(
             "transformers_version",
             "model_type",
         ):
-            continue
-        if key == "mask_punctuation":
-            assert value and not getattr(new_model.config, key)
             continue
         assert getattr(new_model.config, key) == value
     for key, value in tide_model.state_dict().items():
