@@ -134,7 +134,7 @@ class ScoringFunction:
         mask: torch.Tensor,
         aggregation_function: Literal["max", "sum", "mean"],
     ) -> torch.Tensor:
-        scores[~mask] = 0
+        scores[(~mask).expand_as(scores)] = 0
         if aggregation_function == "max":
             return scores.max(-1).values
         if aggregation_function == "sum":
@@ -228,18 +228,22 @@ class ScoringFunction:
     ) -> torch.Tensor:
         num_docs_t = self._parse_num_docs(query_embeddings, doc_embeddings, num_docs)
 
-        exp_query_embeddings = query_embeddings.repeat_interleave(
+        query_embeddings = query_embeddings.repeat_interleave(
             num_docs_t, dim=0
         ).unsqueeze(2)
-        exp_doc_embeddings = doc_embeddings.unsqueeze(1)
-        exp_query_scoring_mask = (
-            query_scoring_mask.bool().repeat_interleave(num_docs_t, dim=0).unsqueeze(2)
-        )
-        exp_doc_scoring_mask = doc_scoring_mask.bool().unsqueeze(1)
-        mask = exp_query_scoring_mask & exp_doc_scoring_mask
+        doc_embeddings = doc_embeddings.unsqueeze(1)
+        if query_scoring_mask.numel() > 1:
+            query_scoring_mask = (
+                query_scoring_mask.bool()
+                .repeat_interleave(num_docs_t, dim=0)
+                .unsqueeze(2)
+            )
+        if doc_scoring_mask.numel() > 1:
+            doc_scoring_mask = doc_scoring_mask.bool().unsqueeze(1)
+        mask = query_scoring_mask & doc_scoring_mask
 
         similarity = self.compute_similarity(
-            exp_query_embeddings, exp_doc_embeddings, mask, num_docs_t
+            query_embeddings, doc_embeddings, mask, num_docs_t
         )
         scores = self.aggregate(similarity, mask, "max")
         scores = self.aggregate(scores, mask.any(-1), self.aggregation_function)
@@ -269,10 +273,10 @@ class MVRModel(PreTrainedModel):
         doc_token_type_ids: torch.Tensor | None = None,
         num_docs: List[int] | int | None = None,
     ) -> torch.Tensor:
-        query_embeddings = self.encode(
+        query_embeddings = self.encode_queries(
             query_input_ids, query_attention_mask, query_token_type_ids
         )
-        doc_embeddings = self.encode(
+        doc_embeddings = self.encode_docs(
             doc_input_ids, doc_attention_mask, doc_token_type_ids
         )
         query_scoring_mask, doc_scoring_mask = self.scoring_masks(

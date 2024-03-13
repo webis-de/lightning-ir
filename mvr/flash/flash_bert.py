@@ -27,10 +27,13 @@ class FlashBertMixin(FlashMixin):
         key = self.transpose_for_scores(self.key(hidden_states))
         value = self.transpose_for_scores(self.value(hidden_states))
 
+        if attention_mask is not None and not attention_mask.any():
+            attention_mask = None
+
         if (
             flash_attn_func is not None
             and hidden_states.is_cuda
-            and (attention_mask is None or not attention_mask.any())
+            and attention_mask is None
         ):
             context = flash_attn_func(
                 query, key, value, self.dropout.p if self.training else 0

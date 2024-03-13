@@ -1,4 +1,5 @@
-from typing import Any, Dict, Sequence
+from typing import Any, Callable, Dict, List, Literal, Tuple
+from functools import partial
 
 import torch
 from transformers import (
@@ -12,40 +13,49 @@ from transformers import (
 from .flash.flash_model import FlashClassFactory
 from .loss import LossFunction
 from .module import MVRModule
-from .mvr import MVRConfig, MVRModel
+from .mvr import MVRConfig, MVRModel, ScoringFunction
 
 
 class TideConfig(BertConfig, MVRConfig):
     model_type = "tide"
 
+    ADDED_ARGS = MVRConfig.ADDED_ARGS + [
+        "query_embedding_length",
+        "doc_embedding_length",
+    ]
+
     def __init__(
-        self, query_embedding_length: int, doc_embedding_length: int, **kwargs
+        self, query_embedding_length: int = 8, doc_embedding_length: int = 32, **kwargs
     ) -> None:
+        kwargs["query_expansion"] = True
+        kwargs["doc_expansion"] = True
+        kwargs["attend_to_query_expanded_tokens"] = True
+        kwargs["attend_to_doc_expanded_tokens"] = True
         super().__init__(**kwargs)
         self.query_embedding_length = query_embedding_length
         self.doc_embedding_length = doc_embedding_length
 
     def to_mvr_dict(self) -> Dict[str, Any]:
         mvr_dict = super().to_mvr_dict()
-        mvr_dict["num_embeddings"] = self.num_embeddings
+        mvr_dict["query_embedding_length"] = self.query_embedding_length
+        mvr_dict["doc_embedding_length"] = self.doc_embedding_length
         return mvr_dict
 
 
-class TideQueryLayer(torch.nn.Module):
+class TideScoringFunction(ScoringFunction):
+    def query_scoring_mask(
+        self,
+        query_input_ids: torch.Tensor | None = None,
+        query_attention_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return super().query_scoring_mask(None, None)
 
-    def __init__(self, layer_idx: int, config: TideConfig) -> None:
-        super().__init__()
-        num_attention_heads = config.num_attention_heads
-        attention_head_size = int(config.hidden_size / config.num_attention_heads)
-        all_head_size = num_attention_heads * attention_head_size
-
-        self.pooling = torch.nn.AdaptiveAvgPool1d(config.num_embeddings[layer_idx])
-        self.linear = torch.nn.Linear(config.hidden_size, all_head_size)
-
-    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        hidden_states = self.pooling(hidden_states)
-        hidden_states = self.linear(hidden_states)
-        return hidden_states
+    def doc_scoring_mask(
+        self,
+        doc_input_ids: torch.Tensor | None = None,
+        doc_attention_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        return super().doc_scoring_mask(None, None)
 
 
 class TideModel(BertPreTrainedModel, MVRModel):
@@ -55,13 +65,150 @@ class TideModel(BertPreTrainedModel, MVRModel):
         bert = BertModel(tide_config, add_pooling_layer=False)
         super().__init__(tide_config, bert)
         self._modules["bert"] = self._modules.pop("encoder")
-        for name, module in self.named_modules():
-            if name.endswith("query"):
-                foo
+        query_embedding_lengths = self.get_embedding_lengths(
+            self.config.query_length, self.config.query_embedding_length
+        )
+        doc_embedding_lengths = self.get_embedding_lengths(
+            self.config.doc_length, self.config.doc_embedding_length
+        )
+        self.pooling_context_manager = PoolingContextManager(
+            self, query_embedding_lengths, doc_embedding_lengths
+        )
+        self.scoring_function = TideScoringFunction(tide_config)
+
+    def get_embedding_lengths(
+        self, sequence_length: int, embedding_length: int
+    ) -> List[int]:
+        # TODO maybe just reduce by half everytime?
+        reduction = (embedding_length / sequence_length) ** (
+            -1 / self.config.num_hidden_layers
+        )
+        embedding_lengths = []
+        for layer_idx in range(self.config.num_hidden_layers):
+            embedding_lengths.append(
+                max(
+                    int(sequence_length / reduction ** (layer_idx + 1)),
+                    embedding_length,
+                )
+            )
+        if embedding_lengths[-1] != embedding_length:
+            raise ValueError(
+                "The final embedding length is unequal to the desired embedding length."
+            )
+        return embedding_lengths
+
+    def encode_queries(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        token_type_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        with self.pooling_context_manager("query"):
+            embedding = super().encode_queries(
+                input_ids, attention_mask, token_type_ids
+            )
+        return embedding
+
+    def encode_docs(
+        self,
+        input_ids: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        token_type_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        with self.pooling_context_manager("doc"):
+            embedding = super().encode_docs(input_ids, attention_mask, token_type_ids)
+        return embedding
 
     @property
     def encoder(self):
         return self.bert
+
+
+class PoolingContextManager:
+    def __init__(
+        self,
+        model: TideModel,
+        query_embedding_lengths: List[int],
+        doc_embedding_lengths: List[int],
+    ) -> None:
+        self.model = model
+        self.query_embedding_lengths = query_embedding_lengths
+        self.doc_embedding_lengths = doc_embedding_lengths
+        self.query_layers = []
+        self.query_forwards = []
+        self.output_layers = []
+        self.output_forwards = []
+        for name, module in self.model.named_modules():
+            if name.endswith("query"):
+                self.query_layers.append(module)
+                self.query_forwards.append(module.forward)
+            if name.endswith("attention.output"):
+                self.output_layers.append(module)
+                self.output_forwards.append(module.forward)
+        if len(self.query_layers) != len(self.output_layers):
+            raise ValueError("The number of query and output layers must be equal.")
+        self.input_type: Literal["query", "doc"] | None = None
+
+    @staticmethod
+    def pool_output_hidden_states(
+        hidden_states: torch.Tensor,
+        input_tensor: torch.Tensor,
+        output_forward: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+        embedding_length: int,
+    ) -> torch.Tensor:
+        input_tensor = torch.nn.functional.adaptive_avg_pool1d(
+            input_tensor.transpose(-1, -2), embedding_length
+        ).transpose(-1, -2)
+        return output_forward(hidden_states, input_tensor)
+
+    @staticmethod
+    def pool_query_hidden_states(
+        hidden_states: torch.Tensor,
+        linear_forward: Callable[[torch.Tensor], torch.Tensor],
+        embedding_length: int,
+    ) -> torch.Tensor:
+        hidden_states = linear_forward(hidden_states)
+        hidden_states = torch.nn.functional.adaptive_avg_pool1d(
+            hidden_states.transpose(-1, -2), embedding_length
+        ).transpose(-1, -2)
+        return hidden_states
+
+    def __call__(self, input_type: Literal["query", "doc"]) -> "PoolingContextManager":
+        self.input_type = input_type
+        return self
+
+    def __enter__(self) -> "PoolingContextManager":
+        if self.input_type == "query":
+            embedding_lengths = self.query_embedding_lengths
+        elif self.input_type == "doc":
+            embedding_lengths = self.doc_embedding_lengths
+        else:
+            raise ValueError("input_type must be 'query' or 'doc'")
+        iterator = zip(self.query_layers, self.output_layers, embedding_lengths)
+        for query_layer, output_layer, embedding_length in iterator:
+            query_layer.forward = partial(
+                self.pool_query_hidden_states,
+                linear_forward=query_layer.forward,
+                embedding_length=embedding_length,
+            )
+            output_layer.forward = partial(
+                self.pool_output_hidden_states,
+                output_forward=output_layer.forward,
+                embedding_length=embedding_length,
+            )
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        self.input_type = None
+        iterator = zip(
+            self.query_layers,
+            self.query_forwards,
+            self.output_layers,
+            self.output_forwards,
+        )
+        for query_layer, query_forward, output_layer, output_forward in iterator:
+            query_layer.forward = query_forward
+            output_layer.forward = output_forward
 
 
 FlashTideModel = FlashClassFactory(TideModel)
