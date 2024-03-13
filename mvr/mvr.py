@@ -106,7 +106,8 @@ class ScoringFunction:
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
-        mask: torch.Tensor,
+        mask: torch.Tensor | None = None,
+        num_docs: torch.Tensor | None = None,
     ) -> torch.Tensor:
         to_cpu = query_embeddings.is_cpu or doc_embeddings.is_cpu
         if torch.cuda.is_available():
@@ -238,7 +239,7 @@ class ScoringFunction:
         mask = exp_query_scoring_mask & exp_doc_scoring_mask
 
         similarity = self.compute_similarity(
-            exp_query_embeddings, exp_doc_embeddings, mask
+            exp_query_embeddings, exp_doc_embeddings, mask, num_docs_t
         )
         scores = self.aggregate(similarity, mask, "max")
         scores = self.aggregate(scores, mask.any(-1), self.aggregation_function)

@@ -40,12 +40,27 @@ class XTRScoringFunction(ScoringFunction):
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
         mask: torch.Tensor,
+        num_docs: torch.Tensor,
     ) -> torch.Tensor:
-        similarity = super().compute_similarity(query_embeddings, doc_embeddings, mask)
+        similarity = super().compute_similarity(
+            query_embeddings, doc_embeddings, mask, num_docs
+        )
 
         if self.xtr_token_retrieval_k is not None:
-            top_k_similarity = similarity.topk(self.xtr_token_retrieval_k, dim=1)
-            cut_off_similarity = top_k_similarity.values[:, [-1]]
+            if not torch.all(num_docs == num_docs[0]):
+                raise ValueError(
+                    "XTR token retrieval does not support variable number of documents."
+                )
+            query_embeddings = query_embeddings[:: num_docs[0]]
+            doc_embeddings = doc_embeddings.view(
+                query_embeddings.shape[0], 1, -1, doc_embeddings.shape[-1]
+            )
+            ib_similarity = super().compute_similarity(query_embeddings, doc_embeddings)
+            top_k_similarity = ib_similarity.topk(self.xtr_token_retrieval_k, dim=-1)
+            cut_off_similarity = top_k_similarity.values[..., -1]
+            cut_off_similarity = cut_off_similarity.repeat_interleave(
+                num_docs, dim=0
+            ).unsqueeze(-1)
             similarity = similarity.masked_fill(similarity < cut_off_similarity, 0)
         return similarity
 
