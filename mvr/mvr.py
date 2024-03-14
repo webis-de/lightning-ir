@@ -35,7 +35,7 @@ class MVRConfig(PretrainedConfig):
     def __init__(
         self,
         similarity_function: Literal["cosine", "l2", "dot"] = "dot",
-        aggregation_function: Literal["sum", "mean", "max"] = "sum",
+        aggregation_function: Literal["sum", "mean", "max", "harmonic_mean"] = "sum",
         query_expansion: bool = False,
         query_length: int = 32,
         attend_to_query_expanded_tokens: bool = False,
@@ -128,20 +128,24 @@ class ScoringFunction:
     def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
-    @staticmethod
     def aggregate(
+        self,
         scores: torch.Tensor,
         mask: torch.Tensor,
-        aggregation_function: Literal["max", "sum", "mean"],
+        aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
     ) -> torch.Tensor:
         scores[(~mask).expand_as(scores)] = 0
         if aggregation_function == "max":
             return scores.max(-1).values
         if aggregation_function == "sum":
             return scores.sum(-1)
+        num_non_masked = mask.sum(-1)
         if aggregation_function == "mean":
-            num_non_masked = mask.sum(-1)
-            return scores.sum(-1) / num_non_masked
+            return torch.where(num_non_masked == 0, 0, scores.sum(-1) / num_non_masked)
+        if aggregation_function == "harmonic_mean":
+            return torch.where(
+                num_non_masked == 0, 0, num_non_masked / (1 / scores).sum(-1)
+            )
         raise ValueError(f"Unknown aggregation {aggregation_function}")
 
     def _parse_num_docs(

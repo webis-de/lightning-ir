@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 import torch
 from transformers import AutoConfig, AutoModel
@@ -63,6 +63,15 @@ class XTRScoringFunction(ScoringFunction):
             ).unsqueeze(-1)
             similarity = similarity.masked_fill(similarity < cut_off_similarity, 0)
         return similarity
+
+    def aggregate(
+        self,
+        scores: torch.Tensor,
+        mask: torch.Tensor,
+        aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
+    ) -> torch.Tensor:
+        mask = mask & (scores != 0)
+        return super().aggregate(scores, mask, aggregation_function)
 
 
 class XTRModel(ColBERTModel):
