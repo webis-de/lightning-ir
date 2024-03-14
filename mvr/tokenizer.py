@@ -146,7 +146,7 @@ class MVRTokenizer(BertTokenizerFast):
         input_ids[input_ids == self.pad_token_id] = self.mask_token_id
         encoding["input_ids"] = input_ids
         if attend_to_expanded_tokens:
-            encoding["attention_mask"] = None
+            encoding["attention_mask"] = torch.ones_like(input_ids)
         return encoding
 
     def tokenize_queries(
