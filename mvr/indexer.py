@@ -88,45 +88,13 @@ class Indexer(ABC):
 
         self.set_verbosity()
 
-        self._train_embeddings = torch.empty(
-            (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
-            dtype=torch.float32,
-        )
-
-    def _grab_train_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
-        if self._train_embeddings is not None:
-            # save training embeddings until num_train_tokens is reached
-            # if num_train_tokens overflows, save the remaining embeddings
-            start = self.num_embeddings
-            end = start + token_embeddings.shape[0]
-            if end > self.index_config.num_train_tokens:
-                end = self.index_config.num_train_tokens
-            length = end - start
-            self._train_embeddings[start:end] = token_embeddings[:length]
-            self.num_embeddings += length
-            token_embeddings = token_embeddings[length:]
-        return token_embeddings
-
-    def _train(self, force: bool = False):
-        if self._train_embeddings is not None and (
-            force or self.num_embeddings >= self.index_config.num_train_tokens
-        ):
-            self.index.train(self._train_embeddings)
-            if torch.cuda.is_available():
-                self.to_cpu()
-            self.index.add(self._train_embeddings)
-            self._train_embeddings = None
-            self.index.verbose = False
-            self.index.index.verbose = False
-
     def add(
         self,
         token_embeddings: torch.Tensor,
         doc_ids: Sequence[str],
         doc_lengths: torch.Tensor,
     ) -> None:
-        token_embeddings = self._grab_train_embeddings(token_embeddings)
-        self._train()
+        token_embeddings = self.process_token_embeddings(token_embeddings)
 
         if token_embeddings.shape[0]:
             self.index.add(token_embeddings.float().cpu())
@@ -140,8 +108,6 @@ class Indexer(ABC):
     def save(self) -> None:
         if self.num_embeddings != self.index.ntotal:
             raise ValueError("number of embeddings does not match index.ntotal")
-        if not self.index.is_trained:
-            self._train(force=True)
         self.index_config.index_path.mkdir(parents=True, exist_ok=True)
         self.index_config.save(self.index_config.index_path)
         doc_lengths = torch.cat(self.doc_lengths)
@@ -163,6 +129,9 @@ class Indexer(ABC):
     @abstractmethod
     def set_verbosity(self) -> None: ...
 
+    def process_token_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
+        return token_embeddings
+
 
 class IVFPQIndexer(Indexer):
 
@@ -182,6 +151,11 @@ class IVFPQIndexer(Indexer):
 
         index_ivf_pq = faiss.downcast_index(self.index.index)
         index_ivf_pq.make_direct_map()
+
+        self._train_embeddings = torch.empty(
+            (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
+            dtype=torch.float32,
+        )
 
     def to_gpu(self) -> None:
         clustering_index = faiss.index_cpu_to_all_gpus(
@@ -212,6 +186,42 @@ class IVFPQIndexer(Indexer):
             index_ivf_pq.quantizer,
         ):
             setattr(elem, "verbose", self.verbose)
+
+    def process_token_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
+        token_embeddings = self._grab_train_embeddings(token_embeddings)
+        self._train()
+        return token_embeddings
+
+    def _grab_train_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
+        if self._train_embeddings is not None:
+            # save training embeddings until num_train_tokens is reached
+            # if num_train_tokens overflows, save the remaining embeddings
+            start = self.num_embeddings
+            end = start + token_embeddings.shape[0]
+            if end > self.index_config.num_train_tokens:
+                end = self.index_config.num_train_tokens
+            length = end - start
+            self._train_embeddings[start:end] = token_embeddings[:length]
+            self.num_embeddings += length
+            token_embeddings = token_embeddings[length:]
+        return token_embeddings
+
+    def _train(self, force: bool = False):
+        if self._train_embeddings is not None and (
+            force or self.num_embeddings >= self.index_config.num_train_tokens
+        ):
+            self.index.train(self._train_embeddings)
+            if torch.cuda.is_available():
+                self.to_cpu()
+            self.index.add(self._train_embeddings)
+            self._train_embeddings = None
+            self.index.verbose = False
+            self.index.index.verbose = False
+
+    def save(self) -> None:
+        if not self.index.is_trained:
+            self._train(force=True)
+        return super().save()
 
 
 class FlatIndexer(Indexer):
