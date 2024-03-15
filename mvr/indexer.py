@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import json
 from pathlib import Path
 from typing import NamedTuple, Sequence
@@ -30,9 +31,13 @@ class IndexConfig(NamedTuple):
             json.dump(data, f)
 
 
-class Indexer:
+class Indexer(ABC):
     def __init__(
-        self, index_config: IndexConfig, mvr_config: MVRConfig, verbose: bool = False
+        self,
+        index_factory: str,
+        index_config: IndexConfig,
+        mvr_config: MVRConfig,
+        verbose: bool = False,
     ) -> None:
         self.index_config = index_config
         self.mvr_config = mvr_config
@@ -43,41 +48,21 @@ class Indexer:
         self.verbose = verbose
 
         if self.mvr_config.similarity_function == "l2":
-            metric_type = faiss.METRIC_L2
+            self.metric_type = faiss.METRIC_L2
         elif self.mvr_config.similarity_function in ("cosine", "dot"):
-            metric_type = faiss.METRIC_INNER_PRODUCT
+            self.metric_type = faiss.METRIC_INNER_PRODUCT
         else:
             raise ValueError(
                 f"similarity_function {self.mvr_config.similarity_function} unknown"
             )
-        index_factory = (
-            f"OPQ{self.index_config.num_subquantizers},"
-            f"IVF{self.index_config.num_centroids}_HNSW32,"
-            f"PQ{self.index_config.num_subquantizers}x{self.index_config.n_bits}"
-        )
+
         if self.mvr_config.similarity_function == "cosine":
             index_factory = "L2norm," + index_factory
         self.index = faiss.index_factory(
-            self.mvr_config.embedding_dim, index_factory, metric_type
+            self.mvr_config.embedding_dim, index_factory, self.metric_type
         )
-        index_ivf_pq = faiss.downcast_index(self.index.index)
-        index_ivf_pq.make_direct_map()
 
-        for elem in (
-            self.index,
-            self.index.index,
-            index_ivf_pq.cp,
-            index_ivf_pq.pq,
-            index_ivf_pq.quantizer,
-        ):
-            setattr(elem, "verbose", self.verbose)
-
-        if torch.cuda.is_available():
-            clustering_index = faiss.index_cpu_to_all_gpus(
-                faiss.IndexFlat(self.mvr_config.embedding_dim, metric_type)
-            )
-            clustering_index.verbose = self.verbose
-            index_ivf_pq.clustering_index = clustering_index
+        self.set_verbosity()
 
         self._train_embeddings = torch.empty(
             (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
@@ -104,15 +89,7 @@ class Indexer:
         ):
             self.index.train(self._train_embeddings)
             if torch.cuda.is_available():
-                # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
-                # move index to cpu but leave quantizer on gpu
-                self.index = faiss.index_gpu_to_cpu(self.index)
-                index_ivf_pq = faiss.downcast_index(self.index.index)
-                quantizer = index_ivf_pq.quantizer
-                gpu_quantizer = faiss.index_cpu_to_gpu(
-                    faiss.StandardGpuResources(), 0, quantizer
-                )
-                index_ivf_pq.quantizer = gpu_quantizer
+                self.to_cpu()
             self.index.add(self._train_embeddings)
             self._train_embeddings = None
             self.index.verbose = False
@@ -152,3 +129,76 @@ class Indexer:
             self.index = faiss.index_gpu_to_cpu(self.index)
 
         faiss.write_index(self.index, str(self.index_config.index_path / "index.faiss"))
+
+    @abstractmethod
+    def to_gpu(self) -> None: ...
+
+    @abstractmethod
+    def to_cpu(self) -> None: ...
+
+    @abstractmethod
+    def set_verbosity(self) -> None: ...
+
+
+class IVFPQIndexer(Indexer):
+
+    def __init__(
+        self, index_config: IndexConfig, mvr_config: MVRConfig, verbose: bool = False
+    ) -> None:
+        index_factory = (
+            f"OPQ{index_config.num_subquantizers},"
+            f"IVF{index_config.num_centroids}_HNSW32,"
+            f"PQ{index_config.num_subquantizers}x{index_config.n_bits}"
+        )
+        super().__init__(index_factory, index_config, mvr_config, verbose)
+
+        index_ivf_pq = faiss.downcast_index(self.index.index)
+        index_ivf_pq.make_direct_map()
+
+    def to_gpu(self) -> None:
+        clustering_index = faiss.index_cpu_to_all_gpus(
+            faiss.IndexFlat(self.mvr_config.embedding_dim, self.metric_type)
+        )
+        clustering_index.verbose = self.verbose
+        index_ivf_pq = faiss.downcast_index(self.index.index)
+        index_ivf_pq.clustering_index = clustering_index
+
+    def to_cpu(self) -> None:
+        # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
+        # move index to cpu but leave quantizer on gpu
+        self.index = faiss.index_gpu_to_cpu(self.index)
+        index_ivf_pq = faiss.downcast_index(self.index.index)
+        quantizer = index_ivf_pq.quantizer
+        gpu_quantizer = faiss.index_cpu_to_gpu(
+            faiss.StandardGpuResources(), 0, quantizer
+        )
+        index_ivf_pq.quantizer = gpu_quantizer
+
+    def set_verbosity(self) -> None:
+        index_ivf_pq = faiss.downcast_index(self.index.index)
+        for elem in (
+            self.index,
+            self.index.index,
+            index_ivf_pq.cp,
+            index_ivf_pq.pq,
+            index_ivf_pq.quantizer,
+        ):
+            setattr(elem, "verbose", self.verbose)
+
+
+class FlatIndexer(Indexer):
+
+    def __init__(
+        self, index_config: IndexConfig, mvr_config: MVRConfig, verbose: bool = False
+    ) -> None:
+        index_factory = "Flat"
+        super().__init__(index_factory, index_config, mvr_config, verbose)
+
+    def to_gpu(self) -> None:
+        pass
+
+    def to_cpu(self) -> None:
+        pass
+
+    def set_verbosity(self) -> None:
+        self.index.verbose = self.verbose

@@ -10,7 +10,7 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 
 from .data import IndexBatch, SearchBatch
 from .datamodule import RUN_HEADER, DocDataset, QueryDataset
-from .indexer import IndexConfig, Indexer
+from .indexer import IndexConfig, IVFPQIndexer
 from .module import MVRModule
 from .searcher import SearchConfig, Searcher
 
@@ -48,7 +48,7 @@ class IndexCallback(Callback):
         self.num_subquantizers = num_subquantizers
         self.n_bits = n_bits
         self.verbose = verbose
-        self.indexer: Indexer
+        self.indexer: IVFPQIndexer
 
     def setup(self, trainer: Trainer, pl_module: MVRModule, stage: str) -> None:
         if stage != "predict":
@@ -77,7 +77,7 @@ class IndexCallback(Callback):
 
     def get_indexer(
         self, trainer: Trainer, pl_module: MVRModule, dataset_idx: int
-    ) -> Indexer:
+    ) -> IVFPQIndexer:
         dataloaders = trainer.predict_dataloaders
         if dataloaders is None:
             raise ValueError("No predict_dataloaders found")
@@ -120,7 +120,7 @@ class IndexCallback(Callback):
             num_subquantizers=self.num_subquantizers,
             n_bits=self.n_bits,
         )
-        indexer = Indexer(config, pl_module.config, self.verbose)
+        indexer = IVFPQIndexer(config, pl_module.config, self.verbose)
         return indexer
 
     def log_to_pg(self, info: Dict[str, Any], trainer: Trainer):
