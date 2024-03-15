@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 import json
 from pathlib import Path
-from typing import NamedTuple, Sequence
+from typing import Sequence
+from dataclasses import dataclass
 
 import faiss
 import torch
@@ -9,12 +10,9 @@ import torch
 from .mvr import MVRConfig
 
 
-class IndexConfig(NamedTuple):
+@dataclass
+class IndexConfig:
     index_path: Path
-    num_train_tokens: int
-    num_centroids: int = 262144
-    num_subquantizers: int = 16
-    n_bits: int = 8
 
     @classmethod
     def from_pretrained(cls, index_path: Path) -> "IndexConfig":
@@ -26,9 +24,35 @@ class IndexConfig(NamedTuple):
     def save(self, index_path: Path) -> None:
         index_path.mkdir(parents=True, exist_ok=True)
         with open(index_path / "config.json", "w") as f:
-            data = self._asdict()
+            data = self.__dict__.copy()
             data["index_path"] = str(data["index_path"])
             json.dump(data, f)
+
+
+@dataclass
+class FlatIndexConfig(IndexConfig):
+
+    @classmethod
+    def from_pretrained(cls, index_path: Path) -> "FlatIndexConfig":
+        with open(index_path / "config.json", "r") as f:
+            data = json.load(f)
+            data["index_path"] = Path(data["index_path"])
+            return cls(**data)
+
+
+@dataclass
+class IVFPQIndexConfig(IndexConfig):
+    num_train_tokens: int
+    num_centroids: int = 262144
+    num_subquantizers: int = 16
+    n_bits: int = 8
+
+    @classmethod
+    def from_pretrained(cls, index_path: Path) -> "IVFPQIndexConfig":
+        with open(index_path / "config.json", "r") as f:
+            data = json.load(f)
+            data["index_path"] = Path(data["index_path"])
+            return cls(**data)
 
 
 class Indexer(ABC):
@@ -143,7 +167,10 @@ class Indexer(ABC):
 class IVFPQIndexer(Indexer):
 
     def __init__(
-        self, index_config: IndexConfig, mvr_config: MVRConfig, verbose: bool = False
+        self,
+        index_config: IVFPQIndexConfig,
+        mvr_config: MVRConfig,
+        verbose: bool = False,
     ) -> None:
         index_factory = (
             f"OPQ{index_config.num_subquantizers},"
@@ -151,6 +178,7 @@ class IVFPQIndexer(Indexer):
             f"PQ{index_config.num_subquantizers}x{index_config.n_bits}"
         )
         super().__init__(index_factory, index_config, mvr_config, verbose)
+        self.index_config: IVFPQIndexConfig
 
         index_ivf_pq = faiss.downcast_index(self.index.index)
         index_ivf_pq.make_direct_map()
@@ -189,10 +217,14 @@ class IVFPQIndexer(Indexer):
 class FlatIndexer(Indexer):
 
     def __init__(
-        self, index_config: IndexConfig, mvr_config: MVRConfig, verbose: bool = False
+        self,
+        index_config: FlatIndexConfig,
+        mvr_config: MVRConfig,
+        verbose: bool = False,
     ) -> None:
         index_factory = "Flat"
         super().__init__(index_factory, index_config, mvr_config, verbose)
+        self.index_config: FlatIndexConfig
 
     def to_gpu(self) -> None:
         pass

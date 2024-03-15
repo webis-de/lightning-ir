@@ -10,7 +10,7 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 
 from .data import IndexBatch, SearchBatch
 from .datamodule import RUN_HEADER, DocDataset, QueryDataset
-from .indexer import IndexConfig, IVFPQIndexer
+from .indexer import IVFPQIndexConfig, IVFPQIndexer
 from .module import MVRModule
 from .searcher import SearchConfig, Searcher
 
@@ -113,7 +113,7 @@ class IndexCallback(Callback):
         if num_train_tokens is None:
             num_train_tokens = approx_num_tokens
 
-        config = IndexConfig(
+        config = IVFPQIndexConfig(
             index_path=index_path,
             num_train_tokens=num_train_tokens,
             num_centroids=num_centroids,
