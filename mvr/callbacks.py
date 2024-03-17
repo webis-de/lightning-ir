@@ -299,7 +299,7 @@ class SearchCallback(BasePredictionWriter):
             .astype(int)
         )
         run_df["q0"] = 0
-        run_df["system"] = pl_module.config.name_or_path
+        run_df["system"] = pl_module.config.model_type
         run_df = run_df[RUN_HEADER]
 
         run_file_path = self.get_run_path(trainer, dataloader_idx)
