@@ -48,14 +48,26 @@ class TideScoringFunction(ScoringFunction):
         query_input_ids: torch.Tensor | None = None,
         query_attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        return super().query_scoring_mask(None, None)
+        if query_input_ids is not None:
+            query_input_ids = query_input_ids[:, : self.config.query_embedding_length]
+        if query_attention_mask is not None:
+            query_attention_mask = query_attention_mask[
+                :, : self.config.query_embedding_length
+            ]
+        return super().query_scoring_mask(query_input_ids, query_attention_mask)
 
     def doc_scoring_mask(
         self,
         doc_input_ids: torch.Tensor | None = None,
         doc_attention_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        return super().doc_scoring_mask(None, None)
+        if doc_input_ids is not None:
+            doc_input_ids = doc_input_ids[:, : self.config.doc_embedding_length]
+        if doc_attention_mask is not None:
+            doc_attention_mask = doc_attention_mask[
+                :, : self.config.doc_embedding_length
+            ]
+        return super().doc_scoring_mask(doc_input_ids, doc_attention_mask)
 
 
 class TideModel(BertPreTrainedModel, MVRModel):
