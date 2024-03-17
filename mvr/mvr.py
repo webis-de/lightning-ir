@@ -196,7 +196,7 @@ class ScoringFunction:
     ) -> torch.Tensor:
         if input_ids is None:
             if attention_mask is None:
-                return torch.ones(1, 1, 1, dtype=torch.bool)
+                raise ValueError("Pass either input_ids or attention_mask")
             else:
                 shape = attention_mask.shape
                 device = attention_mask.device
