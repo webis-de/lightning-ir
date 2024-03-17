@@ -36,8 +36,11 @@ class FlashBertMixin(FlashMixin):
             and attention_mask is None
         ):
             context = flash_attn_func(
-                query, key, value, self.dropout.p if self.training else 0
-            )
+                query.transpose(1, 2),
+                key.transpose(1, 2),
+                value.transpose(1, 2),
+                self.dropout.p if self.training else 0,
+            ).transpose(1, 2)
         else:
             context = torch.nn.functional.scaled_dot_product_attention(
                 query,
