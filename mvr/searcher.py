@@ -137,7 +137,7 @@ class Searcher:
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, List[int]]:
         doc_idcs_per_query = [
             list(sorted(set(idcs.reshape(-1).tolist())))
-            for idcs in torch.split(token_doc_idcs.cpu(), query_lengths.tolist())
+            for idcs in torch.split(token_doc_idcs, query_lengths.tolist())
         ]
         num_docs = [len(idcs) for idcs in doc_idcs_per_query]
         doc_idcs = torch.tensor(sum(doc_idcs_per_query, [])).to(token_doc_idcs)
@@ -177,11 +177,14 @@ class Searcher:
         max_query_length = int(query_lengths.max())
 
         # grab unique doc ids per query token
-        query_idcs = torch.arange(query_lengths.shape[0]).repeat_interleave(
-            query_lengths
-        )
+        query_idcs = torch.arange(
+            query_lengths.shape[0], device=query_lengths.device
+        ).repeat_interleave(query_lengths)
         query_token_idcs = torch.cat(
-            [torch.arange(length.item()) for length in query_lengths]
+            [
+                torch.arange(length.item(), device=query_lengths.device)
+                for length in query_lengths
+            ]
         )
         paired_idcs = torch.stack(
             [
@@ -195,28 +198,36 @@ class Searcher:
         )
         doc_idcs = unique_paired_idcs[:, 1]
         num_docs = unique_paired_idcs[:, 0].bincount()
-        ranking_doc_idcs = torch.arange(doc_idcs.shape[0])[inverse_idcs]
+        ranking_doc_idcs = torch.arange(doc_idcs.shape[0], device=query_lengths.device)[
+            inverse_idcs
+        ]
 
         # accumulate max score per doc
         idcs = ranking_doc_idcs * max_query_length + paired_idcs[:, 1]
         shape = torch.Size((doc_idcs.shape[0], max_query_length))
         scores = torch.scatter_reduce(
-            torch.full((shape.numel(),), float("inf")),
+            torch.full((shape.numel(),), float("inf"), device=query_lengths.device),
             0,
             idcs,
-            token_scores.view(-1),
+            token_scores.view(-1).to(query_lengths.device),
             "max",
             include_self=False,
         ).view(shape)
 
         # impute missing values
-        min_values = scores.min(0).values[None].expand_as(scores)
+        min_values = (
+            scores.masked_fill(scores == torch.finfo(scores.dtype).min, float("inf"))
+            .min(0)
+            .values[None]
+            .expand_as(scores)
+        )
         is_inf = torch.isinf(scores)
         scores[is_inf] = min_values[is_inf]
 
         # aggregate score per query token
         mask = (
-            torch.arange(max_query_length) < query_lengths[:, None]
+            torch.arange(max_query_length, device=query_lengths.device)
+            < query_lengths[:, None]
         ).repeat_interleave(num_docs, dim=0)
         scores = self.scoring_function.aggregate(
             scores, mask, self.mvr_config.aggregation_function
