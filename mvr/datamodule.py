@@ -2,25 +2,26 @@ import warnings
 from collections import defaultdict
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Literal, NamedTuple, Sequence
+from typing import Any, Dict, Iterator, List, Literal, NamedTuple, Sequence, Tuple
 
 import ir_datasets
 import pandas as pd
 import torch
+from ir_datasets.formats import GenericDocPair
 from lightning import LightningDataModule
 from torch.distributed import get_rank, get_world_size
 from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
 from transformers import AutoConfig
 
-from mvr.data import (
+from .data import (
     DocSample,
     IndexBatch,
     QuerySample,
+    ScoredDocTuple,
     SearchBatch,
     TrainBatch,
     TrainSample,
 )
-
 from .mvr import MVRConfig
 from .tokenizer import MVRTokenizer
 
@@ -205,13 +206,11 @@ class TuplesDataset(IRDataset, IterableDataset):
             raise ValueError("Queries are required for run datasets.")
         self.config = config
 
-    def __iter__(self) -> Iterator[TrainSample]:
-        for sample in self.ir_dataset.docpairs_iter():
-            query_id = sample.query_id
-            query = self.queries.loc[query_id]
-
+    def parse_sample(
+        self, sample: ScoredDocTuple | GenericDocPair
+    ) -> Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[float, ...]]:
+        if isinstance(sample, ScoredDocTuple):
             doc_ids = sample.doc_ids[: self.config.num_docs]
-            docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
 
             scores = (
                 sample.scores
@@ -219,14 +218,20 @@ class TuplesDataset(IRDataset, IterableDataset):
                 else tuple([1.0] + [0.0] * sample.num_docs)
             )
             scores = scores[: self.config.num_docs]
+        elif isinstance(sample, GenericDocPair):
+            doc_ids = (sample.doc_id_a, sample.doc_id_b)
+            scores = (1.0, 0.0)
+        else:
+            raise ValueError("Invalid sample type.")
+        docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
+        return doc_ids, docs, scores
 
-            yield TrainSample(
-                query_id,
-                query,
-                doc_ids,
-                docs,
-                scores,
-            )
+    def __iter__(self) -> Iterator[TrainSample]:
+        for sample in self.ir_dataset.docpairs_iter():
+            query_id = sample.query_id
+            query = self.queries.loc[query_id]
+            doc_ids, docs, targets = self.parse_sample(sample)
+            yield TrainSample(query_id, query, doc_ids, docs, targets)
 
 
 class MVRDataModule(LightningDataModule):
