@@ -1,8 +1,8 @@
-from abc import ABC, abstractmethod
 import json
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
-from dataclasses import dataclass
 
 import faiss
 import torch

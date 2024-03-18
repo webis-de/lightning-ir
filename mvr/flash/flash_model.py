@@ -1,6 +1,6 @@
 from typing import Type, TypeVar
 
-from transformers import PretrainedConfig, PreTrainedModel, AutoModel, AutoConfig
+from transformers import AutoConfig, AutoModel, PretrainedConfig, PreTrainedModel
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
 from transformers.models.electra.modeling_electra import ElectraPreTrainedModel
 

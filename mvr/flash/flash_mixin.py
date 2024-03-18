@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+from functools import partial
 
 from transformers import PreTrainedModel
-from functools import partial
 
 
 class FlashMixin(PreTrainedModel, ABC):
