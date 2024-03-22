@@ -1,6 +1,7 @@
 import codecs
 import json
-from typing import NamedTuple, Tuple
+from pathlib import Path
+from typing import Any, Dict, NamedTuple, Tuple
 
 import ir_datasets
 import torch
@@ -52,11 +53,11 @@ class ScoredDocTuples(BaseDocPairs):
 
 
 def register_kd_docpairs():
-    if "msmarco-passage/train/kd-docpairs" in ir_datasets.registry._registered:
-        return
-    base_path = ir_datasets.util.home_path() / "msmarco-passage"
-    dlc = DownloadConfig.context("msmarco-passage", base_path)
-    dlc._contents["train/kd-docpairs"] = {
+    base_id = "msmarco-passage"
+    split_id = "train"
+    file_id = "kd-docpairs"
+    dlc_id = "train/kd-docpairs"
+    dlc_contents = {
         "url": (
             "https://zenodo.org/record/4068216/files/bert_cat_ensemble_"
             "msmarcopassage_train_scores_ids.tsv?download=1"
@@ -64,23 +65,16 @@ def register_kd_docpairs():
         "expected_md5": "4d99696386f96a7f1631076bcc53ac3c",
         "cache_path": "train/kd-docpairs",
     }
-    ir_dataset = ir_datasets.load("msmarco-passage/train")
-    collection = ir_dataset.docs_handler()
-    queries = ir_dataset.queries_handler()
-    qrels = ir_dataset.qrels_handler()
-    docpairs = ScoredDocTuples(
-        Cache(dlc["train/kd-docpairs"], base_path / "train" / "kd.run")
-    )
-    dataset = Dataset(collection, queries, qrels, docpairs)
-    ir_datasets.registry.register("msmarco-passage/train/kd-docpairs", Dataset(dataset))
+    file_name = "bert_cat_ensemble_msmarcopassage_train_scores_ids.tsv"
+    register(base_id, split_id, file_id, dlc_id, dlc_contents, file_name)
 
 
 def register_colbert_docpairs():
-    if "msmarco-passage/train/colbert-docpairs" in ir_datasets.registry._registered:
-        return
-    base_path = ir_datasets.util.home_path() / "msmarco-passage"
-    dlc = DownloadConfig.context("msmarco-passage", base_path)
-    dlc._contents["train/colbert-docpairs"] = {
+    base_id = "msmarco-passage"
+    split_id = "train"
+    file_id = "colbert-docpairs"
+    dlc_id = "train/colbert-docpairs"
+    dlc_contents = {
         "url": (
             "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/"
             "resolve/main/examples.json?download=true"
@@ -88,17 +82,41 @@ def register_colbert_docpairs():
         "expected_md5": "8be0c71e330ac54dcd77fba058d291c7",
         "cache_path": "train/colbert-docpairs",
     }
-    ir_dataset = ir_datasets.load("msmarco-passage/train")
+    file_name = "colbert_64way.json"
+    register(base_id, split_id, file_id, dlc_id, dlc_contents, file_name)
+
+
+def register(
+    base_id: str,
+    split_id: str,
+    file_id: str,
+    dlc_id: str,
+    dlc_contents: Dict[str, Any],
+    file_name: str,
+):
+    dataset_id = f"{base_id}/{split_id}/{file_id}"
+    if dataset_id in ir_datasets.registry._registered:
+        return
+    base_path = ir_datasets.util.home_path() / base_id
+    dlc = DownloadConfig.context(base_id, base_path)
+    dlc._contents[dlc_id] = dlc_contents
+    ir_dataset = ir_datasets.load(f"{base_id}/{split_id}")
     collection = ir_dataset.docs_handler()
     queries = ir_dataset.queries_handler()
     qrels = ir_dataset.qrels_handler()
-    docpairs = ScoredDocTuples(
-        Cache(dlc["train/colbert-docpairs"], base_path / "train" / "colbert_64way.json")
-    )
+    docpairs = ScoredDocTuples(Cache(dlc[dlc_id], base_path / split_id / file_name))
     dataset = Dataset(collection, queries, qrels, docpairs)
-    ir_datasets.registry.register(
-        "msmarco-passage/train/colbert-docpairs", Dataset(dataset)
-    )
+    ir_datasets.registry.register(dataset_id, Dataset(dataset))
+    for split in ("train", "val"):
+        split_path = Path(
+            base_path / split_id / f"__{split}__{dataset_id.replace('/', '-')}.tsv"
+        )
+        if split_path.exists():
+            docpairs = Cache(None, split_path)
+            dataset = Dataset(collection, queries, qrels, docpairs)
+            ir_datasets.registry.register(
+                f"{split_id}/__{split}__{file_id}", Dataset(dataset)
+            )
 
 
 register_kd_docpairs()

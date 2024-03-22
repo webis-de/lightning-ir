@@ -121,8 +121,10 @@ def tuples_datamodule(model_name_or_path: str) -> MVRDataModule:
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=3,
-        train_dataset="msmarco-passage/train/colbert-docpairs",
+        train_dataset="msmarco-passage/train/kd-docpairs",
         train_dataset_config=TupleDatasetConfig(4),
+        inference_datasets=["msmarco-passage/train/kd-docpairs"],
+        inference_dataset_config=TupleDatasetConfig(4),
     )
     datamodule.setup(stage="fit")
     return datamodule

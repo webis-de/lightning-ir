@@ -246,7 +246,11 @@ class MVRDataModule(LightningDataModule):
         train_dataset_config: RunDatasetConfig | TupleDatasetConfig | None = None,
         inference_datasets: Sequence[str] | None = None,
         inference_dataset_config: (
-            RunDatasetConfig | QueryDatasetConfig | DocDatasetConfig | None
+            RunDatasetConfig
+            | TupleDatasetConfig
+            | QueryDatasetConfig
+            | DocDatasetConfig
+            | None
         ) = None,
     ) -> None:
         super().__init__()
@@ -275,17 +279,27 @@ class MVRDataModule(LightningDataModule):
                 self._train_dataset = RunDataset(
                     Path(self.train_dataset), self.train_dataset_config
                 )
-            else:
+            elif isinstance(self.train_dataset_config, TupleDatasetConfig):
                 self._train_dataset = TuplesDataset(
                     self.train_dataset, self.train_dataset_config
+                )
+            else:
+                raise ValueError(
+                    "Training DatasetConfig must be of type RunDatasetConfig or "
+                    "TupleDatasetConfig."
                 )
         if self.inference_datasets is not None:
             if self.inference_dataset_config is None:
                 raise ValueError(
                     "An inference DatasetConfig must be provided when "
-                    "providing a inference datasets."
+                    "providing inference datasets."
                 )
-            if isinstance(self.inference_dataset_config, RunDatasetConfig):
+            elif isinstance(self.inference_dataset_config, TupleDatasetConfig):
+                self._inference_datasets = [
+                    TuplesDataset(dataset, self.inference_dataset_config)
+                    for dataset in self.inference_datasets
+                ]
+            elif isinstance(self.inference_dataset_config, RunDatasetConfig):
                 if self.inference_dataset_config.sampling_strategy == "single_relevant":
                     raise ValueError(
                         "Inference RunDatasetConfig cannot use the single_relevant "

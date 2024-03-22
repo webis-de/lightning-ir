@@ -107,12 +107,12 @@ def test_training_step(
 
 def test_validation_step(
     mvr_module: MVRModule,
-    relevance_run_datamodule: MVRDataModule,
+    tuples_datamodule: MVRDataModule,
 ):
-    dataloader = relevance_run_datamodule.val_dataloader()[0]
+    dataloader = tuples_datamodule.val_dataloader()[0]
     batch = next(iter(dataloader))
     mvr_module.validation_step(batch, 0, 0)
     outputs = mvr_module.validation_step_outputs
-    assert len(outputs) == 2
-    assert outputs[0][0] == "ndcg@10"
-    assert outputs[1][0] == "mrr@ranking"
+    for key, value in outputs:
+        assert key in ["similarity loss", "ndcg@10", "mrr@ranking"]
+        assert value.item()
