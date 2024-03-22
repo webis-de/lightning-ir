@@ -82,7 +82,7 @@ class MVRModule(LightningModule):
         self,
         batch: TrainBatch,
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         if batch.relevances is None:
             self.tuples_validation_step(batch)
