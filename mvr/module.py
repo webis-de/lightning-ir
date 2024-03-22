@@ -98,7 +98,7 @@ class MVRModule(LightningModule):
         self.loss_function.in_batch_loss = in_batch_loss
 
         self.validation_step_outputs.extend(
-            (key, value) for key, value in losses.items()
+            (f"validation {key}", value) for key, value in losses.items()
         )
 
     def run_validation_step(self, batch: TrainBatch, dataloader_idx: int) -> None:
@@ -139,12 +139,12 @@ class MVRModule(LightningModule):
     def on_validation_epoch_end(self) -> None:
         aggregated = defaultdict(list)
         for key, value in self.validation_step_outputs:
-            aggregated[key].extend(value)
+            aggregated[key].append(value)
 
         self.validation_step_outputs.clear()
 
         for key, value in aggregated.items():
-            stacked = torch.stack(value)
+            stacked = torch.stack(value).view(-1)
             stacked[torch.isnan(stacked)] = 0
             self.log(key, stacked.mean(), sync_dist=True)
 
