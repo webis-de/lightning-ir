@@ -22,9 +22,7 @@ def main(args=None):
     args = parser.parse_args(args)
 
     dataset = ir_datasets.load(args.dataset)
-    query_ids = pd.DataFrame(dataset.queries_iter())["query_id"]
-    val_query_ids = set(query_ids.sample(n=args.split, random_state=42))
-    train_query_ids = set(query_ids[~query_ids.isin(val_query_ids)])
+    val_query_ids = set()
 
     train_file = args.output_dir.joinpath(
         "__train__" + args.dataset.replace("/", "-") + ".tsv"
@@ -42,10 +40,12 @@ def main(args=None):
                 elif isinstance(sample, GenericDocPair):
                     doc_ids = (sample.doc_id_a, sample.doc_id_b)
                     scores = None
-                if query_id in train_query_ids:
-                    f = train_f
-                else:
+                if len(val_query_ids) < args.split:
+                    val_query_ids.add(query_id)
+                if query_id in val_query_ids:
                     f = val_f
+                else:
+                    f = train_f
                 scores_str = (
                     "\t".join(str(score) for score in scores)
                     if scores is not None
