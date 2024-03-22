@@ -50,7 +50,7 @@ class MVRModule(LightningModule):
         )
         return scores
 
-    def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
+    def step(self, batch: TrainBatch) -> Dict[str, torch.Tensor]:
         if self.loss_function is None:
             raise ValueError("Loss function is not set")
         query_embeddings = self.model.encode_queries(**batch.query_encoding)
@@ -68,6 +68,10 @@ class MVRModule(LightningModule):
             doc_scoring_mask,
             batch.targets,
         )
+        return losses
+
+    def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
+        losses = self.step(batch)
         for key, loss in losses.items():
             self.log(key, loss)
         loss = sum(losses.values(), torch.tensor(0))
@@ -80,11 +84,30 @@ class MVRModule(LightningModule):
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
+        if batch.relevances is None:
+            self.tuples_validation_step(batch)
+        else:
+            self.run_validation_step(batch, dataloader_idx)
+
+    def tuples_validation_step(self, batch: TrainBatch) -> None:
+        if self.loss_function is None:
+            raise ValueError("Loss function is not set")
+        in_batch_loss = self.loss_function.in_batch_loss
+        self.loss_function.in_batch_loss = None
+        losses = self.step(batch)
+        self.loss_function.in_batch_loss = in_batch_loss
+
+        self.validation_step_outputs.extend(
+            (key, value) for key, value in losses.items()
+        )
+
+    def run_validation_step(self, batch: TrainBatch, dataloader_idx: int) -> None:
+        relevances = batch.relevances
+        if relevances is None:
+            raise ValueError("Relevances are required for validation")
         scores = self.forward(batch)
         scores = scores.view(batch.query_encoding.input_ids.shape[0], -1)
         depth = scores.shape[-1]
-        relevances = batch.relevances
-        assert relevances is not None
         scores = torch.nn.functional.pad(
             scores, (0, relevances.shape[-1] - scores.shape[-1])
         )

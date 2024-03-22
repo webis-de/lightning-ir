@@ -21,6 +21,8 @@ class LossFunction(ABC):
         query_scoring_mask: torch.Tensor,
         doc_scoring_mask: torch.Tensor,
     ) -> Dict[str, torch.Tensor]:
+        if self.in_batch_loss is None:
+            return {}
         if self.in_batch_loss == "hinge":
             ib_loss = self.compute_in_batch_hinge_loss(
                 query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
