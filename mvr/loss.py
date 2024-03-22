@@ -44,7 +44,7 @@ class LossFunction(ABC):
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
-    def format_scores_all_positives(
+    def format_scores_all_in_sample_positives(
         self, num_queries: int, num_docs: int, scores: torch.Tensor
     ) -> torch.Tensor:
         scores = scores.view(num_queries, num_docs * num_queries)
@@ -60,7 +60,7 @@ class LossFunction(ABC):
         scores = torch.cat((pos_scores, neg_scores), dim=1)
         return scores
 
-    def format_scores(
+    def format_scores_first_in_sample_positive(
         self, num_queries: int, num_docs: int, scores: torch.Tensor
     ) -> torch.Tensor:
         scores = scores.view(num_queries, num_docs * num_queries)
@@ -68,6 +68,21 @@ class LossFunction(ABC):
         pos_mask = torch.arange(num_queries * num_docs)[None].eq(idx)
         pos_scores = scores[pos_mask].view(num_queries, 1)
         neg_scores = scores[~pos_mask].view(num_queries, -1)
+        scores = torch.cat((pos_scores, neg_scores), dim=1)
+        return scores
+
+    def format_scores(
+        self, num_queries: int, num_docs: int, scores: torch.Tensor
+    ) -> torch.Tensor:
+        scores = scores.view(num_queries, num_docs * num_queries)
+        min_idx = torch.arange(num_queries)[:, None] * num_docs
+        max_idx = min_idx + num_docs
+        pos_mask = torch.arange(num_queries * num_docs)[None].eq(min_idx)
+        neg_mask = torch.arange(num_queries * num_docs)[None].less(
+            min_idx
+        ) | torch.arange(num_queries * num_docs)[None].greater_equal(max_idx)
+        pos_scores = scores[pos_mask].view(num_queries, 1)
+        neg_scores = scores[neg_mask].view(num_queries, -1)
         scores = torch.cat((pos_scores, neg_scores), dim=1)
         return scores
 
