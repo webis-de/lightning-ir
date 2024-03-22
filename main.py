@@ -1,5 +1,5 @@
-from typing import Any
 import os
+from typing import Any
 
 import torch
 from lightning import LightningModule, Trainer
@@ -11,11 +11,12 @@ from typing_extensions import override
 import mvr.callbacks  # noqa
 import mvr.colbert  # noqa
 import mvr.datamodule  # noqa
+import mvr.loss  # noqa
 import mvr.module  # noqa
 import mvr.tide  # noqa
 import mvr.warmup_schedulers  # noqa
-from mvr.warmup_schedulers import LR_SCHEDULERS, WarmupScheduler
 import mvr.xtr  # noqa
+from mvr.warmup_schedulers import LR_SCHEDULERS, WarmupScheduler
 
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
@@ -66,9 +67,6 @@ class CustomLightningCLI(LightningCLI):
             "model.init_args.model_name_or_path", "data.init_args.model_name_or_path"
         )
         parser.link_arguments("model.init_args.config", "data.init_args.config")
-        parser.link_arguments(
-            "model.init_args.config", "model.init_args.loss_function.init_args.config"
-        )
         parser.link_arguments(
             "trainer.max_steps", "lr_scheduler.init_args.num_training_steps"
         )
