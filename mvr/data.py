@@ -112,7 +112,7 @@ def register(
             base_path / split_id / f"__{split}__{dataset_id.replace('/', '-')}.tsv"
         )
         if split_path.exists():
-            docpairs = Cache(None, split_path)
+            docpairs = ScoredDocTuples(Cache(None, split_path))
             dataset = Dataset(collection, queries, qrels, docpairs)
             ir_datasets.registry.register(
                 f"{base_id}/{split_id}/__{split}__{file_id}", Dataset(dataset)
