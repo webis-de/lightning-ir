@@ -45,12 +45,9 @@ def main(args=None):
                     f = val_f
                 else:
                     f = train_f
-                scores_str = (
-                    "\t".join(str(score) for score in scores)
-                    if scores is not None
-                    else ""
-                )
-                data = f"{query_id}\t" + "\t".join(doc_ids) + "\t" + scores_str + "\n"
+                data = f"{query_id}\t" + "\t".join(doc_ids) + "\n"
+                if scores is not None:
+                    data = "\t".join(str(score) for score in scores) + "\t" + data
                 f.write(data)
 
 
