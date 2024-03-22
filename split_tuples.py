@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 from pathlib import Path
 
 import ir_datasets
-import pandas as pd
 from ir_datasets.formats import GenericDocPair
 from tqdm import tqdm
 
