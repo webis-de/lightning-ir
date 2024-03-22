@@ -115,7 +115,7 @@ def register(
             docpairs = Cache(None, split_path)
             dataset = Dataset(collection, queries, qrels, docpairs)
             ir_datasets.registry.register(
-                f"{split_id}/__{split}__{file_id}", Dataset(dataset)
+                f"{base_id}/{split_id}/__{split}__{file_id}", Dataset(dataset)
             )
 
 
