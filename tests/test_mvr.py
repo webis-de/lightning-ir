@@ -7,8 +7,8 @@ from transformers import BertModel
 
 from mvr.datamodule import MVRDataModule
 from mvr.loss import SupervisedMarginMSE
-from mvr.mvr import MVRConfig, MVRModel
 from mvr.module import MVRModule
+from mvr.mvr import MVRConfig, MVRModel
 
 
 class TestModel(MVRModel):

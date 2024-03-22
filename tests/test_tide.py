@@ -1,9 +1,8 @@
 import pytest
 
-from mvr.tide import TideModel, TideModule, TideConfig
-from mvr.datamodule import MVRDataModule
+from mvr.datamodule import MVRDataModule, TupleDatasetConfig
 from mvr.loss import SupervisedMarginMSE
-from mvr.datamodule import TupleDatasetConfig
+from mvr.tide import TideConfig, TideModel, TideModule
 
 
 @pytest.fixture(scope="module")

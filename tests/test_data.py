@@ -1,5 +1,6 @@
 import torch
-from mvr.data import TrainBatch, IndexBatch, SearchBatch
+
+from mvr.data import IndexBatch, SearchBatch, TrainBatch
 from mvr.datamodule import MVRDataModule
 
 

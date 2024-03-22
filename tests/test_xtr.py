@@ -1,8 +1,8 @@
 import pytest
 
-from mvr.xtr import XTRModel, XTRModule, XTRConfig
 from mvr.datamodule import MVRDataModule
 from mvr.loss import SupervisedMarginMSE
+from mvr.xtr import XTRConfig, XTRModel, XTRModule
 
 
 @pytest.fixture(scope="module")
