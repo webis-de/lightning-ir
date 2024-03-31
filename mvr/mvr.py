@@ -110,8 +110,8 @@ class ScoringFunction:
         num_docs: torch.Tensor | None = None,
     ) -> torch.Tensor:
         to_cpu = query_embeddings.is_cpu or doc_embeddings.is_cpu
-        query_embeddings = query_embeddings.bfloat16()
-        doc_embeddings = doc_embeddings.bfloat16()
+        query_embeddings = query_embeddings.half()
+        doc_embeddings = doc_embeddings.half()
         if torch.cuda.is_available():
             query_embeddings = query_embeddings.cuda()
             doc_embeddings = doc_embeddings.cuda()
@@ -151,7 +151,7 @@ class ScoringFunction:
             )
         raise ValueError(f"Unknown aggregation {aggregation_function}")
 
-    def _parse_num_docs(
+    def parse_num_docs(
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
@@ -225,6 +225,34 @@ class ScoringFunction:
         doc_scoring_mask = self.doc_scoring_mask(doc_input_ids, doc_attention_mask)
         return query_scoring_mask, doc_scoring_mask
 
+    def expand_query_embeddings(
+        self,
+        query_embeddings: torch.Tensor,
+        query_scoring_mask: torch.Tensor,
+        num_docs: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        query_embeddings = query_embeddings.repeat_interleave(
+            num_docs, dim=0
+        ).unsqueeze(2)
+        if query_scoring_mask.numel() > 1:
+            query_scoring_mask = (
+                query_scoring_mask.bool()
+                .repeat_interleave(num_docs, dim=0)
+                .unsqueeze(2)
+            )
+        return query_embeddings, query_scoring_mask
+
+    def expand_doc_embeddings(
+        self,
+        doc_embeddings: torch.Tensor,
+        doc_scoring_mask: torch.Tensor,
+        num_docs: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        doc_embeddings = doc_embeddings.unsqueeze(1)
+        if doc_scoring_mask.numel() > 1:
+            doc_scoring_mask = doc_scoring_mask.bool().unsqueeze(1)
+        return doc_embeddings, doc_scoring_mask
+
     def score(
         self,
         query_embeddings: torch.Tensor,
@@ -233,22 +261,15 @@ class ScoringFunction:
         doc_scoring_mask: torch.Tensor,
         num_docs: int | List[int] | None = None,
     ) -> torch.Tensor:
-        num_docs_t = self._parse_num_docs(query_embeddings, doc_embeddings, num_docs)
+        num_docs_t = self.parse_num_docs(query_embeddings, doc_embeddings, num_docs)
+        query_embeddings, query_scoring_mask = self.expand_query_embeddings(
+            query_embeddings, query_scoring_mask, num_docs_t
+        )
+        doc_embeddings, doc_scoring_mask = self.expand_doc_embeddings(
+            doc_embeddings, doc_scoring_mask, num_docs_t
+        )
 
-        query_embeddings = query_embeddings.repeat_interleave(
-            num_docs_t, dim=0
-        ).unsqueeze(2)
-        doc_embeddings = doc_embeddings.unsqueeze(1)
-        if query_scoring_mask.numel() > 1:
-            query_scoring_mask = (
-                query_scoring_mask.bool()
-                .repeat_interleave(num_docs_t, dim=0)
-                .unsqueeze(2)
-            )
-        if doc_scoring_mask.numel() > 1:
-            doc_scoring_mask = doc_scoring_mask.bool().unsqueeze(1)
         mask = query_scoring_mask & doc_scoring_mask
-
         similarity = self.compute_similarity(
             query_embeddings, doc_embeddings, mask, num_docs_t
         )
