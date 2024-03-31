@@ -409,14 +409,15 @@ class MVRDataModule(LightningDataModule):
             )
         return kwargs
 
-    def _parse_batch(self, **kwargs) -> TrainBatch | IndexBatch | SearchBatch:
-        if self.train_dataset_config is not None:
+    def _parse_batch(
+        self, sample: TrainSample | QuerySample | DocSample, **kwargs
+    ) -> TrainBatch | IndexBatch | SearchBatch:
+        if isinstance(sample, TrainSample):
             return TrainBatch(**kwargs)
-        if self.inference_dataset_config is not None:
-            if isinstance(self.inference_dataset_config, QueryDatasetConfig):
-                return SearchBatch(**kwargs)
-            if isinstance(self.inference_dataset_config, DocDatasetConfig):
-                return IndexBatch(**kwargs)
+        if isinstance(sample, QuerySample):
+            return SearchBatch(**kwargs)
+        if isinstance(sample, DocSample):
+            return IndexBatch(**kwargs)
         raise ValueError("Invalid dataset configuration.")
 
     def collate_fn(
@@ -424,4 +425,4 @@ class MVRDataModule(LightningDataModule):
     ) -> TrainBatch | IndexBatch | SearchBatch:
         aggregated = self._aggregate_samples(samples)
         kwargs = self._clean_sample(aggregated)
-        return self._parse_batch(**kwargs)
+        return self._parse_batch(samples[0], **kwargs)
