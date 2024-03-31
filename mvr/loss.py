@@ -201,7 +201,7 @@ class DocMarginMSE(MarginMSE):
         super().__init__("doc_scores", in_batch_loss)
 
 
-class InBatchDocMarginMSE(DocMarginMSE):
+class TokenBasedLoss(LossFunction):
     def compute_loss(
         self,
         query_embeddings: torch.Tensor,
@@ -210,31 +210,32 @@ class InBatchDocMarginMSE(DocMarginMSE):
         doc_scoring_mask: torch.Tensor,
         labels: torch.Tensor,
     ) -> Dict[str, torch.Tensor]:
-        num_queries = query_embeddings.shape[0]
-        num_docs = doc_embeddings.shape[0] // num_queries
-        min_idx = torch.arange(num_queries)[:, None] * num_docs
-        # max_idx = min_idx + num_docs
-        # labels = (
-        #     torch.arange(num_queries * num_docs)[None].greater_equal(min_idx)
-        #     & torch.arange(num_queries * num_docs)[None].less(max_idx)
-        # ).long()
-        labels = torch.zeros(
-            (num_queries, num_queries * num_docs),
-            device=labels.device,
-            dtype=torch.long,
+        labels = labels.view(query_embeddings.shape[0], -1)
+        query_idx, pos_idx, neg_idx = torch.nonzero(
+            labels[..., None] > labels[:, None], as_tuple=True
         )
-        labels[(torch.arange(num_queries), min_idx[:, 0])] = 1
-
-        doc_embeddings = doc_embeddings.repeat(num_queries, 1, 1)
-        doc_scoring_mask = doc_scoring_mask.repeat(num_queries, 1)
-
-        return super().compute_loss(
-            query_embeddings,
-            doc_embeddings,
-            query_scoring_mask,
-            doc_scoring_mask,
-            labels,
+        num_docs_t = self.scoring_function.parse_num_docs(
+            query_embeddings, doc_embeddings, None
         )
+        query_embeddings, query_scoring_mask = (
+            self.scoring_function.expand_query_embeddings(
+                query_embeddings, query_scoring_mask, num_docs_t
+            )
+        )
+        doc_embeddings, doc_scoring_mask = self.scoring_function.expand_doc_embeddings(
+            doc_embeddings, doc_scoring_mask, num_docs_t
+        )
+        mask = query_scoring_mask & doc_scoring_mask
+        similarity = self.scoring_function.compute_similarity(
+            query_embeddings, doc_embeddings, mask, num_docs_t
+        )
+        similarity = self.scoring_function.aggregate(similarity, mask, "max")
+        similarity = similarity.view(*labels.shape, -1)
+        diff = similarity[query_idx, pos_idx] - similarity[query_idx, neg_idx]
+        loss = torch.nn.functional.binary_cross_entropy_with_logits(
+            diff, torch.ones_like(diff)
+        )
+        return {"similarity_loss": loss}
 
 
 class RankNet(LossFunction):
@@ -251,10 +252,15 @@ class RankNet(LossFunction):
         )
         scores = scores.view(query_embeddings.shape[0], -1)
         labels = labels.view(query_embeddings.shape[0], -1)
-        greater = labels[..., None] > labels[:, None]
-        diff = scores[..., None] - scores[:, None]
+        # pos items are items where label is greater than other label in sample
+        query_idx, pos_idx, neg_idx = torch.nonzero(
+            labels[..., None] > labels[:, None], as_tuple=True
+        )
+        pos = scores[query_idx, pos_idx]
+        neg = scores[query_idx, neg_idx]
+        margin = pos - neg
         loss = torch.nn.functional.binary_cross_entropy_with_logits(
-            diff[greater], torch.ones_like(diff[greater])
+            margin, torch.ones_like(margin)
         )
         return {"similarity_loss": loss}
 

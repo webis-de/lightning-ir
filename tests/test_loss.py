@@ -6,15 +6,12 @@ import torch
 from mvr.loss import (
     ConstantMarginMSE,
     DocMarginMSE,
-    InBatchCrossEntropyKLDivergence,
-    InBatchCrossEntropyRankNet,
     InBatchDocMarginMSE,
-    InBatchHingeKLDivergence,
-    InBatchHingeRankNet,
     KLDivergence,
     LossFunction,
     RankNet,
     SupervisedMarginMSE,
+    TokenBasedLoss,
 )
 from mvr.mvr import MVRConfig, ScoringFunction
 
@@ -54,14 +51,11 @@ def labels(num_queries: int, num_docs: int):
     [
         ConstantMarginMSE,
         DocMarginMSE,
-        InBatchCrossEntropyKLDivergence,
-        InBatchCrossEntropyRankNet,
-        InBatchHingeKLDivergence,
-        InBatchHingeRankNet,
         InBatchDocMarginMSE,
         KLDivergence,
         RankNet,
         SupervisedMarginMSE,
+        TokenBasedLoss,
     ],
 )
 def test_loss_func(
