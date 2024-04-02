@@ -110,11 +110,9 @@ class ScoringFunction:
         num_docs: torch.Tensor | None = None,
     ) -> torch.Tensor:
         to_cpu = query_embeddings.is_cpu or doc_embeddings.is_cpu
-        query_embeddings = query_embeddings.half()
-        doc_embeddings = doc_embeddings.half()
         if torch.cuda.is_available():
-            query_embeddings = query_embeddings.cuda()
-            doc_embeddings = doc_embeddings.cuda()
+            query_embeddings = query_embeddings.cuda().half()
+            doc_embeddings = doc_embeddings.cuda().half()
 
         similarity = self.similarity_function(query_embeddings, doc_embeddings)
         if to_cpu:
