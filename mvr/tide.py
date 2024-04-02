@@ -1,3 +1,4 @@
+import math
 from functools import partial
 from typing import Any, Callable, Dict, List, Literal, Sequence
 
@@ -91,22 +92,30 @@ class TideModel(BertPreTrainedModel, MVRModel):
     def get_embedding_lengths(
         self, sequence_length: int, embedding_length: int
     ) -> List[int]:
-        # TODO maybe just reduce by half everytime?
-        reduction = (embedding_length / sequence_length) ** (
-            -1 / self.config.num_hidden_layers
-        )
-        embedding_lengths = []
-        for layer_idx in range(self.config.num_hidden_layers):
-            embedding_lengths.append(
-                max(
-                    int(sequence_length / reduction ** (layer_idx + 1)),
-                    embedding_length,
-                )
-            )
-        if embedding_lengths[-1] != embedding_length:
+        # reduction = (embedding_length / sequence_length) ** (
+        #     -1 / self.config.num_hidden_layers
+        # )
+        if math.log2(sequence_length) % 1 != 0 or math.log2(embedding_length) % 1 != 0:
             raise ValueError(
-                "The final embedding length is unequal to the desired embedding length."
+                "sequence_length and embedding_length must be powers of 2."
             )
+        embedding_lengths = []
+        for _ in range(self.config.num_hidden_layers):
+            embedding_lengths.insert(0, embedding_length)
+            if embedding_length < sequence_length:
+                embedding_length = embedding_length * 2
+            # embedding_lengths.append(
+            #     max(
+            #         int(sequence_length / reduction ** (layer_idx + 1)),
+            #         embedding_length,
+            #     )
+            # )
+        if embedding_lengths[0] != sequence_length:
+            raise ValueError("Unable to match embedding length to sequence length.")
+        # if embedding_lengths[-1] != embedding_length:
+        #     raise ValueError(
+        #         "The final embedding length is unequal to the desired embedding length."
+        #     )
         return embedding_lengths
 
     def encode_queries(
@@ -168,9 +177,10 @@ class PoolingContextManager:
         output_forward: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
         embedding_length: int,
     ) -> torch.Tensor:
-        input_tensor = torch.nn.functional.adaptive_avg_pool1d(
-            input_tensor.transpose(-1, -2), embedding_length
-        ).transpose(-1, -2)
+        if embedding_length != input_tensor.shape[-2]:
+            input_tensor = torch.nn.functional.adaptive_avg_pool1d(
+                input_tensor.transpose(-1, -2), embedding_length
+            ).transpose(-1, -2)
         return output_forward(hidden_states, input_tensor)
 
     @staticmethod
@@ -180,9 +190,10 @@ class PoolingContextManager:
         embedding_length: int,
     ) -> torch.Tensor:
         hidden_states = linear_forward(hidden_states)
-        hidden_states = torch.nn.functional.adaptive_avg_pool1d(
-            hidden_states.transpose(-1, -2), embedding_length
-        ).transpose(-1, -2)
+        if embedding_length != hidden_states.shape[-2]:
+            hidden_states = torch.nn.functional.adaptive_avg_pool1d(
+                hidden_states.transpose(-1, -2), embedding_length
+            ).transpose(-1, -2)
         return hidden_states
 
     def __call__(self, input_type: Literal["query", "doc"]) -> "PoolingContextManager":
