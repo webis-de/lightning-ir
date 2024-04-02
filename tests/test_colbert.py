@@ -19,7 +19,7 @@ def colbert_model(model_name_or_path: str) -> ColBERTModel:
 @pytest.fixture(scope="module")
 def colbert_module(model_name_or_path: str) -> ColBERTModule:
     config = ColBERTConfig.from_pretrained(model_name_or_path)
-    return ColBERTModule(model_name_or_path, config, SupervisedMarginMSE())
+    return ColBERTModule(model_name_or_path, config, [SupervisedMarginMSE()])
 
 
 def test_training_step(colbert_module: ColBERTModule, tuples_datamodule: MVRDataModule):

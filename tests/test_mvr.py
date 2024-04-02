@@ -36,7 +36,7 @@ def mvr_model(model_name_or_path: str) -> MVRModel:
 
 @pytest.fixture(scope="module")
 def mvr_module(mvr_model: MVRModel) -> MVRModule:
-    return MVRModule(mvr_model, SupervisedMarginMSE())
+    return MVRModule(mvr_model, [SupervisedMarginMSE()])
 
 
 def test_doc_padding(relevance_run_datamodule: MVRDataModule, mvr_model: MVRModel):
@@ -114,5 +114,5 @@ def test_validation_step(
     mvr_module.validation_step(batch, 0, 0)
     outputs = mvr_module.validation_step_outputs
     for key, value in outputs:
-        assert key in ["similarity loss", "ndcg@10", "mrr@ranking"]
+        assert key in ["ndcg@10", "mrr@ranking"] or key.startswith("validation ")
         assert value.item()

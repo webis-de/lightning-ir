@@ -30,7 +30,7 @@ def datamodule(model_name_or_path: str, tide_model: TideModel) -> MVRDataModule:
 @pytest.fixture(scope="module")
 def tide_module(model_name_or_path: str) -> TideModule:
     config = TideConfig.from_pretrained(model_name_or_path)
-    return TideModule(model_name_or_path, config, SupervisedMarginMSE())
+    return TideModule(model_name_or_path, config, [SupervisedMarginMSE()])
 
 
 def test_training_step(tide_module: TideModule, datamodule: MVRDataModule):

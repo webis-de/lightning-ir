@@ -15,7 +15,7 @@ def xtr_model(model_name_or_path: str) -> XTRModel:
 @pytest.fixture(scope="module")
 def xtr_module(model_name_or_path: str) -> XTRModule:
     config = XTRConfig.from_pretrained(model_name_or_path, token_retrieval_k=10)
-    return XTRModule(model_name_or_path, config, SupervisedMarginMSE())
+    return XTRModule(model_name_or_path, config, [SupervisedMarginMSE()])
 
 
 def test_training_step(xtr_module: XTRModule, tuples_datamodule: MVRDataModule):
