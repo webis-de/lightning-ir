@@ -86,7 +86,8 @@ class Indexer(ABC):
             self.mvr_config.embedding_dim, index_factory, self.metric_type
         )
 
-        self.to_gpu()
+        if torch.cuda.is_available():
+            self.to_gpu()
 
         self.set_verbosity()
 
