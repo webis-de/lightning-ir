@@ -7,33 +7,11 @@ from .mvr import ScoringFunction
 
 
 class LossFunction(ABC):
-    def __init__(self, in_batch_loss: Literal["hinge", "cross-entropy"] | None = None):
+    def __init__(self):
         self.scoring_function: ScoringFunction
-        self.in_batch_loss = in_batch_loss
 
     def set_scoring_function(self, scoring_function: ScoringFunction):
         self.scoring_function = scoring_function
-
-    def compute_in_batch_loss(
-        self,
-        query_embeddings: torch.Tensor,
-        doc_embeddings: torch.Tensor,
-        query_scoring_mask: torch.Tensor,
-        doc_scoring_mask: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
-        if self.in_batch_loss is None:
-            return {}
-        if self.in_batch_loss == "hinge":
-            ib_loss = self.compute_in_batch_hinge_loss(
-                query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
-            )
-        elif self.in_batch_loss == "cross-entropy":
-            ib_loss = self.compute_in_batch_cross_entropy_loss(
-                query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
-            )
-        else:
-            raise ValueError("in_batch_loss must be set to 'hinge' or 'cross-entropy'")
-        return {"ib_loss": ib_loss}
 
     @abstractmethod
     def compute_loss(
@@ -46,6 +24,12 @@ class LossFunction(ABC):
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
+
+class SimilarityLossFunction(LossFunction):
+    pass
+
+
+class InBatchLossFunction(LossFunction):
     def format_scores_all_in_sample_positives(
         self, num_queries: int, num_docs: int, scores: torch.Tensor
     ) -> torch.Tensor:
@@ -88,13 +72,17 @@ class LossFunction(ABC):
         scores = torch.cat((pos_scores, neg_scores), dim=1)
         return scores
 
-    def compute_in_batch_cross_entropy_loss(
+
+class InBatchCrossEntropy(InBatchLossFunction):
+
+    def compute_loss(
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
         query_scoring_mask: torch.Tensor,
         doc_scoring_mask: torch.Tensor,
-    ) -> torch.Tensor:
+        labels: torch.Tensor,
+    ) -> Dict[str, torch.Tensor]:
         num_queries = query_embeddings.shape[0]
         num_docs = doc_embeddings.shape[0] // num_queries
         doc_embeddings = doc_embeddings.repeat(query_embeddings.shape[0], 1, 1)
@@ -105,15 +93,19 @@ class LossFunction(ABC):
         scores = self.format_scores(num_queries, num_docs, scores)
         labels = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
         loss = torch.nn.functional.cross_entropy(scores, labels)
-        return loss
+        return {self.__class__.__name__: loss}
 
-    def compute_in_batch_hinge_loss(
+
+class InBatchHinge(InBatchLossFunction):
+
+    def compute_loss(
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
         query_scoring_mask: torch.Tensor,
         doc_scoring_mask: torch.Tensor,
-    ) -> torch.Tensor:
+        labels: torch.Tensor,
+    ) -> Dict[str, torch.Tensor]:
         num_queries = query_embeddings.shape[0]
         num_docs = doc_embeddings.shape[0] // num_queries
         doc_embeddings = doc_embeddings.repeat(query_embeddings.shape[0], 1, 1)
@@ -126,17 +118,12 @@ class LossFunction(ABC):
         labels[:, 0] = 1
         abs_scores = scores.abs()
         loss = (1 - abs_scores) * labels + abs_scores * (1 - labels)
-        return loss.mean()
+        return {self.__class__.__name__: loss.mean()}
 
 
-class MarginMSE(LossFunction):
+class MarginMSE(SimilarityLossFunction):
 
-    def __init__(
-        self,
-        margin: float | Literal["labels", "doc_scores"] = 1.0,
-        in_batch_loss: Literal["hinge", "cross-entropy"] | None = None,
-    ):
-        super().__init__(in_batch_loss=in_batch_loss)
+    def __init__(self, margin: float | Literal["labels", "doc_scores"] = 1.0):
         self.margin = margin
 
     def compute_loss(
@@ -174,34 +161,72 @@ class MarginMSE(LossFunction):
         else:
             raise ValueError("invalid margin type")
         loss = torch.nn.functional.mse_loss(margin, target_margin.clamp(min=0))
-        return {
-            "similarity loss": loss,
-            **self.compute_in_batch_loss(
-                query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
-            ),
-        }
+        return {self.__class__.__name__: loss}
 
 
 class ConstantMarginMSE(MarginMSE):
-    def __init__(
-        self,
-        margin: float = 1.0,
-        in_batch_loss: Literal["hinge", "cross-entropy"] | None = None,
-    ):
-        super().__init__(margin, in_batch_loss=in_batch_loss)
+    def __init__(self, margin: float = 1.0):
+        super().__init__(margin)
 
 
 class SupervisedMarginMSE(MarginMSE):
-    def __init__(self, in_batch_loss: Literal["hinge", "cross-entropy"] | None = None):
-        super().__init__("labels", in_batch_loss=in_batch_loss)
+    def __init__(self):
+        super().__init__("labels")
 
 
 class DocMarginMSE(MarginMSE):
-    def __init__(self, in_batch_loss: Literal["hinge", "cross-entropy"] | None = None):
-        super().__init__("doc_scores", in_batch_loss)
+    def __init__(self):
+        super().__init__("doc_scores")
 
 
-class TokenBasedLoss(LossFunction):
+class RankNet(SimilarityLossFunction):
+    def compute_loss(
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+        query_scoring_mask: torch.Tensor,
+        doc_scoring_mask: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> Dict[str, torch.Tensor]:
+        scores = self.scoring_function.score(
+            query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
+        )
+        scores = scores.view(query_embeddings.shape[0], -1)
+        labels = labels.view(query_embeddings.shape[0], -1)
+        # pos items are items where label is greater than other label in sample
+        query_idx, pos_idx, neg_idx = torch.nonzero(
+            labels[..., None] > labels[:, None], as_tuple=True
+        )
+        pos = scores[query_idx, pos_idx]
+        neg = scores[query_idx, neg_idx]
+        margin = pos - neg
+        loss = torch.nn.functional.binary_cross_entropy_with_logits(
+            margin, torch.ones_like(margin)
+        )
+        return {self.__class__.__name__: loss}
+
+
+class KLDivergence(SimilarityLossFunction):
+    def compute_loss(
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+        query_scoring_mask: torch.Tensor,
+        doc_scoring_mask: torch.Tensor,
+        labels: torch.Tensor,
+    ) -> Dict[str, torch.Tensor]:
+        scores = self.scoring_function.score(
+            query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
+        )
+        scores = scores.view(query_embeddings.shape[0], -1)
+        labels = labels.view(query_embeddings.shape[0], -1)
+        scores = torch.nn.functional.log_softmax(scores, dim=-1)
+        labels = torch.nn.functional.log_softmax(labels.to(scores), dim=-1)
+        loss = torch.nn.functional.kl_div(scores, labels.to(scores), log_target=True)
+        return {self.__class__.__name__: loss}
+
+
+class QueryLevelCrossEntropy(SimilarityLossFunction):
     def compute_loss(
         self,
         query_embeddings: torch.Tensor,
@@ -235,51 +260,4 @@ class TokenBasedLoss(LossFunction):
         loss = torch.nn.functional.binary_cross_entropy_with_logits(
             diff, torch.ones_like(diff)
         )
-        return {"similarity_loss": loss}
-
-
-class RankNet(LossFunction):
-    def compute_loss(
-        self,
-        query_embeddings: torch.Tensor,
-        doc_embeddings: torch.Tensor,
-        query_scoring_mask: torch.Tensor,
-        doc_scoring_mask: torch.Tensor,
-        labels: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
-        scores = self.scoring_function.score(
-            query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
-        )
-        scores = scores.view(query_embeddings.shape[0], -1)
-        labels = labels.view(query_embeddings.shape[0], -1)
-        # pos items are items where label is greater than other label in sample
-        query_idx, pos_idx, neg_idx = torch.nonzero(
-            labels[..., None] > labels[:, None], as_tuple=True
-        )
-        pos = scores[query_idx, pos_idx]
-        neg = scores[query_idx, neg_idx]
-        margin = pos - neg
-        loss = torch.nn.functional.binary_cross_entropy_with_logits(
-            margin, torch.ones_like(margin)
-        )
-        return {"similarity_loss": loss}
-
-
-class KLDivergence(LossFunction):
-    def compute_loss(
-        self,
-        query_embeddings: torch.Tensor,
-        doc_embeddings: torch.Tensor,
-        query_scoring_mask: torch.Tensor,
-        doc_scoring_mask: torch.Tensor,
-        labels: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
-        scores = self.scoring_function.score(
-            query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
-        )
-        scores = scores.view(query_embeddings.shape[0], -1)
-        labels = labels.view(query_embeddings.shape[0], -1)
-        scores = torch.nn.functional.log_softmax(scores, dim=-1)
-        labels = torch.nn.functional.log_softmax(labels.to(scores), dim=-1)
-        loss = torch.nn.functional.kl_div(scores, labels.to(scores), log_target=True)
-        return {"similarity_loss": loss}
+        return {self.__class__.__name__: loss}

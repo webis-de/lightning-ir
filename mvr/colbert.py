@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 from string import punctuation
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Sequence
 
 import torch
 from huggingface_hub import hf_hub_download
@@ -140,7 +140,7 @@ class ColBERTModule(MVRModule):
         self,
         model_name_or_path: str | None = None,
         config: MVRConfig | ColBERTConfig | None = None,
-        loss_function: LossFunction | None = None,
+        loss_functions: Sequence[LossFunction] | None = None,
     ) -> None:
         if model_name_or_path is None:
             if config is None:
@@ -152,7 +152,7 @@ class ColBERTModule(MVRModule):
             model = FlashColBERTModel(config)
         else:
             model = FlashColBERTModel.from_pretrained(model_name_or_path, config=config)
-        super().__init__(model, loss_function)
+        super().__init__(model, loss_functions)
 
 
 AutoConfig.register("colbert", ColBERTConfig)

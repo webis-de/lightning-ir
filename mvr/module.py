@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Sequence
 
 import torch
 from lightning import LightningModule
@@ -8,21 +8,25 @@ from torchmetrics.retrieval import RetrievalMRR, RetrievalNormalizedDCG
 from transformers import PreTrainedModel
 
 from .data import IndexBatch, SearchBatch, TrainBatch
-from .loss import LossFunction
+from .loss import LossFunction, SimilarityLossFunction
 from .mvr import MVRConfig, MVRModel
 from .tokenizer import MVRTokenizer
 
 
 class MVRModule(LightningModule):
-    def __init__(self, model: MVRModel, loss_function: LossFunction | None = None):
+    def __init__(
+        self, model: MVRModel, loss_functions: Sequence[LossFunction] | None = None
+    ):
         super().__init__()
         self.model: MVRModel = model
         self.encoder: PreTrainedModel = model.encoder
         self.encoder.embeddings.position_embeddings.requires_grad_(False)
         self.config = self.model.config
-        self.loss_function: LossFunction | None = loss_function
-        if self.loss_function is not None:
-            self.loss_function.set_scoring_function(self.model.scoring_function)
+        if loss_functions is not None:
+            loss_functions = list(loss_functions)
+            for loss_function in loss_functions:
+                loss_function.set_scoring_function(self.model.scoring_function)
+        self.loss_functions = loss_functions
         self.tokenizer: MVRTokenizer = MVRTokenizer.from_pretrained(
             self.config.name_or_path, **self.config.to_tokenizer_dict()
         )
@@ -50,9 +54,9 @@ class MVRModule(LightningModule):
         )
         return scores
 
-    def step(self, batch: TrainBatch) -> Dict[str, torch.Tensor]:
-        if self.loss_function is None:
-            raise ValueError("Loss function is not set")
+    def step(
+        self, batch: TrainBatch, loss_functions: Sequence[LossFunction]
+    ) -> Dict[str, torch.Tensor]:
         query_embeddings = self.model.encode_queries(**batch.query_encoding)
         doc_embeddings = self.model.encode_docs(**batch.doc_encoding)
         query_scoring_mask, doc_scoring_mask = self.model.scoring_masks(
@@ -61,17 +65,24 @@ class MVRModule(LightningModule):
             batch.query_encoding.attention_mask,
             batch.doc_encoding.attention_mask,
         )
-        losses = self.loss_function.compute_loss(
-            query_embeddings,
-            doc_embeddings,
-            query_scoring_mask,
-            doc_scoring_mask,
-            batch.targets,
-        )
+        losses = {}
+        for loss_function in loss_functions:
+            losses = {
+                **losses,
+                **loss_function.compute_loss(
+                    query_embeddings,
+                    doc_embeddings,
+                    query_scoring_mask,
+                    doc_scoring_mask,
+                    batch.targets,
+                ),
+            }
         return losses
 
     def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
-        losses = self.step(batch)
+        if self.loss_functions is None:
+            raise ValueError("Loss function is not set")
+        losses = self.step(batch, self.loss_functions)
         for key, loss in losses.items():
             self.log(key, loss)
         loss = sum(losses.values(), torch.tensor(0))
@@ -90,13 +101,14 @@ class MVRModule(LightningModule):
             self.run_validation_step(batch, dataloader_idx)
 
     def tuples_validation_step(self, batch: TrainBatch) -> None:
-        if self.loss_function is None:
+        if self.loss_functions is None:
             raise ValueError("Loss function is not set")
-        in_batch_loss = self.loss_function.in_batch_loss
-        self.loss_function.in_batch_loss = None
-        losses = self.step(batch)
-        self.loss_function.in_batch_loss = in_batch_loss
-
+        loss_functions = [
+            loss_function
+            for loss_function in self.loss_functions
+            if isinstance(loss_function, SimilarityLossFunction)
+        ]
+        losses = self.step(batch, loss_functions)
         self.validation_step_outputs.extend(
             (f"validation {key}", value) for key, value in losses.items()
         )
@@ -144,7 +156,7 @@ class MVRModule(LightningModule):
         self.validation_step_outputs.clear()
 
         for key, value in aggregated.items():
-            stacked = torch.stack(value).view(-1)
+            stacked = torch.cat(value).view(-1)
             stacked[torch.isnan(stacked)] = 0
             self.log(key, stacked.mean(), sync_dist=True)
 

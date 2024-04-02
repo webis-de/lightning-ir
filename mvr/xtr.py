@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, Sequence
 
 import torch
 from transformers import AutoConfig, AutoModel
@@ -90,7 +90,7 @@ class XTRModule(MVRModule):
         self,
         model_name_or_path: str | None = None,
         config: MVRConfig | XTRConfig | None = None,
-        loss_function: LossFunction | None = None,
+        loss_functions: Sequence[LossFunction] | None = None,
     ) -> None:
         if model_name_or_path is None:
             if config is None:
@@ -102,7 +102,7 @@ class XTRModule(MVRModule):
             model = FlashXTRModel(config)
         else:
             model = FlashXTRModel.from_pretrained(model_name_or_path, config=config)
-        super().__init__(model, loss_function)
+        super().__init__(model, loss_functions)
 
 
 AutoConfig.register("xtr", XTRConfig)

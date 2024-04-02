@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, Dict, List, Literal
+from typing import Any, Callable, Dict, List, Literal, Sequence
 
 import torch
 from transformers import (
@@ -232,7 +232,7 @@ class TideModule(MVRModule):
         self,
         model_name_or_path: str | None = None,
         config: MVRConfig | TideConfig | None = None,
-        loss_function: LossFunction | None = None,
+        loss_functions: Sequence[LossFunction] | None = None,
     ) -> None:
         if model_name_or_path is None:
             if config is None:
@@ -244,7 +244,7 @@ class TideModule(MVRModule):
             model = FlashTideModel(config)
         else:
             model = FlashTideModel.from_pretrained(model_name_or_path, config=config)
-        super().__init__(model, loss_function)
+        super().__init__(model, loss_functions)
 
 
 AutoConfig.register("tide", TideConfig)
