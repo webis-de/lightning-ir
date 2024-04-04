@@ -95,15 +95,10 @@ class TideModel(BertPreTrainedModel, MVRModel):
         # reduction = (embedding_length / sequence_length) ** (
         #     -1 / self.config.num_hidden_layers
         # )
-        if math.log2(sequence_length) % 1 != 0 or math.log2(embedding_length) % 1 != 0:
-            raise ValueError(
-                "sequence_length and embedding_length must be powers of 2."
-            )
         embedding_lengths = []
         for _ in range(self.config.num_hidden_layers):
             embedding_lengths.insert(0, embedding_length)
-            if embedding_length < sequence_length:
-                embedding_length = embedding_length * 2
+            embedding_length = min(sequence_length, embedding_length * 2)
             # embedding_lengths.append(
             #     max(
             #         int(sequence_length / reduction ** (layer_idx + 1)),
