@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Literal
+from typing import Dict, Literal, Tuple
 
 import torch
 
@@ -30,46 +30,82 @@ class SimilarityLossFunction(LossFunction):
 
 
 class InBatchLossFunction(LossFunction):
-    def format_scores_all_in_sample_positives(
-        self, num_queries: int, num_docs: int, scores: torch.Tensor
-    ) -> torch.Tensor:
-        scores = scores.view(num_queries, num_docs * num_queries)
-        min_idx = torch.arange(num_queries)[:, None] * num_docs
-        max_idx = min_idx + num_docs
-        pos_mask = torch.arange(num_queries * num_docs)[None].greater_equal(
-            min_idx
-        ) & torch.arange(num_queries * num_docs)[None].less(max_idx)
-        pos_scores = scores[pos_mask].view(-1, 1)
-        neg_scores = (
-            scores[~pos_mask].view(num_queries, -1).repeat_interleave(num_docs, 0)
+
+    def __init__(
+        self,
+        pos_sampling_technique: Literal["all", "first"] = "all",
+        neg_sampling_technique: Literal["all", "first"] = "all",
+    ):
+        super().__init__()
+        self.pos_sampling_technique = pos_sampling_technique
+        self.neg_sampling_technique = neg_sampling_technique
+
+    def format_doc_embeddings(
+        self,
+        num_queries: int,
+        doc_embeddings: torch.Tensor,
+        doc_scoring_mask: torch.Tensor,
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        num_total_docs, seq_len, emb_dim = doc_embeddings.shape
+        num_docs = num_total_docs // num_queries
+        doc_embeddings = doc_embeddings.repeat(num_queries, 1, 1).view(
+            num_queries,
+            num_docs * num_queries,
+            seq_len,
+            emb_dim,
         )
-        scores = torch.cat((pos_scores, neg_scores), dim=1)
-        return scores
-
-    def format_scores_first_in_sample_positive(
-        self, num_queries: int, num_docs: int, scores: torch.Tensor
-    ) -> torch.Tensor:
-        scores = scores.view(num_queries, num_docs * num_queries)
-        idx = torch.arange(num_queries)[:, None] * num_docs
-        pos_mask = torch.arange(num_queries * num_docs)[None].eq(idx)
-        pos_scores = scores[pos_mask].view(num_queries, 1)
-        neg_scores = scores[~pos_mask].view(num_queries, -1)
-        scores = torch.cat((pos_scores, neg_scores), dim=1)
-        return scores
-
-    def format_scores(
-        self, num_queries: int, num_docs: int, scores: torch.Tensor
-    ) -> torch.Tensor:
-        scores = scores.view(num_queries, num_docs * num_queries)
+        doc_scoring_mask = doc_scoring_mask.repeat(num_queries, 1).view(
+            num_queries, num_docs * num_queries, seq_len
+        )
         min_idx = torch.arange(num_queries)[:, None] * num_docs
         max_idx = min_idx + num_docs
-        pos_mask = torch.arange(num_queries * num_docs)[None].eq(min_idx)
-        neg_mask = torch.arange(num_queries * num_docs)[None].less(
-            min_idx
-        ) | torch.arange(num_queries * num_docs)[None].greater_equal(max_idx)
-        pos_scores = scores[pos_mask].view(num_queries, 1)
-        neg_scores = scores[neg_mask].view(num_queries, -1)
-        scores = torch.cat((pos_scores, neg_scores), dim=1)
+        if self.pos_sampling_technique == "all":
+            pos_mask = torch.arange(num_queries * num_docs)[None].greater_equal(
+                min_idx
+            ) & torch.arange(num_queries * num_docs)[None].less(max_idx)
+        elif self.pos_sampling_technique == "first":
+            pos_mask = torch.arange(num_queries * num_docs)[None].eq(min_idx)
+        else:
+            raise ValueError("invalid pos sampling technique")
+        if self.neg_sampling_technique == "all":
+            neg_mask = torch.arange(num_queries * num_docs)[None].less(
+                min_idx
+            ) | torch.arange(num_queries * num_docs)[None].greater_equal(max_idx)
+        elif self.neg_sampling_technique == "first":
+            neg_mask = torch.arange(num_queries * num_docs)[None, None].eq(min_idx).any(
+                1
+            ) & torch.arange(num_queries * num_docs)[None].ne(min_idx)
+        else:
+            raise ValueError("invalid neg sampling technique")
+        doc_embeddings = torch.cat(
+            [
+                doc_embeddings[pos_mask].view(num_queries, -1, seq_len, emb_dim),
+                doc_embeddings[neg_mask].view(num_queries, -1, seq_len, emb_dim),
+            ],
+            dim=1,
+        ).view(-1, seq_len, emb_dim)
+        doc_scoring_mask = torch.cat(
+            [
+                doc_scoring_mask[pos_mask].view(num_queries, -1, seq_len),
+                doc_scoring_mask[neg_mask].view(num_queries, -1, seq_len),
+            ],
+            dim=1,
+        ).view(-1, seq_len)
+        return doc_embeddings, doc_scoring_mask
+
+    def get_in_batch_scores(
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+        query_scoring_mask: torch.Tensor,
+        doc_scoring_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        doc_embeddings, doc_scoring_mask = self.format_doc_embeddings(
+            query_embeddings.shape[0], doc_embeddings, doc_scoring_mask
+        )
+        scores = self.scoring_function.score(
+            query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
+        )
         return scores
 
 
@@ -83,14 +119,13 @@ class InBatchCrossEntropy(InBatchLossFunction):
         doc_scoring_mask: torch.Tensor,
         labels: torch.Tensor,
     ) -> Dict[str, torch.Tensor]:
-        num_queries = query_embeddings.shape[0]
-        num_docs = doc_embeddings.shape[0] // num_queries
-        doc_embeddings = doc_embeddings.repeat(query_embeddings.shape[0], 1, 1)
-        doc_scoring_mask = doc_scoring_mask.repeat(query_embeddings.shape[0], 1)
-        scores = self.scoring_function.score(
-            query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
+        scores = self.get_in_batch_scores(
+            query_embeddings,
+            doc_embeddings,
+            query_scoring_mask,
+            doc_scoring_mask,
         )
-        scores = self.format_scores(num_queries, num_docs, scores)
+        scores = scores.view(query_embeddings.shape[0], -1)
         labels = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
         loss = torch.nn.functional.cross_entropy(scores, labels)
         return {self.__class__.__name__: loss}
@@ -106,14 +141,12 @@ class InBatchHinge(InBatchLossFunction):
         doc_scoring_mask: torch.Tensor,
         labels: torch.Tensor,
     ) -> Dict[str, torch.Tensor]:
-        num_queries = query_embeddings.shape[0]
-        num_docs = doc_embeddings.shape[0] // num_queries
-        doc_embeddings = doc_embeddings.repeat(query_embeddings.shape[0], 1, 1)
-        doc_scoring_mask = doc_scoring_mask.repeat(query_embeddings.shape[0], 1)
-        scores = self.scoring_function.score(
-            query_embeddings, doc_embeddings, query_scoring_mask, doc_scoring_mask
+        scores = self.get_in_batch_scores(
+            query_embeddings,
+            doc_embeddings,
+            query_scoring_mask,
+            doc_scoring_mask,
         )
-        scores = self.format_scores(num_queries, num_docs, scores)
         labels = torch.zeros(scores.shape, device=scores.device)
         labels[:, 0] = 1
         abs_scores = scores.abs()
