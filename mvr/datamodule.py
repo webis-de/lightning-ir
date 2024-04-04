@@ -187,9 +187,11 @@ class RunDataset(IRDataset, Dataset):
             non_relevant = group.loc[non_relevant_bool].sample(sample_non_relevant)
             group = pd.concat([relevant, non_relevant])
             relevance = tuple([1] + [0] * sample_non_relevant)
-        else:
+        elif self.config.sampling_strategy == "top":
             relevance = tuple(group["relevance"].fillna(0))
             group = group.head(self.config.sample_size)
+        else:
+            raise ValueError("Invalid sampling strategy.")
 
         doc_ids = tuple(group["doc_id"])
         docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
