@@ -158,15 +158,18 @@ class IndexCallback(Callback):
         attention_mask = batch.doc_encoding.attention_mask
         if attention_mask is None:
             attention_mask = torch.ones(batch.doc_encoding.input_ids.shape)
-        attention_mask = pl_module.all_gather(attention_mask)
+        scoring_mask = pl_module.model.scoring_function.doc_scoring_mask(
+            batch.doc_encoding.input_ids, attention_mask
+        )
+        scoring_mask = pl_module.all_gather(scoring_mask)
         if not trainer.is_global_zero:
             return
         outputs = outputs.view(-1, *outputs.shape[-2:])
 
         outputs = outputs.view(-1, pl_module.config.embedding_dim)
-        embeddings = outputs[attention_mask.bool().view(-1)]
+        embeddings = outputs[scoring_mask.bool().view(-1)]
         doc_ids = [bytes(doc_id).decode("utf32").strip() for doc_id in encoded_doc_ids]
-        doc_lengths = attention_mask.sum(-1)
+        doc_lengths = scoring_mask.sum(-1)
 
         self.indexer.add(embeddings, doc_ids, doc_lengths)
         self.log_to_pg(
