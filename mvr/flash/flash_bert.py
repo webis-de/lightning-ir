@@ -35,12 +35,16 @@ class FlashBertMixin(FlashMixin):
             and hidden_states.is_cuda
             and attention_mask is None
         ):
-            context = flash_attn_func(
-                query.transpose(1, 2),
-                key.transpose(1, 2),
-                value.transpose(1, 2),
-                self.dropout.p if self.training else 0,
-            ).transpose(1, 2)
+            context = (
+                flash_attn_func(
+                    query.bfloat16().transpose(1, 2),
+                    key.bfloat16().transpose(1, 2),
+                    value.bfloat16().transpose(1, 2),
+                    self.dropout.p if self.training else 0,
+                )
+                .transpose(1, 2)
+                .to(query.dtype)
+            )
         else:
             context = torch.nn.functional.scaled_dot_product_attention(
                 query,
