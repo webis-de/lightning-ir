@@ -240,7 +240,9 @@ class SearchCallback(BasePredictionWriter):
             self.imputation_strategy,
             self.n_probe,
         )
-        self.searcher = Searcher(self.config, pl_module.config)
+        self.searcher = Searcher(
+            self.config, pl_module.config, pl_module.model.scoring_function
+        )
         if self.save_dir is None:
             default_save_dir = Path(pl_module.config.name_or_path)
             if default_save_dir.exists():
