@@ -83,12 +83,10 @@ def ceil_div(a: int, b: int) -> int:
     return -(a // -b)
 
 
-class ScoringFunction:
+class ScoringFunction(torch.nn.Module):
 
-    def __init__(
-        self,
-        config: MVRConfig,
-    ) -> None:
+    def __init__(self, config: MVRConfig) -> None:
+        super().__init__()
         self.config = config
         if self.config.similarity_function == "cosine":
             self.similarity_function = self.cosine_similarity
