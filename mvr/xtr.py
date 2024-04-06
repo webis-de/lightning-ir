@@ -13,16 +13,18 @@ from .mvr import MVRConfig, ScoringFunction
 class XTRConfig(ColBERTConfig):
     model_type = "xtr"
 
-    ADDED_ARGS = ColBERTConfig.ADDED_ARGS + ["token_retrieval_k"]
+    ADDED_ARGS = ColBERTConfig.ADDED_ARGS + ["token_retrieval_k", "fill_strategy"]
 
     def __init__(
         self,
         token_retrieval_k: int | None = None,
+        fill_strategy: Literal["zero", "min"] = "zero",
         mask_punctuation: bool = True,
         **kwargs
     ) -> None:
         super().__init__(mask_punctuation, **kwargs)
         self.token_retrieval_k = token_retrieval_k
+        self.fill_strategy = fill_strategy
 
     def to_mvr_dict(self) -> Dict[str, Any]:
         mvr_dict = super().to_mvr_dict()
@@ -34,6 +36,7 @@ class XTRScoringFunction(ScoringFunction):
     def __init__(self, config: XTRConfig) -> None:
         super().__init__(config)
         self.xtr_token_retrieval_k = config.token_retrieval_k
+        self.fill_strategy = config.fill_strategy
 
     def compute_similarity(
         self,
@@ -46,22 +49,25 @@ class XTRScoringFunction(ScoringFunction):
             query_embeddings, doc_embeddings, mask, num_docs
         )
 
-        if self.xtr_token_retrieval_k is not None:
+        if self.training and self.xtr_token_retrieval_k is not None:
             if not torch.all(num_docs == num_docs[0]):
                 raise ValueError(
                     "XTR token retrieval does not support variable number of documents."
                 )
             query_embeddings = query_embeddings[:: num_docs[0]]
-            doc_embeddings = doc_embeddings.view(
-                query_embeddings.shape[0], 1, -1, doc_embeddings.shape[-1]
-            )
+            doc_embeddings = doc_embeddings.view(1, 1, -1, doc_embeddings.shape[-1])
             ib_similarity = super().compute_similarity(query_embeddings, doc_embeddings)
             top_k_similarity = ib_similarity.topk(self.xtr_token_retrieval_k, dim=-1)
-            cut_off_similarity = top_k_similarity.values[..., -1]
-            cut_off_similarity = cut_off_similarity.repeat_interleave(
+            cut_off_similarity = top_k_similarity.values[..., [-1]].repeat_interleave(
                 num_docs, dim=0
-            ).unsqueeze(-1)
-            similarity = similarity.masked_fill(similarity < cut_off_similarity, 0)
+            )
+            if self.fill_strategy == "min":
+                fill = cut_off_similarity.expand_as(similarity)[
+                    similarity < cut_off_similarity
+                ]
+            elif self.fill_strategy == "zero":
+                fill = 0
+            similarity[similarity < cut_off_similarity] = fill
         return similarity
 
     def aggregate(
@@ -70,6 +76,7 @@ class XTRScoringFunction(ScoringFunction):
         mask: torch.Tensor,
         aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
     ) -> torch.Tensor:
+        # Z-normalization
         mask = mask & (scores != 0)
         return super().aggregate(scores, mask, aggregation_function)
 
