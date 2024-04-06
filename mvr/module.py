@@ -41,6 +41,10 @@ class MVRModule(LightningModule):
 
         self.validation_step_outputs = []
 
+    def on_fit_start(self) -> None:
+        self.train()
+        return super().on_fit_start()
+
     def forward(self, batch: TrainBatch) -> torch.Tensor:
         num_docs = [len(ids) for ids in batch.doc_ids]
         scores = self.model.forward(
