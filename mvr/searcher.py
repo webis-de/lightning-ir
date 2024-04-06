@@ -25,10 +25,15 @@ class SparseDocScores:
 
 
 class Searcher:
-    def __init__(self, search_config: SearchConfig, mvr_config: MVRConfig) -> None:
+    def __init__(
+        self,
+        search_config: SearchConfig,
+        mvr_config: MVRConfig,
+        scoring_function: ScoringFunction,
+    ) -> None:
         self.search_config = search_config
         self.mvr_config = mvr_config
-        self.scoring_function = ScoringFunction(mvr_config)
+        self.scoring_function = scoring_function
 
         if self.mvr_config.similarity_function == "l2":
             warnings.warn("L2 similarity is not tested and may not work correctly")
