@@ -19,12 +19,14 @@ class XTRConfig(ColBERTConfig):
         self,
         token_retrieval_k: int | None = None,
         fill_strategy: Literal["zero", "min"] = "zero",
+        normalization: Literal["Z"] | None = "Z",
         mask_punctuation: bool = True,
         **kwargs
     ) -> None:
         super().__init__(mask_punctuation, **kwargs)
         self.token_retrieval_k = token_retrieval_k
         self.fill_strategy = fill_strategy
+        self.normalization = normalization
 
     def to_mvr_dict(self) -> Dict[str, Any]:
         mvr_dict = super().to_mvr_dict()
@@ -37,6 +39,7 @@ class XTRScoringFunction(ScoringFunction):
         super().__init__(config)
         self.xtr_token_retrieval_k = config.token_retrieval_k
         self.fill_strategy = config.fill_strategy
+        self.normalization = config.normalization
 
     def compute_similarity(
         self,
@@ -87,7 +90,7 @@ class XTRScoringFunction(ScoringFunction):
         mask: torch.Tensor,
         aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
     ) -> torch.Tensor:
-        if self.training:
+        if self.training and self.normalization == "Z":
             # Z-normalization
             mask = mask & (scores != 0)
         return super().aggregate(scores, mask, aggregation_function)
