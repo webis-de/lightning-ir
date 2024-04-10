@@ -104,18 +104,21 @@ class ScoringFunction(torch.nn.Module):
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
-        mask: torch.Tensor | None = None,
-        num_docs: torch.Tensor | None = None,
+        query_scoring_mask: torch.Tensor,
+        doc_scoring_mask: torch.Tensor,
+        num_docs: torch.Tensor,
     ) -> torch.Tensor:
-        to_cpu = query_embeddings.is_cpu or doc_embeddings.is_cpu
         if torch.cuda.is_available():
+            # bfloat16 similarity yields weird values with gpu, so we use fp16 instead
+            # TODO investigate why, all values are a factor of 1/4
             query_embeddings = query_embeddings.cuda().half()
             doc_embeddings = doc_embeddings.cuda().half()
 
         similarity = self.similarity_function(query_embeddings, doc_embeddings)
-        if to_cpu:
-            similarity = similarity.cpu()
-        similarity = similarity.float()
+        similarity = similarity.to(query_embeddings)
+        similarity = similarity.masked_fill(~query_scoring_mask.unsqueeze(2), 0)
+        similarity = similarity.masked_fill(~doc_scoring_mask.unsqueeze(1), 0)
+
         return similarity
 
     def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -133,7 +136,6 @@ class ScoringFunction(torch.nn.Module):
         mask: torch.Tensor,
         aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
     ) -> torch.Tensor:
-        scores[(~mask).expand_as(scores)] = 0
         if aggregation_function == "max":
             return scores.max(-1).values
         if aggregation_function == "sum":
@@ -231,11 +233,7 @@ class ScoringFunction(torch.nn.Module):
             num_docs, dim=0
         ).unsqueeze(2)
         if query_scoring_mask.numel() > 1:
-            query_scoring_mask = (
-                query_scoring_mask.bool()
-                .repeat_interleave(num_docs, dim=0)
-                .unsqueeze(2)
-            )
+            query_scoring_mask = query_scoring_mask.repeat_interleave(num_docs, dim=0)
         return query_embeddings, query_scoring_mask
 
     def expand_doc_embeddings(
@@ -245,8 +243,6 @@ class ScoringFunction(torch.nn.Module):
         num_docs: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         doc_embeddings = doc_embeddings.unsqueeze(1)
-        if doc_scoring_mask.numel() > 1:
-            doc_scoring_mask = doc_scoring_mask.bool().unsqueeze(1)
         return doc_embeddings, doc_scoring_mask
 
     def score(
@@ -265,12 +261,15 @@ class ScoringFunction(torch.nn.Module):
             doc_embeddings, doc_scoring_mask, num_docs_t
         )
 
-        mask = query_scoring_mask & doc_scoring_mask
         similarity = self.compute_similarity(
-            query_embeddings, doc_embeddings, mask, num_docs_t
+            query_embeddings,
+            doc_embeddings,
+            query_scoring_mask,
+            doc_scoring_mask,
+            num_docs_t,
         )
-        scores = self.aggregate(similarity, mask, "max")
-        scores = self.aggregate(scores, mask.any(-1), self.aggregation_function)
+        scores = self.aggregate(similarity, doc_scoring_mask, "max")
+        scores = self.aggregate(scores, query_scoring_mask, self.aggregation_function)
         return scores
 
 

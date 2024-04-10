@@ -42,11 +42,16 @@ class XTRScoringFunction(ScoringFunction):
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
-        mask: torch.Tensor,
+        query_scoring_mask: torch.Tensor,
+        doc_scoring_mask: torch.Tensor,
         num_docs: torch.Tensor,
     ) -> torch.Tensor:
         similarity = super().compute_similarity(
-            query_embeddings, doc_embeddings, mask, num_docs
+            query_embeddings,
+            doc_embeddings,
+            query_scoring_mask,
+            doc_scoring_mask,
+            num_docs,
         )
 
         if self.training and self.xtr_token_retrieval_k is not None:
@@ -56,7 +61,13 @@ class XTRScoringFunction(ScoringFunction):
                 )
             query_embeddings = query_embeddings[:: num_docs[0]]
             doc_embeddings = doc_embeddings.view(1, 1, -1, doc_embeddings.shape[-1])
-            ib_similarity = super().compute_similarity(query_embeddings, doc_embeddings)
+            ib_similarity = super().compute_similarity(
+                query_embeddings,
+                doc_embeddings,
+                query_scoring_mask[:: num_docs[0]],
+                doc_scoring_mask.view(1, -1),
+                num_docs,
+            )
             top_k_similarity = ib_similarity.topk(self.xtr_token_retrieval_k, dim=-1)
             cut_off_similarity = top_k_similarity.values[..., [-1]].repeat_interleave(
                 num_docs, dim=0
@@ -76,8 +87,9 @@ class XTRScoringFunction(ScoringFunction):
         mask: torch.Tensor,
         aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
     ) -> torch.Tensor:
-        # Z-normalization
-        mask = mask & (scores != 0)
+        if self.training:
+            # Z-normalization
+            mask = mask & (scores != 0)
         return super().aggregate(scores, mask, aggregation_function)
 
 
