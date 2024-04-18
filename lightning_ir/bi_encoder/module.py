@@ -245,9 +245,9 @@ class BiEncoderModule(LightningModule):
             # NOTE skip in-batch losses because they can use a lot of memory
             if isinstance(loss_function, InBatchLossFunction):
                 continue
-            metrics[f"{dataset_id}/validation-{loss_function.__class__.__name__}"] = (
-                loss_function.compute_loss(scores, targets).item()
-            )
+            metrics[
+                f"{dataset_id}/validation-{loss_function.__class__.__name__}"
+            ] = loss_function.compute_loss(scores, targets).item()
         return metrics
 
     def predict_step(self, batch: IndexBatch | SearchBatch, *args, **kwargs) -> Any:

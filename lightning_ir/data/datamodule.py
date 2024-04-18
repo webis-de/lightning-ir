@@ -5,15 +5,14 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Literal, NamedTuple, Sequence, Tuple
 
 import ir_datasets
+import ir_datasets.docs
 import pandas as pd
 import torch
-from ir_datasets.formats import GenericDocPair, GenericDoc
+from ir_datasets.formats import GenericDoc, GenericDocPair
 from lightning import LightningDataModule
 from torch.distributed import get_rank, get_world_size
 from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
 from transformers import AutoConfig
-
-import ir_datasets.docs
 
 from ..bi_encoder.bi_encoder import BiEncoderConfig
 from ..cross_encoder.cross_encoder import CrossEncoderConfig

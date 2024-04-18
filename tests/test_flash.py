@@ -10,6 +10,7 @@ from lightning_ir.flash.flash_model import FlashClassFactory
     [
         "bert-base-uncased",
         "google/electra-base-discriminator",
+        "roberta-base",
     ],
 )
 def test_same_as_model(model_name: str) -> None:

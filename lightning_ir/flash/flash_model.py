@@ -3,10 +3,12 @@ from typing import Type, TypeVar
 from transformers import AutoConfig, AutoModel, PretrainedConfig, PreTrainedModel
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
 from transformers.models.electra.modeling_electra import ElectraPreTrainedModel
+from transformers.models.roberta.modeling_roberta import RobertaPreTrainedModel
 
 from .flash_bert import FlashBertMixin
 from .flash_electra import FlashElectraMixin
 from .flash_mixin import FlashMixin
+from .flash_roberta import FlashRobertaMixin
 
 
 class AutoFlashModel(AutoModel):
@@ -50,6 +52,8 @@ def get_mixin(TransformerModel: Type[PreTrainedModel]) -> Type[FlashMixin]:
         return FlashBertMixin
     elif issubclass(TransformerModel, ElectraPreTrainedModel):
         return FlashElectraMixin
+    elif issubclass(TransformerModel, RobertaPreTrainedModel):
+        return FlashRobertaMixin
     else:
         raise ValueError(
             f"Model type {TransformerModel.__name__} not supported by Flash"
