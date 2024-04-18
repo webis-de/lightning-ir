@@ -2,7 +2,7 @@ import pytest
 import torch
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-from mvr.flash.flash_model import FlashClassFactory
+from lightning_ir.flash.flash_model import FlashClassFactory
 
 
 @pytest.mark.parametrize(

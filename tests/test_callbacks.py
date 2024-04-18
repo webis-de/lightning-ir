@@ -8,15 +8,15 @@ import torch
 from lightning import Trainer
 from transformers import BertModel
 
-from mvr.callbacks import IndexCallback, SearchCallback
-from mvr.datamodule import MVRDataModule
-from mvr.module import MVRModule
-from mvr.mvr import MVRConfig, MVRModel
+from lightning_ir.bi_encoder.bi_encoder import BiEncoderConfig, BiEncoderModel
+from lightning_ir.bi_encoder.module import BiEncoderModule
+from lightning_ir.data.datamodule import LightningIRDataModule
+from lightning_ir.lightning_utils.callbacks import IndexCallback, SearchCallback
 
 
-class TestModel(MVRModel):
+class TestModel(BiEncoderModel):
     def __init__(self, model_name_or_path: Path | str) -> None:
-        config = MVRConfig.from_pretrained(model_name_or_path)
+        config = BiEncoderConfig.from_pretrained(model_name_or_path)
         bert = BertModel.from_pretrained(
             model_name_or_path, config=config, add_pooling_layer=False
         )
@@ -33,13 +33,13 @@ class TestModel(MVRModel):
 
 
 @pytest.fixture(scope="module")
-def mvr_model(model_name_or_path: str) -> MVRModel:
+def mvr_model(model_name_or_path: str) -> BiEncoderModel:
     return TestModel(model_name_or_path)
 
 
 @pytest.fixture(scope="module")
-def mvr_module(mvr_model: MVRModel) -> MVRModule:
-    return MVRModule(mvr_model)
+def mvr_module(mvr_model: BiEncoderModel) -> BiEncoderModule:
+    return BiEncoderModule(mvr_model)
 
 
 # @pytest.mark.parametrize("devices", (1, 2))
@@ -47,8 +47,8 @@ def mvr_module(mvr_model: MVRModel) -> MVRModule:
 @pytest.mark.parametrize("devices", (1,))
 def test_index_callback(
     tmp_path: Path,
-    mvr_module: MVRModule,
-    doc_datamodule: MVRDataModule,
+    mvr_module: BiEncoderModule,
+    doc_datamodule: LightningIRDataModule,
     similarity: Literal["cosine", "dot", "l2"],
     devices: int,
 ):
@@ -85,8 +85,8 @@ def test_index_callback(
 @pytest.mark.parametrize("imputation_strategy", ("min", "gather"))
 def test_search_callback(
     tmp_path: Path,
-    mvr_module: MVRModule,
-    query_datamodule: MVRDataModule,
+    mvr_module: BiEncoderModule,
+    query_datamodule: LightningIRDataModule,
     similarity: Literal["cosine", "dot", "l2"],
     imputation_strategy: Literal["min", "gather"],
 ):
@@ -105,7 +105,7 @@ def test_search_callback(
 
     for dataloader in trainer.predict_dataloaders:
         dataset = dataloader.dataset
-        dataset_id = dataset.ir_dataset.dataset_id().replace("/", "-")
+        dataset_id = dataset.dataset_id.replace("/", "-")
         assert (save_dir / f"{dataset_id}.run").exists()
         run_df = pd.read_csv(
             save_dir / f"{dataset_id}.run",
