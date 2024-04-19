@@ -3,10 +3,12 @@ from typing import Any, Dict, List, Literal, Sequence, Tuple
 import torch
 from transformers import PretrainedConfig, PreTrainedModel
 
+from ..model import LightningIRConfig, LightningIRModel
+
 # TODO add configs for MultiVector and SingleVector models
 
 
-class BiEncoderConfig(PretrainedConfig):
+class BiEncoderConfig(LightningIRConfig):
     model_type = "bi-encoder"
 
     ADDED_ARGS = [
@@ -274,11 +276,11 @@ class ScoringFunction(torch.nn.Module):
         return scores
 
 
-class BiEncoderModel(PreTrainedModel):
-    def __init__(self, config: BiEncoderConfig, encoder: PreTrainedModel):
+class BiEncoderModel(LightningIRModel):
+    def __init__(self, config: BiEncoderConfig, encoder_module_name: str):
         super().__init__(config)
         self.config: BiEncoderConfig
-        self.encoder = encoder
+        self.encoder_module_name = encoder_module_name
         self.linear = torch.nn.Linear(
             self.config.hidden_size,
             self.config.embedding_dim,
@@ -286,6 +288,10 @@ class BiEncoderModel(PreTrainedModel):
         )
         self.config.similarity_function
         self.scoring_function = ScoringFunction(config)
+
+    @property
+    def encoder(self) -> torch.nn.Module:
+        return getattr(self, self.encoder_module_name)
 
     def forward(
         self,

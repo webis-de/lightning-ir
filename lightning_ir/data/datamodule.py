@@ -14,8 +14,8 @@ from torch.distributed import get_rank, get_world_size
 from torch.utils.data import DataLoader, Dataset, IterableDataset, get_worker_info
 from transformers import AutoConfig
 
-from ..bi_encoder.bi_encoder import BiEncoderConfig
-from ..cross_encoder.cross_encoder import CrossEncoderConfig
+from ..bi_encoder.model import BiEncoderConfig
+from ..cross_encoder.model import CrossEncoderConfig
 from ..tokenizer.tokenizer import BiEncoderTokenizer, CrossEncoderTokenizer
 from .data import (
     BiEncoderTrainBatch,

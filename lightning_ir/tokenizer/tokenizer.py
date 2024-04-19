@@ -1,17 +1,65 @@
+from os import PathLike
 import warnings
-from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
+
+from transformers import AutoTokenizer
 
 from tokenizers.processors import TemplateProcessing
-from transformers import BatchEncoding, BertTokenizerFast
+from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 
-# TODO generalize to more than BertTokenizers, i.e., add class factory
-class Tokenizer(BertTokenizerFast):
-    pass
+class LightningIRTokenizer:
+
+    def __init__(self, tokenizer: PreTrainedTokenizerBase, **kwargs):
+        tokenizer.init_kwargs.update(kwargs)
+        self.__tokenizer = tokenizer
+
+    def __getattr__(self, attr):
+        if attr.endswith("__tokenizer"):
+            return self.__tokenizer
+        return getattr(self.__tokenizer, attr)
+
+    def __call__(self, *args, **kwargs) -> BatchEncoding:
+        return self.__tokenizer.__call__(*args, **kwargs)
+
+    def __len__(self) -> int:
+        return len(self.__tokenizer)
+
+    def tokenize(
+        self,
+        queries: str | None = None,
+        docs: str | None = None,
+        **kwargs,
+    ) -> Dict[str, BatchEncoding]:
+        raise NotImplementedError("Tokenizer must implement tokenize method.")
+
+    @classmethod
+    def from_pretrained(
+        cls,
+        pretrained_model_name_or_path: str | PathLike,
+        *init_inputs,
+        cache_dir: str | PathLike | None = None,
+        force_download: bool = False,
+        local_files_only: bool = False,
+        token: str | bool | None = None,
+        revision: str = "main",
+        **kwargs,
+    ):
+        tokenizer = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path,
+            *init_inputs,
+            cache_dir=cache_dir,
+            force_download=force_download,
+            local_files_only=local_files_only,
+            token=token,
+            revision=revision,
+            **kwargs,
+        )
+        kwargs.update(tokenizer.init_kwargs)
+        return cls(tokenizer, **kwargs)
 
 
-class CrossEncoderTokenizer(Tokenizer):
+class CrossEncoderTokenizer(LightningIRTokenizer):
     def tokenize(
         self,
         queries: str | None = None,
@@ -25,21 +73,12 @@ class CrossEncoderTokenizer(Tokenizer):
         return {"encoding": self(expanded_queries, docs, **kwargs)}
 
 
-class BiEncoderTokenizer(Tokenizer):
+class BiEncoderTokenizer(LightningIRTokenizer):
     def __init__(
         self,
-        vocab_file: str | Path | None = None,
-        tokenizer_file: str | Path | None = None,
-        do_lower_case: bool = True,
-        unk_token: str = "[UNK]",
-        sep_token: str = "[SEP]",
-        pad_token: str = "[PAD]",
-        cls_token: str = "[CLS]",
-        mask_token: str = "[MASK]",
+        tokenizer: PreTrainedTokenizerBase,
         query_token: str = "[QUE]",
         doc_token: str = "[DOC]",
-        tokenize_chinese_chars: bool = True,
-        strip_accents: bool | None = None,
         query_expansion: bool = False,
         query_length: int = 32,
         attend_to_query_expanded_tokens: bool = False,
@@ -50,16 +89,9 @@ class BiEncoderTokenizer(Tokenizer):
         **kwargs,
     ):
         super().__init__(
-            vocab_file,
-            tokenizer_file,
-            do_lower_case,
-            unk_token,
-            sep_token,
-            pad_token,
-            cls_token,
-            mask_token,
-            tokenize_chinese_chars,
-            strip_accents,
+            tokenizer=tokenizer,
+            query_token=query_token,
+            doc_token=doc_token,
             query_expansion=query_expansion,
             query_length=query_length,
             attend_to_query_expanded_tokens=attend_to_query_expanded_tokens,
@@ -75,6 +107,7 @@ class BiEncoderTokenizer(Tokenizer):
         self.doc_expansion = doc_expansion
         self.doc_length = doc_length
         self.attend_to_doc_expanded_tokens = attend_to_doc_expanded_tokens
+        self.add_marker_tokens = add_marker_tokens
 
         self._query_token = query_token
         self._doc_token = doc_token
@@ -104,18 +137,6 @@ class BiEncoderTokenizer(Tokenizer):
                 ],
             )
 
-    def save_pretrained(
-        self,
-        save_directory: str | Path,
-        legacy_format: bool | None = None,
-        filename_prefix: str | None = None,
-        push_to_hub: bool = False,
-        **kwargs,
-    ) -> Tuple[str]:
-        return super().save_pretrained(
-            save_directory, legacy_format, filename_prefix, push_to_hub, **kwargs
-        )
-
     @property
     def query_token(self) -> str:
         return self._query_token
@@ -143,7 +164,7 @@ class BiEncoderTokenizer(Tokenizer):
                 "tokenize_docs to make sure marker_tokens and query/doc expansion is "
                 "applied."
             )
-        return super().__call__(*args, **kwargs)
+        return self.__tokenizer.__call__(*args, **kwargs)
 
     def _encode(
         self,
@@ -175,6 +196,8 @@ class BiEncoderTokenizer(Tokenizer):
         kwargs["max_length"] = self.query_length
         if self.query_expansion:
             kwargs["padding"] = "max_length"
+        else:
+            kwargs["truncation"] = True
         encoding = self._encode(
             queries, *args, post_processor=self.query_post_processor, **kwargs
         )
@@ -186,6 +209,8 @@ class BiEncoderTokenizer(Tokenizer):
         kwargs["max_length"] = self.doc_length
         if self.doc_expansion:
             kwargs["padding"] = "max_length"
+        else:
+            kwargs["truncation"] = True
         encoding = self._encode(
             docs, *args, post_processor=self.doc_post_processor, **kwargs
         )

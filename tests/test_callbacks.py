@@ -8,7 +8,7 @@ import torch
 from lightning import Trainer
 from transformers import BertModel
 
-from lightning_ir.bi_encoder.bi_encoder import BiEncoderConfig, BiEncoderModel
+from lightning_ir.bi_encoder.model import BiEncoderConfig, BiEncoderModel
 from lightning_ir.bi_encoder.module import BiEncoderModule
 from lightning_ir.data.datamodule import LightningIRDataModule
 from lightning_ir.lightning_utils.callbacks import IndexCallback, SearchCallback
@@ -17,10 +17,10 @@ from lightning_ir.lightning_utils.callbacks import IndexCallback, SearchCallback
 class TestModel(BiEncoderModel):
     def __init__(self, model_name_or_path: Path | str) -> None:
         config = BiEncoderConfig.from_pretrained(model_name_or_path)
-        bert = BertModel.from_pretrained(
+        super().__init__(config, "bert")
+        self.bert = BertModel.from_pretrained(
             model_name_or_path, config=config, add_pooling_layer=False
         )
-        super().__init__(config, bert)
         vocab_size = self.config.vocab_size
         if self.config.add_marker_tokens:
             vocab_size += 2

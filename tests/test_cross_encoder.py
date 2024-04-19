@@ -6,10 +6,16 @@ import pytest
 from _pytest.fixtures import SubRequest
 from transformers import BertModel
 
-from lightning_ir.bi_encoder.colbert import ColBERTModel, ColBERTModule
-from lightning_ir.bi_encoder.model import BiEncoderConfig, BiEncoderModel
-from lightning_ir.bi_encoder.module import BiEncoderModule
-from lightning_ir.bi_encoder.xtr import XTRModel, XTRModule
+from lightning_ir.cross_encoder.model import CrossEncoderConfig, CrossEncoderModel
+from lightning_ir.cross_encoder.module import CrossEncoderModule
+from lightning_ir.cross_encoder.mono import (
+    MonoBertModel,
+    MonoBertModule,
+    MonoElectraModel,
+    MonoElectraModule,
+    MonoRobertaModel,
+    MonoRobertaModule,
+)
 from lightning_ir.data.datamodule import (
     LightningIRDataModule,
     RunDatasetConfig,
@@ -17,7 +23,6 @@ from lightning_ir.data.datamodule import (
 )
 from lightning_ir.loss.loss import (
     ConstantMarginMSE,
-    InBatchCrossEntropy,
     LossFunction,
     RankNet,
     SupervisedMarginMSE,
@@ -26,10 +31,10 @@ from lightning_ir.loss.loss import (
 DATA_DIR = Path(__file__).parent / "data"
 
 
-class TestModel(BiEncoderModel):
-    config_class = BiEncoderConfig
+class TestModel(CrossEncoderModel):
+    config_class = CrossEncoderConfig
 
-    def __init__(self, config: BiEncoderConfig) -> None:
+    def __init__(self, config: CrossEncoderConfig) -> None:
         config.num_hidden_layers = 1
         super().__init__(config, "bert")
         self.bert = BertModel.from_pretrained(
@@ -37,12 +42,12 @@ class TestModel(BiEncoderModel):
         )
 
 
-class TestModule(BiEncoderModule):
+class TestModule(CrossEncoderModule):
     def __init__(
         self,
         model: TestModel | None = None,
         model_name_or_path: str | None = None,
-        config: BiEncoderConfig | None = None,
+        config: CrossEncoderConfig | None = None,
         loss_functions: Sequence[LossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ) -> None:
@@ -52,9 +57,9 @@ class TestModule(BiEncoderModule):
                     raise ValueError(
                         "Either model, model_name_or_path, or config must be provided."
                     )
-                if not isinstance(config, BiEncoderConfig):
+                if not isinstance(config, CrossEncoderConfig):
                     raise ValueError(
-                        "To initialize a new model pass a BiEncoderConfig."
+                        "To initialize a new model pass a CrossEncoderConfig."
                     )
                 model = TestModel(config)
             else:
@@ -64,31 +69,36 @@ class TestModule(BiEncoderModule):
 
 MODULE_MAP = {
     TestModel: TestModule,
-    ColBERTModel: ColBERTModule,
-    XTRModel: XTRModule,
+    MonoBertModel: MonoBertModule,
+    MonoElectraModel: MonoElectraModule,
+    MonoRobertaModel: MonoRobertaModule,
 }
-MODELS = Union[TestModel, ColBERTModel, XTRModel]
-MODULES = Union[TestModule, ColBERTModule, XTRModule]
+MODELS = Union[TestModel, MonoBertModel, MonoElectraModel, MonoRobertaModel]
+MODULES = Union[TestModule, MonoBertModule, MonoElectraModule, MonoRobertaModule]
+MODEL_NAME_OR_PATH_MAP = {
+    TestModule: "sentence-transformers/all-MiniLM-L6-v2",
+    MonoBertModule: "sentence-transformers/all-MiniLM-L6-v2",
+    MonoElectraModule: "google/electra-small-discriminator",
+    MonoRobertaModule: "FacebookAI/roberta-base",
+    TestModel: "sentence-transformers/all-MiniLM-L6-v2",
+    MonoBertModel: "sentence-transformers/all-MiniLM-L6-v2",
+    MonoElectraModel: "google/electra-small-discriminator",
+    MonoRobertaModel: "FacebookAI/roberta-base",
+}
 
 
 @pytest.fixture(scope="module", params=list(MODULE_MAP.keys()))
-def model(model_name_or_path: str, request: SubRequest) -> MODELS:
+def model(request: SubRequest) -> MODELS:
     Model = request.param
+    model_name_or_path = MODEL_NAME_OR_PATH_MAP[request.param]
     config = Model.config_class.from_pretrained(model_name_or_path, num_hidden_layers=1)
     _model = Model.from_pretrained(model_name_or_path, config=config)
-    if config.add_marker_tokens:
-        _model.encoder.resize_token_embeddings(_model.config.vocab_size + 2, 8)
     return _model
 
 
 @pytest.fixture(
     scope="module",
-    params=[
-        ConstantMarginMSE(),
-        RankNet(),
-        SupervisedMarginMSE(),
-        InBatchCrossEntropy("first", "first"),
-    ],
+    params=[ConstantMarginMSE(), RankNet(), SupervisedMarginMSE()],
 )
 def module(model: MODELS, request: SubRequest) -> MODULES:
     loss_function = request.param
@@ -120,64 +130,9 @@ def tuples_datamodule(model: MODELS) -> LightningIRDataModule:
     return datamodule
 
 
-def test_doc_padding(model: MODELS):
-    datamodule = tuples_datamodule(model)
-    if not isinstance(datamodule.config, BiEncoderConfig):
-        pytest.skip()
-    batch = next(iter(datamodule.train_dataloader()))
-    doc_encoding = batch.doc_encoding
-    doc_encoding["input_ids"] = doc_encoding["input_ids"][:-1]
-    doc_encoding["attention_mask"] = doc_encoding["attention_mask"][:-1]
-    doc_encoding["token_type_ids"] = doc_encoding["token_type_ids"][:-1]
-
-    query_embedding = model.encode_queries(**batch.query_encoding)
-    doc_embedding = model.encode_docs(**batch.doc_encoding)
-    query_scoring_mask, doc_scoring_mask = model.scoring_masks(
-        batch.query_encoding.input_ids,
-        batch.doc_encoding.input_ids,
-        batch.query_encoding.attention_mask,
-        batch.doc_encoding.attention_mask,
-    )
-    with pytest.raises(ValueError):
-        model.score(
-            query_embedding,
-            doc_embedding,
-            query_scoring_mask,
-            doc_scoring_mask,
-            None,
-        )
-    with pytest.raises(ValueError):
-        model.score(
-            query_embedding,
-            doc_embedding,
-            query_scoring_mask,
-            doc_scoring_mask,
-            [doc_embedding.shape[0]],
-        )
-    with pytest.raises(ValueError):
-        model.score(
-            query_embedding,
-            doc_embedding,
-            query_scoring_mask,
-            doc_scoring_mask,
-            [0] * query_embedding.shape[0],
-        )
-
-    num_docs = [len(docs) for docs in batch.doc_ids]
-    num_docs[-1] = num_docs[-1] - 1
-    scores = model.score(
-        query_embedding,
-        doc_embedding,
-        query_scoring_mask,
-        doc_scoring_mask,
-        num_docs,
-    )
-    assert scores.shape[0] == doc_embedding.shape[0]
-
-
 def test_training_step(module: MODULES):
     datamodule = tuples_datamodule(module.model)
-    if not isinstance(datamodule.config, BiEncoderConfig):
+    if not isinstance(datamodule.config, CrossEncoderConfig):
         pytest.skip()
     dataloader = datamodule.train_dataloader()
     batch = next(iter(dataloader))
@@ -187,7 +142,7 @@ def test_training_step(module: MODULES):
 
 def test_validation(module: MODULES):
     datamodule = tuples_datamodule(module.model)
-    if not isinstance(datamodule.config, BiEncoderConfig):
+    if not isinstance(datamodule.config, CrossEncoderConfig):
         pytest.skip()
     dataloader = datamodule.val_dataloader()[0]
     for batch, batch_idx in zip(dataloader, range(2)):
@@ -201,14 +156,10 @@ def test_validation(module: MODULES):
         assert value
 
 
-def test_seralize_deserialize(
-    model: TestModel | ColBERTModel | XTRModel, tmpdir_factory: pytest.TempdirFactory
-):
+def test_seralize_deserialize(model: MODELS, tmpdir_factory: pytest.TempdirFactory):
     save_dir = tmpdir_factory.mktemp(model.config_class.model_type)
     model.save_pretrained(save_dir)
     kwargs = {}
-    if isinstance(model, (ColBERTModel, XTRModel)):
-        kwargs["mask_punctuation"] = False
     new_model = type(model).from_pretrained(save_dir, **kwargs)
     for key, value in model.config.__dict__.items():
         if key in (
@@ -218,9 +169,6 @@ def test_seralize_deserialize(
             "transformers_version",
             "model_type",
         ):
-            continue
-        if key == "mask_punctuation":
-            assert value and not getattr(new_model.config, key)
             continue
         assert getattr(new_model.config, key) == value
     for key, value in model.state_dict().items():

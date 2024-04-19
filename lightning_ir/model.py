@@ -1,19 +1,16 @@
-from typing import Any, Dict
+from typing import Dict, Any
 
-from transformers import PretrainedConfig
+from transformers import PretrainedConfig, PreTrainedModel
 
 
-class CrossEncoderConfig(PretrainedConfig):
-    model_type = "cross-encoder"
+class LightningIRConfig(PretrainedConfig):
+    model_type = "bi-encoder"
 
     ADDED_ARGS = []
 
     TOKENIZER_ARGS = []
 
-    def __init__(
-        self,
-        **kwargs,
-    ):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def to_added_args_dict(self) -> Dict[str, Any]:
@@ -29,5 +26,10 @@ class CrossEncoderConfig(PretrainedConfig):
         cls,
         config: PretrainedConfig,
         **kwargs,
-    ) -> "CrossEncoderConfig":
+    ) -> "LightningIRConfig":
         return cls.from_dict({**config.to_dict(), **kwargs})
+
+
+class LightningIRModel(PreTrainedModel):
+    def __init__(self, config: LightningIRConfig):
+        super().__init__(config)

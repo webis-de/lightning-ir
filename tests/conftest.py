@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 from _pytest.fixtures import SubRequest
 
-from lightning_ir.bi_encoder.bi_encoder import BiEncoderConfig
-from lightning_ir.cross_encoder.cross_encoder import CrossEncoderConfig
+from lightning_ir.bi_encoder.model import BiEncoderConfig
+from lightning_ir.cross_encoder.model import CrossEncoderConfig
 from lightning_ir.data.datamodule import (
     DocDatasetConfig,
     LightningIRDataModule,

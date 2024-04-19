@@ -7,7 +7,7 @@ from typing import Sequence
 import faiss
 import torch
 
-from ..bi_encoder.bi_encoder import BiEncoderConfig
+from ..bi_encoder.model import BiEncoderConfig
 
 
 @dataclass
@@ -123,16 +123,13 @@ class Indexer(ABC):
         faiss.write_index(self.index, str(self.index_config.index_path / "index.faiss"))
 
     @abstractmethod
-    def to_gpu(self) -> None:
-        ...
+    def to_gpu(self) -> None: ...
 
     @abstractmethod
-    def to_cpu(self) -> None:
-        ...
+    def to_cpu(self) -> None: ...
 
     @abstractmethod
-    def set_verbosity(self) -> None:
-        ...
+    def set_verbosity(self) -> None: ...
 
     def process_token_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
         return token_embeddings

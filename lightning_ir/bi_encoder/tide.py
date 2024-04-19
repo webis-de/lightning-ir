@@ -13,7 +13,7 @@ from transformers import (
 
 from ..flash.flash_model import FlashClassFactory
 from ..loss.loss import LossFunction
-from .bi_encoder import BiEncoderConfig, BiEncoderModel, ScoringFunction
+from .model import BiEncoderConfig, BiEncoderModel, ScoringFunction
 from .module import BiEncoderModule
 
 

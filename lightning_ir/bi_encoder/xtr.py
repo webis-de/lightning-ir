@@ -5,7 +5,7 @@ from transformers import AutoConfig, AutoModel
 
 from ..flash.flash_model import FlashClassFactory
 from ..loss.loss import LossFunction
-from .bi_encoder import BiEncoderConfig, ScoringFunction
+from .model import BiEncoderConfig, ScoringFunction
 from .colbert import ColBERTConfig, ColBERTModel
 from .module import BiEncoderModule
 

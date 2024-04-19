@@ -17,7 +17,7 @@ from transformers import (
 from ..flash.flash_model import FlashClassFactory
 from ..loss.loss import LossFunction
 from ..tokenizer.tokenizer import BiEncoderTokenizer
-from .bi_encoder import BiEncoderConfig, BiEncoderModel
+from .model import BiEncoderConfig, BiEncoderModel
 from .module import BiEncoderModule
 
 
@@ -30,19 +30,13 @@ class ColBERTConfig(BertConfig, BiEncoderConfig):
         super().__init__(**kwargs)
         self.mask_punctuation = mask_punctuation
 
-    def to_added_args_dict(self) -> Dict[str, Any]:
-        mvr_dict = super().to_added_args_dict()
-        mvr_dict["mask_punctuation"] = self.mask_punctuation
-        return mvr_dict
-
 
 class ColBERTModel(BertPreTrainedModel, BiEncoderModel):
     config_class = ColBERTConfig
 
     def __init__(self, colbert_config: ColBERTConfig) -> None:
-        bert = BertModel(colbert_config, add_pooling_layer=False)
-        super().__init__(colbert_config, bert)
-        self._modules["bert"] = self._modules.pop("encoder")
+        super().__init__(colbert_config, "bert")
+        self.bert = BertModel(colbert_config, add_pooling_layer=False)
         self.mask_tokens = None
         if self.config.mask_punctuation:
             try:
@@ -60,10 +54,6 @@ class ColBERTModel(BertPreTrainedModel, BiEncoderModel):
                 return_token_type_ids=False,
                 warn=False,
             ).input_ids[0]
-
-    @property
-    def encoder(self) -> torch.nn.Module:
-        return self.bert
 
     def scoring_masks(
         self,

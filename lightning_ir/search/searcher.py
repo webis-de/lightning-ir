@@ -6,7 +6,7 @@ import faiss
 import numpy as np
 import torch
 
-from ..bi_encoder.bi_encoder import BiEncoderConfig, ScoringFunction
+from ..bi_encoder.model import BiEncoderConfig, ScoringFunction
 
 
 class SearchConfig(NamedTuple):
