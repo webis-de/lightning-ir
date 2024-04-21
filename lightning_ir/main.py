@@ -1,21 +1,15 @@
 import os
-from typing import Any
+import sys
+from pathlib import Path
+from typing import Any, Dict, List, Set
 
 import torch
-from lightning import LightningModule, Trainer
+from lightning import LightningDataModule, LightningModule, Trainer
 from lightning.fabric.loggers.logger import _DummyExperiment as DummyExperiment
 from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
 from lightning.pytorch.loggers import WandbLogger
 from typing_extensions import override
 
-import lightning_ir.colbert  # noqa
-import lightning_ir.data.datamodule  # noqa
-import lightning_ir.lightning_utils.callbacks  # noqa
-import lightning_ir.lightning_utils.warmup_schedulers  # noqa
-import lightning_ir.loss.loss  # noqa
-import lightning_ir.module  # noqa
-import lightning_ir.tide  # noqa
-import lightning_ir.xtr  # noqa
 from lightning_ir.lightning_utils.warmup_schedulers import (
     LR_SCHEDULERS,
     WarmupScheduler,
@@ -25,6 +19,8 @@ if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+sys.path.append(str(Path.cwd()))
 
 
 class CustomSaveConfigCallback(SaveConfigCallback):
@@ -47,6 +43,48 @@ class CustomWandbLogger(WandbLogger):
         if isinstance(self.experiment, DummyExperiment):
             return None
         return self.experiment.dir
+
+
+class CustomTrainer(Trainer):
+    # TODO check that correct callbacks are registered for each subcommand
+    def index(
+        self,
+        model: LightningModule | None = None,
+        dataloaders: Any | LightningDataModule | None = None,
+        datamodule: LightningDataModule | None = None,
+        return_predictions: bool | None = None,
+        ckpt_path: str | Path | None = None,
+    ) -> List[Any] | List[List[Any]] | None:
+        """Index a collection of documents."""
+        return super().predict(
+            model, dataloaders, datamodule, return_predictions, ckpt_path
+        )
+
+    def search(
+        self,
+        model: LightningModule | None = None,
+        dataloaders: Any | LightningDataModule | None = None,
+        datamodule: LightningDataModule | None = None,
+        return_predictions: bool | None = None,
+        ckpt_path: str | Path | None = None,
+    ) -> List[Any] | List[List[Any]] | None:
+        """Search for relevant documents."""
+        return super().predict(
+            model, dataloaders, datamodule, return_predictions, ckpt_path
+        )
+
+    def re_rank(
+        self,
+        model: LightningModule | None = None,
+        dataloaders: Any | LightningDataModule | None = None,
+        datamodule: LightningDataModule | None = None,
+        return_predictions: bool | None = None,
+        ckpt_path: str | Path | None = None,
+    ) -> List[Any] | List[List[Any]] | None:
+        """Re-rank a set of retrieved documents."""
+        return super().predict(
+            model, dataloaders, datamodule, return_predictions, ckpt_path
+        )
 
 
 class CustomLightningCLI(LightningCLI):
@@ -73,6 +111,15 @@ class CustomLightningCLI(LightningCLI):
             "trainer.max_steps", "lr_scheduler.init_args.num_training_steps"
         )
 
+    @staticmethod
+    def subcommands() -> Dict[str, Set[str]]:
+        return {
+            **LightningCLI.subcommands(),
+            "index": {"model", "dataloaders", "datamodule"},
+            "search": {"model", "dataloaders", "datamodule"},
+            "re_rank": {"model", "dataloaders", "datamodule"},
+        }
+
 
 def main():
     """
@@ -96,6 +143,7 @@ def main():
 
     """
     CustomLightningCLI(
+        trainer_class=CustomTrainer,
         save_config_callback=CustomSaveConfigCallback,
         save_config_kwargs={"config_filename": "pl_config.yaml", "overwrite": True},
     )

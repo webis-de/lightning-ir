@@ -5,4 +5,9 @@ setup(
     packages=find_packages(
         include=["lightning_ir", "lightning_ir.*"], exclude=["test", "test.*"]
     ),
+    entry_points={
+        "console_scripts": [
+            "lightning-ir = lightning_ir.main:main",
+        ]
+    },
 )
