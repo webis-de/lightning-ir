@@ -239,6 +239,7 @@ class RunDataset(IRDataset, Dataset):
         )
         if "iteration" not in qrels.columns:
             qrels["iteration"] = 0
+        qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
         qrels = qrels.set_index(["query_id", "doc_id", "iteration"]).unstack(level=-1)
         qrels = qrels.droplevel(0, axis=1)
         qrels = qrels.loc[pd.IndexSlice[self.run["query_id"].drop_duplicates(), :]]
