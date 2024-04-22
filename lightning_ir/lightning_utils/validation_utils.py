@@ -1,6 +1,5 @@
 from typing import Dict, Sequence, Tuple
 
-import ir_datasets
 import ir_measures
 import numpy as np
 import pandas as pd
@@ -11,7 +10,7 @@ def create_run_from_scores(
     query_ids: Sequence[str], doc_ids: Sequence[Tuple[str, ...]], scores: torch.Tensor
 ) -> pd.DataFrame:
     num_docs = [len(ids) for ids in doc_ids]
-    scores = scores.cpu().detach().numpy().reshape(-1)
+    scores = scores.float().cpu().detach().numpy().reshape(-1)
     df = pd.DataFrame(
         {
             "query_id": np.array(query_ids).repeat(num_docs),
