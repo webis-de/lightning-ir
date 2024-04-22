@@ -1,15 +1,8 @@
-from pathlib import Path
 from typing import Any, Dict, Sequence, Tuple
 
 import torch
 
 from ..data.data import BiEncoderTrainBatch, IndexBatch, SearchBatch
-from ..data.datamodule import RunDataset
-from ..lightning_utils.validation_utils import (
-    create_qrels_from_dicts,
-    create_run_from_scores,
-    evaluate_run,
-)
 from ..loss.loss import InBatchLossFunction, LossFunction
 from ..tokenizer.tokenizer import BiEncoderTokenizer
 from .model import BiEncoderConfig, BiEncoderModel
