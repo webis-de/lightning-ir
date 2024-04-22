@@ -92,6 +92,14 @@ class KLDivergence(ListwiseLossFunction):
         return loss
 
 
+class LocalizedContrastiveEstimation(ListwiseLossFunction):
+    def compute_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        targets = self.process_targets(logits, targets)
+        targets = targets.argmax(dim=1)
+        loss = torch.nn.functional.cross_entropy(logits, targets)
+        return loss
+
+
 class InBatchLossFunction(LossFunction):
     def __init__(
         self,

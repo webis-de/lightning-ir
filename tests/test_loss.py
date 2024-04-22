@@ -9,6 +9,7 @@ from lightning_ir.loss.loss import (
     InBatchLossFunction,
     KLDivergence,
     LossFunction,
+    LocalizedContrastiveEstimation,
     RankNet,
     SupervisedMarginMSE,
 )
@@ -45,6 +46,7 @@ def labels(batch_size: int, depth: int) -> torch.Tensor:
         KLDivergence,
         RankNet,
         SupervisedMarginMSE,
+        LocalizedContrastiveEstimation,
     ],
 )
 def test_loss_func(
