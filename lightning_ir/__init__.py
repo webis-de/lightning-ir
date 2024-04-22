@@ -1,8 +1,8 @@
-from bi_encoder.colbert import ColBERTConfig, ColBERTModel
-from bi_encoder.model import BiEncoderConfig, BiEncoderModel
-from bi_encoder.module import BiEncoderModule
-from cross_encoder.model import CrossEncoderModel
-from cross_encoder.mono import (
+from .bi_encoder.colbert import ColBERTConfig, ColBERTModel
+from .bi_encoder.model import BiEncoderConfig, BiEncoderModel
+from .bi_encoder.module import BiEncoderModule
+from .cross_encoder.model import CrossEncoderModel
+from .cross_encoder.mono import (
     MonoBertConfig,
     MonoBertModel,
     MonoElectraConfig,
@@ -10,7 +10,7 @@ from cross_encoder.mono import (
     MonoRobertaConfig,
     MonoRobertaModel,
 )
-from loss.loss import (
+from .loss.loss import (
     ConstantMarginMSE,
     InBatchCrossEntropy,
     KLDivergence,
