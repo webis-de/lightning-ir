@@ -10,6 +10,7 @@ from .cross_encoder.mono import (
     MonoRobertaConfig,
     MonoRobertaModel,
 )
+from .data.datamodule import LightningIRDataModule
 from .loss.loss import (
     ConstantMarginMSE,
     InBatchCrossEntropy,
@@ -30,6 +31,7 @@ __all__ = [
     "CrossEncoderModel",
     "InBatchCrossEntropy",
     "KLDivergence",
+    "LightningIRDataModule",
     "LocalizedContrastiveEstimation",
     "LossFunction",
     "MonoBertConfig",
