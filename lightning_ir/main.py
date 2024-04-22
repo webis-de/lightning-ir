@@ -10,6 +10,7 @@ from lightning.pytorch.cli import LightningCLI, SaveConfigCallback
 from lightning.pytorch.loggers import WandbLogger
 from typing_extensions import override
 
+import lightning_ir  # noqa: F401
 from lightning_ir.lightning_utils.warmup_schedulers import (
     LR_SCHEDULERS,
     WarmupScheduler,
