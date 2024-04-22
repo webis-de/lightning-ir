@@ -9,15 +9,25 @@ from ..model import LightningIRConfig, LightningIRModel
 class CrossEncoderConfig(LightningIRConfig):
     model_type = "cross-encoder"
 
-    ADDED_ARGS = []
+    ADDED_ARGS = [
+        "query_length",
+        "doc_length",
+    ]
 
-    TOKENIZER_ARGS = []
+    TOKENIZER_ARGS = [
+        "query_length",
+        "doc_length",
+    ]
 
     def __init__(
         self,
+        query_length: int = 32,
+        doc_length: int = 256,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self.query_length = query_length
+        self.doc_length = doc_length
 
     def to_added_args_dict(self) -> Dict[str, Any]:
         return {

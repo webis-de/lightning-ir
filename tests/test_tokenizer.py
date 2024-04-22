@@ -40,3 +40,14 @@ def test_bi_encoder_tokenizer(model_name_or_path: str):
     doc_encoding = encoding["doc_encoding"]
     assert query_encoding.input_ids[1] == tokenizer.query_token_id
     assert doc_encoding.input_ids[1] == tokenizer.doc_token_id
+
+
+def test_cross_encoder_tokenizer(model_name_or_path: str):
+    query = "What is the capital of France?"
+    doc = "Paris is the capital of France."
+    tokenizer = CrossEncoderTokenizer.from_pretrained(
+        model_name_or_path, query_length=2, doc_length=4
+    )
+    encoding = tokenizer.tokenize(query, doc)["encoding"]
+    assert encoding is not None
+    assert len(encoding.input_ids) == tokenizer.query_length + tokenizer.doc_length + 3

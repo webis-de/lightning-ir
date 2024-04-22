@@ -1,6 +1,6 @@
 from os import PathLike
 import warnings
-from typing import Dict, List
+from typing import Dict, List, Sequence
 
 from transformers import AutoTokenizer
 
@@ -27,8 +27,8 @@ class LightningIRTokenizer:
 
     def tokenize(
         self,
-        queries: str | None = None,
-        docs: str | None = None,
+        queries: str | Sequence[str] | None = None,
+        docs: str | Sequence[str] | None = None,
         **kwargs,
     ) -> Dict[str, BatchEncoding]:
         raise NotImplementedError("Tokenizer must implement tokenize method.")
@@ -60,16 +60,69 @@ class LightningIRTokenizer:
 
 
 class CrossEncoderTokenizer(LightningIRTokenizer):
-    def tokenize(
+
+    def __init__(
         self,
-        queries: str | None = None,
-        docs: str | None = None,
+        tokenizer: PreTrainedTokenizerBase,
+        query_length: int = 32,
+        doc_length: int = 512,
         **kwargs,
+    ):
+        super().__init__(
+            tokenizer=tokenizer,
+            query_length=query_length,
+            doc_length=doc_length,
+            **kwargs,
+        )
+        self.query_length = query_length
+        self.doc_length = doc_length
+
+    def tokenize(
+        self, queries: str | Sequence[str], docs: str | Sequence[str], **kwargs
     ) -> Dict[str, BatchEncoding]:
         if queries is None or docs is None:
             raise ValueError("Both queries and docs must be provided.")
-        num_docs = len(docs) // len(queries)
-        expanded_queries = [query for query in queries for _ in range(num_docs)]
+        queries_is_list = isinstance(queries, list)
+        docs_is_list = isinstance(docs, list)
+        if queries_is_list != docs_is_list:
+            raise ValueError("Queries and docs must be both lists or both strings.")
+        if not queries_is_list:
+            queries = [queries]
+            docs = [docs]
+        truncated_queries = self.batch_decode(
+            self(
+                queries,
+                add_special_tokens=False,
+                truncation=True,
+                max_length=self.query_length,
+                return_attention_mask=False,
+                return_token_type_ids=False,
+            ).input_ids
+        )
+        truncated_docs = self.batch_decode(
+            self(
+                docs,
+                add_special_tokens=False,
+                truncation=True,
+                max_length=self.doc_length,
+                return_attention_mask=False,
+                return_token_type_ids=False,
+            ).input_ids
+        )
+        if queries_is_list:
+            num_docs_per_query = len(truncated_docs) // len(truncated_queries)
+            expanded_queries = [
+                truncated_query
+                for truncated_query in truncated_queries
+                for _ in range(num_docs_per_query)
+            ]
+        else:
+            expanded_queries = truncated_queries[0]
+            docs = truncated_docs[0]
+        return_tensors = kwargs.get("return_tensors", None)
+
+        if return_tensors is not None:
+            kwargs["pad_to_multiple_of"] = 8
         return {"encoding": self(expanded_queries, docs, **kwargs)}
 
 
@@ -176,6 +229,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         orig_post_processor = self._tokenizer.post_processor
         if post_processor is not None:
             self._tokenizer.post_processor = post_processor
+        if kwargs.get("return_tensors", None) is not None:
+            kwargs["pad_to_multiple_of"] = 8
         encoding = self(text, *args, warn=False, **kwargs)
         self._tokenizer.post_processor = orig_post_processor
         return encoding
@@ -220,8 +275,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
 
     def tokenize(
         self,
-        queries: str | None = None,
-        docs: str | None = None,
+        queries: str | Sequence[str] | None = None,
+        docs: str | Sequence[str] | None = None,
         **kwargs,
     ) -> Dict[str, BatchEncoding]:
         encodings = {}
