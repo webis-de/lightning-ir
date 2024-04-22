@@ -462,7 +462,11 @@ class LightningIRDataModule(LightningDataModule):
             batch_size=self.train_batch_size,
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
-            shuffle=self.shuffle_train,
+            shuffle=(
+                False
+                if isinstance(self._train_dataset, IterableDataset)
+                else self.shuffle_train
+            ),
         )
 
     def val_dataloader(self) -> List[DataLoader]:
