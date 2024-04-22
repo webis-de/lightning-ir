@@ -105,7 +105,7 @@ class MonoBertModule(CrossEncoderModule):
                 kwargs = {}
                 if config is not None:
                     kwargs = config.to_added_args_dict()
-                config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
+                config = MonoBertConfig.from_pretrained(model_name_or_path, **kwargs)
                 model = FlashMonoBertModel.from_pretrained(
                     model_name_or_path, config=config
                 )
@@ -138,7 +138,7 @@ class MonoElectraModule(CrossEncoderModule):
                 kwargs = {}
                 if config is not None:
                     kwargs = config.to_added_args_dict()
-                config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
+                config = MonoElectraConfig.from_pretrained(model_name_or_path, **kwargs)
                 model = FlashMonoElectraModel.from_pretrained(
                     model_name_or_path, config=config
                 )
@@ -171,7 +171,7 @@ class MonoRobertaModule(CrossEncoderModule):
                 kwargs = {}
                 if config is not None:
                     kwargs = config.to_added_args_dict()
-                config = AutoConfig.from_pretrained(model_name_or_path, **kwargs)
+                config = MonoRobertaConfig.from_pretrained(model_name_or_path, **kwargs)
                 model = FlashMonoRobertaModel.from_pretrained(
                     model_name_or_path, config=config
                 )
