@@ -346,6 +346,7 @@ class LightningIRDataModule(LightningDataModule):
         config: BiEncoderConfig | CrossEncoderConfig | None,
         num_workers: int = 0,
         train_batch_size: int | None = None,
+        shuffle_train: bool = True,
         inference_batch_size: int | None = None,
         train_dataset: str | None = None,
         train_dataset_config: RunDatasetConfig | TupleDatasetConfig | None = None,
@@ -385,6 +386,7 @@ class LightningIRDataModule(LightningDataModule):
         self.num_workers = num_workers
 
         self.train_batch_size = train_batch_size
+        self.shuffle_train = shuffle_train
         self.inference_batch_size = inference_batch_size
         self.train_dataset = train_dataset
         self.inference_datasets = inference_datasets
@@ -460,6 +462,7 @@ class LightningIRDataModule(LightningDataModule):
             batch_size=self.train_batch_size,
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
+            shuffle=self.shuffle_train,
         )
 
     def val_dataloader(self) -> List[DataLoader]:
