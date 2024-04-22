@@ -265,6 +265,11 @@ class RunDataset(IRDataset, Dataset):
             non_relevant = group.loc[non_relevant_bool].sample(sample_non_relevant)
             group = pd.concat([relevant, non_relevant])
         elif self.config.sampling_strategy == "top":
+            if group.shape[0] < self.config.sample_size:
+                raise ValueError(
+                    "Not enough documents in run file to sample from. "
+                    "Consider using a different sampling strategy."
+                )
             group = group.head(self.config.sample_size)
         else:
             raise ValueError("Invalid sampling strategy.")
