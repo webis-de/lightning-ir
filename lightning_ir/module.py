@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Sequence, Tuple, Type
+from typing import Any, Dict, Sequence
 
 import torch
 from lightning import LightningModule
@@ -12,7 +12,7 @@ from .data.data import (
     IndexBatch,
     SearchBatch,
 )
-from .data.datamodule import RunDataset
+from .data.dataset import RunDataset
 from .lightning_utils.validation_utils import (
     create_qrels_from_dicts,
     create_run_from_scores,

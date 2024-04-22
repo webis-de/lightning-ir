@@ -10,7 +10,7 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 
 from ..bi_encoder.module import BiEncoderModule
 from ..data.data import IndexBatch, SearchBatch
-from ..data.datamodule import RUN_HEADER, DocDataset, QueryDataset
+from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset
 from ..index.indexer import IVFPQIndexConfig, IVFPQIndexer
 from ..search.searcher import SearchConfig, Searcher
 
@@ -104,9 +104,7 @@ class IndexCallback(Callback):
         num_train_tokens = self.num_train_tokens
         # max 2^18 * max_points_per_centroid training tokens
         approx_num_tokens = int(
-            min(
-                2**18 * max_points_per_centroid, num_train_tokens or approx_num_tokens
-            )
+            min(2**18 * max_points_per_centroid, num_train_tokens or approx_num_tokens)
         )
         if num_centroids is None:
             num_centroids = 2 ** math.floor(
