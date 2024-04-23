@@ -4,12 +4,15 @@ import pytest
 import torch
 
 from lightning_ir.loss.loss import (
+    ApproxMRR,
+    ApproxNDCG,
+    ApproxRankMSE,
     ConstantMarginMSE,
     InBatchCrossEntropy,
     InBatchLossFunction,
     KLDivergence,
-    LossFunction,
     LocalizedContrastiveEstimation,
+    LossFunction,
     RankNet,
     SupervisedMarginMSE,
 )
@@ -42,11 +45,14 @@ def labels(batch_size: int, depth: int) -> torch.Tensor:
 @pytest.mark.parametrize(
     "LossFunc",
     [
+        ApproxMRR,
+        ApproxNDCG,
+        ApproxRankMSE,
         ConstantMarginMSE,
         KLDivergence,
+        LocalizedContrastiveEstimation,
         RankNet,
         SupervisedMarginMSE,
-        LocalizedContrastiveEstimation,
     ],
 )
 def test_loss_func(

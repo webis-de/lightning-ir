@@ -4,6 +4,53 @@ from typing import Literal, Tuple
 import torch
 
 
+def get_dcg(
+    ranks: torch.Tensor,
+    labels: torch.Tensor,
+    k: int | None = None,
+    scale_gains: bool = True,
+) -> torch.Tensor:
+    log_ranks = torch.log2(1 + ranks)
+    discounts = 1 / log_ranks
+    if scale_gains:
+        gains = 2**labels - 1
+    else:
+        gains = labels
+    dcgs = gains * discounts
+    if k is not None:
+        dcgs = dcgs.masked_fill(ranks > k, 0)
+    return dcgs.sum(dim=-1)
+
+
+def get_ndcg(
+    ranks: torch.Tensor,
+    labels: torch.Tensor,
+    k: int | None = None,
+    scale_gains: bool = True,
+    optimal_labels: torch.Tensor | None = None,
+) -> torch.Tensor:
+    if optimal_labels is None:
+        optimal_labels = labels
+    optimal_ranks = torch.argsort(torch.argsort(optimal_labels, descending=True))
+    optimal_ranks = optimal_ranks + 1
+    dcg = get_dcg(ranks, labels, k, scale_gains)
+    idcg = get_dcg(optimal_ranks, optimal_labels, k, scale_gains)
+    ndcg = dcg / (idcg.clamp(min=1e-12))
+    return ndcg
+
+
+def get_mrr(
+    ranks: torch.Tensor, labels: torch.Tensor, k: int | None = None
+) -> torch.Tensor:
+    labels = labels.clamp(None, 1)
+    reciprocal_ranks = 1 / ranks
+    mrr = reciprocal_ranks * labels
+    if k is not None:
+        mrr = mrr.masked_fill(ranks > k, 0)
+    mrr = mrr.max(dim=-1)[0]
+    return mrr
+
+
 class LossFunction(ABC):
     @abstractmethod
     def compute_loss(
@@ -99,6 +146,63 @@ class LocalizedContrastiveEstimation(ListwiseLossFunction):
         loss = torch.nn.functional.cross_entropy(logits, targets)
         return loss
 
+
+class ApproxLossFunction(ListwiseLossFunction):
+    def __init__(self, temperature: float = 1) -> None:
+        super().__init__()
+        self.temperature = temperature
+
+    @staticmethod
+    def get_approx_ranks(logits: torch.Tensor, temperature: float) -> torch.Tensor:
+        score_diff = logits[:, None] - logits[..., None]
+        normalized_score_diff = torch.sigmoid(score_diff / temperature)
+        # set diagonal to 0
+        normalized_score_diff = normalized_score_diff * (
+            1 - torch.eye(logits.shape[1], device=logits.device)
+        )
+        approx_ranks = normalized_score_diff.sum(-1) + 1
+        return approx_ranks
+
+
+class ApproxNDCG(ApproxLossFunction):
+    def __init__(self, temperature: float = 1, scale_gains: bool = True):
+        super().__init__(temperature)
+        self.scale_gains = scale_gains
+
+    def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        approx_ranks = self.get_approx_ranks(logits, self.temperature)
+        ndcg = get_ndcg(approx_ranks, labels, k=None, scale_gains=self.scale_gains)
+        loss = 1 - ndcg
+        return loss.mean()
+
+
+class ApproxMRR(ApproxLossFunction):
+    def __init__(self, temperature: float = 1):
+        super().__init__(temperature)
+
+    def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        approx_ranks = self.get_approx_ranks(logits, self.temperature)
+        mrr = get_mrr(approx_ranks, labels, k=None)
+        loss = 1 - mrr
+        return loss.mean()
+
+
+class ApproxRankMSE(ApproxLossFunction):
+    def __init__(self, temperature: float = 1, discounted: bool = False):
+        super().__init__(temperature)
+        self.discounted = discounted
+
+    def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+        approx_ranks = self.get_approx_ranks(logits, self.temperature)
+        ranks = torch.argsort(labels, descending=True) + 1
+        loss = torch.nn.functional.mse_loss(
+            approx_ranks, ranks.to(approx_ranks), reduction="none"
+        )
+        if self.discounted:
+            weight = 1 / torch.log2(ranks + 1)
+            loss = loss * weight
+        loss = loss.mean()
+        return loss
 
 class InBatchLossFunction(LossFunction):
     def __init__(
