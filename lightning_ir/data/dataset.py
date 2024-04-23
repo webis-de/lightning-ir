@@ -114,13 +114,23 @@ class DocDataset(DataParallelIterableDataset):
 
 class IRDataset:
     def __init__(self, dataset: str) -> None:
-        self.ir_dataset = ir_datasets.load(dataset)
+        if dataset in DASHED_DATASET_MAP:
+            dataset = DASHED_DATASET_MAP[dataset]
+        self.dataset = dataset
+        try:
+            self.ir_dataset = ir_datasets.load(dataset)
+        except KeyError:
+            self.ir_dataset = None
         self._queries = None
         self._docs = None
 
     @property
     def queries(self) -> pd.Series:
         if self._queries is None:
+            if self.ir_dataset is None:
+                raise ValueError(
+                    f"Unable to find dataset {self.dataset} in ir-datasets"
+                )
             queries_iter = self.ir_dataset.queries_iter()
             self._queries = pd.Series(
                 {query.query_id: query.default_text() for query in queries_iter},
@@ -132,11 +142,17 @@ class IRDataset:
     @property
     def docs(self) -> ir_datasets.indices.Docstore | Dict[str, GenericDoc]:
         if self._docs is None:
+            if self.ir_dataset is None:
+                raise ValueError(
+                    f"Unable to find dataset {self.dataset} in ir-datasets"
+                )
             self._docs = self.ir_dataset.docs_store()
         return self._docs
 
     @property
     def dataset_id(self) -> str:
+        if self.ir_dataset is None:
+            return self.dataset
         return self.ir_dataset.dataset_id()
 
     @property
@@ -147,9 +163,7 @@ class IRDataset:
 class RunDataset(IRDataset, Dataset):
     def __init__(self, run_dataset: Path, config: RunDatasetConfig) -> None:
         super().__init__(
-            DASHED_DATASET_MAP[
-                run_dataset.name[: -len("".join(run_dataset.suffixes))].split("__")[-1]
-            ]
+            run_dataset.name[: -len("".join(run_dataset.suffixes))].split("__")[-1]
         )
         self.run_dataset = run_dataset
         self.config = config
@@ -157,18 +171,20 @@ class RunDataset(IRDataset, Dataset):
 
         self.run = self.load_run()
         self.qrels = self.load_qrels()
+        self.qrel_groups = None
 
-        self.run = self.run.merge(
-            self.qrels.add_prefix("relevance_", axis=1),
-            on=["query_id", "doc_id"],
-            how=(
-                "outer" if self._docs is None else "left"
-            ),  # outer join if docs are from ir_datasets else only keep docs in run
-        )
+        if self.qrels is not None:
+            self.run = self.run.merge(
+                self.qrels.add_prefix("relevance_", axis=1),
+                on=["query_id", "doc_id"],
+                how=(
+                    "outer" if self._docs is None else "left"
+                ),  # outer join if docs are from ir_datasets else only keep docs in run
+            )
+            self.qrel_groups = self.qrels.groupby("query_id")
+
         self.run = self.run.sort_values(["query_id", "rank"])
-
         self.run_groups = self.run.groupby("query_id")
-        self.qrel_groups = self.qrels.groupby("query_id")
         self.query_ids = list(self.run_groups.groups.keys())
 
         if self.run["rank"].max() < config.depth:
@@ -233,7 +249,9 @@ class RunDataset(IRDataset, Dataset):
             run = run[run["rank"] <= self.config.depth]
         return run
 
-    def load_qrels(self) -> pd.DataFrame:
+    def load_qrels(self) -> pd.DataFrame | None:
+        if self.ir_dataset is None:
+            return None
         qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).rename(
             {"subtopic_id": "iteration"}, axis=1
         )
@@ -284,14 +302,16 @@ class RunDataset(IRDataset, Dataset):
             .fillna(0)
             .values
         )
-        qrels = (
-            self.qrel_groups.get_group(query_id)
-            .stack()
-            .rename("relevance")
-            .astype(int)
-            .reset_index()
-            .to_dict(orient="records")
-        )
+        qrels = None
+        if self.qrel_groups is not None:
+            qrels = (
+                self.qrel_groups.get_group(query_id)
+                .stack()
+                .rename("relevance")
+                .astype(int)
+                .reset_index()
+                .to_dict(orient="records")
+            )
         return TrainSample(query_id, query, doc_ids, docs, targets, qrels)
 
 

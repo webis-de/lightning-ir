@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import torch
 
 from lightning_ir.data.data import (
@@ -9,6 +7,9 @@ from lightning_ir.data.data import (
     SearchBatch,
 )
 from lightning_ir.data.datamodule import LightningIRDataModule
+from lightning_ir.data.dataset import RunDataset, RunDatasetConfig
+
+from .conftest import DATA_DIR
 
 
 def test_rank_run_dataset(rank_run_datamodule: LightningIRDataModule):
@@ -95,3 +96,15 @@ def test_doc_dataset(doc_datamodule: LightningIRDataModule):
             assert value is not None
         else:
             assert value is None
+
+
+def test_json_dataset():
+    dataset = RunDataset(
+        DATA_DIR / "run.jsonl",
+        RunDatasetConfig("rank", depth=5, sample_size=5, sampling_strategy="top"),
+    )
+    sample = dataset[0]
+    assert sample is not None
+    assert sample.query_id is not None
+    assert len(sample.doc_ids) == 5
+    assert sample.qrels is None
