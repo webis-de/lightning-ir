@@ -7,8 +7,8 @@ from lightning import LightningModule
 from transformers import PreTrainedModel
 
 from .data.data import (
-    BiEncoderTrainBatch,
-    CrossEncoderTrainBatch,
+    BiEncoderRunBatch,
+    CrossEncoderRunBatch,
     IndexBatch,
     SearchBatch,
 )
@@ -51,20 +51,18 @@ class LightningIRModule(LightningModule):
         self.train()
         return super().on_fit_start()
 
-    def forward(
-        self, batch: BiEncoderTrainBatch | CrossEncoderTrainBatch
-    ) -> torch.Tensor:
+    def forward(self, batch: BiEncoderRunBatch | CrossEncoderRunBatch) -> torch.Tensor:
         raise NotImplementedError
 
     def compute_losses(
         self,
-        batch: BiEncoderTrainBatch | CrossEncoderTrainBatch,
+        batch: BiEncoderRunBatch | CrossEncoderRunBatch,
         loss_functions: Sequence[LossFunction] | None,
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
     def training_step(
-        self, batch: BiEncoderTrainBatch | CrossEncoderTrainBatch, batch_idx: int
+        self, batch: BiEncoderRunBatch | CrossEncoderRunBatch, batch_idx: int
     ) -> torch.Tensor:
         if self.loss_functions is None:
             raise ValueError("Loss function is not set")
@@ -77,7 +75,7 @@ class LightningIRModule(LightningModule):
 
     def validation_step(
         self,
-        batch: BiEncoderTrainBatch | CrossEncoderTrainBatch,
+        batch: BiEncoderRunBatch | CrossEncoderRunBatch,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
@@ -114,7 +112,10 @@ class LightningIRModule(LightningModule):
             query_ids = sum(outputs["query_ids"], [])
             doc_ids = sum(outputs["doc_ids"], [])
             scores = torch.cat(outputs["scores"]).view(len(query_ids), -1)
-            targets = torch.cat(outputs["targets"]).view(*scores.shape, -1)
+            try:
+                targets = torch.cat(outputs["targets"]).view(*scores.shape, -1)
+            except TypeError:
+                targets = None
             try:
                 qrels = create_qrels_from_dicts(sum(outputs["qrels"], []))
             except TypeError:
@@ -122,6 +123,8 @@ class LightningIRModule(LightningModule):
             run = create_run_from_scores(query_ids, doc_ids, scores)
 
             if "loss" in self.evaluation_metrics:
+                if targets is None:
+                    raise ValueError("Targets are not set")
                 metrics.update(self.validate_loss(dataset_id, scores, targets))
 
             evaluation_metrics = [

@@ -54,5 +54,5 @@ def test_same_as_colbert():
             assert torch.allclose(weight, orig_weight)
 
     assert torch.allclose(query_embedding, orig_query)
-    assert torch.allclose(doc_embedding[d_mask], orig_docs[d_mask])
+    assert torch.allclose(doc_embedding[doc_scoring_mask], orig_docs[d_mask])
     assert torch.allclose(scores, orig_scores)

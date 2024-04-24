@@ -117,7 +117,7 @@ def tuples_datamodule(model: MODELS) -> LightningIRDataModule:
         train_batch_size=3,
         inference_batch_size=3,
         train_dataset="msmarco-passage/train/kd-docpairs",
-        train_dataset_config=TupleDatasetConfig(2),
+        train_dataset_config=TupleDatasetConfig("score", 2),
         inference_datasets=[
             str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
             str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),

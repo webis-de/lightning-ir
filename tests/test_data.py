@@ -1,8 +1,8 @@
 import torch
 
 from lightning_ir.data.data import (
-    BiEncoderTrainBatch,
-    CrossEncoderTrainBatch,
+    BiEncoderRunBatch,
+    CrossEncoderRunBatch,
     IndexBatch,
     SearchBatch,
 )
@@ -19,7 +19,7 @@ def test_rank_run_dataset(rank_run_datamodule: LightningIRDataModule):
     assert config is not None
 
     batch = next(iter(dataloader))
-    assert isinstance(batch, (BiEncoderTrainBatch, CrossEncoderTrainBatch))
+    assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
     for value in batch:
         assert value is not None
     assert batch.targets.shape[0] == datamodule.train_batch_size * config.sample_size
@@ -36,7 +36,7 @@ def test_relevance_run_dataset(relevance_run_datamodule: LightningIRDataModule):
     assert config is not None
 
     batch = next(iter(dataloader))
-    assert isinstance(batch, (BiEncoderTrainBatch, CrossEncoderTrainBatch))
+    assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
     for value in batch:
         assert value is not None
     assert batch.targets.shape[0] == datamodule.train_batch_size * config.sample_size
@@ -49,7 +49,7 @@ def test_single_relevant_run_dataset(
     dataloader = datamodule.train_dataloader()
 
     batch = next(iter(dataloader))
-    assert isinstance(batch, (BiEncoderTrainBatch, CrossEncoderTrainBatch))
+    assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
     for value in batch:
         assert value is not None
     assert (batch.targets > 0).sum() == datamodule.train_batch_size
@@ -61,7 +61,7 @@ def test_tuples_dataset(tuples_datamodule: LightningIRDataModule):
     assert config is not None
 
     batch = next(iter(dataloader))
-    assert isinstance(batch, (BiEncoderTrainBatch, CrossEncoderTrainBatch))
+    assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
     for field in batch._fields:
         value = getattr(batch, field)
         if field == "qrels":

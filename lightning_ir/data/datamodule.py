@@ -1,6 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
+from typing import Any, Dict, List, Literal, Sequence
 
 import torch
 from lightning import LightningDataModule
@@ -11,13 +11,13 @@ from ..bi_encoder.module import BiEncoderConfig, BiEncoderModule
 from ..cross_encoder.module import CrossEncoderConfig, CrossEncoderModule
 from ..tokenizer.tokenizer import BiEncoderTokenizer, CrossEncoderTokenizer
 from .data import (
-    BiEncoderTrainBatch,
-    CrossEncoderTrainBatch,
+    BiEncoderRunBatch,
+    CrossEncoderRunBatch,
     DocSample,
     IndexBatch,
     QuerySample,
+    RunSample,
     SearchBatch,
-    TrainSample,
 )
 from .dataset import (
     DocDataset,
@@ -26,8 +26,8 @@ from .dataset import (
     QueryDatasetConfig,
     RunDataset,
     RunDatasetConfig,
+    TupleDataset,
     TupleDatasetConfig,
-    TuplesDataset,
 )
 
 
@@ -99,11 +99,11 @@ class LightningIRDataModule(LightningDataModule):
             raise ValueError("A training dataset and config must be provided.")
         if isinstance(self.train_dataset_config, RunDatasetConfig):
             self._train_dataset = RunDataset(
-                Path(self.train_dataset), self.train_dataset_config
+                Path(self.train_dataset), self.train_dataset_config, "train"
             )
         elif isinstance(self.train_dataset_config, TupleDatasetConfig):
-            self._train_dataset = TuplesDataset(
-                self.train_dataset, self.train_dataset_config
+            self._train_dataset = TupleDataset(
+                self.train_dataset, self.train_dataset_config, "train"
             )
         else:
             raise ValueError(
@@ -111,7 +111,7 @@ class LightningIRDataModule(LightningDataModule):
                 "TupleDatasetConfig."
             )
 
-    def setup_inference(self) -> None:
+    def setup_inference(self, stage: Literal["validate", "predict"]) -> None:
         if self.inference_datasets is None:
             return
         if self.inference_dataset_config is None:
@@ -120,8 +120,12 @@ class LightningIRDataModule(LightningDataModule):
                 "providing inference datasets."
             )
         elif isinstance(self.inference_dataset_config, TupleDatasetConfig):
+            if stage == "predict":
+                raise ValueError(
+                    "Prediction cannot be performed with TupleDatasetConfig."
+                )
             self._inference_datasets = [
-                TuplesDataset(dataset, self.inference_dataset_config)
+                TupleDataset(dataset, self.inference_dataset_config, stage)
                 for dataset in self.inference_datasets
             ]
         elif isinstance(self.inference_dataset_config, RunDatasetConfig):
@@ -131,7 +135,7 @@ class LightningIRDataModule(LightningDataModule):
                     "sampling strategy."
                 )
             self._inference_datasets = [
-                RunDataset(Path(dataset), self.inference_dataset_config)
+                RunDataset(Path(dataset), self.inference_dataset_config, stage)
                 for dataset in self.inference_datasets
             ]
         elif isinstance(self.inference_dataset_config, QueryDatasetConfig):
@@ -150,10 +154,14 @@ class LightningIRDataModule(LightningDataModule):
                 "QueryDatasetConfig, or DocDatasetConfig."
             )
 
-    def setup(self, stage: str) -> None:
+    def setup(self, stage: Literal["fit", "validate", "test", "predict"]) -> None:
         if stage == "fit":
             self.setup_fit()
-        self.setup_inference()
+        if stage == "fit":
+            stage = "validate"
+        if stage == "test":
+            stage = "validate"
+        self.setup_inference(stage)
 
     def train_dataloader(self) -> DataLoader:
         if self._train_dataset is None:
@@ -188,7 +196,7 @@ class LightningIRDataModule(LightningDataModule):
         ]
 
     def _aggregate_samples(
-        self, samples: Sequence[TrainSample | QuerySample | DocSample]
+        self, samples: Sequence[RunSample | QuerySample | DocSample]
     ) -> Dict[str, Any]:
         aggregated = defaultdict(list)
         field_options = {
@@ -238,13 +246,13 @@ class LightningIRDataModule(LightningDataModule):
         return kwargs
 
     def _parse_batch(
-        self, sample: TrainSample | QuerySample | DocSample, **kwargs
-    ) -> BiEncoderTrainBatch | CrossEncoderTrainBatch | IndexBatch | SearchBatch:
-        if isinstance(sample, TrainSample):
+        self, sample: RunSample | QuerySample | DocSample, **kwargs
+    ) -> BiEncoderRunBatch | CrossEncoderRunBatch | IndexBatch | SearchBatch:
+        if isinstance(sample, RunSample):
             if isinstance(self.config, BiEncoderConfig):
-                return BiEncoderTrainBatch(**kwargs)
+                return BiEncoderRunBatch(**kwargs)
             elif isinstance(self.config, CrossEncoderConfig):
-                return CrossEncoderTrainBatch(**kwargs)
+                return CrossEncoderRunBatch(**kwargs)
             else:
                 raise ValueError(
                     f"LightningIRDataModule requires a BiEncoderConfig or "
@@ -257,8 +265,8 @@ class LightningIRDataModule(LightningDataModule):
         raise ValueError("Invalid dataset configuration.")
 
     def collate_fn(
-        self, samples: Sequence[TrainSample | QuerySample | DocSample]
-    ) -> BiEncoderTrainBatch | CrossEncoderTrainBatch | IndexBatch | SearchBatch:
+        self, samples: Sequence[RunSample | QuerySample | DocSample]
+    ) -> BiEncoderRunBatch | CrossEncoderRunBatch | IndexBatch | SearchBatch:
         aggregated = self._aggregate_samples(samples)
         kwargs = self._clean_sample(aggregated)
         return self._parse_batch(samples[0], **kwargs)

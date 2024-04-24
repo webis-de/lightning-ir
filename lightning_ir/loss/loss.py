@@ -204,6 +204,61 @@ class ApproxRankMSE(ApproxLossFunction):
         loss = loss.mean()
         return loss
 
+
+class NeuralLossFunction(ListwiseLossFunction):
+    # TODO add neural loss functions
+
+    def __init__(
+        self, temperature: float = 1, tol: float = 1e-5, max_iter: int = 50
+    ) -> None:
+        super().__init__()
+        self.temperature = temperature
+        self.tol = tol
+        self.max_iter = max_iter
+
+    def neural_sort(self, logits: torch.Tensor) -> torch.Tensor:
+        # https://github.com/ermongroup/neuralsort/blob/master/pytorch/neuralsort.py
+        logits = logits.unsqueeze(-1)
+        dim = logits.shape[1]
+        one = torch.ones((dim, 1), device=logits.device)
+
+        A_logits = torch.abs(logits - logits.permute(0, 2, 1))
+        B = torch.matmul(A_logits, torch.matmul(one, torch.transpose(one, 0, 1)))
+        scaling = dim + 1 - 2 * (torch.arange(dim, device=logits.device) + 1)
+        C = torch.matmul(logits, scaling.to(logits).unsqueeze(0))
+
+        P_max = (C - B).permute(0, 2, 1)
+        P_hat = torch.nn.functional.softmax(P_max / self.temperature, dim=-1)
+
+        P_hat = self.sinkhorn_scaling(P_hat)
+
+        return P_hat
+
+    def sinkhorn_scaling(self, mat: torch.Tensor) -> torch.Tensor:
+        # https://github.com/allegro/allRank/blob/master/allrank/models/losses/loss_utils.py#L8
+        idx = 0
+        while True:
+            if (
+                torch.max(torch.abs(mat.sum(dim=2) - 1.0)) < self.tol
+                and torch.max(torch.abs(mat.sum(dim=1) - 1.0)) < self.tol
+            ) or idx > self.max_iter:
+                break
+            mat = mat / mat.sum(dim=1, keepdim=True).clamp(min=1e-12)
+            mat = mat / mat.sum(dim=2, keepdim=True).clamp(min=1e-12)
+            idx += 1
+
+        return mat
+
+    def get_sorted_labels(
+        self, logits: torch.Tensor, labels: torch.Tensor
+    ) -> torch.Tensor:
+        permutation_matrix = self.neural_sort(logits)
+        pred_sorted_labels = torch.matmul(
+            permutation_matrix, labels[..., None].to(permutation_matrix)
+        ).squeeze(-1)
+        return pred_sorted_labels
+
+
 class InBatchLossFunction(LossFunction):
     def __init__(
         self,

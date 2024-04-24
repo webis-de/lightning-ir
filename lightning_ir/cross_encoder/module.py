@@ -2,7 +2,7 @@ from typing import Dict, Sequence
 
 import torch
 
-from ..data.data import CrossEncoderTrainBatch
+from ..data.data import CrossEncoderRunBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
 from ..module import LightningIRModule
 from ..tokenizer.tokenizer import CrossEncoderTokenizer
@@ -23,7 +23,7 @@ class CrossEncoderModule(LightningIRModule):
         )
         super().__init__(model, tokenizer, loss_functions, evaluation_metrics)
 
-    def forward(self, batch: CrossEncoderTrainBatch) -> torch.Tensor:
+    def forward(self, batch: CrossEncoderRunBatch) -> torch.Tensor:
         logits = self.model.forward(
             batch.encoding.input_ids,
             batch.encoding.get("attention_mask", None),
@@ -34,7 +34,7 @@ class CrossEncoderModule(LightningIRModule):
 
     def compute_losses(
         self,
-        batch: CrossEncoderTrainBatch,
+        batch: CrossEncoderRunBatch,
         loss_functions: Sequence[LossFunction] | None,
     ) -> Dict[str, torch.Tensor]:
         if loss_functions is None:

@@ -123,12 +123,12 @@ register_kd_docpairs()
 register_colbert_docpairs()
 
 
-class TrainSample(NamedTuple):
+class RunSample(NamedTuple):
     query_id: str
     query: str
     doc_ids: Tuple[str, ...]
     docs: Tuple[str, ...]
-    targets: torch.Tensor
+    targets: torch.Tensor | None = None
     qrels: Sequence[Dict[str, Any]] | None = None
 
 
@@ -150,20 +150,20 @@ class DocSample(NamedTuple):
         return cls(sample[0], sample.default_text())
 
 
-class BiEncoderTrainBatch(NamedTuple):
+class BiEncoderRunBatch(NamedTuple):
     query_ids: Tuple[str, ...]
     query_encoding: BatchEncoding
     doc_ids: Tuple[Tuple[str, ...], ...]
     doc_encoding: BatchEncoding
-    targets: torch.Tensor
+    targets: torch.Tensor | None = None
     qrels: Dict[str, int] | None = None
 
 
-class CrossEncoderTrainBatch(NamedTuple):
+class CrossEncoderRunBatch(NamedTuple):
     query_ids: Tuple[str, ...]
     doc_ids: Tuple[Tuple[str, ...], ...]
     encoding: BatchEncoding
-    targets: torch.Tensor
+    targets: torch.Tensor | None = None
     qrels: Dict[str, int] | None = None
 
 

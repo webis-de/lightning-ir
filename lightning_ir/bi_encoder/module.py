@@ -2,7 +2,7 @@ from typing import Any, Dict, Sequence, Tuple
 
 import torch
 
-from ..data.data import BiEncoderTrainBatch, IndexBatch, SearchBatch
+from ..data.data import BiEncoderRunBatch, IndexBatch, SearchBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
 from ..tokenizer.tokenizer import BiEncoderTokenizer
 from .model import BiEncoderConfig, BiEncoderModel
@@ -28,7 +28,7 @@ class BiEncoderModule(LightningIRModule):
         ):
             self.model.encoder.resize_token_embeddings(len(self.tokenizer), 8)
 
-    def forward(self, batch: BiEncoderTrainBatch) -> torch.Tensor:
+    def forward(self, batch: BiEncoderRunBatch) -> torch.Tensor:
         num_docs = [len(ids) for ids in batch.doc_ids]
         scores = self.model.forward(
             batch.query_encoding.input_ids,
@@ -43,7 +43,7 @@ class BiEncoderModule(LightningIRModule):
 
     def compute_losses(
         self,
-        batch: BiEncoderTrainBatch,
+        batch: BiEncoderRunBatch,
         loss_functions: Sequence[LossFunction] | None,
     ) -> Dict[str, torch.Tensor]:
         if loss_functions is None:

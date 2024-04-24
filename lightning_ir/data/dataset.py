@@ -11,7 +11,7 @@ from ir_datasets.formats import GenericDoc, GenericDocPair
 from torch.distributed import get_rank, get_world_size
 from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
-from .data import DocSample, QuerySample, ScoredDocTuple, TrainSample
+from .data import DocSample, QuerySample, RunSample, ScoredDocTuple, RunSample
 
 DASHED_DATASET_MAP = {
     dataset.replace("/", "-"): dataset for dataset in ir_datasets.registry._registered
@@ -28,13 +28,14 @@ class DocDatasetConfig(NamedTuple):
 
 
 class RunDatasetConfig(NamedTuple):
-    targets: Literal["relevance", "subtopic_relevance", "rank", "score"]
+    targets: Literal["relevance", "subtopic_relevance", "rank", "score"] | None
     depth: int
     sample_size: int
     sampling_strategy: Literal["single_relevant", "top"]
 
 
 class TupleDatasetConfig(NamedTuple):
+    targets: Literal["order", "score"] | None
     num_docs: int | None
 
 
@@ -161,12 +162,20 @@ class IRDataset:
 
 
 class RunDataset(IRDataset, Dataset):
-    def __init__(self, run_dataset: Path, config: RunDatasetConfig) -> None:
+    def __init__(
+        self,
+        run_dataset: Path,
+        config: RunDatasetConfig,
+        stage: Literal["train", "validate", "predict"] = "train",
+    ) -> None:
         super().__init__(
             run_dataset.name[: -len("".join(run_dataset.suffixes))].split("__")[-1]
         )
+        if stage == "train" and config.targets is None:
+            raise ValueError("Targets are required for training.")
         self.run_dataset = run_dataset
         self.config = config
+        self.stage = stage
         self.depth = config.depth
 
         self.run = self.load_run()
@@ -182,6 +191,10 @@ class RunDataset(IRDataset, Dataset):
                 ),  # outer join if docs are from ir_datasets else only keep docs in run
             )
             self.qrel_groups = self.qrels.groupby("query_id")
+
+        if self.stage == "train":
+            num_docs_per_query = self.run.groupby("query_id").transform("size")
+            self.run = self.run[num_docs_per_query >= config.sample_size]
 
         self.run = self.run.sort_values(["query_id", "rank"])
         self.run_groups = self.run.groupby("query_id")
@@ -250,6 +263,8 @@ class RunDataset(IRDataset, Dataset):
         return run
 
     def load_qrels(self) -> pd.DataFrame | None:
+        if self.stage == "predict":
+            return None
         if self.ir_dataset is None:
             return None
         qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).rename(
@@ -266,7 +281,7 @@ class RunDataset(IRDataset, Dataset):
     def __len__(self) -> int:
         return len(self.query_ids)
 
-    def __getitem__(self, idx: int) -> TrainSample:
+    def __getitem__(self, idx: int) -> RunSample:
         query_id = str(self.query_ids[idx])
         group = self.run_groups.get_group(query_id).copy()
         query = self.queries[query_id]
@@ -283,11 +298,6 @@ class RunDataset(IRDataset, Dataset):
             non_relevant = group.loc[non_relevant_bool].sample(sample_non_relevant)
             group = pd.concat([relevant, non_relevant])
         elif self.config.sampling_strategy == "top":
-            if group.shape[0] < self.config.sample_size:
-                raise ValueError(
-                    "Not enough documents in run file to sample from. "
-                    "Consider using a different sampling strategy."
-                )
             group = group.head(self.config.sample_size)
         else:
             raise ValueError("Invalid sampling strategy.")
@@ -295,13 +305,15 @@ class RunDataset(IRDataset, Dataset):
         doc_ids = tuple(group["doc_id"])
         docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
 
-        targets = torch.tensor(
-            group.set_index("doc_id")
-            .loc[list(doc_ids)]
-            .filter(like=self.config.targets)
-            .fillna(0)
-            .values
-        )
+        targets = None
+        if self.config.targets is not None:
+            targets = torch.tensor(
+                group.set_index("doc_id")
+                .loc[list(doc_ids)]
+                .filter(like=self.config.targets)
+                .fillna(0)
+                .values
+            )
         qrels = None
         if self.qrel_groups is not None:
             qrels = (
@@ -312,39 +324,56 @@ class RunDataset(IRDataset, Dataset):
                 .reset_index()
                 .to_dict(orient="records")
             )
-        return TrainSample(query_id, query, doc_ids, docs, targets, qrels)
+        return RunSample(query_id, query, doc_ids, docs, targets, qrels)
 
 
-class TuplesDataset(IRDataset, IterableDataset):
-    def __init__(self, tuples_dataset: str, config: TupleDatasetConfig) -> None:
+class TupleDataset(IRDataset, IterableDataset):
+    def __init__(
+        self,
+        tuples_dataset: str,
+        config: TupleDatasetConfig,
+        stage: Literal["train", "validate"] = "train",
+    ) -> None:
         super().__init__(tuples_dataset)
         if self.queries is None:
             raise ValueError("Queries are required for run datasets.")
         self.config = config
+        self.targets = self.config.targets
+        self.stage = stage
+        if self.stage not in {"train", "validate"}:
+            raise ValueError(
+                f"Invalid stage. Expected 'train' or 'validate'. Got {stage}."
+            )
 
     def parse_sample(
         self, sample: ScoredDocTuple | GenericDocPair
-    ) -> Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[float, ...]]:
-        if isinstance(sample, ScoredDocTuple):
-            doc_ids = sample.doc_ids[: self.config.num_docs]
-
-            scores = (
-                sample.scores
-                if sample.scores is not None
-                else tuple([1.0] + [0.0] * sample.num_docs)
-            )
-            scores = scores[: self.config.num_docs]
-        elif isinstance(sample, GenericDocPair):
+    ) -> Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[float, ...] | None]:
+        targets = None
+        if isinstance(sample, GenericDocPair):
+            if self.targets == "score":
+                raise ValueError("ScoredDocTuple required for score targets.")
+            elif self.targets == "order":
+                targets = (1.0, 0.0)
             doc_ids = (sample.doc_id_a, sample.doc_id_b)
-            scores = (1.0, 0.0)
+        elif isinstance(sample, ScoredDocTuple):
+            doc_ids = sample.doc_ids[: self.config.num_docs]
+            if self.targets is not None:
+                targets = (
+                    sample.scores
+                    if sample.scores is not None and self.targets == "score"
+                    else tuple([1.0] + [0.0] * sample.num_docs)
+                )
+                targets = targets[: self.config.num_docs]
         else:
             raise ValueError("Invalid sample type.")
         docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
-        return doc_ids, docs, scores
+        return doc_ids, docs, targets
 
-    def __iter__(self) -> Iterator[TrainSample]:
+    def __iter__(self) -> Iterator[RunSample]:
         for sample in self.ir_dataset.docpairs_iter():
             query_id = sample.query_id
             query = self.queries.loc[query_id]
             doc_ids, docs, targets = self.parse_sample(sample)
-            yield TrainSample(query_id, query, doc_ids, docs, torch.tensor(targets))
+            if targets is not None:
+                targets = torch.tensor(targets)
+            yield RunSample(query_id, query, doc_ids, docs, targets)
