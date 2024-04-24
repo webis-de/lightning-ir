@@ -11,6 +11,7 @@ from .cross_encoder.mono import (
     MonoRobertaModel,
 )
 from .data.datamodule import LightningIRDataModule
+from .lightning_utils.callbacks import IndexCallback, ReRankCallback, SearchCallback
 from .loss.loss import (
     ConstantMarginMSE,
     InBatchCrossEntropy,
@@ -30,6 +31,7 @@ __all__ = [
     "ConstantMarginMSE",
     "CrossEncoderModel",
     "InBatchCrossEntropy",
+    "IndexCallback",
     "KLDivergence",
     "LightningIRDataModule",
     "LocalizedContrastiveEstimation",
@@ -41,5 +43,7 @@ __all__ = [
     "MonoRobertaConfig",
     "MonoRobertaModel",
     "RankNet",
+    "ReRankCallback",
+    "SearchCallback",
     "SupervisedMarginMSE",
 ]
