@@ -1,7 +1,7 @@
 import itertools
 import math
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional, Sequence
+from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
 
 import pandas as pd
 import torch
@@ -9,8 +9,9 @@ from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
 from ..bi_encoder.module import BiEncoderModule
-from ..data.data import IndexBatch, SearchBatch
-from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset
+from ..cross_encoder.module import CrossEncoderModule
+from ..data.data import IndexBatch, SearchBatch, BiEncoderRunBatch, CrossEncoderRunBatch
+from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
 from ..index.indexer import IVFPQIndexConfig, IVFPQIndexer
 from ..search.searcher import SearchConfig, Searcher
 
@@ -183,65 +184,28 @@ class IndexCallback(Callback):
         self.indexer.save()
 
 
-class SearchCallback(BasePredictionWriter):
-    def __init__(
-        self,
-        save_dir: Path | None = None,
-        index_path: Path | None = None,
-        k: int = 100,
-        candidate_k: int = 1000,
-        imputation_strategy: Literal["min", "gather"] | None = None,
-        n_probe: int = 1,
-    ) -> None:
+class RankCallback(BasePredictionWriter):
+    def __init__(self, save_dir: Path | None = None) -> None:
         super().__init__()
-        if imputation_strategy is None:
-            raise ValueError("imputation_strategy must be set")
         self.save_dir = save_dir
-        self.index_path = index_path
-        self.k = k
-        self.candidate_k = candidate_k
-        self.imputation_strategy = imputation_strategy
-        self.n_probe = n_probe
-        self.config: SearchConfig
-        self.searcher: Searcher
 
-    def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
+    def setup(
+        self,
+        trainer: Trainer,
+        pl_module: BiEncoderModule | CrossEncoderModule,
+        stage: str,
+    ) -> None:
         if stage != "predict":
-            raise ValueError("SearchCallback can only be used in predict stage")
+            raise ValueError(
+                f"{self.__class__.__name__} can only be used in predict stage"
+            )
 
-    def on_predict_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
+    def on_predict_start(
+        self, trainer: Trainer, pl_module: BiEncoderModule | CrossEncoderModule
+    ) -> List[QueryDataset] | List[RunDataset]:
         dataloaders = trainer.predict_dataloaders
         if dataloaders is None:
             raise ValueError("No predict_dataloaders found")
-        datasets = [dataloader.dataset for dataloader in dataloaders]
-        if not all(isinstance(dataset, QueryDataset) for dataset in datasets):
-            raise ValueError("Expected QueryDatasets for searching")
-        docs_dataset_id = [dataset.docs_dataset_id for dataset in datasets]
-        if len(set(docs_dataset_id)) != 1:
-            raise ValueError("All QueryDatasets must have the same docs_dataset_id")
-        docs_dataset_id = docs_dataset_id[0]
-
-        index_path = self.index_path
-        if index_path is None:
-            if Path(pl_module.config.name_or_path).exists():
-                index_dir = Path(pl_module.config.name_or_path) / "indexes"
-                index_path = index_dir / docs_dataset_id
-                if not index_path.exists():
-                    raise ValueError(f"No index found at {index_path}")
-            else:
-                raise ValueError(
-                    "No index_path provided and model_name_or_path is not a path"
-                )
-        self.config = SearchConfig(
-            index_path,
-            self.k,
-            self.candidate_k,
-            self.imputation_strategy,
-            self.n_probe,
-        )
-        self.searcher = Searcher(
-            self.config, pl_module.config, pl_module.model.scoring_function
-        )
         if self.save_dir is None:
             default_save_dir = Path(pl_module.config.name_or_path)
             if default_save_dir.exists():
@@ -251,6 +215,8 @@ class SearchCallback(BasePredictionWriter):
                 raise ValueError(
                     "No index_path provided and model_name_or_path is not a path"
                 )
+        datasets = [dataloader.dataset for dataloader in dataloaders]
+        return datasets
 
     def get_run_path(self, trainer: Trainer, dataset_idx: int) -> Path:
         dataloaders = trainer.predict_dataloaders
@@ -259,38 +225,43 @@ class SearchCallback(BasePredictionWriter):
         if dataloaders is None:
             raise ValueError("No predict_dataloaders found")
         dataset = dataloaders[dataset_idx].dataset
-        if not isinstance(dataset, QueryDataset):
-            raise ValueError("Expected a QueryDataset for searching")
         dataset_id = dataset.dataset_id.replace("/", "-")
         run_file_path = self.save_dir / f"{dataset_id}.run"
         return run_file_path
 
+    def rank(self, prediction: Any) -> Tuple[torch.Tensor, List[str], List[int]]:
+        raise NotImplementedError("rank method must be implemented in subclass")
+
+    def gather(
+        self,
+        pl_module: BiEncoderModule | CrossEncoderModule,
+        prediction: Any,
+        batch: SearchBatch | BiEncoderRunBatch | CrossEncoderRunBatch,
+    ) -> Any:
+        raise NotImplementedError("gather method must be implemented in subclass")
+
     def write_on_batch_end(
         self,
         trainer: Trainer,
-        pl_module: BiEncoderModule,
+        pl_module: BiEncoderModule | CrossEncoderModule,
         prediction: Any,
         batch_indices: Optional[Sequence[int]],
-        batch: SearchBatch,
+        batch: SearchBatch | BiEncoderRunBatch | CrossEncoderRunBatch,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        query_embeddings = pl_module.all_gather(prediction)
-        query_attention_mask = pl_module.all_gather(
-            batch.query_encoding.attention_mask.bool()
-        )
+        query_ids = pl_module.all_gather(batch.query_ids)
+        outputs = self.gather(pl_module, prediction, batch)
         if not trainer.is_global_zero:
             return
 
-        scores, doc_ids, num_docs = self.searcher.search(
-            query_embeddings, query_attention_mask
-        )
+        scores, doc_ids, num_docs = self.rank(**outputs)
         scores = scores.cpu().numpy()
 
         query_ids = list(
             itertools.chain.from_iterable(
                 itertools.repeat(query_id, num)
-                for query_id, num in zip(batch.query_ids, num_docs)
+                for query_id, num in zip(query_ids, num_docs)
             )
         )
         run_df = pd.DataFrame(
@@ -314,3 +285,102 @@ class SearchCallback(BasePredictionWriter):
             mode = "a"
 
         run_df.to_csv(run_file_path, header=False, index=False, sep="\t", mode=mode)
+
+
+class ReRankCallback(RankCallback):
+
+    def gather(
+        self,
+        pl_module: BiEncoderModule | CrossEncoderModule,
+        prediction: Any,
+        batch: SearchBatch | BiEncoderRunBatch | CrossEncoderRunBatch,
+    ) -> Any:
+        if not isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch)):
+            raise ValueError("Expected BiEncoderRunBatch or CrossEncoderRunBatch")
+        logits = pl_module.all_gather(prediction)
+        doc_ids = pl_module.all_gather(batch.doc_ids)
+        return dict(logits=logits, doc_ids=doc_ids)
+
+    def rank(
+        self, logits: torch.Tensor, doc_ids: List[str]
+    ) -> Tuple[torch.Tensor, List[str], List[int]]:
+        logits = logits.view(-1)
+        num_docs = [len(_doc_ids) for _doc_ids in doc_ids]
+        doc_ids = list(itertools.chain.from_iterable(doc_ids))
+        if logits.shape[0] != len(doc_ids):
+            raise ValueError("logits and doc_ids must have the same length")
+        return logits.view(-1), doc_ids, num_docs
+
+
+class SearchCallback(RankCallback):
+    def __init__(
+        self,
+        save_dir: Path | None = None,
+        index_path: Path | None = None,
+        k: int = 100,
+        candidate_k: int = 1000,
+        imputation_strategy: Literal["min", "gather"] | None = None,
+        n_probe: int = 1,
+    ) -> None:
+        super().__init__(save_dir)
+        if imputation_strategy is None:
+            raise ValueError("imputation_strategy must be set")
+        self.index_path = index_path
+        self.k = k
+        self.candidate_k = candidate_k
+        self.imputation_strategy = imputation_strategy
+        self.n_probe = n_probe
+        self.config: SearchConfig
+        self.searcher: Searcher
+
+    def gather(
+        self,
+        pl_module: BiEncoderModule | CrossEncoderModule,
+        prediction: Any,
+        batch: SearchBatch,
+    ) -> Dict[str, torch.Tensor]:
+        if not isinstance(batch, SearchBatch):
+            raise ValueError("Expected SearchBatch")
+        query_embeddings = pl_module.all_gather(prediction)
+        query_attention_mask = pl_module.all_gather(
+            batch.query_encoding.attention_mask.bool()
+        )
+        return dict(
+            query_embeddings=query_embeddings, query_attention_mask=query_attention_mask
+        )
+
+    def rank(
+        self, query_embeddings: torch.Tensor, query_attention_mask: torch.Tensor
+    ) -> Tuple[torch.Tensor, List[str], List[int]]:
+        return self.searcher.search(query_embeddings, query_attention_mask)
+
+    def on_predict_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
+        datasets = super().on_predict_start(trainer, pl_module)
+        if not all(isinstance(dataset, QueryDataset) for dataset in datasets):
+            raise ValueError("Expected QueryDatasets for searching")
+        docs_dataset_ids = [dataset.docs_dataset_id for dataset in datasets]
+        if len(set(docs_dataset_ids)) != 1:
+            raise ValueError("All QueryDatasets must have the same docs_dataset_id")
+        docs_dataset_id = docs_dataset_ids[0]
+
+        index_path = self.index_path
+        if index_path is None:
+            if Path(pl_module.config.name_or_path).exists():
+                index_dir = Path(pl_module.config.name_or_path) / "indexes"
+                index_path = index_dir / docs_dataset_id
+                if not index_path.exists():
+                    raise ValueError(f"No index found at {index_path}")
+            else:
+                raise ValueError(
+                    "No index_path provided and model_name_or_path is not a path"
+                )
+        self.config = SearchConfig(
+            index_path,
+            self.k,
+            self.candidate_k,
+            self.imputation_strategy,
+            self.n_probe,
+        )
+        self.searcher = Searcher(
+            self.config, pl_module.config, pl_module.model.scoring_function
+        )

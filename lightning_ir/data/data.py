@@ -167,19 +167,6 @@ class CrossEncoderRunBatch(NamedTuple):
     qrels: Dict[str, int] | None = None
 
 
-class BiEncoderReRankBatch(NamedTuple):
-    query_ids: Tuple[str, ...]
-    query_encoding: BatchEncoding
-    doc_ids: Tuple[Tuple[str, ...], ...]
-    doc_encoding: BatchEncoding
-
-
-class CrossEncoderReRankBatch(NamedTuple):
-    query_ids: Tuple[str, ...]
-    doc_ids: Tuple[Tuple[str, ...], ...]
-    encoding: BatchEncoding
-
-
 class IndexBatch(NamedTuple):
     doc_ids: Tuple[str, ...]
     doc_encoding: BatchEncoding

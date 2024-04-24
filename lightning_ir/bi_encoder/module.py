@@ -138,9 +138,13 @@ class BiEncoderModule(LightningIRModule):
         ).view(-1, seq_len)
         return doc_embeddings, doc_scoring_mask
 
-    def predict_step(self, batch: IndexBatch | SearchBatch, *args, **kwargs) -> Any:
+    def predict_step(
+        self, batch: IndexBatch | SearchBatch | BiEncoderRunBatch, *args, **kwargs
+    ) -> Any:
         if isinstance(batch, IndexBatch):
             return self.model.encode_docs(**batch.doc_encoding)
         if isinstance(batch, SearchBatch):
             return self.model.encode_queries(**batch.query_encoding)
+        if isinstance(batch, BiEncoderRunBatch):
+            return self.forward(batch)
         raise ValueError(f"Unknown batch type {type(batch)}")

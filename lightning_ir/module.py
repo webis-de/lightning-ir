@@ -160,13 +160,6 @@ class LightningIRModule(LightningModule):
             )
         return metrics
 
-    def predict_step(self, batch: IndexBatch | SearchBatch, *args, **kwargs) -> Any:
-        if isinstance(batch, IndexBatch):
-            return self.model.encode_docs(**batch.doc_encoding)
-        if isinstance(batch, SearchBatch):
-            return self.model.encode_queries(**batch.query_encoding)
-        raise ValueError(f"Unknown batch type {type(batch)}")
-
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         if self.trainer is not None and self.trainer.log_dir is not None:
             if not self.trainer.training or self.trainer.global_rank != 0:

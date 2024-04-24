@@ -22,6 +22,7 @@ from .module import CrossEncoderModule
 
 
 class Pooler(torch.nn.Module):
+    # TODO use pooler
     def __init__(self, encoder: BertModel | ElectraModel | RobertaModel) -> None:
         super().__init__()
         self.encoder = encoder

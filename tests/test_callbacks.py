@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
@@ -10,13 +11,23 @@ from transformers import BertModel
 
 from lightning_ir.bi_encoder.model import BiEncoderConfig, BiEncoderModel
 from lightning_ir.bi_encoder.module import BiEncoderModule
+from lightning_ir.cross_encoder.model import CrossEncoderConfig, CrossEncoderModel
+from lightning_ir.cross_encoder.module import CrossEncoderModule
 from lightning_ir.data.datamodule import LightningIRDataModule
-from lightning_ir.lightning_utils.callbacks import IndexCallback, SearchCallback
+from lightning_ir.data.dataset import RunDatasetConfig
+from lightning_ir.lightning_utils.callbacks import (
+    IndexCallback,
+    ReRankCallback,
+    SearchCallback,
+)
+
+DATA_DIR = Path(__file__).parent / "data"
 
 
-class TestModel(BiEncoderModel):
+class TestBiEncoderModel(BiEncoderModel):
     def __init__(self, model_name_or_path: Path | str) -> None:
         config = BiEncoderConfig.from_pretrained(model_name_or_path)
+        config.num_hidden_layers = 1
         super().__init__(config, "bert")
         self.bert = BertModel.from_pretrained(
             model_name_or_path, config=config, add_pooling_layer=False
@@ -32,14 +43,56 @@ class TestModel(BiEncoderModel):
         )
 
 
-@pytest.fixture(scope="module")
-def mvr_model(model_name_or_path: str) -> BiEncoderModel:
-    return TestModel(model_name_or_path)
+class TestCrossEncoderModel(CrossEncoderModel):
+    config_class = CrossEncoderConfig
+
+    def __init__(self, model_name_or_path: Path | str) -> None:
+        config = CrossEncoderConfig.from_pretrained(model_name_or_path)
+        config.num_hidden_layers = 1
+        super().__init__(config, "bert")
+        self.bert = BertModel.from_pretrained(
+            config.name_or_path, config=config, add_pooling_layer=False
+        )
 
 
 @pytest.fixture(scope="module")
-def mvr_module(mvr_model: BiEncoderModel) -> BiEncoderModule:
-    return BiEncoderModule(mvr_model)
+def bi_encoder_model(model_name_or_path: str) -> BiEncoderModel:
+    return TestBiEncoderModel(model_name_or_path)
+
+
+@pytest.fixture(scope="module")
+def bi_encoder_module(bi_encoder_model: BiEncoderModel) -> BiEncoderModule:
+    return BiEncoderModule(bi_encoder_model)
+
+
+@pytest.fixture(scope="module")
+def cross_encoder_model(model_name_or_path: str) -> CrossEncoderModel:
+    return TestCrossEncoderModel(model_name_or_path)
+
+
+@pytest.fixture(scope="module")
+def cross_encoder_module(cross_encoder_model: CrossEncoderModel) -> CrossEncoderModule:
+    return CrossEncoderModule(cross_encoder_model)
+
+
+@lru_cache
+def run_datamodule(model: BiEncoderModel | CrossEncoderModel) -> LightningIRDataModule:
+    datamodule = LightningIRDataModule(
+        model_name_or_path=model.config.name_or_path,
+        config=model.config,
+        num_workers=0,
+        train_batch_size=3,
+        inference_batch_size=3,
+        inference_datasets=[
+            str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
+            str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
+        ],
+        inference_dataset_config=RunDatasetConfig(
+            targets=None, depth=10, sample_size=10, sampling_strategy="top"
+        ),
+    )
+    datamodule.setup(stage="predict")
+    return datamodule
 
 
 # @pytest.mark.parametrize("devices", (1, 2))
@@ -47,12 +100,12 @@ def mvr_module(mvr_model: BiEncoderModel) -> BiEncoderModule:
 @pytest.mark.parametrize("devices", (1,))
 def test_index_callback(
     tmp_path: Path,
-    mvr_module: BiEncoderModule,
+    bi_encoder_module: BiEncoderModule,
     doc_datamodule: LightningIRDataModule,
     similarity: Literal["cosine", "dot", "l2"],
     devices: int,
 ):
-    mvr_module.config.similarity_function = similarity
+    bi_encoder_module.config.similarity_function = similarity
     index_dir = tmp_path / "index"
     index_path = index_dir / "msmarco-passage"
     index_callback = IndexCallback(index_dir, 1024, num_centroids=16)
@@ -63,7 +116,7 @@ def test_index_callback(
         enable_checkpointing=False,
         callbacks=[index_callback],
     )
-    trainer.predict(mvr_module, datamodule=doc_datamodule)
+    trainer.predict(bi_encoder_module, datamodule=doc_datamodule)
 
     assert doc_datamodule.inference_datasets is not None
     assert index_callback.indexer.num_embeddings == index_callback.indexer.index.ntotal
@@ -85,12 +138,12 @@ def test_index_callback(
 @pytest.mark.parametrize("imputation_strategy", ("min", "gather"))
 def test_search_callback(
     tmp_path: Path,
-    mvr_module: BiEncoderModule,
+    bi_encoder_module: BiEncoderModule,
     query_datamodule: LightningIRDataModule,
     similarity: Literal["cosine", "dot", "l2"],
     imputation_strategy: Literal["min", "gather"],
 ):
-    mvr_module.config.similarity_function = similarity
+    bi_encoder_module.config.similarity_function = similarity
     save_dir = tmp_path / "runs"
     index_path = Path(__file__).parent / "data" / f"{similarity}-index"
 
@@ -101,7 +154,37 @@ def test_search_callback(
         enable_checkpointing=False,
         callbacks=[search_callback],
     )
-    trainer.predict(mvr_module, datamodule=query_datamodule)
+    trainer.predict(bi_encoder_module, datamodule=query_datamodule)
+
+    for dataloader in trainer.predict_dataloaders:
+        dataset = dataloader.dataset
+        dataset_id = dataset.dataset_id.replace("/", "-")
+        assert (save_dir / f"{dataset_id}.run").exists()
+        run_df = pd.read_csv(
+            save_dir / f"{dataset_id}.run",
+            sep="\t",
+            header=None,
+            names=["query_id", "Q0", "doc_id", "rank", "score", "system"],
+        )
+        assert run_df["query_id"].nunique() == len(dataset)
+
+
+@pytest.mark.parametrize("module_name", ("bi_encoder_module", "cross_encoder_module"))
+def test_rerank_callback(
+    tmp_path: Path,
+    module_name: str,
+    request: pytest.FixtureRequest,
+):
+    module = request.getfixturevalue(module_name)
+    datamodule = run_datamodule(module.model)
+    save_dir = tmp_path / "runs"
+    rerank_callback = ReRankCallback(save_dir)
+    trainer = Trainer(
+        logger=False,
+        enable_checkpointing=False,
+        callbacks=[rerank_callback],
+    )
+    trainer.predict(module, datamodule=datamodule)
 
     for dataloader in trainer.predict_dataloaders:
         dataset = dataloader.dataset

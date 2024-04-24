@@ -1,4 +1,4 @@
-from typing import Dict, Sequence
+from typing import Any, Dict, Sequence
 
 import torch
 
@@ -31,6 +31,11 @@ class CrossEncoderModule(LightningIRModule):
         )
         logits = logits.view(len(batch.query_ids), -1)
         return logits
+
+    def predict_step(self, batch: CrossEncoderRunBatch, *args, **kwargs) -> Any:
+        if isinstance(batch, CrossEncoderRunBatch):
+            return self.forward(batch)
+        raise ValueError(f"Unknown batch type {type(batch)}")
 
     def compute_losses(
         self,
