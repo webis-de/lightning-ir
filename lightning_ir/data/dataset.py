@@ -11,7 +11,7 @@ from ir_datasets.formats import GenericDoc, GenericDocPair
 from torch.distributed import get_rank, get_world_size
 from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
-from .data import DocSample, QuerySample, RunSample, ScoredDocTuple, RunSample
+from .data import DocSample, QuerySample, RunSample, ScoredDocTuple
 
 DASHED_DATASET_MAP = {
     dataset.replace("/", "-"): dataset for dataset in ir_datasets.registry._registered
