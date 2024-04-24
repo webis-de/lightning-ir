@@ -23,7 +23,9 @@ def create_run_from_scores(
     df["rank"] = df.groupby("query_id")["score"].rank(ascending=False, method="first")
 
     def key(series: pd.Series) -> pd.Series:
-        return series.replace({query_id: i for i, query_id in enumerate(query_ids)})
+        if series.name == "query_id":
+            return series.map({query_id: i for i, query_id in enumerate(query_ids)})
+        return series
 
     df = df.sort_values(["query_id", "rank"], ascending=[True, True], key=key)
     return df
