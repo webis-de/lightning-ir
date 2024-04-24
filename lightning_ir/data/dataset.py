@@ -164,16 +164,16 @@ class IRDataset:
 class RunDataset(IRDataset, Dataset):
     def __init__(
         self,
-        run_dataset: Path,
+        run_path: Path,
         config: RunDatasetConfig,
         stage: Literal["train", "validate", "predict"] = "train",
     ) -> None:
         super().__init__(
-            run_dataset.name[: -len("".join(run_dataset.suffixes))].split("__")[-1]
+            run_path.name[: -len("".join(run_path.suffixes))].split("__")[-1]
         )
         if stage == "train" and config.targets is None:
             raise ValueError("Targets are required for training.")
-        self.run_dataset = run_dataset
+        self.run_path = run_path
         self.config = config
         self.stage = stage
         self.depth = config.depth
@@ -210,22 +210,22 @@ class RunDataset(IRDataset, Dataset):
             )
 
     def load_run(self) -> pd.DataFrame:
-        if set((".tsv", ".run", ".csv")).intersection(self.run_dataset.suffixes):
+        if set((".tsv", ".run", ".csv")).intersection(self.run_path.suffixes):
             run = pd.read_csv(
-                self.run_dataset,
+                self.run_path,
                 sep=r"\s+",
                 header=None,
                 names=RUN_HEADER,
                 usecols=[0, 2, 3, 4],
                 dtype={"query_id": str, "doc_id": str},
             )
-        elif set((".json", ".jsonl")).intersection(self.run_dataset.suffixes):
+        elif set((".json", ".jsonl")).intersection(self.run_path.suffixes):
             kwargs = {}
-            if ".jsonl" in self.run_dataset.suffixes:
+            if ".jsonl" in self.run_path.suffixes:
                 kwargs["lines"] = True
                 kwargs["orient"] = "records"
             run = pd.read_json(
-                self.run_dataset,
+                self.run_path,
                 **kwargs,
                 dtype={
                     "query_id": str,
