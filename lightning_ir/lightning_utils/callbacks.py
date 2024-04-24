@@ -256,7 +256,7 @@ class RankCallback(BasePredictionWriter):
             return
 
         scores, doc_ids, num_docs = self.rank(**outputs)
-        scores = scores.cpu().numpy()
+        scores = scores.float().cpu().numpy()
 
         query_ids = list(
             itertools.chain.from_iterable(
