@@ -56,7 +56,7 @@ class DataParallelIterableDataset(IterableDataset):
         try:
             world_size = get_world_size()
             process_rank = get_rank()
-        except RuntimeError:
+        except (RuntimeError, ValueError):
             world_size = 1
             process_rank = 0
 
