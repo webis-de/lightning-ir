@@ -78,7 +78,7 @@ class IALossFunction(LossFunction):
 class PairwiseLossFunction(LossFunction):
     def get_pairwise_idcs(self, targets: torch.Tensor) -> Tuple[torch.Tensor, ...]:
         # pos items are items where label is greater than other label in sample
-        return torch.nonzero(targets[:, None] > targets[..., None], as_tuple=True)
+        return torch.nonzero(targets[..., None] > targets[:, None], as_tuple=True)
 
 
 class ListwiseLossFunction(LossFunction):

@@ -314,6 +314,8 @@ class RunDataset(IRDataset, Dataset):
                 .fillna(0)
                 .values
             )
+            if self.config.targets == "rank":
+                targets = self.depth - targets + 1
         qrels = None
         if self.qrel_groups is not None:
             qrels = (
