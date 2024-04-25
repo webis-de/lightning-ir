@@ -81,7 +81,7 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         self,
         queries: str | Sequence[str],
         docs: str | Sequence[str],
-        num_docs: Sequence[int],
+        num_docs: Sequence[int] | None = None,
         **kwargs,
     ) -> Dict[str, BatchEncoding]:
         if queries is None or docs is None:
@@ -114,6 +114,8 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
             ).input_ids
         )
         if queries_is_list:
+            if num_docs is None:
+                num_docs = [len(docs) // len(queries) for _ in range(len(queries))]
             expanded_queries = [
                 truncated_query
                 for query_idx, truncated_query in enumerate(truncated_queries)
@@ -285,7 +287,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         **kwargs,
     ) -> Dict[str, BatchEncoding]:
         encodings = {}
-        kwargs.pop("num_docs")
+        kwargs.pop("num_docs", None)
         if queries is not None:
             encodings["query_encoding"] = self.tokenize_queries(queries, **kwargs)
         if docs is not None:
