@@ -39,5 +39,8 @@ def evaluate_run(
     run: pd.DataFrame, qrels: pd.DataFrame, measures: Sequence[str]
 ) -> Dict[str, float]:
     parsed_measures = [ir_measures.parse_measure(measure) for measure in measures]
-    metrics = ir_measures.calc_aggregate(parsed_measures, qrels, run)
+    metrics = {
+        str(key): val
+        for key, val in ir_measures.calc_aggregate(parsed_measures, qrels, run).items()
+    }
     return metrics
