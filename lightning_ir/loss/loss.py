@@ -6,16 +6,16 @@ import torch
 
 def get_dcg(
     ranks: torch.Tensor,
-    labels: torch.Tensor,
+    targets: torch.Tensor,
     k: int | None = None,
     scale_gains: bool = True,
 ) -> torch.Tensor:
     log_ranks = torch.log2(1 + ranks)
     discounts = 1 / log_ranks
     if scale_gains:
-        gains = 2**labels - 1
+        gains = 2**targets - 1
     else:
-        gains = labels
+        gains = targets
     dcgs = gains * discounts
     if k is not None:
         dcgs = dcgs.masked_fill(ranks > k, 0)
@@ -24,27 +24,27 @@ def get_dcg(
 
 def get_ndcg(
     ranks: torch.Tensor,
-    labels: torch.Tensor,
+    targets: torch.Tensor,
     k: int | None = None,
     scale_gains: bool = True,
-    optimal_labels: torch.Tensor | None = None,
+    optimal_targets: torch.Tensor | None = None,
 ) -> torch.Tensor:
-    if optimal_labels is None:
-        optimal_labels = labels
-    optimal_ranks = torch.argsort(torch.argsort(optimal_labels, descending=True))
+    if optimal_targets is None:
+        optimal_targets = targets
+    optimal_ranks = torch.argsort(torch.argsort(optimal_targets, descending=True))
     optimal_ranks = optimal_ranks + 1
-    dcg = get_dcg(ranks, labels, k, scale_gains)
-    idcg = get_dcg(optimal_ranks, optimal_labels, k, scale_gains)
+    dcg = get_dcg(ranks, targets, k, scale_gains)
+    idcg = get_dcg(optimal_ranks, optimal_targets, k, scale_gains)
     ndcg = dcg / (idcg.clamp(min=1e-12))
     return ndcg
 
 
 def get_mrr(
-    ranks: torch.Tensor, labels: torch.Tensor, k: int | None = None
+    ranks: torch.Tensor, targets: torch.Tensor, k: int | None = None
 ) -> torch.Tensor:
-    labels = labels.clamp(None, 1)
+    targets = targets.clamp(None, 1)
     reciprocal_ranks = 1 / ranks
-    mrr = reciprocal_ranks * labels
+    mrr = reciprocal_ranks * targets
     if k is not None:
         mrr = mrr.masked_fill(ranks > k, 0)
     mrr = mrr.max(dim=-1)[0]
@@ -169,9 +169,10 @@ class ApproxNDCG(ApproxLossFunction):
         super().__init__(temperature)
         self.scale_gains = scale_gains
 
-    def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        targets = self.process_targets(logits, targets)
         approx_ranks = self.get_approx_ranks(logits, self.temperature)
-        ndcg = get_ndcg(approx_ranks, labels, k=None, scale_gains=self.scale_gains)
+        ndcg = get_ndcg(approx_ranks, targets, k=None, scale_gains=self.scale_gains)
         loss = 1 - ndcg
         return loss.mean()
 
@@ -180,9 +181,10 @@ class ApproxMRR(ApproxLossFunction):
     def __init__(self, temperature: float = 1):
         super().__init__(temperature)
 
-    def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        targets = self.process_targets(logits, targets)
         approx_ranks = self.get_approx_ranks(logits, self.temperature)
-        mrr = get_mrr(approx_ranks, labels, k=None)
+        mrr = get_mrr(approx_ranks, targets, k=None)
         loss = 1 - mrr
         return loss.mean()
 
@@ -192,9 +194,10 @@ class ApproxRankMSE(ApproxLossFunction):
         super().__init__(temperature)
         self.discounted = discounted
 
-    def compute_loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        targets = self.process_targets(logits, targets)
         approx_ranks = self.get_approx_ranks(logits, self.temperature)
-        ranks = torch.argsort(labels, descending=True) + 1
+        ranks = torch.argsort(targets, descending=True) + 1
         loss = torch.nn.functional.mse_loss(
             approx_ranks, ranks.to(approx_ranks), reduction="none"
         )
@@ -249,14 +252,14 @@ class NeuralLossFunction(ListwiseLossFunction):
 
         return mat
 
-    def get_sorted_labels(
-        self, logits: torch.Tensor, labels: torch.Tensor
+    def get_sorted_targets(
+        self, logits: torch.Tensor, targets: torch.Tensor
     ) -> torch.Tensor:
         permutation_matrix = self.neural_sort(logits)
-        pred_sorted_labels = torch.matmul(
-            permutation_matrix, labels[..., None].to(permutation_matrix)
+        pred_sorted_targets = torch.matmul(
+            permutation_matrix, targets[..., None].to(permutation_matrix)
         ).squeeze(-1)
-        return pred_sorted_labels
+        return pred_sorted_targets
 
 
 class InBatchLossFunction(LossFunction):
