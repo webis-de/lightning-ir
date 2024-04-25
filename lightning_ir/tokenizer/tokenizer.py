@@ -78,7 +78,11 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         self.doc_length = doc_length
 
     def tokenize(
-        self, queries: str | Sequence[str], docs: str | Sequence[str], **kwargs
+        self,
+        queries: str | Sequence[str],
+        docs: str | Sequence[str],
+        num_docs: Sequence[int],
+        **kwargs,
     ) -> Dict[str, BatchEncoding]:
         if queries is None or docs is None:
             raise ValueError("Both queries and docs must be provided.")
@@ -110,11 +114,10 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
             ).input_ids
         )
         if queries_is_list:
-            num_docs_per_query = len(truncated_docs) // len(truncated_queries)
             expanded_queries = [
                 truncated_query
-                for truncated_query in truncated_queries
-                for _ in range(num_docs_per_query)
+                for query_idx, truncated_query in enumerate(truncated_queries)
+                for _ in range(num_docs[query_idx])
             ]
         else:
             expanded_queries = truncated_queries[0]
@@ -246,7 +249,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         return encoding
 
     def tokenize_queries(
-        self, queries: List[str] | str, *args, **kwargs
+        self, queries: Sequence[str] | str, *args, **kwargs
     ) -> BatchEncoding:
         kwargs["max_length"] = self.query_length
         if self.query_expansion:
@@ -260,7 +263,9 @@ class BiEncoderTokenizer(LightningIRTokenizer):
             self._expand(encoding, self.attend_to_query_expanded_tokens)
         return encoding
 
-    def tokenize_docs(self, docs: List[str] | str, *args, **kwargs) -> BatchEncoding:
+    def tokenize_docs(
+        self, docs: Sequence[str] | str, *args, **kwargs
+    ) -> BatchEncoding:
         kwargs["max_length"] = self.doc_length
         if self.doc_expansion:
             kwargs["padding"] = "max_length"
@@ -280,6 +285,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         **kwargs,
     ) -> Dict[str, BatchEncoding]:
         encodings = {}
+        kwargs.pop("num_docs")
         if queries is not None:
             encodings["query_encoding"] = self.tokenize_queries(queries, **kwargs)
         if docs is not None:

@@ -235,8 +235,16 @@ class LightningIRDataModule(LightningDataModule):
         if "docs" in aggregated:
             docs = aggregated["docs"]
             del kwargs["docs"]
+        num_docs = None
+        if "doc_ids" in aggregated:
+            num_docs = [len(doc_ids) for doc_ids in aggregated["doc_ids"]]
         encodings = self.tokenizer.tokenize(
-            queries, docs, return_tensors="pt", padding=True, truncation=True
+            queries,
+            docs,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            num_docs=num_docs,
         )
         if not encodings:
             raise ValueError("No encodings were generated.")
