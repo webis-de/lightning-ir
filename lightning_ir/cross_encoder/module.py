@@ -29,7 +29,6 @@ class CrossEncoderModule(LightningIRModule):
             batch.encoding.get("attention_mask", None),
             batch.encoding.get("token_type_ids", None),
         )
-        logits = logits.view(len(batch.query_ids), -1)
         return logits
 
     def predict_step(self, batch: CrossEncoderRunBatch, *args, **kwargs) -> Any:
@@ -47,6 +46,7 @@ class CrossEncoderModule(LightningIRModule):
                 raise ValueError("Loss function is not set")
             loss_functions = self.loss_functions
         logits = self.forward(batch)
+        logits = logits.view(len(batch.query_ids), -1)
         targets = batch.targets.view(*logits.shape, -1)
         losses = {}
         for loss_function in loss_functions:
