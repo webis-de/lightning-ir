@@ -190,9 +190,13 @@ class ApproxMRR(ApproxLossFunction):
 
 
 class ApproxRankMSE(ApproxLossFunction):
-    def __init__(self, temperature: float = 1, discounted: bool = False):
+    def __init__(
+        self,
+        temperature: float = 1,
+        discount: Literal["log2", "reciprocal"] | None = None,
+    ):
         super().__init__(temperature)
-        self.discounted = discounted
+        self.discount = discount
 
     def compute_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         targets = self.process_targets(logits, targets)
@@ -201,9 +205,13 @@ class ApproxRankMSE(ApproxLossFunction):
         loss = torch.nn.functional.mse_loss(
             approx_ranks, ranks.to(approx_ranks), reduction="none"
         )
-        if self.discounted:
+        if self.discount == "log2":
             weight = 1 / torch.log2(ranks + 1)
-            loss = loss * weight
+        elif self.discount == "reciprocal":
+            weight = 1 / ranks
+        else:
+            weight = 1
+        loss = loss * weight
         loss = loss.mean()
         return loss
 
