@@ -121,6 +121,7 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
                 for query_idx, truncated_query in enumerate(truncated_queries)
                 for _ in range(num_docs[query_idx])
             ]
+            docs = truncated_docs
         else:
             expanded_queries = truncated_queries[0]
             docs = truncated_docs[0]
