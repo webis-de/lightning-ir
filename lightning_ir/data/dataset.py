@@ -31,7 +31,7 @@ class RunDatasetConfig(NamedTuple):
     targets: Literal["relevance", "subtopic_relevance", "rank", "score"] | None
     depth: int
     sample_size: int
-    sampling_strategy: Literal["single_relevant", "top"]
+    sampling_strategy: Literal["single_relevant", "top", "random"]
 
 
 class TupleDatasetConfig(NamedTuple):
@@ -303,6 +303,8 @@ class RunDataset(IRDataset, Dataset):
             group = pd.concat([relevant, non_relevant])
         elif self.config.sampling_strategy == "top":
             group = group.head(self.config.sample_size)
+        elif self.config.sampling_strategy == "random":
+            group = group.sample(self.config.sample_size)
         else:
             raise ValueError("Invalid sampling strategy.")
 
