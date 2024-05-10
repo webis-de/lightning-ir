@@ -182,6 +182,8 @@ class RunDataset(IRDataset, Dataset):
         self.qrels = self.load_qrels()
         self.qrel_groups = None
 
+        self.run = self.run.drop_duplicates(["query_id", "doc_id"])
+
         if self.qrels is not None:
             self.run = self.run.merge(
                 self.qrels.add_prefix("relevance_", axis=1),
