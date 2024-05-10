@@ -267,9 +267,13 @@ class RunDataset(IRDataset, Dataset):
             return None
         if self.ir_dataset is None:
             return None
-        qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).rename(
-            {"subtopic_id": "iteration"}, axis=1
-        )
+        if "relevance" in self.run:
+            qrels = self.run[["query_id", "doc_id", "relevance", "iteration"]]
+            self.run = self.run.drop(["relevance", "iteration"], axis=1)
+        else:
+            qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).rename(
+                {"subtopic_id": "iteration"}, axis=1
+            )
         if "iteration" not in qrels.columns:
             qrels["iteration"] = 0
         qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
