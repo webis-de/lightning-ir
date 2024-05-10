@@ -6,12 +6,7 @@ import torch
 from lightning import LightningModule
 from transformers import PreTrainedModel
 
-from .data.data import (
-    BiEncoderRunBatch,
-    CrossEncoderRunBatch,
-    IndexBatch,
-    SearchBatch,
-)
+from .data.data import BiEncoderRunBatch, CrossEncoderRunBatch
 from .data.dataset import RunDataset
 from .lightning_utils.validation_utils import (
     create_qrels_from_dicts,
@@ -111,28 +106,19 @@ class LightningIRModule(LightningModule):
             outputs = self.validation_step_outputs[dataset_id]
             query_ids = sum(outputs["query_ids"], [])
             doc_ids = sum(outputs["doc_ids"], [])
-            scores = torch.cat(outputs["scores"]).view(len(query_ids), -1)
-            try:
-                targets = torch.cat(outputs["targets"]).view(*scores.shape, -1)
-            except TypeError:
-                targets = None
-            try:
-                qrels = create_qrels_from_dicts(sum(outputs["qrels"], []))
-            except TypeError:
-                qrels = None
+            scores = torch.cat(outputs["scores"])
             run = create_run_from_scores(query_ids, doc_ids, scores)
 
             if "loss" in self.evaluation_metrics:
-                if targets is None:
-                    raise ValueError("Targets are not set")
+                scores = scores.view(len(query_ids), -1)
+                targets = torch.cat(outputs["targets"]).view(*scores.shape, -1)
                 metrics.update(self.validate_loss(dataset_id, scores, targets))
 
             evaluation_metrics = [
                 metric for metric in self.evaluation_metrics if metric != "loss"
             ]
             if evaluation_metrics:
-                if qrels is None:
-                    raise ValueError("Qrels are not set")
+                qrels = create_qrels_from_dicts(sum(outputs["qrels"], []))
                 for metric, value in evaluate_run(
                     run, qrels, evaluation_metrics
                 ).items():
