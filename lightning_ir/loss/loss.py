@@ -29,6 +29,7 @@ def get_ndcg(
     scale_gains: bool = True,
     optimal_targets: torch.Tensor | None = None,
 ) -> torch.Tensor:
+    targets = targets.clamp(min=0)
     if optimal_targets is None:
         optimal_targets = targets
     optimal_ranks = torch.argsort(torch.argsort(optimal_targets, descending=True))
