@@ -213,7 +213,7 @@ class RankCallback(BasePredictionWriter):
                 print(f"Using default save_dir {self.save_dir}")
             else:
                 raise ValueError(
-                    "No index_path provided and model_name_or_path is not a path"
+                    "No save_dir provided and model_name_or_path is not a path"
                 )
         datasets = [dataloader.dataset for dataloader in dataloaders]
         return datasets
@@ -225,8 +225,8 @@ class RankCallback(BasePredictionWriter):
         if dataloaders is None:
             raise ValueError("No predict_dataloaders found")
         dataset = dataloaders[dataset_idx].dataset
-        dataset_id = dataset.dataset_id.replace("/", "-")
-        run_file_path = self.save_dir / f"{dataset_id}.run"
+        run_file = dataset.run_path.name.split(".")[0]
+        run_file_path = self.save_dir / f"{run_file}.run"
         return run_file_path
 
     def rank(self, prediction: Any) -> Tuple[torch.Tensor, List[str], List[int]]:
