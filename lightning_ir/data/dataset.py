@@ -267,12 +267,12 @@ class RunDataset(IRDataset, Dataset):
     def load_qrels(self) -> pd.DataFrame | None:
         if self.stage == "predict":
             return None
-        if self.ir_dataset is None:
-            return None
         if "relevance" in self.run:
             qrels = self.run[["query_id", "doc_id", "relevance", "iteration"]]
             self.run = self.run.drop(["relevance", "iteration"], axis=1)
         else:
+            if self.ir_dataset is None:
+                return None
             qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).rename(
                 {"subtopic_id": "iteration"}, axis=1
             )
