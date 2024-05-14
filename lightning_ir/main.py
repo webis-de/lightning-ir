@@ -116,7 +116,7 @@ class CustomLightningCLI(LightningCLI):
     @staticmethod
     def subcommands() -> Dict[str, Set[str]]:
         return {
-            **LightningCLI.subcommands(),
+            "fit": LightningCLI.subcommands()["fit"],
             "index": {"model", "dataloaders", "datamodule"},
             "search": {"model", "dataloaders", "datamodule"},
             "re_rank": {"model", "dataloaders", "datamodule"},
