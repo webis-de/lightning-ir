@@ -19,100 +19,6 @@ DASHED_DATASET_MAP = {
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 
 
-class QueryDatasetConfig(NamedTuple):
-    num_queries: int | None = None
-
-
-class DocDatasetConfig(NamedTuple):
-    num_docs: int | None = None
-
-
-class RunDatasetConfig(NamedTuple):
-    targets: Literal["relevance", "subtopic_relevance", "rank", "score"] | None
-    depth: int
-    sample_size: int
-    sampling_strategy: Literal["single_relevant", "top", "random"]
-
-
-class TupleDatasetConfig(NamedTuple):
-    targets: Literal["order", "score"] | None
-    num_docs: int | None
-
-
-class DataParallelIterableDataset(IterableDataset):
-    # https://github.com/Lightning-AI/pytorch-lightning/issues/15734
-    def __init__(
-        self, dataset: str, config: QueryDatasetConfig | DocDatasetConfig
-    ) -> None:
-        super().__init__()
-        # TODO add support for multi-gpu and multi-worker inference; currently
-        # doesn't work
-        self.ir_dataset: ir_datasets.Dataset = ir_datasets.load(dataset)
-        self.config = config
-        worker_info = get_worker_info()
-        num_workers = worker_info.num_workers if worker_info is not None else 1
-        worker_id = worker_info.id if worker_info is not None else 0
-
-        try:
-            world_size = get_world_size()
-            process_rank = get_rank()
-        except (RuntimeError, ValueError):
-            world_size = 1
-            process_rank = 0
-
-        self.num_replicas = num_workers * world_size
-        self.rank = process_rank * num_workers + worker_id
-        if isinstance(config, QueryDatasetConfig):
-            self._field = "queries"
-            self._iterator = self.ir_dataset.queries_iter
-            self._sample_cls = QuerySample
-        elif isinstance(config, DocDatasetConfig):
-            self._field = "docs"
-            self._iterator = self.ir_dataset.docs_iter
-            self._sample_cls = DocSample
-        else:
-            raise ValueError("Invalid dataset configuration.")
-
-    @property
-    def dataset_id(self) -> str:
-        return self.ir_dataset.dataset_id()
-
-    @property
-    def docs_dataset_id(self) -> str:
-        return ir_datasets.docs_parent_id(self.dataset_id)
-
-    def __len__(self) -> int:
-        return (
-            getattr(self.config, f"num_{self._field}")
-            or getattr(self.ir_dataset, f"{self._field}_count")()
-        )
-
-    def __iter__(self) -> Iterator[QuerySample | DocSample]:
-        start = self.rank
-        stop = getattr(self.config, f"num_{self._field}") or None
-        step = self.num_replicas
-        for sample in islice(self._iterator(), start, stop, step):
-            yield self._sample_cls.from_ir_dataset_sample(sample)
-
-
-class QueryDataset(DataParallelIterableDataset):
-    def __init__(self, query_dataset: str, config: QueryDatasetConfig) -> None:
-        super().__init__(query_dataset, config)
-        self.config: QueryDatasetConfig
-
-    def __iter__(self) -> Iterator[QuerySample]:
-        yield from super().__iter__()
-
-
-class DocDataset(DataParallelIterableDataset):
-    def __init__(self, doc_dataset: str, config: DocDatasetConfig) -> None:
-        super().__init__(doc_dataset, config)
-        self.config: DocDatasetConfig
-
-    def __iter__(self) -> Iterator[DocSample]:
-        yield from super().__iter__()
-
-
 class IRDataset:
     def __init__(self, dataset: str) -> None:
         if dataset in DASHED_DATASET_MAP:
@@ -160,23 +66,87 @@ class IRDataset:
     def docs_dataset_id(self) -> str:
         return ir_datasets.docs_parent_id(self.dataset_id)
 
+    def setup(self, stage: Literal["fit", "validate", "predict"] | None) -> None:
+        pass
+
+
+class DataParallelIterableDataset(IterableDataset):
+    # https://github.com/Lightning-AI/pytorch-lightning/issues/15734
+    def __init__(self) -> None:
+        super().__init__()
+        # TODO add support for multi-gpu and multi-worker inference; currently
+        # doesn't work
+        worker_info = get_worker_info()
+        num_workers = worker_info.num_workers if worker_info is not None else 1
+        worker_id = worker_info.id if worker_info is not None else 0
+
+        try:
+            world_size = get_world_size()
+            process_rank = get_rank()
+        except (RuntimeError, ValueError):
+            world_size = 1
+            process_rank = 0
+
+        self.num_replicas = num_workers * world_size
+        self.rank = process_rank * num_workers + worker_id
+
+
+class QueryDataset(IRDataset, DataParallelIterableDataset):
+    def __init__(self, query_dataset: str, num_queries: int | None = None) -> None:
+        super().__init__(query_dataset)
+        super(IRDataset, self).__init__()
+        self.num_queries = num_queries
+
+    def __len__(self) -> int:
+        # TODO fix len for multi-gpu and multi-worker inference
+        return self.num_queries or self.ir_dataset.queries_count()
+
+    def __iter__(self) -> Iterator[QuerySample]:
+        start = self.rank
+        stop = self.num_queries
+        step = self.num_replicas
+        for sample in islice(self.ir_dataset.queries_iter(), start, stop, step):
+            yield QuerySample.from_ir_dataset_sample(sample)
+
+
+class DocDataset(IRDataset, DataParallelIterableDataset):
+    def __init__(self, doc_dataset: str, num_docs: int | None = None) -> None:
+        super().__init__(doc_dataset)
+        super(IRDataset, self).__init__()
+        self.num_docs = num_docs
+
+    def __len__(self) -> int:
+        # TODO fix len for multi-gpu and multi-worker inference
+        return self.num_docs or self.ir_dataset.docs_count()
+
+    def __iter__(self) -> Iterator[DocSample]:
+        start = self.rank
+        stop = self.num_docs
+        step = self.num_replicas
+        for sample in islice(self.ir_dataset.docs_iter(), start, stop, step):
+            yield DocSample.from_ir_dataset_sample(sample)
+
 
 class RunDataset(IRDataset, Dataset):
     def __init__(
         self,
         run_path: Path,
-        config: RunDatasetConfig,
-        stage: Literal["train", "validate", "predict"] = "train",
+        depth: int,
+        sample_size: int,
+        sampling_strategy: Literal["single_relevant", "top", "random"],
+        targets: (
+            Literal["relevance", "subtopic_relevance", "rank", "score"] | None
+        ) = None,
     ) -> None:
         super().__init__(
             run_path.name[: -len("".join(run_path.suffixes))].split("__")[-1]
         )
-        if stage == "train" and config.targets is None:
-            raise ValueError("Targets are required for training.")
+        super(IRDataset, self).__init__()
         self.run_path = run_path
-        self.config = config
-        self.stage = stage
-        self.depth = config.depth
+        self.depth = depth
+        self.sample_size = sample_size
+        self.sampling_strategy = sampling_strategy
+        self.targets = targets
 
         self.run = self.load_run()
         self.qrels = self.load_qrels()
@@ -194,22 +164,28 @@ class RunDataset(IRDataset, Dataset):
             )
             self.qrel_groups = self.qrels.groupby("query_id")
 
-        if self.stage == "train":
-            num_docs_per_query = self.run.groupby("query_id").transform("size")
-            self.run = self.run[num_docs_per_query >= config.sample_size]
-
         self.run = self.run.sort_values(["query_id", "rank"])
         self.run_groups = self.run.groupby("query_id")
         self.query_ids = list(self.run_groups.groups.keys())
 
-        if self.run["rank"].max() < config.depth:
+        if self.run["rank"].max() < self.depth:
             warnings.warn("Depth is greater than the maximum rank in the run file.")
-        if config.sampling_strategy == "top" and config.sample_size > config.depth:
+        if self.sampling_strategy == "top" and self.sample_size > self.depth:
             warnings.warn(
                 "Sample size is greater than depth and top sampling strategy is used. "
                 "This can cause documents to be sampled that are not contained "
                 "in the run file, but that are present in the qrels."
             )
+
+    def setup(self, stage: Literal["fit", "validate", "predict"] | None = None) -> None:
+        super().setup(stage)
+        if stage == "fit":
+            if self.targets is None:
+                raise ValueError("Targets are required for training.")
+            num_docs_per_query = self.run.groupby("query_id").transform("size")
+            self.run = self.run[num_docs_per_query >= self.sample_size]
+            self.run_groups = self.run.groupby("query_id")
+            self.query_ids = list(self.run_groups.groups.keys())
 
     def load_run(self) -> pd.DataFrame:
         if set((".tsv", ".run", ".csv")).intersection(self.run_path.suffixes):
@@ -261,12 +237,10 @@ class RunDataset(IRDataset, Dataset):
         else:
             raise ValueError("Invalid run file format.")
         if self.depth != -1:
-            run = run[run["rank"] <= self.config.depth]
+            run = run[run["rank"] <= self.depth]
         return run
 
     def load_qrels(self) -> pd.DataFrame | None:
-        if self.stage == "predict":
-            return None
         if "relevance" in self.run:
             qrels = self.run[["query_id", "doc_id", "relevance", "iteration"]]
             self.run = self.run.drop(["relevance", "iteration"], axis=1)
@@ -291,7 +265,7 @@ class RunDataset(IRDataset, Dataset):
         query_id = str(self.query_ids[idx])
         group = self.run_groups.get_group(query_id).copy()
         query = self.queries[query_id]
-        if self.config.sampling_strategy == "single_relevant":
+        if self.sampling_strategy == "single_relevant":
             relevant = group.loc[
                 group.filter(like="relevance").max(axis=1).gt(0)
             ].sample(1)
@@ -300,13 +274,13 @@ class RunDataset(IRDataset, Dataset):
                 & ~group["rank"].isna()
             )
             num_non_relevant = non_relevant_bool.sum()
-            sample_non_relevant = min(self.config.sample_size - 1, num_non_relevant)
+            sample_non_relevant = min(self.sample_size - 1, num_non_relevant)
             non_relevant = group.loc[non_relevant_bool].sample(sample_non_relevant)
             group = pd.concat([relevant, non_relevant])
-        elif self.config.sampling_strategy == "top":
-            group = group.head(self.config.sample_size)
-        elif self.config.sampling_strategy == "random":
-            group = group.sample(self.config.sample_size)
+        elif self.sampling_strategy == "top":
+            group = group.head(self.sample_size)
+        elif self.sampling_strategy == "random":
+            group = group.sample(self.sample_size)
         else:
             raise ValueError("Invalid sampling strategy.")
 
@@ -314,15 +288,16 @@ class RunDataset(IRDataset, Dataset):
         docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
 
         targets = None
-        if self.config.targets is not None:
+        if self.targets is not None:
             targets = torch.tensor(
                 group.set_index("doc_id")
                 .loc[list(doc_ids)]
-                .filter(like=self.config.targets)
+                .filter(like=self.targets)
                 .fillna(0)
                 .values
             )
-            if self.config.targets == "rank":
+            if self.targets == "rank":
+                # invert ranks to be higher is better (necessary for loss functions)
                 targets = self.depth - targets + 1
         qrels = None
         if self.qrel_groups is not None:
@@ -341,19 +316,13 @@ class TupleDataset(IRDataset, IterableDataset):
     def __init__(
         self,
         tuples_dataset: str,
-        config: TupleDatasetConfig,
-        stage: Literal["train", "validate"] = "train",
+        targets: Literal["order", "score"] | None,
+        num_docs: int | None = None,
     ) -> None:
         super().__init__(tuples_dataset)
-        if self.queries is None:
-            raise ValueError("Queries are required for run datasets.")
-        self.config = config
-        self.targets = self.config.targets
-        self.stage = stage
-        if self.stage not in {"train", "validate"}:
-            raise ValueError(
-                f"Invalid stage. Expected 'train' or 'validate'. Got {stage}."
-            )
+        super(IRDataset, self).__init__()
+        self.targets = targets
+        self.num_docs = num_docs
 
     def parse_sample(
         self, sample: ScoredDocTuple | GenericDocPair
@@ -366,14 +335,14 @@ class TupleDataset(IRDataset, IterableDataset):
                 targets = (1.0, 0.0)
             doc_ids = (sample.doc_id_a, sample.doc_id_b)
         elif isinstance(sample, ScoredDocTuple):
-            doc_ids = sample.doc_ids[: self.config.num_docs]
+            doc_ids = sample.doc_ids[: self.num_docs]
             if self.targets is not None:
                 targets = (
                     sample.scores
                     if sample.scores is not None and self.targets == "score"
                     else tuple([1.0] + [0.0] * sample.num_docs)
                 )
-                targets = targets[: self.config.num_docs]
+                targets = targets[: self.num_docs]
         else:
             raise ValueError("Invalid sample type.")
         docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)

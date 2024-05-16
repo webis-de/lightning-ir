@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Sequence
 
 import faiss
 import pandas as pd
@@ -14,7 +14,7 @@ from lightning_ir.bi_encoder.module import BiEncoderModule
 from lightning_ir.cross_encoder.model import CrossEncoderConfig, CrossEncoderModel
 from lightning_ir.cross_encoder.module import CrossEncoderModule
 from lightning_ir.data.datamodule import LightningIRDataModule
-from lightning_ir.data.dataset import RunDatasetConfig
+from lightning_ir.data.dataset import RunDataset
 from lightning_ir.lightning_utils.callbacks import (
     IndexCallback,
     ReRankCallback,
@@ -75,21 +75,16 @@ def cross_encoder_module(cross_encoder_model: CrossEncoderModel) -> CrossEncoder
     return CrossEncoderModule(cross_encoder_model)
 
 
-@lru_cache
-def run_datamodule(model: BiEncoderModel | CrossEncoderModel) -> LightningIRDataModule:
+def run_datamodule(
+    model: BiEncoderModel | CrossEncoderModel, inference_datasets: Sequence[RunDataset]
+) -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
         model_name_or_path=model.config.name_or_path,
         config=model.config,
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=3,
-        inference_datasets=[
-            str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
-            str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-        ],
-        inference_dataset_config=RunDatasetConfig(
-            targets=None, depth=10, sample_size=10, sampling_strategy="top"
-        ),
+        inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="predict")
     return datamodule
@@ -173,10 +168,11 @@ def test_search_callback(
 def test_rerank_callback(
     tmp_path: Path,
     module_name: str,
+    inference_datasets: Sequence[RunDataset],
     request: pytest.FixtureRequest,
 ):
     module = request.getfixturevalue(module_name)
-    datamodule = run_datamodule(module.model)
+    datamodule = run_datamodule(module.model, inference_datasets)
     save_dir = tmp_path / "runs"
     rerank_callback = ReRankCallback(save_dir)
     trainer = Trainer(

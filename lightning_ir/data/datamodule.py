@@ -21,13 +21,9 @@ from .data import (
 )
 from .dataset import (
     DocDataset,
-    DocDatasetConfig,
     QueryDataset,
-    QueryDatasetConfig,
     RunDataset,
-    RunDatasetConfig,
     TupleDataset,
-    TupleDatasetConfig,
 )
 
 
@@ -41,15 +37,9 @@ class LightningIRDataModule(LightningDataModule):
         train_batch_size: int | None = None,
         shuffle_train: bool = True,
         inference_batch_size: int | None = None,
-        train_dataset: str | None = None,
-        train_dataset_config: RunDatasetConfig | TupleDatasetConfig | None = None,
-        inference_datasets: Sequence[str] | None = None,
-        inference_dataset_config: (
-            RunDatasetConfig
-            | TupleDatasetConfig
-            | QueryDatasetConfig
-            | DocDatasetConfig
-            | None
+        train_dataset: RunDataset | TupleDataset | None = None,
+        inference_datasets: (
+            Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None
         ) = None,
     ) -> None:
         super().__init__()
@@ -68,13 +58,6 @@ class LightningIRDataModule(LightningDataModule):
         if isinstance(self.config, BiEncoderConfig):
             Tokenizer = BiEncoderTokenizer
         elif isinstance(self.config, CrossEncoderConfig):
-            if isinstance(
-                inference_dataset_config, (QueryDatasetConfig, DocDatasetConfig)
-            ):
-                raise ValueError(
-                    "Running a cross-encoder model with a query or doc dataset is not "
-                    "supported. Use a bi-encoder model instead."
-                )
             Tokenizer = CrossEncoderTokenizer
         else:
             raise ValueError(
@@ -91,68 +74,35 @@ class LightningIRDataModule(LightningDataModule):
         self.inference_batch_size = inference_batch_size
         self.train_dataset = train_dataset
         self.inference_datasets = inference_datasets
-        self.train_dataset_config = train_dataset_config
-        self.inference_dataset_config = inference_dataset_config
 
     def setup_fit(self) -> None:
-        if self.train_dataset is None or self.train_dataset_config is None:
+        if self.train_dataset is None:
             raise ValueError("A training dataset and config must be provided.")
-        if isinstance(self.train_dataset_config, RunDatasetConfig):
-            self._train_dataset = RunDataset(
-                Path(self.train_dataset), self.train_dataset_config, "train"
-            )
-        elif isinstance(self.train_dataset_config, TupleDatasetConfig):
-            self._train_dataset = TupleDataset(
-                self.train_dataset, self.train_dataset_config, "train"
-            )
-        else:
-            raise ValueError(
-                "Training DatasetConfig must be of type RunDatasetConfig or "
-                "TupleDatasetConfig."
-            )
+        self.train_dataset.setup("fit")
 
     def setup_inference(self, stage: Literal["validate", "predict"]) -> None:
         if self.inference_datasets is None:
             return
-        if self.inference_dataset_config is None:
-            raise ValueError(
-                "An inference DatasetConfig must be provided when "
-                "providing inference datasets."
-            )
-        elif isinstance(self.inference_dataset_config, TupleDatasetConfig):
-            if stage == "predict":
+        for inference_dataset in self.inference_datasets:
+            if isinstance(inference_dataset, TupleDataset):
+                if stage == "predict":
+                    raise ValueError(
+                        "Prediction cannot be performed with TupleDataset."
+                    )
+            elif isinstance(inference_dataset, RunDataset):
+                if inference_dataset.sampling_strategy == "single_relevant":
+                    raise ValueError(
+                        "Inference RunDataset cannot use the single_relevant "
+                        "sampling strategy."
+                    )
+            elif isinstance(inference_dataset, (QueryDataset, DocDataset)):
+                pass
+            else:
                 raise ValueError(
-                    "Prediction cannot be performed with TupleDatasetConfig."
+                    "Inference Dataset must be of type RunDataset, "
+                    "TupleDataset, QueryDataset, or DocDataset."
                 )
-            self._inference_datasets = [
-                TupleDataset(dataset, self.inference_dataset_config, stage)
-                for dataset in self.inference_datasets
-            ]
-        elif isinstance(self.inference_dataset_config, RunDatasetConfig):
-            if self.inference_dataset_config.sampling_strategy == "single_relevant":
-                raise ValueError(
-                    "Inference RunDatasetConfig cannot use the single_relevant "
-                    "sampling strategy."
-                )
-            self._inference_datasets = [
-                RunDataset(Path(dataset), self.inference_dataset_config, stage)
-                for dataset in self.inference_datasets
-            ]
-        elif isinstance(self.inference_dataset_config, QueryDatasetConfig):
-            self._inference_datasets = [
-                QueryDataset(dataset, self.inference_dataset_config)
-                for dataset in self.inference_datasets
-            ]
-        elif isinstance(self.inference_dataset_config, DocDatasetConfig):
-            self._inference_datasets = [
-                DocDataset(dataset, self.inference_dataset_config)
-                for dataset in self.inference_datasets
-            ]
-        else:
-            raise ValueError(
-                "Inference DatasetConfig must be of type RunDatasetConfig, "
-                "QueryDatasetConfig, or DocDatasetConfig."
-            )
+            inference_dataset.setup(stage)
 
     def setup(self, stage: Literal["fit", "validate", "test", "predict"]) -> None:
         if stage == "fit":
@@ -164,16 +114,16 @@ class LightningIRDataModule(LightningDataModule):
         self.setup_inference(stage)
 
     def train_dataloader(self) -> DataLoader:
-        if self._train_dataset is None:
+        if self.train_dataset is None:
             raise ValueError("No training dataset found.")
         return DataLoader(
-            self._train_dataset,
+            self.train_dataset,
             batch_size=self.train_batch_size,
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
             shuffle=(
                 False
-                if isinstance(self._train_dataset, IterableDataset)
+                if isinstance(self.train_dataset, IterableDataset)
                 else self.shuffle_train
             ),
         )
@@ -185,6 +135,7 @@ class LightningIRDataModule(LightningDataModule):
         return self.inference_dataloader()
 
     def inference_dataloader(self) -> List[DataLoader]:
+        inference_datasets = self.inference_datasets or []
         return [
             DataLoader(
                 dataset,
@@ -192,7 +143,7 @@ class LightningIRDataModule(LightningDataModule):
                 num_workers=self.num_workers,
                 collate_fn=self.collate_fn,
             )
-            for dataset in self._inference_datasets
+            for dataset in inference_datasets
         ]
 
     def _aggregate_samples(

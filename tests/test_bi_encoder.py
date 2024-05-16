@@ -10,11 +10,8 @@ from lightning_ir.bi_encoder.colbert import ColBERTModel, ColBERTModule
 from lightning_ir.bi_encoder.model import BiEncoderConfig, BiEncoderModel
 from lightning_ir.bi_encoder.module import BiEncoderModule
 from lightning_ir.bi_encoder.xtr import XTRModel, XTRModule
-from lightning_ir.data.datamodule import (
-    LightningIRDataModule,
-    RunDatasetConfig,
-    TupleDatasetConfig,
-)
+from lightning_ir.data.datamodule import LightningIRDataModule
+from lightning_ir.data.dataset import RunDataset, TupleDataset
 from lightning_ir.loss.loss import (
     ConstantMarginMSE,
     InBatchCrossEntropy,
@@ -98,32 +95,26 @@ def module(model: MODELS, request: SubRequest) -> MODULES:
     return module
 
 
-@lru_cache
-def tuples_datamodule(model: MODELS) -> LightningIRDataModule:
+def tuples_datamodule(
+    model: MODELS, inference_datasets: Sequence[RunDataset]
+) -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
         model_name_or_path=model.config.name_or_path,
         config=model.config,
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=3,
-        train_dataset="msmarco-passage/train/kd-docpairs",
-        train_dataset_config=TupleDatasetConfig("score", 2),
-        inference_datasets=[
-            str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
-            str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-        ],
-        inference_dataset_config=RunDatasetConfig(
-            "relevance", depth=10, sample_size=10, sampling_strategy="top"
+        train_dataset=TupleDataset(
+            "msmarco-passage/train/kd-docpairs", targets="score", num_docs=2
         ),
+        inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="fit")
     return datamodule
 
 
-def test_doc_padding(model: MODELS):
-    datamodule = tuples_datamodule(model)
-    if not isinstance(datamodule.config, BiEncoderConfig):
-        pytest.skip()
+def test_doc_padding(model: MODELS, inference_datasets: Sequence[RunDataset]):
+    datamodule = tuples_datamodule(model, inference_datasets)
     batch = next(iter(datamodule.train_dataloader()))
     doc_encoding = batch.doc_encoding
     doc_encoding["input_ids"] = doc_encoding["input_ids"][:-1]
@@ -175,8 +166,8 @@ def test_doc_padding(model: MODELS):
     assert scores.shape[0] == doc_embedding.shape[0]
 
 
-def test_training_step(module: MODULES):
-    datamodule = tuples_datamodule(module.model)
+def test_training_step(module: MODULES, inference_datasets: Sequence[RunDataset]):
+    datamodule = tuples_datamodule(module.model, inference_datasets)
     if not isinstance(datamodule.config, BiEncoderConfig):
         pytest.skip()
     dataloader = datamodule.train_dataloader()
@@ -185,8 +176,8 @@ def test_training_step(module: MODULES):
     assert loss
 
 
-def test_validation(module: MODULES):
-    datamodule = tuples_datamodule(module.model)
+def test_validation(module: MODULES, inference_datasets: Sequence[RunDataset]):
+    datamodule = tuples_datamodule(module.model, inference_datasets)
     if not isinstance(datamodule.config, BiEncoderConfig):
         pytest.skip()
     dataloader = datamodule.val_dataloader()[0]

@@ -7,7 +7,7 @@ from lightning_ir.data.data import (
     SearchBatch,
 )
 from lightning_ir.data.datamodule import LightningIRDataModule
-from lightning_ir.data.dataset import RunDataset, RunDatasetConfig
+from lightning_ir.data.dataset import RunDataset
 
 from .conftest import DATA_DIR
 
@@ -15,31 +15,29 @@ from .conftest import DATA_DIR
 def test_rank_run_dataset(rank_run_datamodule: LightningIRDataModule):
     datamodule = rank_run_datamodule
     dataloader = datamodule.train_dataloader()
-    config = datamodule.train_dataset_config
-    assert config is not None
+    dataset = dataloader.dataset
 
     batch = next(iter(dataloader))
     assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
     for value in batch:
         assert value is not None
-    assert batch.targets.shape[0] == datamodule.train_batch_size * config.sample_size
+    assert batch.targets.shape[0] == datamodule.train_batch_size * dataset.sample_size
     assert (
-        batch.targets[..., 0]
-        == torch.arange(1, config.sample_size + 1).repeat(datamodule.train_batch_size)
+        batch.targets[..., 0].flip(0)
+        == torch.arange(1, dataset.sample_size + 1).repeat(datamodule.train_batch_size)
     ).all()
 
 
 def test_relevance_run_dataset(relevance_run_datamodule: LightningIRDataModule):
     datamodule = relevance_run_datamodule
     dataloader = datamodule.train_dataloader()
-    config = datamodule.train_dataset_config
-    assert config is not None
+    dataset = dataloader.dataset
 
     batch = next(iter(dataloader))
     assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
     for value in batch:
         assert value is not None
-    assert batch.targets.shape[0] == datamodule.train_batch_size * config.sample_size
+    assert batch.targets.shape[0] == datamodule.train_batch_size * dataset.sample_size
 
 
 def test_single_relevant_run_dataset(
@@ -57,8 +55,7 @@ def test_single_relevant_run_dataset(
 
 def test_tuples_dataset(tuples_datamodule: LightningIRDataModule):
     dataloader = tuples_datamodule.train_dataloader()
-    config = tuples_datamodule.train_dataset_config
-    assert config is not None
+    dataset = dataloader.dataset
 
     batch = next(iter(dataloader))
     assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
@@ -68,10 +65,7 @@ def test_tuples_dataset(tuples_datamodule: LightningIRDataModule):
             assert value is None
         else:
             assert value is not None
-    assert (
-        batch.targets.shape[0]
-        == dataloader.batch_size * dataloader.dataset.config.num_docs
-    )
+    assert batch.targets.shape[0] == dataloader.batch_size * dataset.num_docs
 
 
 def test_query_dataset(query_datamodule: LightningIRDataModule):
@@ -101,7 +95,10 @@ def test_doc_dataset(doc_datamodule: LightningIRDataModule):
 def test_json_dataset():
     dataset = RunDataset(
         DATA_DIR / "run.jsonl",
-        RunDatasetConfig("rank", depth=5, sample_size=5, sampling_strategy="top"),
+        depth=5,
+        sample_size=5,
+        sampling_strategy="top",
+        targets="rank",
     )
     sample = dataset[0]
     assert sample is not None

@@ -16,11 +16,8 @@ from lightning_ir.cross_encoder.mono import (
     MonoRobertaModel,
     MonoRobertaModule,
 )
-from lightning_ir.data.datamodule import (
-    LightningIRDataModule,
-    RunDatasetConfig,
-    TupleDatasetConfig,
-)
+from lightning_ir.data.datamodule import LightningIRDataModule
+from lightning_ir.data.dataset import RunDataset, TupleDataset
 from lightning_ir.loss.loss import (
     ConstantMarginMSE,
     LossFunction,
@@ -108,40 +105,34 @@ def module(model: MODELS, request: SubRequest) -> MODULES:
     return module
 
 
-@lru_cache
-def tuples_datamodule(model: MODELS) -> LightningIRDataModule:
+def tuples_datamodule(
+    model: MODELS, inference_datasets: Sequence[RunDataset]
+) -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
         model_name_or_path=model.config.name_or_path,
         config=model.config,
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=3,
-        train_dataset="msmarco-passage/train/kd-docpairs",
-        train_dataset_config=TupleDatasetConfig("score", 2),
-        inference_datasets=[
-            str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
-            str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-        ],
-        inference_dataset_config=RunDatasetConfig(
-            "relevance", depth=10, sample_size=10, sampling_strategy="top"
+        train_dataset=TupleDataset(
+            "msmarco-passage/train/kd-docpairs", targets="score", num_docs=2
         ),
+        inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="fit")
     return datamodule
 
 
-def test_training_step(module: MODULES):
-    datamodule = tuples_datamodule(module.model)
-    if not isinstance(datamodule.config, CrossEncoderConfig):
-        pytest.skip()
+def test_training_step(module: MODULES, inference_datasets: Sequence[RunDataset]):
+    datamodule = tuples_datamodule(module.model, inference_datasets)
     dataloader = datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = module.training_step(batch, 0)
     assert loss
 
 
-def test_validation(module: MODULES):
-    datamodule = tuples_datamodule(module.model)
+def test_validation(module: MODULES, inference_datasets: Sequence[RunDataset]):
+    datamodule = tuples_datamodule(module.model, inference_datasets)
     if not isinstance(datamodule.config, CrossEncoderConfig):
         pytest.skip()
     dataloader = datamodule.val_dataloader()[0]

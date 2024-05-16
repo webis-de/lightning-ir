@@ -1,18 +1,14 @@
 import os
 from pathlib import Path
+from typing import Sequence, List
 
 import pytest
 from _pytest.fixtures import SubRequest
 
 from lightning_ir.bi_encoder.model import BiEncoderConfig
 from lightning_ir.cross_encoder.model import CrossEncoderConfig
-from lightning_ir.data.datamodule import (
-    DocDatasetConfig,
-    LightningIRDataModule,
-    QueryDatasetConfig,
-    RunDatasetConfig,
-    TupleDatasetConfig,
-)
+from lightning_ir.data.datamodule import LightningIRDataModule
+from lightning_ir.data.dataset import DocDataset, QueryDataset, RunDataset, TupleDataset
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -25,12 +21,36 @@ def model_name_or_path():
 DATA_DIR = Path(__file__).parent / "data"
 
 
+@pytest.fixture(scope="session")
+def inference_datasets() -> List[RunDataset]:
+    inference_datasets = [
+        RunDataset(
+            run_path,
+            depth=10,
+            sample_size=10,
+            sampling_strategy="top",
+            targets="relevance",
+        )
+        for run_path in [
+            DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run",
+            DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl",
+        ]
+    ]
+    return inference_datasets
+
+
 @pytest.fixture(scope="session", params=[BiEncoderConfig(), CrossEncoderConfig()])
 def rank_run_datamodule(
-    model_name_or_path: str, request: SubRequest
+    model_name_or_path: str,
+    inference_datasets: Sequence[RunDataset],
+    request: SubRequest,
 ) -> LightningIRDataModule:
-    config = RunDatasetConfig(
-        targets="rank", depth=10, sample_size=10, sampling_strategy="top"
+    train_dataset = RunDataset(
+        DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run",
+        depth=10,
+        sample_size=10,
+        sampling_strategy="top",
+        targets="rank",
     )
     datamodule = LightningIRDataModule(
         model_name_or_path=model_name_or_path,
@@ -38,15 +58,8 @@ def rank_run_datamodule(
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=3,
-        train_dataset=str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-        train_dataset_config=config,
-        inference_datasets=[
-            str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-            str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
-        ],
-        inference_dataset_config=RunDatasetConfig(
-            "relevance", depth=10, sample_size=10, sampling_strategy="top"
-        ),
+        train_dataset=train_dataset,
+        inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="fit")
     return datamodule
@@ -54,10 +67,16 @@ def rank_run_datamodule(
 
 @pytest.fixture(scope="session", params=[BiEncoderConfig(), CrossEncoderConfig()])
 def relevance_run_datamodule(
-    model_name_or_path: str, request: SubRequest
+    model_name_or_path: str,
+    inference_datasets: Sequence[RunDataset],
+    request: SubRequest,
 ) -> LightningIRDataModule:
-    config = RunDatasetConfig(
-        targets="relevance", depth=10, sample_size=10, sampling_strategy="top"
+    train_dataset = RunDataset(
+        DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run",
+        depth=10,
+        sample_size=10,
+        sampling_strategy="top",
+        targets="relevance",
     )
     datamodule = LightningIRDataModule(
         model_name_or_path=model_name_or_path,
@@ -65,15 +84,8 @@ def relevance_run_datamodule(
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=3,
-        train_dataset=str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-        train_dataset_config=config,
-        inference_datasets=[
-            str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-            str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
-        ],
-        inference_dataset_config=RunDatasetConfig(
-            "relevance", depth=10, sample_size=10, sampling_strategy="top"
-        ),
+        train_dataset=train_dataset,
+        inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="fit")
     return datamodule
@@ -81,13 +93,16 @@ def relevance_run_datamodule(
 
 @pytest.fixture(scope="session", params=[BiEncoderConfig(), CrossEncoderConfig()])
 def single_relevant_run_datamodule(
-    model_name_or_path: str, request
+    model_name_or_path: str,
+    inference_datasets: Sequence[RunDataset],
+    request: SubRequest,
 ) -> LightningIRDataModule:
-    config = RunDatasetConfig(
-        targets="relevance",
-        depth=200,
+    train_dataset = RunDataset(
+        DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run",
+        depth=10,
         sample_size=10,
         sampling_strategy="single_relevant",
+        targets="relevance",
     )
     datamodule = LightningIRDataModule(
         model_name_or_path=model_name_or_path,
@@ -95,15 +110,8 @@ def single_relevant_run_datamodule(
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=3,
-        train_dataset=str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-        train_dataset_config=config,
-        inference_datasets=[
-            str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-            str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
-        ],
-        inference_dataset_config=RunDatasetConfig(
-            "relevance", depth=10, sample_size=10, sampling_strategy="top"
-        ),
+        train_dataset=train_dataset,
+        inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="fit")
     return datamodule
@@ -111,23 +119,21 @@ def single_relevant_run_datamodule(
 
 @pytest.fixture(scope="session", params=[BiEncoderConfig(), CrossEncoderConfig()])
 def tuples_datamodule(
-    model_name_or_path: str, request: SubRequest
+    model_name_or_path: str,
+    inference_datasets: Sequence[RunDataset],
+    request: SubRequest,
 ) -> LightningIRDataModule:
+    train_dataset = TupleDataset(
+        "msmarco-passage/train/kd-docpairs", targets="score", num_docs=2
+    )
     datamodule = LightningIRDataModule(
         model_name_or_path=model_name_or_path,
         config=request.param,
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=3,
-        train_dataset="msmarco-passage/train/kd-docpairs",
-        train_dataset_config=TupleDatasetConfig("score", 2),
-        inference_datasets=[
-            str(DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl"),
-            str(DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run"),
-        ],
-        inference_dataset_config=RunDatasetConfig(
-            "relevance", depth=10, sample_size=10, sampling_strategy="top"
-        ),
+        train_dataset=train_dataset,
+        inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="fit")
     return datamodule
@@ -140,8 +146,7 @@ def query_datamodule(model_name_or_path: str) -> LightningIRDataModule:
         config=BiEncoderConfig(),
         num_workers=0,
         inference_batch_size=3,
-        inference_datasets=["msmarco-passage/trec-dl-2019/judged"],
-        inference_dataset_config=QueryDatasetConfig(),
+        inference_datasets=[QueryDataset("msmarco-passage/trec-dl-2019/judged")],
     )
     datamodule.setup(stage="predict")
     return datamodule
@@ -154,8 +159,7 @@ def doc_datamodule(model_name_or_path: str) -> LightningIRDataModule:
         config=BiEncoderConfig(),
         num_workers=0,
         inference_batch_size=3,
-        inference_datasets=["msmarco-passage"],
-        inference_dataset_config=DocDatasetConfig(num_docs=32),
+        inference_datasets=[DocDataset("msmarco-passage", num_docs=32)],
     )
     datamodule.setup(stage="predict")
     return datamodule
