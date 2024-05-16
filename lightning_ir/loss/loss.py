@@ -202,7 +202,7 @@ class ApproxRankMSE(ApproxLossFunction):
     def compute_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         targets = self.process_targets(logits, targets)
         approx_ranks = self.get_approx_ranks(logits, self.temperature)
-        ranks = torch.argsort(targets, descending=True) + 1
+        ranks = torch.argsort(torch.argsort(targets, descending=True)) + 1
         loss = torch.nn.functional.mse_loss(
             approx_ranks, ranks.to(approx_ranks), reduction="none"
         )
