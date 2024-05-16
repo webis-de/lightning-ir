@@ -176,23 +176,23 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         if add_marker_tokens:
             self.add_tokens([query_token, doc_token], special_tokens=True)
             self.query_post_processor = TemplateProcessing(
-                single="[CLS] [QUE] $0 [SEP]",
-                pair="[CLS] [QUE] $A [SEP] [DOC] $B:1 [SEP]:1",
+                single=f"[CLS] {self.query_token} $0 [SEP]",
+                pair=f"[CLS] {self.query_token} $A [SEP] {self.doc_token} $B:1 [SEP]:1",
                 special_tokens=[
                     ("[CLS]", self.cls_token_id),
                     ("[SEP]", self.sep_token_id),
-                    ("[QUE]", self.query_token_id),
-                    ("[DOC]", self.doc_token_id),
+                    (self.query_token, self.query_token_id),
+                    (self.doc_token, self.doc_token_id),
                 ],
             )
             self.doc_post_processor = TemplateProcessing(
-                single="[CLS] [DOC] $0 [SEP]",
-                pair="[CLS] [QUE] $A [SEP] [DOC] $B:1 [SEP]:1",
+                single=f"[CLS] {self.doc_token} $0 [SEP]",
+                pair=f"[CLS] {self.query_token} $A [SEP] {self.doc_token} $B:1 [SEP]:1",
                 special_tokens=[
                     ("[CLS]", self.cls_token_id),
                     ("[SEP]", self.sep_token_id),
-                    ("[QUE]", self.query_token_id),
-                    ("[DOC]", self.doc_token_id),
+                    (self.query_token, self.query_token_id),
+                    (self.doc_token, self.doc_token_id),
                 ],
             )
 
