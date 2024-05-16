@@ -9,7 +9,6 @@ from transformers import AutoConfig
 
 from ..bi_encoder.module import BiEncoderConfig, BiEncoderModule
 from ..cross_encoder.module import CrossEncoderConfig, CrossEncoderModule
-from ..tokenizer.tokenizer import BiEncoderTokenizer, CrossEncoderTokenizer
 from .data import (
     BiEncoderRunBatch,
     CrossEncoderRunBatch,
@@ -55,16 +54,7 @@ class LightningIRDataModule(LightningDataModule):
                 "Either a model or a model_name_or_path and config must be provided."
             )
 
-        if isinstance(self.config, BiEncoderConfig):
-            Tokenizer = BiEncoderTokenizer
-        elif isinstance(self.config, CrossEncoderConfig):
-            Tokenizer = CrossEncoderTokenizer
-        else:
-            raise ValueError(
-                f"LightningIRDataModule requires a BiEncoderConfig or "
-                f"CrossEncoderConfig, received {self.config.__class__.__name__}."
-            )
-        self.tokenizer = Tokenizer.from_pretrained(
+        self.tokenizer = self.config.Tokenizer.from_pretrained(
             model_name_or_path, **self.config.to_tokenizer_dict()
         )
         self.num_workers = num_workers

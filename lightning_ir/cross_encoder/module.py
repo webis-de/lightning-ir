@@ -18,10 +18,7 @@ class CrossEncoderModule(LightningIRModule):
         loss_functions: Sequence[LossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
-        tokenizer = CrossEncoderTokenizer.from_pretrained(
-            model.config.name_or_path, **model.config.to_tokenizer_dict()
-        )
-        super().__init__(model, tokenizer, loss_functions, evaluation_metrics)
+        super().__init__(model, loss_functions, evaluation_metrics)
 
     def forward(self, batch: CrossEncoderRunBatch) -> torch.Tensor:
         logits = self.model.forward(

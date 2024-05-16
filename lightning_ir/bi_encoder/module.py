@@ -18,10 +18,7 @@ class BiEncoderModule(LightningIRModule):
         loss_functions: Sequence[LossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
-        tokenizer = BiEncoderTokenizer.from_pretrained(
-            model.config.name_or_path, **model.config.to_tokenizer_dict()
-        )
-        super().__init__(model, tokenizer, loss_functions, evaluation_metrics)
+        super().__init__(model, loss_functions, evaluation_metrics)
         if (
             self.config.add_marker_tokens
             and len(self.tokenizer) != self.config.vocab_size

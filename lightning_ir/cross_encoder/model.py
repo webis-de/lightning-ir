@@ -4,10 +4,12 @@ import torch
 from transformers import PretrainedConfig
 
 from ..model import LightningIRConfig, LightningIRModel
+from ..tokenizer.tokenizer import CrossEncoderTokenizer
 
 
 class CrossEncoderConfig(LightningIRConfig):
     model_type = "cross-encoder"
+    Tokenizer = CrossEncoderTokenizer
 
     ADDED_ARGS = [
         "query_length",

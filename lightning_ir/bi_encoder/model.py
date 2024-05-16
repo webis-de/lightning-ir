@@ -1,15 +1,17 @@
 from typing import Any, Dict, List, Literal, Sequence, Tuple
 
 import torch
-from transformers import PretrainedConfig, PreTrainedModel
+from transformers import PretrainedConfig
 
 from ..model import LightningIRConfig, LightningIRModel
+from ..tokenizer.tokenizer import BiEncoderTokenizer
 
 # TODO add configs for MultiVector and SingleVector models
 
 
 class BiEncoderConfig(LightningIRConfig):
     model_type = "bi-encoder"
+    Tokenizer = BiEncoderTokenizer
 
     ADDED_ARGS = [
         "similarity_function",

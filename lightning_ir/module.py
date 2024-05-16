@@ -15,7 +15,6 @@ from .lightning_utils.validation_utils import (
 )
 from .loss.loss import InBatchLossFunction, LossFunction
 from .model import LightningIRConfig, LightningIRModel
-from .tokenizer.tokenizer import LightningIRTokenizer
 
 
 class LightningIRModule(LightningModule):
@@ -24,7 +23,6 @@ class LightningIRModule(LightningModule):
     def __init__(
         self,
         model: LightningIRModel,
-        tokenizer: LightningIRTokenizer,
         loss_functions: Sequence[LossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
@@ -35,7 +33,9 @@ class LightningIRModule(LightningModule):
         self.config = self.model.config
         self.loss_functions = loss_functions
         self.evaluation_metrics = evaluation_metrics
-        self.tokenizer = tokenizer
+        self.tokenizer = self.config.Tokenizer.from_pretrained(
+            self.config.name_or_path, **self.config.to_tokenizer_dict()
+        )
         keys = LightningIRConfig().to_added_args_dict().keys()
         if any(not hasattr(self.config, key) for key in keys):
             raise ValueError(f"Model is missing MVR config attributes {keys}")
