@@ -187,7 +187,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
             )
             self.doc_post_processor = TemplateProcessing(
                 single="[CLS] [DOC] $0 [SEP]",
-                pair="[CLS] [SEP] $A [SEP] [DOC] $B:1 [SEP]:1",
+                pair="[CLS] [QUE] $A [SEP] [DOC] $B:1 [SEP]:1",
                 special_tokens=[
                     ("[CLS]", self.cls_token_id),
                     ("[SEP]", self.sep_token_id),
