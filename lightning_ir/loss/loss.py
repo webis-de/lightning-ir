@@ -4,54 +4,6 @@ from typing import Literal, Tuple
 import torch
 
 
-def get_dcg(
-    ranks: torch.Tensor,
-    targets: torch.Tensor,
-    k: int | None = None,
-    scale_gains: bool = True,
-) -> torch.Tensor:
-    log_ranks = torch.log2(1 + ranks)
-    discounts = 1 / log_ranks
-    if scale_gains:
-        gains = 2**targets - 1
-    else:
-        gains = targets
-    dcgs = gains * discounts
-    if k is not None:
-        dcgs = dcgs.masked_fill(ranks > k, 0)
-    return dcgs.sum(dim=-1)
-
-
-def get_ndcg(
-    ranks: torch.Tensor,
-    targets: torch.Tensor,
-    k: int | None = None,
-    scale_gains: bool = True,
-    optimal_targets: torch.Tensor | None = None,
-) -> torch.Tensor:
-    targets = targets.clamp(min=0)
-    if optimal_targets is None:
-        optimal_targets = targets
-    optimal_ranks = torch.argsort(torch.argsort(optimal_targets, descending=True))
-    optimal_ranks = optimal_ranks + 1
-    dcg = get_dcg(ranks, targets, k, scale_gains)
-    idcg = get_dcg(optimal_ranks, optimal_targets, k, scale_gains)
-    ndcg = dcg / (idcg.clamp(min=1e-12))
-    return ndcg
-
-
-def get_mrr(
-    ranks: torch.Tensor, targets: torch.Tensor, k: int | None = None
-) -> torch.Tensor:
-    targets = targets.clamp(None, 1)
-    reciprocal_ranks = 1 / ranks
-    mrr = reciprocal_ranks * targets
-    if k is not None:
-        mrr = mrr.masked_fill(ranks > k, 0)
-    mrr = mrr.max(dim=-1)[0]
-    return mrr
-
-
 class LossFunction(ABC):
     @abstractmethod
     def compute_loss(
@@ -170,10 +122,48 @@ class ApproxNDCG(ApproxLossFunction):
         super().__init__(temperature)
         self.scale_gains = scale_gains
 
+    @staticmethod
+    def get_dcg(
+        ranks: torch.Tensor,
+        targets: torch.Tensor,
+        k: int | None = None,
+        scale_gains: bool = True,
+    ) -> torch.Tensor:
+        log_ranks = torch.log2(1 + ranks)
+        discounts = 1 / log_ranks
+        if scale_gains:
+            gains = 2**targets - 1
+        else:
+            gains = targets
+        dcgs = gains * discounts
+        if k is not None:
+            dcgs = dcgs.masked_fill(ranks > k, 0)
+        return dcgs.sum(dim=-1)
+
+    @staticmethod
+    def get_ndcg(
+        ranks: torch.Tensor,
+        targets: torch.Tensor,
+        k: int | None = None,
+        scale_gains: bool = True,
+        optimal_targets: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        targets = targets.clamp(min=0)
+        if optimal_targets is None:
+            optimal_targets = targets
+        optimal_ranks = torch.argsort(torch.argsort(optimal_targets, descending=True))
+        optimal_ranks = optimal_ranks + 1
+        dcg = ApproxNDCG.get_dcg(ranks, targets, k, scale_gains)
+        idcg = ApproxNDCG.get_dcg(optimal_ranks, optimal_targets, k, scale_gains)
+        ndcg = dcg / (idcg.clamp(min=1e-12))
+        return ndcg
+
     def compute_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         targets = self.process_targets(logits, targets)
         approx_ranks = self.get_approx_ranks(logits, self.temperature)
-        ndcg = get_ndcg(approx_ranks, targets, k=None, scale_gains=self.scale_gains)
+        ndcg = self.get_ndcg(
+            approx_ranks, targets, k=None, scale_gains=self.scale_gains
+        )
         loss = 1 - ndcg
         return loss.mean()
 
@@ -182,10 +172,22 @@ class ApproxMRR(ApproxLossFunction):
     def __init__(self, temperature: float = 1):
         super().__init__(temperature)
 
+    @staticmethod
+    def get_mrr(
+        ranks: torch.Tensor, targets: torch.Tensor, k: int | None = None
+    ) -> torch.Tensor:
+        targets = targets.clamp(None, 1)
+        reciprocal_ranks = 1 / ranks
+        mrr = reciprocal_ranks * targets
+        if k is not None:
+            mrr = mrr.masked_fill(ranks > k, 0)
+        mrr = mrr.max(dim=-1)[0]
+        return mrr
+
     def compute_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         targets = self.process_targets(logits, targets)
         approx_ranks = self.get_approx_ranks(logits, self.temperature)
-        mrr = get_mrr(approx_ranks, targets, k=None)
+        mrr = self.get_mrr(approx_ranks, targets, k=None)
         loss = 1 - mrr
         return loss.mean()
 
