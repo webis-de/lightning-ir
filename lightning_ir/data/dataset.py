@@ -148,8 +148,23 @@ class RunDataset(IRDataset, Dataset):
         self.sampling_strategy = sampling_strategy
         self.targets = targets
 
-        self.run = self.load_run()
-        self.qrels = self.load_qrels()
+        if self.sampling_strategy == "top" and self.sample_size > self.depth:
+            warnings.warn(
+                "Sample size is greater than depth and top sampling strategy is used. "
+                "This can cause documents to be sampled that are not contained "
+                "in the run file, but that are present in the qrels."
+            )
+
+    def setup(
+        self, stage: Literal["fit", "validate", "predict"] | None = None
+    ) -> "RunDataset":
+        super().setup(stage)
+        if stage == "fit":
+            if self.targets is None:
+                raise ValueError("Targets are required for training.")
+
+        self.run = self.load_run(stage)
+        self.qrels = self.load_qrels(stage)
         self.qrel_groups = None
 
         self.run = self.run.drop_duplicates(["query_id", "doc_id"])
@@ -170,24 +185,12 @@ class RunDataset(IRDataset, Dataset):
 
         if self.run["rank"].max() < self.depth:
             warnings.warn("Depth is greater than the maximum rank in the run file.")
-        if self.sampling_strategy == "top" and self.sample_size > self.depth:
-            warnings.warn(
-                "Sample size is greater than depth and top sampling strategy is used. "
-                "This can cause documents to be sampled that are not contained "
-                "in the run file, but that are present in the qrels."
-            )
 
-    def setup(self, stage: Literal["fit", "validate", "predict"] | None = None) -> None:
-        super().setup(stage)
-        if stage == "fit":
-            if self.targets is None:
-                raise ValueError("Targets are required for training.")
-            num_docs_per_query = self.run.groupby("query_id").transform("size")
-            self.run = self.run[num_docs_per_query >= self.sample_size]
-            self.run_groups = self.run.groupby("query_id")
-            self.query_ids = list(self.run_groups.groups.keys())
+        return self
 
-    def load_run(self) -> pd.DataFrame:
+    def load_run(
+        self, stage: Literal["fit", "validate", "predict"] | None
+    ) -> pd.DataFrame:
         if set((".tsv", ".run", ".csv")).intersection(self.run_path.suffixes):
             run = pd.read_csv(
                 self.run_path,
@@ -238,9 +241,17 @@ class RunDataset(IRDataset, Dataset):
             raise ValueError("Invalid run file format.")
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]
+
+        if stage == "fit":
+            num_docs_per_query = run.groupby("query_id").transform("size")
+            run = run[num_docs_per_query >= self.sample_size]
         return run
 
-    def load_qrels(self) -> pd.DataFrame | None:
+    def load_qrels(
+        self, stage: Literal["fit", "validate", "predict"] | None
+    ) -> pd.DataFrame | None:
+        if stage == "predict":
+            return None
         if "relevance" in self.run:
             qrels = self.run[["query_id", "doc_id", "relevance", "iteration"]]
             self.run = self.run.drop(["relevance", "iteration"], axis=1)
