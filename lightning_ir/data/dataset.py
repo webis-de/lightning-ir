@@ -1,7 +1,7 @@
 import warnings
 from itertools import islice
 from pathlib import Path
-from typing import Dict, Iterator, Literal, NamedTuple, Tuple
+from typing import Dict, Iterator, Literal, Tuple
 
 import ir_datasets
 import ir_datasets.docs
@@ -255,7 +255,12 @@ class RunDataset(IRDataset, Dataset):
         qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
         qrels = qrels.set_index(["query_id", "doc_id", "iteration"]).unstack(level=-1)
         qrels = qrels.droplevel(0, axis=1)
-        qrels = qrels.loc[pd.IndexSlice[self.run["query_id"].drop_duplicates(), :]]
+        run_query_ids = pd.Index(self.run["query_id"].drop_duplicates())
+        qrels_query_ids = qrels.index.get_level_values("query_id").unique()
+        query_ids = run_query_ids.intersection(qrels_query_ids)
+        qrels = qrels.loc[pd.IndexSlice[query_ids, :]]
+        if len(run_query_ids.difference(qrels_query_ids)):
+            self.run = self.run[self.run["query_id"].isin(query_ids)]
         return qrels
 
     def __len__(self) -> int:
