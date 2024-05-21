@@ -214,8 +214,13 @@ class LightningIRDataModule(LightningDataModule):
         raise ValueError("Invalid dataset configuration.")
 
     def collate_fn(
-        self, samples: Sequence[RunSample | QuerySample | DocSample]
+        self,
+        samples: Sequence[
+            RunSample | QuerySample | DocSample | RunSample | QuerySample | DocSample
+        ],
     ) -> BiEncoderRunBatch | CrossEncoderRunBatch | IndexBatch | SearchBatch:
+        if isinstance(samples, (RunSample, QuerySample, DocSample)):
+            samples = [samples]
         aggregated = self._aggregate_samples(samples)
         kwargs = self._clean_sample(aggregated)
         return self._parse_batch(samples[0], **kwargs)
