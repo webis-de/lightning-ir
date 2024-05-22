@@ -1,9 +1,10 @@
+from dataclasses import dataclass
 from typing import Any, Dict, List, Literal, Sequence, Tuple
 
 import torch
 from transformers import PretrainedConfig
 
-from ..model import LightningIRConfig, LightningIRModel
+from ..model import LightningIRConfig, LightningIRModel, LightningIROutput
 from ..tokenizer.tokenizer import BiEncoderTokenizer
 
 # TODO add configs for MultiVector and SingleVector models
@@ -83,6 +84,12 @@ class BiEncoderConfig(LightningIRConfig):
         **kwargs,
     ) -> "BiEncoderConfig":
         return cls.from_dict({**config.to_dict(), **kwargs})
+
+
+@dataclass
+class BiEncoderOutput(LightningIROutput):
+    query_embeddings: torch.Tensor | None = None
+    doc_embeddings: torch.Tensor | None = None
 
 
 def ceil_div(a: int, b: int) -> int:
@@ -304,7 +311,7 @@ class BiEncoderModel(LightningIRModel):
         query_token_type_ids: torch.Tensor | None = None,
         doc_token_type_ids: torch.Tensor | None = None,
         num_docs: List[int] | int | None = None,
-    ) -> torch.Tensor:
+    ) -> BiEncoderOutput:
         query_embeddings = self.encode_queries(
             query_input_ids, query_attention_mask, query_token_type_ids
         )
@@ -321,7 +328,11 @@ class BiEncoderModel(LightningIRModel):
             doc_scoring_mask,
             num_docs,
         )
-        return scores
+        return BiEncoderOutput(
+            scores=scores,
+            query_embeddings=query_embeddings,
+            doc_embeddings=doc_embeddings,
+        )
 
     def encode(
         self,

@@ -14,7 +14,7 @@ from .lightning_utils.validation_utils import (
     evaluate_run,
 )
 from .loss.loss import InBatchLossFunction, LossFunction
-from .model import LightningIRConfig, LightningIRModel
+from .model import LightningIRConfig, LightningIRModel, LightningIROutput
 
 
 class LightningIRModule(LightningModule):
@@ -46,7 +46,9 @@ class LightningIRModule(LightningModule):
         self.train()
         return super().on_fit_start()
 
-    def forward(self, batch: BiEncoderRunBatch | CrossEncoderRunBatch) -> torch.Tensor:
+    def forward(
+        self, batch: BiEncoderRunBatch | CrossEncoderRunBatch
+    ) -> LightningIROutput:
         raise NotImplementedError
 
     def compute_losses(
@@ -77,7 +79,7 @@ class LightningIRModule(LightningModule):
         if self.evaluation_metrics is None:
             return
         with torch.inference_mode():
-            scores = self.forward(batch)
+            output = self.forward(batch)
 
         dataset_id = str(dataloader_idx)
         trainer = None
@@ -92,7 +94,7 @@ class LightningIRModule(LightningModule):
                 raise ValueError(f"Expected a RunDataset for validation, got {dataset}")
             dataset_id = dataset.dataset_id
 
-        self.validation_step_outputs[dataset_id]["scores"].append(scores)
+        self.validation_step_outputs[dataset_id]["scores"].append(output.scores)
         self.validation_step_outputs[dataset_id]["targets"].append(batch.targets)
         self.validation_step_outputs[dataset_id]["query_ids"].append(batch.query_ids)
         self.validation_step_outputs[dataset_id]["doc_ids"].append(batch.doc_ids)

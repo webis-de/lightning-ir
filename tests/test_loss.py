@@ -31,7 +31,7 @@ def depth() -> int:
 
 
 @pytest.fixture(scope="module")
-def logits(batch_size: int, depth: int) -> torch.Tensor:
+def scores(batch_size: int, depth: int) -> torch.Tensor:
     tensor = torch.randn((batch_size, depth), requires_grad=True)
     return tensor
 
@@ -56,12 +56,12 @@ def labels(batch_size: int, depth: int) -> torch.Tensor:
     ],
 )
 def test_loss_func(
-    logits: torch.Tensor,
+    scores: torch.Tensor,
     labels: torch.Tensor,
     LossFunc: Type[LossFunction],
 ):
     loss_func = LossFunc()
-    loss = loss_func.compute_loss(logits, labels)
+    loss = loss_func.compute_loss(scores, labels)
     assert loss >= 0
     assert loss.requires_grad
 
@@ -73,9 +73,9 @@ def test_loss_func(
     ],
 )
 def test_in_batch_loss_func(
-    InBatchLossFunc: Type[InBatchLossFunction], logits: torch.Tensor
+    InBatchLossFunc: Type[InBatchLossFunction], scores: torch.Tensor
 ):
     loss_func = InBatchLossFunc()
-    loss = loss_func.compute_loss(logits)
+    loss = loss_func.compute_loss(scores)
     assert loss >= 0
     assert loss.requires_grad

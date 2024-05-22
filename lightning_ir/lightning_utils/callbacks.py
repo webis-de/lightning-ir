@@ -137,7 +137,7 @@ class IndexCallback(Callback):
         self,
         trainer: Trainer,
         pl_module: BiEncoderModule,
-        outputs: Any,
+        prediction: Any,
         batch: IndexBatch,
         batch_idx: int,
         dataloader_idx: int = 0,
@@ -147,14 +147,8 @@ class IndexCallback(Callback):
                 self.indexer.save()
             self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
 
-        doc_id_length = max(2, max(len(doc_id) for doc_id in batch.doc_ids))
-        encoded_doc_ids = torch.ByteTensor(
-            list(
-                bytes(doc_id.rjust(doc_id_length), "utf32") for doc_id in batch.doc_ids
-            )
-        )
-        outputs = pl_module.all_gather(outputs)
-        encoded_doc_ids = pl_module.all_gather(encoded_doc_ids)
+        doc_embeddings = pl_module.all_gather(prediction.doc_embeddings)
+        doc_ids = pl_module.all_gather(batch.doc_ids)
         attention_mask = batch.doc_encoding.attention_mask
         if attention_mask is None:
             attention_mask = torch.ones(batch.doc_encoding.input_ids.shape)
@@ -164,11 +158,10 @@ class IndexCallback(Callback):
         scoring_mask = pl_module.all_gather(scoring_mask)
         if not trainer.is_global_zero:
             return
-        outputs = outputs.view(-1, *outputs.shape[-2:])
+        doc_embeddings = doc_embeddings.view(-1, *doc_embeddings.shape[-2:])
 
-        outputs = outputs.view(-1, pl_module.config.embedding_dim)
-        embeddings = outputs[scoring_mask.bool().view(-1)]
-        doc_ids = [bytes(doc_id).decode("utf32").strip() for doc_id in encoded_doc_ids]
+        doc_embeddings = doc_embeddings.view(-1, pl_module.config.embedding_dim)
+        embeddings = doc_embeddings[scoring_mask.bool().view(-1)]
         doc_lengths = scoring_mask.sum(-1)
 
         self.indexer.add(embeddings, doc_ids, doc_lengths)
@@ -300,19 +293,19 @@ class ReRankCallback(RankCallback):
     ) -> Any:
         if not isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch)):
             raise ValueError("Expected BiEncoderRunBatch or CrossEncoderRunBatch")
-        logits = pl_module.all_gather(prediction)
+        scores = pl_module.all_gather(prediction.scores)
         doc_ids = pl_module.all_gather(batch.doc_ids)
-        return dict(logits=logits, doc_ids=doc_ids)
+        return dict(scores=scores, doc_ids=doc_ids)
 
     def rank(
-        self, logits: torch.Tensor, doc_ids: List[str]
+        self, scores: torch.Tensor, doc_ids: List[str]
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
-        logits = logits.view(-1)
+        scores = scores.view(-1)
         num_docs = [len(_doc_ids) for _doc_ids in doc_ids]
         doc_ids = list(itertools.chain.from_iterable(doc_ids))
-        if logits.shape[0] != len(doc_ids):
-            raise ValueError("logits and doc_ids must have the same length")
-        return logits.view(-1), doc_ids, num_docs
+        if scores.shape[0] != len(doc_ids):
+            raise ValueError("scores and doc_ids must have the same length")
+        return scores.view(-1), doc_ids, num_docs
 
 
 class SearchCallback(RankCallback):
@@ -344,7 +337,7 @@ class SearchCallback(RankCallback):
     ) -> Dict[str, torch.Tensor]:
         if not isinstance(batch, SearchBatch):
             raise ValueError("Expected SearchBatch")
-        query_embeddings = pl_module.all_gather(prediction)
+        query_embeddings = pl_module.all_gather(prediction.query_embeddings)
         query_attention_mask = pl_module.all_gather(
             batch.query_encoding.attention_mask.bool()
         )

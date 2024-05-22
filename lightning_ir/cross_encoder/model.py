@@ -1,9 +1,10 @@
+from dataclasses import dataclass
 from typing import Any, Dict
 
 import torch
 from transformers import PretrainedConfig
 
-from ..model import LightningIRConfig, LightningIRModel
+from ..model import LightningIRConfig, LightningIRModel, LightningIROutput
 from ..tokenizer.tokenizer import CrossEncoderTokenizer
 
 
@@ -48,6 +49,11 @@ class CrossEncoderConfig(LightningIRConfig):
         return cls.from_dict({**config.to_dict(), **kwargs})
 
 
+@dataclass
+class CrossEncoderOuput(LightningIROutput):
+    last_hidden_state: torch.Tensor | None = None
+
+
 class CrossEncoderModel(LightningIRModel):
     def __init__(self, config: CrossEncoderConfig, encoder_module_name: str):
         super().__init__(config)
@@ -60,14 +66,14 @@ class CrossEncoderModel(LightningIRModel):
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        output = self.encoder(
+    ) -> CrossEncoderOuput:
+        last_hidden_state = self.encoder(
             input_ids=input_ids,
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
-        ).last_hidden_state[:, 0]
-        output = self.linear(output)
-        return output.squeeze(-1)
+        ).last_hidden_state
+        scores = self.linear(last_hidden_state[:, 0])
+        return CrossEncoderOuput(scores=scores, last_hidden_state=last_hidden_state)
 
     @property
     def encoder(self):

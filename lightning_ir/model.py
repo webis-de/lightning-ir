@@ -1,6 +1,9 @@
-from typing import Dict, Any
+from typing import Any, Dict
 
+import torch
 from transformers import PretrainedConfig, PreTrainedModel
+from transformers.modeling_outputs import ModelOutput
+from dataclasses import dataclass
 
 
 class LightningIRConfig(PretrainedConfig):
@@ -30,6 +33,14 @@ class LightningIRConfig(PretrainedConfig):
         return cls.from_dict({**config.to_dict(), **kwargs})
 
 
+@dataclass
+class LightningIROutput(ModelOutput):
+    scores: torch.Tensor | None = None
+
+
 class LightningIRModel(PreTrainedModel):
     def __init__(self, config: LightningIRConfig):
         super().__init__(config)
+
+    def forward(self, *args, **kwargs) -> LightningIROutput:
+        raise NotImplementedError

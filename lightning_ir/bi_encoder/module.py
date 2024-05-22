@@ -4,9 +4,8 @@ import torch
 
 from ..data.data import BiEncoderRunBatch, IndexBatch, SearchBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
-from ..tokenizer.tokenizer import BiEncoderTokenizer
-from .model import BiEncoderConfig, BiEncoderModel
 from ..module import LightningIRModule
+from .model import BiEncoderConfig, BiEncoderModel, BiEncoderOutput
 
 
 class BiEncoderModule(LightningIRModule):
@@ -25,9 +24,9 @@ class BiEncoderModule(LightningIRModule):
         ):
             self.model.encoder.resize_token_embeddings(len(self.tokenizer), 8)
 
-    def forward(self, batch: BiEncoderRunBatch) -> torch.Tensor:
+    def forward(self, batch: BiEncoderRunBatch) -> BiEncoderOutput:
         num_docs = [len(ids) for ids in batch.doc_ids]
-        scores = self.model.forward(
+        output = self.model.forward(
             batch.query_encoding.input_ids,
             batch.doc_encoding.input_ids,
             batch.query_encoding.attention_mask,
@@ -36,7 +35,7 @@ class BiEncoderModule(LightningIRModule):
             batch.doc_encoding.token_type_ids,
             num_docs,
         )
-        return scores
+        return output
 
     def compute_losses(
         self,
@@ -47,15 +46,14 @@ class BiEncoderModule(LightningIRModule):
             if self.loss_functions is None:
                 raise ValueError("Loss function is not set")
             loss_functions = self.loss_functions
-        query_embeddings = self.model.encode_queries(
+        output = self.model.forward(
             batch.query_encoding.input_ids,
-            batch.query_encoding.attention_mask,
-            batch.query_encoding.token_type_ids,
-        )
-        doc_embeddings = self.model.encode_docs(
             batch.doc_encoding.input_ids,
+            batch.query_encoding.attention_mask,
             batch.doc_encoding.attention_mask,
+            batch.query_encoding.token_type_ids,
             batch.doc_encoding.token_type_ids,
+            [len(ids) for ids in batch.doc_ids],
         )
         query_scoring_mask, doc_scoring_mask = self.model.scoring_masks(
             batch.query_encoding.input_ids,
@@ -63,12 +61,10 @@ class BiEncoderModule(LightningIRModule):
             batch.query_encoding.attention_mask,
             batch.doc_encoding.attention_mask,
         )
-        scores = self.model.score(
-            query_embeddings,
-            doc_embeddings,
-            query_scoring_mask,
-            doc_scoring_mask,
-        )
+
+        scores = output.scores
+        query_embeddings = output.query_embeddings
+        doc_embeddings = output.doc_embeddings
 
         num_queries = batch.query_encoding.input_ids.shape[0]
         scores = scores.view(num_queries, -1)
@@ -137,11 +133,15 @@ class BiEncoderModule(LightningIRModule):
 
     def predict_step(
         self, batch: IndexBatch | SearchBatch | BiEncoderRunBatch, *args, **kwargs
-    ) -> Any:
+    ) -> BiEncoderOutput:
         if isinstance(batch, IndexBatch):
-            return self.model.encode_docs(**batch.doc_encoding)
+            return BiEncoderOutput(
+                doc_embeddings=self.model.encode_docs(**batch.doc_encoding)
+            )
         if isinstance(batch, SearchBatch):
-            return self.model.encode_queries(**batch.query_encoding)
+            return BiEncoderOutput(
+                query_embeddings=self.model.encode_queries(**batch.query_encoding)
+            )
         if isinstance(batch, BiEncoderRunBatch):
             return self.forward(batch)
         raise ValueError(f"Unknown batch type {type(batch)}")
