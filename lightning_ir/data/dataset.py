@@ -200,6 +200,15 @@ class RunDataset(IRDataset, Dataset):
                 usecols=[0, 2, 3, 4],
                 dtype={"query_id": str, "doc_id": str},
             )
+        elif self.run_path.suffix == ".parquet":
+            run = pd.read_parquet(self.run_path).rename(
+                {
+                    "qid": "query_id",
+                    "docid": "doc_id",
+                    "docno": "doc_id",
+                },
+                axis=1,
+            )
         elif set((".json", ".jsonl")).intersection(self.run_path.suffixes):
             kwargs = {}
             if ".jsonl" in self.run_path.suffixes:
