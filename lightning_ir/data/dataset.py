@@ -179,6 +179,10 @@ class RunDataset(IRDataset, Dataset):
             )
             self.qrel_groups = self.qrels.groupby("query_id")
 
+        if stage == "fit":
+            num_docs_per_query = self.run.groupby("query_id").transform("size")
+            self.run = self.run[num_docs_per_query >= self.sample_size]
+
         self.run = self.run.sort_values(["query_id", "rank"])
         self.run_groups = self.run.groupby("query_id")
         self.query_ids = list(self.run_groups.groups.keys())
@@ -250,10 +254,6 @@ class RunDataset(IRDataset, Dataset):
             raise ValueError("Invalid run file format.")
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]
-
-        if stage == "fit":
-            num_docs_per_query = run.groupby("query_id").transform("size")
-            run = run[num_docs_per_query >= self.sample_size]
         return run
 
     def load_qrels(
