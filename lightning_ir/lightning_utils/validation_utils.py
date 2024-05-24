@@ -40,7 +40,6 @@ def evaluate_run(
 ) -> Dict[str, float]:
     parsed_measures = [ir_measures.parse_measure(measure) for measure in measures]
     metrics = {
-        str(key): val
-        for key, val in ir_measures.calc_aggregate(parsed_measures, qrels, run).items()
+        str(measure): measure.calc_aggregate(qrels, run) for measure in parsed_measures
     }
     return metrics
