@@ -13,16 +13,13 @@ from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
 from .data import DocSample, QuerySample, RunSample, ScoredDocTuple
 
-DASHED_DATASET_MAP = {
-    dataset.replace("/", "-"): dataset for dataset in ir_datasets.registry._registered
-}
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 
 
 class IRDataset:
     def __init__(self, dataset: str) -> None:
-        if dataset in DASHED_DATASET_MAP:
-            dataset = DASHED_DATASET_MAP[dataset]
+        if dataset in self.DASHED_DATASET_MAP:
+            dataset = self.DASHED_DATASET_MAP[dataset]
         self.dataset = dataset
         try:
             self.ir_dataset = ir_datasets.load(dataset)
@@ -30,6 +27,13 @@ class IRDataset:
             self.ir_dataset = None
         self._queries = None
         self._docs = None
+
+    @property
+    def DASHED_DATASET_MAP(self) -> Dict[str, str]:
+        return {
+            dataset.replace("/", "-"): dataset
+            for dataset in ir_datasets.registry._registered
+        }
 
     @property
     def queries(self) -> pd.Series:
