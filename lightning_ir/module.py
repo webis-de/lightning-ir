@@ -29,7 +29,6 @@ class LightningIRModule(LightningModule):
         super().__init__()
         self.model: LightningIRModel = model
         self.encoder: PreTrainedModel = model.encoder
-        self.encoder.embeddings.position_embeddings.requires_grad_(False)
         self.config = self.model.config
         self.loss_functions = loss_functions
         self.evaluation_metrics = evaluation_metrics
