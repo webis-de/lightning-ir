@@ -11,7 +11,8 @@ from ir_datasets.formats import GenericDoc, GenericDocPair
 from torch.distributed import get_rank, get_world_size
 from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
-from .data import DocSample, QuerySample, RunSample, ScoredDocTuple
+from .data import DocSample, QuerySample, RunSample
+from .ir_datasets_utils import ScoredDocTuple
 
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 
@@ -345,7 +346,7 @@ class TupleDataset(IRDataset, IterableDataset):
     def __init__(
         self,
         tuples_dataset: str,
-        targets: Literal["order", "score"] | None,
+        targets: Literal["order", "score"] = "order",
         num_docs: int | None = None,
     ) -> None:
         super().__init__(tuples_dataset)
@@ -356,22 +357,25 @@ class TupleDataset(IRDataset, IterableDataset):
     def parse_sample(
         self, sample: ScoredDocTuple | GenericDocPair
     ) -> Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[float, ...] | None]:
-        targets = None
         if isinstance(sample, GenericDocPair):
             if self.targets == "score":
                 raise ValueError("ScoredDocTuple required for score targets.")
-            elif self.targets == "order":
-                targets = (1.0, 0.0)
+            targets = (1.0, 0.0)
             doc_ids = (sample.doc_id_a, sample.doc_id_b)
         elif isinstance(sample, ScoredDocTuple):
             doc_ids = sample.doc_ids[: self.num_docs]
-            if self.targets is not None:
-                targets = (
-                    sample.scores
-                    if sample.scores is not None and self.targets == "score"
-                    else tuple([1.0] + [0.0] * sample.num_docs)
+            if self.targets == "score":
+                if sample.scores is None:
+                    raise ValueError("tuples dataset does not contain scores")
+                targets = sample.scores
+            elif self.targets == "order":
+                targets = tuple([1.0] + [0.0] * (sample.num_docs - 1))
+            else:
+                raise ValueError(
+                    f"invalid value for targets, got {self.targets}, "
+                    "expected one of (order, score)"
                 )
-                targets = targets[: self.num_docs]
+            targets = targets[: self.num_docs]
         else:
             raise ValueError("Invalid sample type.")
         docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
