@@ -18,6 +18,6 @@ model:
         embedding_dim: 128
         linear_bias: false
     loss_function:
-      class_path: LocalizedContrastive
+      class_path: LocalizedContrastiveEstimation
       init_args:
         reduction: mean
