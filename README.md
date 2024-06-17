@@ -17,7 +17,7 @@ Regarding inference, since bi-encoders encode queries and documents separately, 
 We're currently in the process of setting up the package on PyPI. In the meantime, you can install the package from source.
 
 ```bash
-git clone
+git clone https://github.com/webis-de/lightning-ir.git
 cd lightning-ir
 pip install .
 ```
