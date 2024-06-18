@@ -87,18 +87,9 @@ class BiEncoderConfig(LightningIRConfig):
 
 
 @dataclass
-class EncodingOutput:
-    embeddings: torch.Tensor
-
-
-@dataclass
 class BiEncoderOutput(LightningIROutput):
     query_embeddings: torch.Tensor | None = None
     doc_embeddings: torch.Tensor | None = None
-
-
-def ceil_div(a: int, b: int) -> int:
-    return -(a // -b)
 
 
 class ScoringFunction(torch.nn.Module):
@@ -300,7 +291,6 @@ class BiEncoderModel(LightningIRModel):
             self.config.embedding_dim,
             bias=self.config.linear_bias,
         )
-        self.config.similarity_function
         self.scoring_function = ScoringFunction(config)
 
     @property
@@ -327,16 +317,16 @@ class BiEncoderModel(LightningIRModel):
             query_input_ids, doc_input_ids, query_attention_mask, doc_attention_mask
         )
         scores = self.score(
-            query_embeddings.embeddings,
-            doc_embeddings.embeddings,
+            query_embeddings,
+            doc_embeddings,
             query_scoring_mask,
             doc_scoring_mask,
             num_docs,
         )
         return BiEncoderOutput(
             scores=scores,
-            query_embeddings=query_embeddings.embeddings,
-            doc_embeddings=doc_embeddings.embeddings,
+            query_embeddings=query_embeddings,
+            doc_embeddings=doc_embeddings,
         )
 
     def encode(
@@ -344,21 +334,21 @@ class BiEncoderModel(LightningIRModel):
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
-    ) -> EncodingOutput:
+    ) -> torch.Tensor:
         embedding = self.encoder.forward(
             input_ids, attention_mask, token_type_ids
         ).last_hidden_state
         embedding = self.linear(embedding)
         if self.config.normalize:
             embedding = torch.nn.functional.normalize(embedding, dim=-1)
-        return EncodingOutput(embedding)
+        return embedding
 
     def encode_queries(
         self,
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
-    ) -> EncodingOutput:
+    ) -> torch.Tensor:
         return self.encode(input_ids, attention_mask, token_type_ids)
 
     def encode_docs(
@@ -366,7 +356,7 @@ class BiEncoderModel(LightningIRModel):
         input_ids: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
-    ) -> EncodingOutput:
+    ) -> torch.Tensor:
         return self.encode(input_ids, attention_mask, token_type_ids)
 
     def scoring_masks(
