@@ -1,4 +1,3 @@
-from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Sequence
 
@@ -14,7 +13,7 @@ from lightning_ir.bi_encoder.module import BiEncoderModule
 from lightning_ir.cross_encoder.model import CrossEncoderConfig, CrossEncoderModel
 from lightning_ir.cross_encoder.module import CrossEncoderModule
 from lightning_ir.data.datamodule import LightningIRDataModule
-from lightning_ir.data.dataset import RunDataset
+from lightning_ir.data.dataset import DocDataset, QueryDataset, RunDataset
 from lightning_ir.lightning_utils.callbacks import (
     IndexCallback,
     ReRankCallback,
@@ -22,6 +21,32 @@ from lightning_ir.lightning_utils.callbacks import (
 )
 
 DATA_DIR = Path(__file__).parent / "data"
+
+
+@pytest.fixture()
+def query_datamodule(model_name_or_path: str) -> LightningIRDataModule:
+    datamodule = LightningIRDataModule(
+        model_name_or_path=model_name_or_path,
+        config=BiEncoderConfig(),
+        num_workers=0,
+        inference_batch_size=2,
+        inference_datasets=[QueryDataset("lightning-ir", num_queries=2)],
+    )
+    datamodule.setup(stage="predict")
+    return datamodule
+
+
+@pytest.fixture()
+def doc_datamodule(model_name_or_path: str) -> LightningIRDataModule:
+    datamodule = LightningIRDataModule(
+        model_name_or_path=model_name_or_path,
+        config=BiEncoderConfig(),
+        num_workers=0,
+        inference_batch_size=2,
+        inference_datasets=[DocDataset("lightning-ir")],
+    )
+    datamodule.setup(stage="predict")
+    return datamodule
 
 
 class TestBiEncoderModel(BiEncoderModel):
