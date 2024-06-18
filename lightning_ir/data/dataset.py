@@ -167,6 +167,8 @@ class RunDataset(IRDataset, Dataset):
         if stage == "fit":
             if self.targets is None:
                 raise ValueError("Targets are required for training.")
+        if stage == "predict":
+            self.targets = None
 
         self.run = self.load_run(stage)
         self.qrels = self.load_qrels(stage)
@@ -267,8 +269,14 @@ class RunDataset(IRDataset, Dataset):
         if stage == "predict":
             return None
         if "relevance" in self.run:
-            qrels = self.run[["query_id", "doc_id", "relevance", "iteration"]]
-            self.run = self.run.drop(["relevance", "iteration"], axis=1)
+            qrels = self.run[["query_id", "doc_id", "relevance"]]
+            if "iteration" in self.run:
+                qrels["iteration"] = self.run["iteration"]
+            else:
+                qrels["iteration"] = "0"
+            self.run = self.run.drop(
+                ["relevance", "iteration"], axis=1, errors="ignore"
+            )
         else:
             if self.ir_dataset is None:
                 return None
@@ -296,13 +304,9 @@ class RunDataset(IRDataset, Dataset):
         group = self.run_groups.get_group(query_id).copy()
         query = self.queries[query_id]
         if self.sampling_strategy == "single_relevant":
-            relevant = group.loc[
-                group.filter(like="relevance").max(axis=1).gt(0)
-            ].sample(1)
-            non_relevant_bool = (
-                group.filter(like="relevance").max(axis=1).fillna(0).eq(0)
-                & ~group["rank"].isna()
-            )
+            relevance = group.filter(like="relevance").max(axis=1).fillna(0)
+            relevant = group.loc[relevance.gt(0)].sample(1)
+            non_relevant_bool = relevance.eq(0) & ~group["rank"].isna()
             num_non_relevant = non_relevant_bool.sum()
             sample_non_relevant = min(self.sample_size - 1, num_non_relevant)
             non_relevant = group.loc[non_relevant_bool].sample(sample_non_relevant)
@@ -319,13 +323,15 @@ class RunDataset(IRDataset, Dataset):
 
         targets = None
         if self.targets is not None:
-            targets = torch.tensor(
+            filtered = (
                 group.set_index("doc_id")
                 .loc[list(doc_ids)]
                 .filter(like=self.targets)
                 .fillna(0)
-                .values
             )
+            if filtered.empty:
+                raise ValueError(f"targets `{self.targets}` not found in run file")
+            targets = torch.tensor(filtered.values)
             if self.targets == "rank":
                 # invert ranks to be higher is better (necessary for loss functions)
                 targets = self.depth - targets + 1

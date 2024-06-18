@@ -36,7 +36,11 @@ def test_same_as_colbert():
         doc_encoding.attention_mask,
     )
     scores = model.score(
-        query_embedding, doc_embedding, query_scoring_mask, doc_scoring_mask, None
+        query_embedding,
+        doc_embedding,
+        query_scoring_mask,
+        doc_scoring_mask,
+        None,
     )
 
     orig_model = Checkpoint("colbert-ir/colbertv2.0")

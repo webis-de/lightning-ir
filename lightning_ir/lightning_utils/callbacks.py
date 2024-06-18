@@ -36,7 +36,7 @@ class IndexCallback(Callback):
     def __init__(
         self,
         index_dir: Path | None,
-        num_train_tokens: int | None = None,
+        num_train_embeddings: int | None = None,
         num_centroids: int | None = None,
         num_subquantizers: int = 16,
         n_bits: int = 4,
@@ -44,7 +44,7 @@ class IndexCallback(Callback):
     ) -> None:
         super().__init__()
         self.index_dir = index_dir
-        self.num_train_tokens = num_train_tokens
+        self.num_train_embeddings = num_train_embeddings
         self.num_centroids = num_centroids
         self.num_subquantizers = num_subquantizers
         self.n_bits = n_bits
@@ -86,37 +86,48 @@ class IndexCallback(Callback):
 
         index_path = self.get_index_path(pl_module, dataset)
 
+        approx_num_tokens = None
         num_docs = dataset.ir_dataset.docs_count()
-        approx_num_tokens = int(
-            (
-                sum(
-                    len(doc.default_text().split())
-                    for _, doc in zip(range(100), dataset.ir_dataset.docs_iter())
+        if num_docs is not None:
+            approx_num_tokens = int(
+                (
+                    sum(
+                        len(doc.default_text().split())
+                        for _, doc in zip(range(100), dataset.ir_dataset.docs_iter())
+                    )
+                    / 100
                 )
-                / 100
+                * num_docs
             )
-            * num_docs
-        )
         # default faiss values
         # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
         max_points_per_centroid = 256
 
         num_centroids = self.num_centroids
-        num_train_tokens = self.num_train_tokens
+        num_train_embeddings = self.num_train_embeddings
         # max 2^18 * max_points_per_centroid training tokens
+        if num_train_embeddings is None and approx_num_tokens is None:
+            raise ValueError(
+                "unable to approximate number of tokens because the provided "
+                f"ir_dataset {dataset.docs_dataset_id()} does not provide `docs_count`."
+                "manually set `num_train_embeddings` in the `IndexCallback`"
+            )
         approx_num_tokens = int(
-            min(2**18 * max_points_per_centroid, num_train_tokens or approx_num_tokens)
+            min(
+                2**18 * max_points_per_centroid,
+                num_train_embeddings or approx_num_tokens,
+            )
         )
         if num_centroids is None:
             num_centroids = 2 ** math.floor(
                 math.log2(approx_num_tokens / max_points_per_centroid)
             )
-        if num_train_tokens is None:
-            num_train_tokens = approx_num_tokens
+        if num_train_embeddings is None:
+            num_train_embeddings = approx_num_tokens
 
         config = IVFPQIndexConfig(
             index_path=index_path,
-            num_train_tokens=num_train_tokens,
+            num_train_embeddings=num_train_embeddings,
             num_centroids=num_centroids,
             num_subquantizers=self.num_subquantizers,
             n_bits=self.n_bits,

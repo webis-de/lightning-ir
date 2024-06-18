@@ -1,4 +1,3 @@
-from functools import lru_cache
 from pathlib import Path
 from typing import Sequence, Union
 
@@ -102,11 +101,9 @@ def tuples_datamodule(
         model_name_or_path=model.config.name_or_path,
         config=model.config,
         num_workers=0,
-        train_batch_size=3,
-        inference_batch_size=3,
-        train_dataset=TupleDataset(
-            "msmarco-passage/train/kd-docpairs", targets="score", num_docs=2
-        ),
+        train_batch_size=2,
+        inference_batch_size=2,
+        train_dataset=TupleDataset("lightning-ir", targets="order", num_docs=2),
         inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="fit")
@@ -168,8 +165,6 @@ def test_doc_padding(model: MODELS, inference_datasets: Sequence[RunDataset]):
 
 def test_training_step(module: MODULES, inference_datasets: Sequence[RunDataset]):
     datamodule = tuples_datamodule(module.model, inference_datasets)
-    if not isinstance(datamodule.config, BiEncoderConfig):
-        pytest.skip()
     dataloader = datamodule.train_dataloader()
     batch = next(iter(dataloader))
     loss = module.training_step(batch, 0)
@@ -178,8 +173,6 @@ def test_training_step(module: MODULES, inference_datasets: Sequence[RunDataset]
 
 def test_validation(module: MODULES, inference_datasets: Sequence[RunDataset]):
     datamodule = tuples_datamodule(module.model, inference_datasets)
-    if not isinstance(datamodule.config, BiEncoderConfig):
-        pytest.skip()
     dataloader = datamodule.val_dataloader()[0]
     for batch, batch_idx in zip(dataloader, range(2)):
         module.validation_step(batch, batch_idx, 0)

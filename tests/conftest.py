@@ -9,6 +9,19 @@ from lightning_ir.bi_encoder.model import BiEncoderConfig
 from lightning_ir.cross_encoder.model import CrossEncoderConfig
 from lightning_ir.data.datamodule import LightningIRDataModule
 from lightning_ir.data.dataset import DocDataset, QueryDataset, RunDataset, TupleDataset
+from lightning_ir.data.ir_datasets_utils import register_local
+
+DATA_DIR = Path(__file__).parent / "data"
+CORPUS_DIR = DATA_DIR / "corpus"
+RUNS_DIR = DATA_DIR / "runs"
+
+register_local(
+    dataset_id="lightning-ir",
+    docs=str(CORPUS_DIR / "docs.tsv"),
+    queries=str(CORPUS_DIR / "queries.tsv"),
+    qrels=str(CORPUS_DIR / "qrels.tsv"),
+    docpairs=str(CORPUS_DIR / "docpairs.tsv"),
+)
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -18,23 +31,17 @@ def model_name_or_path():
     return "sentence-transformers/all-MiniLM-L6-v2"
 
 
-DATA_DIR = Path(__file__).parent / "data"
-
-
 @pytest.fixture(scope="session")
 def inference_datasets() -> List[RunDataset]:
     inference_datasets = [
         RunDataset(
-            run_path,
+            RUNS_DIR / run_path,
             depth=10,
             sample_size=10,
             sampling_strategy="top",
             targets="relevance",
         )
-        for run_path in [
-            DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run",
-            DATA_DIR / "clueweb09-en-trec-web-2009-diversity.jsonl",
-        ]
+        for run_path in ["run.jsonl", "lightning-ir.tsv"]
     ]
     return inference_datasets
 
@@ -46,9 +53,9 @@ def rank_run_datamodule(
     request: SubRequest,
 ) -> LightningIRDataModule:
     train_dataset = RunDataset(
-        DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run",
-        depth=10,
-        sample_size=10,
+        RUNS_DIR / "lightning-ir.tsv",
+        depth=5,
+        sample_size=2,
         sampling_strategy="top",
         targets="rank",
     )
@@ -56,8 +63,8 @@ def rank_run_datamodule(
         model_name_or_path=model_name_or_path,
         config=request.param,
         num_workers=0,
-        train_batch_size=3,
-        inference_batch_size=3,
+        train_batch_size=2,
+        inference_batch_size=2,
         train_dataset=train_dataset,
         inference_datasets=inference_datasets,
     )
@@ -72,9 +79,9 @@ def relevance_run_datamodule(
     request: SubRequest,
 ) -> LightningIRDataModule:
     train_dataset = RunDataset(
-        DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run",
-        depth=10,
-        sample_size=10,
+        RUNS_DIR / "lightning-ir.tsv",
+        depth=5,
+        sample_size=2,
         sampling_strategy="top",
         targets="relevance",
     )
@@ -82,8 +89,8 @@ def relevance_run_datamodule(
         model_name_or_path=model_name_or_path,
         config=request.param,
         num_workers=0,
-        train_batch_size=3,
-        inference_batch_size=3,
+        train_batch_size=2,
+        inference_batch_size=2,
         train_dataset=train_dataset,
         inference_datasets=inference_datasets,
     )
@@ -98,9 +105,9 @@ def single_relevant_run_datamodule(
     request: SubRequest,
 ) -> LightningIRDataModule:
     train_dataset = RunDataset(
-        DATA_DIR / "msmarco-passage-trec-dl-2019-judged.run",
-        depth=10,
-        sample_size=10,
+        RUNS_DIR / "lightning-ir.tsv",
+        depth=5,
+        sample_size=2,
         sampling_strategy="single_relevant",
         targets="relevance",
     )
@@ -108,8 +115,8 @@ def single_relevant_run_datamodule(
         model_name_or_path=model_name_or_path,
         config=request.param,
         num_workers=0,
-        train_batch_size=3,
-        inference_batch_size=3,
+        train_batch_size=2,
+        inference_batch_size=2,
         train_dataset=train_dataset,
         inference_datasets=inference_datasets,
     )
@@ -123,15 +130,13 @@ def tuples_datamodule(
     inference_datasets: Sequence[RunDataset],
     request: SubRequest,
 ) -> LightningIRDataModule:
-    train_dataset = TupleDataset(
-        "msmarco-passage/train/kd-docpairs", targets="score", num_docs=2
-    )
+    train_dataset = TupleDataset("lightning-ir", targets="order", num_docs=2)
     datamodule = LightningIRDataModule(
         model_name_or_path=model_name_or_path,
         config=request.param,
         num_workers=0,
-        train_batch_size=3,
-        inference_batch_size=3,
+        train_batch_size=2,
+        inference_batch_size=2,
         train_dataset=train_dataset,
         inference_datasets=inference_datasets,
     )
@@ -145,8 +150,8 @@ def query_datamodule(model_name_or_path: str) -> LightningIRDataModule:
         model_name_or_path=model_name_or_path,
         config=BiEncoderConfig(),
         num_workers=0,
-        inference_batch_size=3,
-        inference_datasets=[QueryDataset("msmarco-passage/trec-dl-2019/judged")],
+        inference_batch_size=2,
+        inference_datasets=[QueryDataset("lightning-ir", num_queries=2)],
     )
     datamodule.setup(stage="predict")
     return datamodule
@@ -158,8 +163,8 @@ def doc_datamodule(model_name_or_path: str) -> LightningIRDataModule:
         model_name_or_path=model_name_or_path,
         config=BiEncoderConfig(),
         num_workers=0,
-        inference_batch_size=3,
-        inference_datasets=[DocDataset("msmarco-passage", num_docs=32)],
+        inference_batch_size=2,
+        inference_datasets=[DocDataset("lightning-ir")],
     )
     datamodule.setup(stage="predict")
     return datamodule

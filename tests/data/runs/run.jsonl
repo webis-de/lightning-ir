@@ -1,0 +1,10 @@
+{"query_id": 5, "query": "what is the capital of france?", "doc_id": 1, "text": "Paris is the capital of France.", "rank": 1, "relevance": 1}
+{"query_id": 5, "query": "what is the capital of france?", "doc_id": 2, "text": "The Eiffel Tower is in Paris.", "rank": 2, "relevance": 0}
+{"query_id": 5, "query": "what is the capital of france?", "doc_id": 3, "text": "France is in Europe.", "rank": 3, "relevance": 0}
+{"query_id": 5, "query": "what is the capital of france?", "doc_id": 4, "text": "The Louvre is in Paris.", "rank": 4, "relevance": 0}
+{"query_id": 5, "query": "what is the capital of france?", "doc_id": 5, "text": "The Seine river runs through Paris.", "rank": 5, "relevance": 0}
+{"query_id": 6, "query": "what is the capital of germany?", "doc_id": 6, "text": "Berlin is the capital of Germany.", "rank": 1, "relevance": 1}
+{"query_id": 6, "query": "what is the capital of germany?", "doc_id": 7, "text": "Germany is in Europe.", "rank": 2, "relevance": 0}
+{"query_id": 6, "query": "what is the capital of germany?", "doc_id": 8, "text": "The Brandenburg Gate is in Berlin.", "rank": 3, "relevance": 0}
+{"query_id": 6, "query": "what is the capital of germany?", "doc_id": 9, "text": "The Berlin Wall is in Berlin.", "rank": 4, "relevance": 0}
+{"query_id": 6, "query": "what is the capital of germany?", "doc_id": 10, "text": "The Rhine river runs through Germany.", "rank": 5, "relevance": 0}

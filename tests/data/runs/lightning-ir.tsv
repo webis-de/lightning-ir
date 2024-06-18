@@ -1,0 +1,10 @@
+query_id_1	Q0	doc_id_1	1	-1	test
+query_id_1	Q0	doc_id_2	2	-2	test
+query_id_1	Q0	doc_id_3	3	-3	test
+query_id_1	Q0	doc_id_4	4	-4	test
+query_id_1	Q0	doc_id_5	5	-5	test
+query_id_2	Q0	doc_id_6	1	-1	test
+query_id_2	Q0	doc_id_7	2	-2	test
+query_id_2	Q0	doc_id_8	3	-3	test
+query_id_2	Q0	doc_id_9	4	-4	test
+query_id_2	Q0	doc_id_10	5	-5	test

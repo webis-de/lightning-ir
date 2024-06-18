@@ -82,8 +82,7 @@ def run_datamodule(
         model_name_or_path=model.config.name_or_path,
         config=model.config,
         num_workers=0,
-        train_batch_size=3,
-        inference_batch_size=3,
+        inference_batch_size=2,
         inference_datasets=inference_datasets,
     )
     datamodule.setup(stage="predict")
@@ -102,8 +101,8 @@ def test_index_callback(
 ):
     bi_encoder_module.config.similarity_function = similarity
     index_dir = tmp_path / "index"
-    index_path = index_dir / "msmarco-passage"
-    index_callback = IndexCallback(index_dir, 1024, num_centroids=16)
+    index_path = index_dir / doc_datamodule.inference_datasets[0].docs_dataset_id
+    index_callback = IndexCallback(index_dir, 256, num_centroids=256)  # 256 is minimum
 
     trainer = Trainer(
         devices=devices,
@@ -120,7 +119,7 @@ def test_index_callback(
     doc_ids_path = index_path / "doc_ids.txt"
     doc_ids = doc_ids_path.read_text().split()
     for idx, doc_id in enumerate(doc_ids):
-        assert int(doc_id) == idx
+        assert doc_id == f"doc_id_{idx+1}"
     assert (index_path / "doc_lengths.pt").exists()
     assert (index_path / "config.json").exists()
     if similarity == "l2":
@@ -140,7 +139,7 @@ def test_search_callback(
 ):
     bi_encoder_module.config.similarity_function = similarity
     save_dir = tmp_path / "runs"
-    index_path = Path(__file__).parent / "data" / f"{similarity}-index"
+    index_path = Path(__file__).parent / "data" / "indexes" / f"{similarity}-index"
 
     search_callback = SearchCallback(save_dir, index_path, 5, 10, imputation_strategy)
 

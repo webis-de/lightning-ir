@@ -41,7 +41,7 @@ class FlatIndexConfig(IndexConfig):
 
 @dataclass
 class IVFPQIndexConfig(IndexConfig):
-    num_train_tokens: int
+    num_train_embeddings: int
     num_centroids: int = 262144
     num_subquantizers: int = 16
     n_bits: int = 8
@@ -92,16 +92,16 @@ class Indexer(ABC):
 
     def add(
         self,
-        token_embeddings: torch.Tensor,
+        embeddings: torch.Tensor,
         doc_ids: Sequence[str],
         doc_lengths: torch.Tensor,
     ) -> None:
-        token_embeddings = self.process_token_embeddings(token_embeddings)
+        embeddings = self.process_embeddings(embeddings)
 
-        if token_embeddings.shape[0]:
-            self.index.add(token_embeddings.float().cpu())
+        if embeddings.shape[0]:
+            self.index.add(embeddings.float().cpu())
 
-        self.num_embeddings += token_embeddings.shape[0]
+        self.num_embeddings += embeddings.shape[0]
         self.num_docs += len(doc_ids)
 
         self.doc_lengths.append(doc_lengths.cpu())
@@ -131,8 +131,8 @@ class Indexer(ABC):
     @abstractmethod
     def set_verbosity(self) -> None: ...
 
-    def process_token_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
-        return token_embeddings
+    def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
+        return embeddings
 
 
 class IVFPQIndexer(Indexer):
@@ -153,8 +153,9 @@ class IVFPQIndexer(Indexer):
         index_ivf_pq = faiss.downcast_index(self.index.index)
         index_ivf_pq.make_direct_map()
 
-        self._train_embeddings = torch.empty(
-            (self.index_config.num_train_tokens, self.mvr_config.embedding_dim),
+        self._train_embeddings = torch.full(
+            (self.index_config.num_train_embeddings, self.mvr_config.embedding_dim),
+            torch.nan,
             dtype=torch.float32,
         )
 
@@ -188,29 +189,34 @@ class IVFPQIndexer(Indexer):
         ):
             setattr(elem, "verbose", self.verbose)
 
-    def process_token_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
-        token_embeddings = self._grab_train_embeddings(token_embeddings)
+    def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
+        embeddings = self._grab_train_embeddings(embeddings)
         self._train()
-        return token_embeddings
+        return embeddings
 
-    def _grab_train_embeddings(self, token_embeddings: torch.Tensor) -> torch.Tensor:
+    def _grab_train_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
         if self._train_embeddings is not None:
-            # save training embeddings until num_train_tokens is reached
-            # if num_train_tokens overflows, save the remaining embeddings
+            # save training embeddings until num_train_embeddings is reached
+            # if num_train_embeddings overflows, save the remaining embeddings
             start = self.num_embeddings
-            end = start + token_embeddings.shape[0]
-            if end > self.index_config.num_train_tokens:
-                end = self.index_config.num_train_tokens
+            end = start + embeddings.shape[0]
+            if end > self.index_config.num_train_embeddings:
+                end = self.index_config.num_train_embeddings
             length = end - start
-            self._train_embeddings[start:end] = token_embeddings[:length]
+            self._train_embeddings[start:end] = embeddings[:length]
             self.num_embeddings += length
-            token_embeddings = token_embeddings[length:]
-        return token_embeddings
+            embeddings = embeddings[length:]
+        return embeddings
 
     def _train(self, force: bool = False):
         if self._train_embeddings is not None and (
-            force or self.num_embeddings >= self.index_config.num_train_tokens
+            force or self.num_embeddings >= self.index_config.num_train_embeddings
         ):
+            if torch.isnan(self._train_embeddings).any():
+                raise ValueError(
+                    "corpus does not contain enough tokens/documents for training. "
+                    "choose a larger corpus or reduce `num_train_embeddings`"
+                )
             self.index.train(self._train_embeddings)
             if torch.cuda.is_available():
                 self.to_cpu()
