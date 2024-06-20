@@ -5,15 +5,16 @@ from transformers import AutoConfig, AutoModel
 
 from ..flash.flash_model import FlashClassFactory
 from ..loss.loss import LossFunction
-from .model import BiEncoderConfig, ScoringFunction
-from .colbert import ColBERTConfig, ColBERTModel
+from .col import ColConfig, ColModel
+from .config import BiEncoderConfig
+from .model import MultiVectorScoringFunction
 from .module import BiEncoderModule
 
 
-class XTRConfig(ColBERTConfig):
+class XTRConfig(ColConfig):
     model_type = "xtr"
 
-    ADDED_ARGS = ColBERTConfig.ADDED_ARGS + ["token_retrieval_k", "fill_strategy"]
+    ADDED_ARGS = ColConfig.ADDED_ARGS + ["token_retrieval_k", "fill_strategy"]
 
     def __init__(
         self,
@@ -34,7 +35,7 @@ class XTRConfig(ColBERTConfig):
         return mvr_dict
 
 
-class XTRScoringFunction(ScoringFunction):
+class XTRScoringFunction(MultiVectorScoringFunction):
     def __init__(self, config: XTRConfig) -> None:
         super().__init__(config)
         self.xtr_token_retrieval_k = config.token_retrieval_k
@@ -47,14 +48,12 @@ class XTRScoringFunction(ScoringFunction):
         doc_embeddings: torch.Tensor,
         query_scoring_mask: torch.Tensor,
         doc_scoring_mask: torch.Tensor,
-        num_docs: torch.Tensor,
     ) -> torch.Tensor:
         similarity = super().compute_similarity(
             query_embeddings,
             doc_embeddings,
             query_scoring_mask,
             doc_scoring_mask,
-            num_docs,
         )
 
         if self.training and self.xtr_token_retrieval_k is not None:
@@ -96,7 +95,7 @@ class XTRScoringFunction(ScoringFunction):
         return super().aggregate(scores, mask, aggregation_function)
 
 
-class XTRModel(ColBERTModel):
+class XTRModel(ColModel):
     config_class = XTRConfig
 
     def __init__(self, xtr_config: XTRConfig) -> None:
@@ -104,7 +103,7 @@ class XTRModel(ColBERTModel):
         self.scoring_function = XTRScoringFunction(xtr_config)
 
 
-FlashXTRModel = FlashClassFactory(XTRModel)
+# FlashXTRModel = FlashClassFactory(XTRModel)
 
 
 class XTRModule(BiEncoderModule):

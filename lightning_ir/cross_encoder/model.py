@@ -1,80 +1,29 @@
 from dataclasses import dataclass
-from typing import Any, Dict
 
 import torch
-from transformers import PretrainedConfig
 
-from ..model import LightningIRConfig, LightningIRModel, LightningIROutput
-from ..tokenizer.tokenizer import CrossEncoderTokenizer
+from transformers import BatchEncoding
 
 
-class CrossEncoderConfig(LightningIRConfig):
-    model_type = "cross-encoder"
-    Tokenizer = CrossEncoderTokenizer
-
-    ADDED_ARGS = [
-        "query_length",
-        "doc_length",
-    ]
-
-    TOKENIZER_ARGS = [
-        "query_length",
-        "doc_length",
-    ]
-
-    def __init__(
-        self,
-        query_length: int = 32,
-        doc_length: int = 256,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.query_length = query_length
-        self.doc_length = doc_length
-
-    def to_added_args_dict(self) -> Dict[str, Any]:
-        return {
-            arg: getattr(self, arg) for arg in self.ADDED_ARGS if hasattr(self, arg)
-        }
-
-    def to_tokenizer_dict(self) -> Dict[str, Any]:
-        return {arg: getattr(self, arg) for arg in self.TOKENIZER_ARGS}
-
-    @classmethod
-    def from_other(
-        cls,
-        config: PretrainedConfig,
-        **kwargs,
-    ) -> "CrossEncoderConfig":
-        return cls.from_dict({**config.to_dict(), **kwargs})
+from ..base import LightningIRModel, LightningIROutput
+from . import CrossEncoderConfig
 
 
 @dataclass
-class CrossEncoderOuput(LightningIROutput):
-    last_hidden_state: torch.Tensor | None = None
+class CrossEncoderOutput(LightningIROutput):
+    embeddings: torch.Tensor | None = None
 
 
 class CrossEncoderModel(LightningIRModel):
-    def __init__(self, config: CrossEncoderConfig, encoder_module_name: str):
+    config_class = CrossEncoderConfig
+
+    def __init__(self, config: CrossEncoderConfig):
         super().__init__(config)
         self.config: CrossEncoderConfig
-        self.encoder_module_name = encoder_module_name
-        self.linear = torch.nn.Linear(self.config.hidden_size, 1)
+        self.linear = torch.nn.Linear(config.hidden_size, 1)
 
-    def forward(
-        self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor | None = None,
-        token_type_ids: torch.Tensor | None = None,
-    ) -> CrossEncoderOuput:
-        last_hidden_state = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-        ).last_hidden_state
-        scores = self.linear(last_hidden_state[:, 0])
-        return CrossEncoderOuput(scores=scores, last_hidden_state=last_hidden_state)
-
-    @property
-    def encoder(self):
-        return getattr(self, self.encoder_module_name)
+    def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
+        embeddings = self.backbone_forward(**encoding).last_hidden_state
+        embeddings = self.pooling(embeddings, encoding.get("attention_mask", None))
+        scores = self.linear(embeddings).squeeze(-1)
+        return CrossEncoderOutput(scores=scores, embeddings=embeddings)

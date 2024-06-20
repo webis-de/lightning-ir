@@ -4,108 +4,30 @@ from typing import Literal, Sequence
 import faiss
 import pandas as pd
 import pytest
-import torch
 from lightning import Trainer
-from transformers import BertModel
 
-from lightning_ir.bi_encoder.model import BiEncoderConfig, BiEncoderModel
-from lightning_ir.bi_encoder.module import BiEncoderModule
-from lightning_ir.cross_encoder.model import CrossEncoderConfig, CrossEncoderModel
-from lightning_ir.cross_encoder.module import CrossEncoderModule
-from lightning_ir.data.datamodule import LightningIRDataModule
-from lightning_ir.data.dataset import DocDataset, QueryDataset, RunDataset
+from lightning_ir import (
+    BiEncoderModule,
+    LightningIRDataModule,
+    LightningIRModule,
+    RunDataset,
+    SingleVectorBiEncoderConfig,
+    MultiVectorBiEncoderConfig,
+    FlatIndexConfig,
+    IVFPQIndexConfig,
+)
 from lightning_ir.lightning_utils.callbacks import (
     IndexCallback,
     ReRankCallback,
     SearchCallback,
 )
 
-DATA_DIR = Path(__file__).parent / "data"
-
-
-@pytest.fixture()
-def query_datamodule(model_name_or_path: str) -> LightningIRDataModule:
-    datamodule = LightningIRDataModule(
-        model_name_or_path=model_name_or_path,
-        config=BiEncoderConfig(),
-        num_workers=0,
-        inference_batch_size=2,
-        inference_datasets=[QueryDataset("lightning-ir", num_queries=2)],
-    )
-    datamodule.setup(stage="predict")
-    return datamodule
-
-
-@pytest.fixture()
-def doc_datamodule(model_name_or_path: str) -> LightningIRDataModule:
-    datamodule = LightningIRDataModule(
-        model_name_or_path=model_name_or_path,
-        config=BiEncoderConfig(),
-        num_workers=0,
-        inference_batch_size=2,
-        inference_datasets=[DocDataset("lightning-ir")],
-    )
-    datamodule.setup(stage="predict")
-    return datamodule
-
-
-class TestBiEncoderModel(BiEncoderModel):
-    def __init__(self, model_name_or_path: Path | str) -> None:
-        config = BiEncoderConfig.from_pretrained(model_name_or_path)
-        config.num_hidden_layers = 1
-        super().__init__(config, "bert")
-        self.bert = BertModel.from_pretrained(
-            model_name_or_path, config=config, add_pooling_layer=False
-        )
-        vocab_size = self.config.vocab_size
-        if self.config.add_marker_tokens:
-            vocab_size += 2
-        self.encoder.resize_token_embeddings(vocab_size, 8)
-        self.linear = torch.nn.Linear(
-            self.config.hidden_size,
-            self.config.embedding_dim,
-            bias=self.config.linear_bias,
-        )
-
-
-class TestCrossEncoderModel(CrossEncoderModel):
-    config_class = CrossEncoderConfig
-
-    def __init__(self, model_name_or_path: Path | str) -> None:
-        config = CrossEncoderConfig.from_pretrained(model_name_or_path)
-        config.num_hidden_layers = 1
-        super().__init__(config, "bert")
-        self.bert = BertModel.from_pretrained(
-            config.name_or_path, config=config, add_pooling_layer=False
-        )
-
-
-@pytest.fixture(scope="module")
-def bi_encoder_model(model_name_or_path: str) -> BiEncoderModel:
-    return TestBiEncoderModel(model_name_or_path)
-
-
-@pytest.fixture(scope="module")
-def bi_encoder_module(bi_encoder_model: BiEncoderModel) -> BiEncoderModule:
-    return BiEncoderModule(bi_encoder_model)
-
-
-@pytest.fixture(scope="module")
-def cross_encoder_model(model_name_or_path: str) -> CrossEncoderModel:
-    return TestCrossEncoderModel(model_name_or_path)
-
-
-@pytest.fixture(scope="module")
-def cross_encoder_module(cross_encoder_model: CrossEncoderModel) -> CrossEncoderModule:
-    return CrossEncoderModule(cross_encoder_model)
-
 
 def run_datamodule(
-    model: BiEncoderModel | CrossEncoderModel, inference_datasets: Sequence[RunDataset]
+    module: LightningIRModule, inference_datasets: Sequence[RunDataset]
 ) -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
-        model_name_or_path=model.config.name_or_path,
-        config=model.config,
+        module=module,
         num_workers=0,
         inference_batch_size=2,
         inference_datasets=inference_datasets,
@@ -127,7 +49,8 @@ def test_index_callback(
     bi_encoder_module.config.similarity_function = similarity
     index_dir = tmp_path / "index"
     index_path = index_dir / doc_datamodule.inference_datasets[0].docs_dataset_id
-    index_callback = IndexCallback(index_dir, 256, num_centroids=256)  # 256 is minimum
+    index_config = FlatIndexConfig()
+    index_callback = IndexCallback(index_dir, index_config)
 
     trainer = Trainer(
         devices=devices,
@@ -188,15 +111,12 @@ def test_search_callback(
         assert run_df["query_id"].nunique() == len(dataset)
 
 
-@pytest.mark.parametrize("module_name", ("bi_encoder_module", "cross_encoder_module"))
 def test_rerank_callback(
     tmp_path: Path,
-    module_name: str,
+    module: LightningIRModule,
     inference_datasets: Sequence[RunDataset],
-    request: pytest.FixtureRequest,
 ):
-    module = request.getfixturevalue(module_name)
-    datamodule = run_datamodule(module.model, inference_datasets)
+    datamodule = run_datamodule(module, inference_datasets)
     save_dir = tmp_path / "runs"
     rerank_callback = ReRankCallback(save_dir)
     trainer = Trainer(

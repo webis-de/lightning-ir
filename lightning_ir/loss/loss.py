@@ -23,11 +23,6 @@ class LossFunction(ABC):
         return targets
 
 
-class IALossFunction(LossFunction):
-    def process_targets(self, targets: torch.Tensor) -> torch.Tensor:
-        return targets
-
-
 class PairwiseLossFunction(LossFunction):
     def get_pairwise_idcs(self, targets: torch.Tensor) -> Tuple[torch.Tensor, ...]:
         # pos items are items where label is greater than other label in sample

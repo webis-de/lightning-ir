@@ -1,49 +1,143 @@
-from .bi_encoder.colbert import ColBERTConfig, ColBERTModel
-from .bi_encoder.model import BiEncoderConfig, BiEncoderModel
-from .bi_encoder.module import BiEncoderModule
-from .cross_encoder.model import CrossEncoderModel
-from .cross_encoder.mono import (
-    MonoBertConfig,
-    MonoBertModel,
-    MonoElectraConfig,
-    MonoElectraModel,
-    MonoRobertaConfig,
-    MonoRobertaModel,
+from transformers import AutoConfig, AutoModel
+
+from .base import (
+    LightningIRConfig,
+    LightningIRModel,
+    LightningIRModelClassFactory,
+    LightningIRModule,
+    LightningIROutput,
+    LightningIRTokenizer,
 )
-from .data.datamodule import LightningIRDataModule
-from .lightning_utils.callbacks import IndexCallback, ReRankCallback, SearchCallback
-from .loss.loss import (
+from .bi_encoder import (
+    BiEncoderConfig,
+    BiEncoderModel,
+    BiEncoderModule,
+    BiEncoderOutput,
+    BiEncoderTokenizer,
+    MultiVectorBiEncoderConfig,
+    MultiVectorBiEncoderModel,
+    ScoringFunction,
+    SingleVectorBiEncoderConfig,
+    SingleVectorBiEncoderModel,
+)
+from .cross_encoder import (
+    CrossEncoderConfig,
+    CrossEncoderModel,
+    CrossEncoderModule,
+    CrossEncoderOutput,
+    CrossEncoderTokenizer,
+)
+from .data import (
+    BiEncoderRunBatch,
+    CrossEncoderRunBatch,
+    DocDataset,
+    DocSample,
+    IndexBatch,
+    LightningIRDataModule,
+    QueryDataset,
+    QuerySample,
+    RunDataset,
+    RunSample,
+    SearchBatch,
+    TupleDataset,
+)
+from .lightning_utils import (
+    LR_SCHEDULERS,
+    ConstantSchedulerWithWarmup,
+    IndexCallback,
+    LinearSchedulerWithWarmup,
+    ReRankCallback,
+    SearchCallback,
+    WarmupScheduler,
+)
+from .loss import (
+    ApproxMRR,
+    ApproxNDCG,
+    ApproxRankMSE,
     ConstantMarginMSE,
     InBatchCrossEntropy,
     KLDivergence,
     LocalizedContrastiveEstimation,
-    LossFunction,
     RankNet,
     SupervisedMarginMSE,
 )
+from .retrieve import (
+    FlatIndexConfig,
+    FlatIndexer,
+    Indexer,
+    IVFPQIndexConfig,
+    IVFPQIndexer,
+    SearchConfig,
+    Searcher,
+)
+
+
+AutoConfig.register(BiEncoderConfig.model_type, BiEncoderConfig)
+AutoModel.register(BiEncoderConfig, BiEncoderModel)
+AutoConfig.register(SingleVectorBiEncoderConfig.model_type, SingleVectorBiEncoderConfig)
+AutoModel.register(SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel)
+AutoConfig.register(MultiVectorBiEncoderConfig.model_type, MultiVectorBiEncoderConfig)
+AutoModel.register(MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel)
+
+AutoConfig.register(CrossEncoderConfig.model_type, CrossEncoderConfig)
+AutoModel.register(CrossEncoderConfig, CrossEncoderModel)
+
 
 __all__ = [
+    "ApproxMRR",
+    "ApproxNDCG",
+    "ApproxRankMSE",
     "BiEncoderConfig",
     "BiEncoderModel",
     "BiEncoderModule",
-    "ColBERTConfig",
-    "ColBERTModel",
+    "BiEncoderOutput",
+    "BiEncoderRunBatch",
+    "BiEncoderTokenizer",
     "ConstantMarginMSE",
+    "ConstantSchedulerWithWarmup",
+    "CrossEncoderConfig",
     "CrossEncoderModel",
+    "CrossEncoderModule",
+    "CrossEncoderOutput",
+    "CrossEncoderRunBatch",
+    "CrossEncoderTokenizer",
+    "DocDataset",
+    "DocSample",
+    "FlatIndexConfig",
+    "FlatIndexer",
     "InBatchCrossEntropy",
+    "IndexBatch",
     "IndexCallback",
+    "Indexer",
+    "IVFPQIndexConfig",
+    "IVFPQIndexer",
     "KLDivergence",
+    "LightningIRConfig",
     "LightningIRDataModule",
+    "LightningIRModel",
+    "LightningIRModelClassFactory",
+    "LightningIRModule",
+    "LightningIROutput",
+    "LightningIRTokenizer",
+    "LinearSchedulerWithWarmup",
     "LocalizedContrastiveEstimation",
-    "LossFunction",
-    "MonoBertConfig",
-    "MonoBertModel",
-    "MonoElectraConfig",
-    "MonoElectraModel",
-    "MonoRobertaConfig",
-    "MonoRobertaModel",
+    "LR_SCHEDULERS",
+    "MultiVectorBiEncoderConfig",
+    "MultiVectorBiEncoderModel",
+    "QueryDataset",
+    "QuerySample",
     "RankNet",
     "ReRankCallback",
+    "RunDataset",
+    "RunSample",
+    "ScoringFunction",
+    "SearchBatch",
     "SearchCallback",
+    "SearchConfig",
+    "Searcher",
+    "SingleVectorBiEncoderConfig",
+    "SingleVectorBiEncoderModel",
     "SupervisedMarginMSE",
+    "TupleDataset",
+    "WarmupScheduler",
 ]

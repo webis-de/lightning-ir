@@ -1,39 +1,39 @@
-from typing import Any, Dict, Sequence
+from typing import Dict, Sequence
 
 import torch
 
-from ..data.data import CrossEncoderRunBatch
+from ..base.module import LightningIRModule
+from ..data import CrossEncoderRunBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
-from ..module import LightningIRModule
-from .model import CrossEncoderConfig, CrossEncoderModel, CrossEncoderOuput
+from . import CrossEncoderConfig, CrossEncoderModel, CrossEncoderOutput
 
 
 class CrossEncoderModule(LightningIRModule):
-    config_class = CrossEncoderConfig
 
     def __init__(
         self,
-        model: CrossEncoderModel,
+        model_name_or_path: str | None = None,
+        config: CrossEncoderConfig | None = None,
+        model: CrossEncoderModel | None = None,
         loss_functions: Sequence[LossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
-        super().__init__(model, loss_functions, evaluation_metrics)
-        self.model: CrossEncoderModel
-
-    def forward(self, batch: CrossEncoderRunBatch) -> CrossEncoderOuput:
-        output = self.model.forward(
-            batch.encoding.input_ids,
-            batch.encoding.get("attention_mask", None),
-            batch.encoding.get("token_type_ids", None),
+        super().__init__(
+            model_name_or_path, config, model, loss_functions, evaluation_metrics
         )
+        self.model: CrossEncoderModel
+        self.config: CrossEncoderConfig
+
+    def forward(self, batch: CrossEncoderRunBatch) -> CrossEncoderOutput:
+        output = self.model.forward(batch.encoding)
         return output
 
     def predict_step(
         self, batch: CrossEncoderRunBatch, *args, **kwargs
-    ) -> CrossEncoderOuput:
+    ) -> CrossEncoderOutput:
         if isinstance(batch, CrossEncoderRunBatch):
             return self.forward(batch)
-        raise ValueError(f"Unknown batch type {type(batch)}")
+        raise ValueError(f"Unknown batch type {batch.__class__}")
 
     def compute_losses(
         self,

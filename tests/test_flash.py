@@ -15,7 +15,7 @@ from lightning_ir.flash.flash_model import FlashClassFactory
 )
 def test_same_as_model(model_name: str) -> None:
     config = AutoConfig.from_pretrained(model_name)
-    model_class = AutoModel._model_mapping[type(config)]
+    model_class = AutoModel._model_mapping[config.__class__]
     FlashModel = FlashClassFactory(model_class)
     flash_model = FlashModel.from_pretrained(model_name)
     flash_model = flash_model.eval()

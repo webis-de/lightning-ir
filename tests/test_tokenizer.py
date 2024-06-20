@@ -1,7 +1,9 @@
-from lightning_ir.tokenizer.tokenizer import BiEncoderTokenizer, CrossEncoderTokenizer
-from lightning_ir.bi_encoder.model import BiEncoderConfig
-from lightning_ir.cross_encoder.model import CrossEncoderConfig
 import pytest
+
+from lightning_ir.bi_encoder.config import BiEncoderConfig
+from lightning_ir.bi_encoder.tokenizer import BiEncoderTokenizer
+from lightning_ir.cross_encoder.config import CrossEncoderConfig
+from lightning_ir.cross_encoder.tokenizer import CrossEncoderTokenizer
 
 
 @pytest.mark.parametrize(

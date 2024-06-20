@@ -4,7 +4,7 @@ import pytest
 import torch
 from _pytest.fixtures import SubRequest
 
-from lightning_ir.bi_encoder.model import BiEncoderConfig
+from lightning_ir.bi_encoder.config import BiEncoderConfig
 from lightning_ir.cross_encoder.model import CrossEncoderConfig
 from lightning_ir.data.data import (
     BiEncoderRunBatch,

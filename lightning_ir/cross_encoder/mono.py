@@ -21,26 +21,6 @@ from .model import CrossEncoderConfig, CrossEncoderModel
 from .module import CrossEncoderModule
 
 
-class Pooler(torch.nn.Module):
-    # TODO use pooler
-    def __init__(self, encoder: BertModel | ElectraModel | RobertaModel) -> None:
-        super().__init__()
-        self.encoder = encoder
-
-    def forward(
-        self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor | None = None,
-        token_type_ids: torch.Tensor | None = None,
-    ) -> torch.Tensor:
-        outputs = self.encoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-        )
-        return outputs.last_hidden_state[:, 0, :]
-
-
 class MonoBertConfig(BertConfig, CrossEncoderConfig):
     model_type = "mono-bert"
 

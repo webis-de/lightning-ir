@@ -1,37 +1,40 @@
+from __future__ import annotations
+
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Sequence
 
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import AutoConfig
 
-from ..bi_encoder.module import BiEncoderConfig, BiEncoderModule
-from ..cross_encoder.module import CrossEncoderConfig, CrossEncoderModule
-from .data import (
+from ..bi_encoder import BiEncoderConfig
+from ..cross_encoder import CrossEncoderConfig
+from . import (
     BiEncoderRunBatch,
     CrossEncoderRunBatch,
+    DocDataset,
     DocSample,
     IndexBatch,
+    QueryDataset,
     QuerySample,
+    RunDataset,
     RunSample,
     SearchBatch,
-)
-from .dataset import (
-    DocDataset,
-    QueryDataset,
-    RunDataset,
     TupleDataset,
 )
+
+if TYPE_CHECKING:
+    from ..base import LightningIRConfig, LightningIRModule
 
 
 class LightningIRDataModule(LightningDataModule):
     def __init__(
         self,
         model_name_or_path: str | Path | None = None,
-        config: BiEncoderConfig | CrossEncoderConfig | None = None,
-        model: BiEncoderModule | CrossEncoderModule | None = None,
+        config: LightningIRConfig | None = None,
+        module: LightningIRModule | None = None,
         num_workers: int = 0,
         train_batch_size: int | None = None,
         shuffle_train: bool = True,
@@ -42,19 +45,21 @@ class LightningIRDataModule(LightningDataModule):
         ) = None,
     ) -> None:
         super().__init__()
-        if model is not None:
-            self.config = model.config
-        elif config is not None and model_name_or_path is not None:
+        if config is not None:
+            self.config = config
+        elif module is not None:
+            self.config = module.config
+        elif model_name_or_path is not None:
             self.config = AutoConfig.from_pretrained(model_name_or_path)
-            if config is not None:
-                self.config = config.from_other(self.config)
-                self.config.update(config.to_added_args_dict())
         else:
             raise ValueError(
-                "Either a model or a model_name_or_path and config must be provided."
+                "Either module, config, or model_name_or_path must be provided."
             )
+        Tokenizer = self.config.__class__.tokenizer_class
 
-        self.tokenizer = self.config.Tokenizer.from_pretrained(
+        if model_name_or_path is None:
+            model_name_or_path = self.config.name_or_path
+        self.tokenizer = Tokenizer.from_pretrained(
             model_name_or_path, **self.config.to_tokenizer_dict()
         )
         self.num_workers = num_workers

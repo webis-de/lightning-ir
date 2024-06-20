@@ -1,19 +1,30 @@
+from __future__ import annotations
+
 import itertools
-import math
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple
 
 import pandas as pd
 import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
-from ..bi_encoder.module import BiEncoderModule
-from ..cross_encoder.module import CrossEncoderModule
-from ..data.data import IndexBatch, SearchBatch, BiEncoderRunBatch, CrossEncoderRunBatch
+from ..data import BiEncoderRunBatch, CrossEncoderRunBatch, IndexBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
-from ..index.indexer import IVFPQIndexConfig, IVFPQIndexer
-from ..search.searcher import SearchConfig, Searcher
+from ..retrieve import (
+    FlatIndexConfig,
+    FlatIndexer,
+    IndexConfig,
+    Indexer,
+    IVFPQIndexConfig,
+    IVFPQIndexer,
+    SearchConfig,
+    Searcher,
+)
+
+if TYPE_CHECKING:
+    from ..bi_encoder import BiEncoderModule, BiEncoderEmbedding
+    from ..cross_encoder import CrossEncoderModule
 
 
 def format_large_number(number: float) -> str:
@@ -36,18 +47,12 @@ class IndexCallback(Callback):
     def __init__(
         self,
         index_dir: Path | None,
-        num_train_embeddings: int | None = None,
-        num_centroids: int | None = None,
-        num_subquantizers: int = 16,
-        n_bits: int = 4,
+        index_config: IndexConfig,
         verbose: bool = False,
     ) -> None:
         super().__init__()
         self.index_dir = index_dir
-        self.num_train_embeddings = num_train_embeddings
-        self.num_centroids = num_centroids
-        self.num_subquantizers = num_subquantizers
-        self.n_bits = n_bits
+        self.index_config = index_config
         self.verbose = verbose
         self.indexer: IVFPQIndexer
 
@@ -78,7 +83,7 @@ class IndexCallback(Callback):
 
     def get_indexer(
         self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int
-    ) -> IVFPQIndexer:
+    ) -> Indexer:
         dataloaders = trainer.predict_dataloaders
         if dataloaders is None:
             raise ValueError("No predict_dataloaders found")
@@ -86,53 +91,18 @@ class IndexCallback(Callback):
 
         index_path = self.get_index_path(pl_module, dataset)
 
-        approx_num_tokens = None
-        num_docs = dataset.ir_dataset.docs_count()
-        if num_docs is not None:
-            approx_num_tokens = int(
-                (
-                    sum(
-                        len(doc.default_text().split())
-                        for _, doc in zip(range(100), dataset.ir_dataset.docs_iter())
-                    )
-                    / 100
-                )
-                * num_docs
+        if isinstance(self.index_config, FlatIndexConfig):
+            indexer = FlatIndexer(
+                index_path, self.index_config, pl_module.config, self.verbose
             )
-        # default faiss values
-        # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
-        max_points_per_centroid = 256
-
-        num_centroids = self.num_centroids
-        num_train_embeddings = self.num_train_embeddings
-        # max 2^18 * max_points_per_centroid training tokens
-        if num_train_embeddings is None and approx_num_tokens is None:
+        elif isinstance(self.index_config, IVFPQIndexConfig):
+            indexer = IVFPQIndexer(
+                index_path, self.index_config, pl_module.config, self.verbose
+            )
+        else:
             raise ValueError(
-                "unable to approximate number of tokens because the provided "
-                f"ir_dataset {dataset.docs_dataset_id()} does not provide `docs_count`."
-                "manually set `num_train_embeddings` in the `IndexCallback`"
+                f"Unsupported IndexConfig {self.index_config.__class__.__name__}"
             )
-        approx_num_tokens = int(
-            min(
-                2**18 * max_points_per_centroid,
-                num_train_embeddings or approx_num_tokens,
-            )
-        )
-        if num_centroids is None:
-            num_centroids = 2 ** math.floor(
-                math.log2(approx_num_tokens / max_points_per_centroid)
-            )
-        if num_train_embeddings is None:
-            num_train_embeddings = approx_num_tokens
-
-        config = IVFPQIndexConfig(
-            index_path=index_path,
-            num_train_embeddings=num_train_embeddings,
-            num_centroids=num_centroids,
-            num_subquantizers=self.num_subquantizers,
-            n_bits=self.n_bits,
-        )
-        indexer = IVFPQIndexer(config, pl_module.config, self.verbose)
         return indexer
 
     def log_to_pg(self, info: Dict[str, Any], trainer: Trainer):
@@ -158,21 +128,15 @@ class IndexCallback(Callback):
                 self.indexer.save()
             self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
 
-        doc_embeddings = pl_module.all_gather(prediction.doc_embeddings)
+        embeddings = pl_module.all_gather(prediction.doc_embeddings.embeddings)
+        scoring_mask = pl_module.all_gather(prediction.doc_embeddings.scoring_mask)
         doc_ids = pl_module.all_gather(batch.doc_ids)
-        attention_mask = batch.doc_encoding.attention_mask
-        if attention_mask is None:
-            attention_mask = torch.ones(batch.doc_encoding.input_ids.shape)
-        scoring_mask = pl_module.model.scoring_function.doc_scoring_mask(
-            batch.doc_encoding.input_ids, attention_mask
-        )
-        scoring_mask = pl_module.all_gather(scoring_mask)
         if not trainer.is_global_zero:
             return
-        doc_embeddings = doc_embeddings.view(-1, *doc_embeddings.shape[-2:])
 
-        doc_embeddings = doc_embeddings.view(-1, pl_module.config.embedding_dim)
-        embeddings = doc_embeddings[scoring_mask.bool().view(-1)]
+        embeddings = embeddings.view(-1, pl_module.config.embedding_dim)[
+            scoring_mask.bool().view(-1)
+        ]
         doc_lengths = scoring_mask.sum(-1)
 
         self.indexer.add(embeddings, doc_ids, doc_lengths)
@@ -309,7 +273,7 @@ class ReRankCallback(RankCallback):
         return dict(scores=scores, doc_ids=doc_ids)
 
     def rank(
-        self, scores: torch.Tensor, doc_ids: List[str]
+        self, scores: torch.Tensor, doc_ids: Sequence[str]
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
         scores = scores.view(-1)
         num_docs = [len(_doc_ids) for _doc_ids in doc_ids]
@@ -337,7 +301,7 @@ class SearchCallback(RankCallback):
         self.candidate_k = candidate_k
         self.imputation_strategy = imputation_strategy
         self.n_probe = n_probe
-        self.config: SearchConfig
+        self.index_config: SearchConfig
         self.searcher: Searcher
 
     def gather(
@@ -349,17 +313,12 @@ class SearchCallback(RankCallback):
         if not isinstance(batch, SearchBatch):
             raise ValueError("Expected SearchBatch")
         query_embeddings = pl_module.all_gather(prediction.query_embeddings)
-        query_attention_mask = pl_module.all_gather(
-            batch.query_encoding.attention_mask.bool()
-        )
-        return dict(
-            query_embeddings=query_embeddings, query_attention_mask=query_attention_mask
-        )
+        return dict(query_embeddings=query_embeddings)
 
     def rank(
-        self, query_embeddings: torch.Tensor, query_attention_mask: torch.Tensor
+        self, query_embeddings: BiEncoderEmbedding
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
-        return self.searcher.search(query_embeddings, query_attention_mask)
+        return self.searcher.search(query_embeddings)
 
     def on_predict_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
         datasets = super().on_predict_start(trainer, pl_module)
@@ -381,13 +340,11 @@ class SearchCallback(RankCallback):
                 raise ValueError(
                     "No index_path provided and model_name_or_path is not a path"
                 )
-        self.config = SearchConfig(
+        self.index_config = SearchConfig(
             index_path,
             self.k,
             self.candidate_k,
             self.imputation_strategy,
             self.n_probe,
         )
-        self.searcher = Searcher(
-            self.config, pl_module.config, pl_module.model.scoring_function
-        )
+        self.searcher = Searcher(self.index_config, pl_module.config, pl_module.model)
