@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Type, Literal
+from typing import TYPE_CHECKING, Any, Dict, Type
 
 from transformers import PretrainedConfig
 
@@ -14,17 +14,15 @@ class LightningIRConfig(PretrainedConfig):
     tokenizer_class: Type[LightningIRTokenizer] | None = None
 
     TOKENIZER_ARGS = {"query_length", "doc_length"}
-    ADDED_ARGS = TOKENIZER_ARGS.union({"pooling_strategy"})
+    ADDED_ARGS = TOKENIZER_ARGS
 
     def __init__(
         self,
-        pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = "mean",
         query_length: int = 32,
         doc_length: int = 512,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.pooling_strategy = pooling_strategy
         self.query_length = query_length
         self.doc_length = doc_length
 

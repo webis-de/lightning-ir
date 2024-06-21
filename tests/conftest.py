@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Union
+from typing import Any, Dict, List, Union
 
 import pytest
 from _pytest.fixtures import SubRequest
@@ -8,19 +8,15 @@ from _pytest.fixtures import SubRequest
 from lightning_ir import (
     BiEncoderConfig,
     BiEncoderModule,
-    ConstantMarginMSE,
     CrossEncoderConfig,
     CrossEncoderModule,
     DocDataset,
     InBatchCrossEntropy,
     LightningIRDataModule,
     LightningIRModule,
-    MultiVectorBiEncoderConfig,
     QueryDataset,
     RankNet,
     RunDataset,
-    SingleVectorBiEncoderConfig,
-    SupervisedMarginMSE,
 )
 from lightning_ir.data.ir_datasets_utils import register_local
 
@@ -28,9 +24,7 @@ DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
 RUNS_DIR = DATA_DIR / "runs"
 
-CONFIGS = Union[
-    SingleVectorBiEncoderConfig, MultiVectorBiEncoderConfig, CrossEncoderConfig
-]
+CONFIGS = Union[BiEncoderConfig, CrossEncoderConfig]
 
 register_local(
     dataset_id="lightning-ir",
@@ -65,13 +59,17 @@ def inference_datasets() -> List[RunDataset]:
 
 DATA_DIR = Path(__file__).parent / "data"
 
+GLOBAL_KWARGS: Dict[str, Any] = dict(query_length=4, doc_length=8)
+
 BI_ENCODER_CONFIGS = [
-    SingleVectorBiEncoderConfig(query_length=4, doc_length=8),
-    MultiVectorBiEncoderConfig(query_length=4, doc_length=8),
+    BiEncoderConfig(
+        query_pooling_strategy=None, doc_pooling_strategy=None, **GLOBAL_KWARGS
+    ),
+    BiEncoderConfig(**GLOBAL_KWARGS),
 ]
 
 CROSS_ENCODER_CONFIGS = [
-    CrossEncoderConfig(query_length=4, doc_length=8),
+    CrossEncoderConfig(**GLOBAL_KWARGS),
 ]
 
 ALL_CONFIGS = BI_ENCODER_CONFIGS + CROSS_ENCODER_CONFIGS

@@ -227,6 +227,6 @@ class Searcher:
             < query_lengths[:, None]
         ).repeat_interleave(num_docs, dim=0)
         scores = self.model.scoring_function.aggregate(
-            scores, mask, self.config.aggregation_function
+            scores, mask, self.config.doc_aggregation_function
         ).squeeze(-1)
         return scores, doc_idcs, num_docs.tolist()

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Type
+from typing import Literal, Type
 
 import torch
 from transformers import (
@@ -33,21 +33,24 @@ class LightningIRModel(PreTrainedModel):
         raise NotImplementedError
 
     def pooling(
-        self, embeddings: torch.Tensor, attention_mask: torch.Tensor | None = None
+        self,
+        embeddings: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = "mean",
     ) -> torch.Tensor:
-        if self.config.pooling_strategy is None:
+        if pooling_strategy is None:
             return embeddings
-        if self.config.pooling_strategy == "cls":
+        if pooling_strategy == "cls":
             return embeddings[:, [0]]
-        if self.config.pooling_strategy in ("sum", "mean"):
+        if pooling_strategy in ("sum", "mean"):
             if attention_mask is not None:
                 embeddings = embeddings * attention_mask.unsqueeze(-1)
             embeddings = embeddings.sum(dim=1)
-            if self.config.pooling_strategy == "mean":
+            if pooling_strategy == "mean":
                 if attention_mask is not None:
                     embeddings = embeddings / attention_mask.sum(dim=1, keepdim=True)
             return embeddings
-        if self.config.pooling_strategy == "max":
+        if pooling_strategy == "max":
             if attention_mask is not None:
                 embeddings = embeddings.masked_fill(
                     ~attention_mask.bool().unsqueeze(-1), -1e9
@@ -92,7 +95,7 @@ def LightningIRModelClassFactory(
     cc_lir_model_type = "".join(s.title() for s in lir_model_type.split("-"))
     cc_model_type = BackboneConfig.__name__[:-6]
     ModelConfig = type(
-        f"{cc_model_type}{cc_lir_model_type}Config",
+        f"{cc_lir_model_type}{cc_model_type}Config",
         (MixinConfig, BackboneConfig),
         {
             "backbone_model_type": BackboneConfig.model_type,
@@ -100,7 +103,7 @@ def LightningIRModelClassFactory(
     )
 
     DerivedLightningIRModel = type(
-        f"{cc_model_type}{cc_lir_model_type}Model",
+        f"{cc_lir_model_type}{cc_model_type}Model",
         (LightningIRModelMixin, BackboneModel),
         {"config_class": ModelConfig, "backbone_forward": BackboneModel.forward},
     )

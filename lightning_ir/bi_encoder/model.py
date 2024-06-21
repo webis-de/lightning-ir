@@ -1,11 +1,12 @@
 from dataclasses import dataclass
+from string import punctuation
 from typing import Literal, Sequence
 
 import torch
 from transformers import BatchEncoding
 
 from ..base import LightningIRModel, LightningIROutput
-from . import BiEncoderConfig, MultiVectorBiEncoderConfig, SingleVectorBiEncoderConfig
+from . import BiEncoderConfig
 
 
 @dataclass
@@ -40,6 +41,38 @@ class BiEncoderModel(LightningIRModel):
                     "Embedding dim must match hidden size if no linear layer is used"
                 )
 
+        self.query_mask_scoring_input_ids: torch.Tensor | None = None
+        self.doc_mask_scoring_input_ids: torch.Tensor | None = None
+        for sequence in ("query", "doc"):
+            mask_scoring_tokens = getattr(
+                self.config, f"{sequence}_mask_scoring_tokens"
+            )
+            if mask_scoring_tokens is None:
+                continue
+            if mask_scoring_tokens == "punctuation":
+                mask_scoring_tokens = list(punctuation)
+            try:
+                tokenizer = self.config.__class__.tokenizer_class.from_pretrained(
+                    self.config.name_or_path
+                )
+            except OSError:
+                raise ValueError(
+                    "Can't use token scoring masking if the checkpoint does not "
+                    "have a tokenizer."
+                )
+            setattr(
+                self,
+                f"{sequence}_mask_scoring_input_ids",
+                tokenizer(
+                    mask_scoring_tokens,
+                    add_special_tokens=False,
+                    return_tensors="pt",
+                    return_attention_mask=False,
+                    return_token_type_ids=False,
+                    warn=False,
+                ).input_ids[:, 0],
+            )
+
     def forward(
         self,
         query_encoding: BatchEncoding,
@@ -66,7 +99,12 @@ class BiEncoderModel(LightningIRModel):
         token_type_ids: torch.Tensor | None = None,
     ) -> BiEncoderEmbedding:
         return self._encode(
-            input_ids, attention_mask, token_type_ids, self.config.query_expansion
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            expansion=self.config.query_expansion,
+            pooling_strategy=self.config.query_pooling_strategy,
+            mask_scoring_input_ids=self.query_mask_scoring_input_ids,
         )
 
     def encode_doc(
@@ -76,7 +114,12 @@ class BiEncoderModel(LightningIRModel):
         token_type_ids: torch.Tensor | None = None,
     ) -> BiEncoderEmbedding:
         return self._encode(
-            input_ids, attention_mask, token_type_ids, self.config.doc_expansion
+            input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            expansion=self.config.doc_expansion,
+            pooling_strategy=self.config.doc_pooling_strategy,
+            mask_scoring_input_ids=self.doc_mask_scoring_input_ids,
         )
 
     def _encode(
@@ -85,35 +128,46 @@ class BiEncoderModel(LightningIRModel):
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
         expansion: bool = False,
+        pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = None,
+        mask_scoring_input_ids: torch.Tensor | None = None,
     ) -> BiEncoderEmbedding:
         embeddings = self.backbone_forward(
             input_ids, attention_mask, token_type_ids
         ).last_hidden_state
-        embeddings = self.process_embeddings(embeddings)
-        if self.config.normalize:
-            embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
-        scoring_mask = self._scoring_mask(input_ids, attention_mask, expansion)
-        return BiEncoderEmbedding(embeddings, scoring_mask)
-
-    def process_embeddings(
-        self, embeddings: torch.Tensor, attention_mask: torch.Tensor | None = None
-    ) -> torch.Tensor:
         if self.linear is not None:
             embeddings = self.linear(embeddings)
-        return embeddings
+        embeddings = self.pooling(embeddings, attention_mask, pooling_strategy)
+        if self.config.normalize:
+            embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
+        scoring_mask = self._scoring_mask(
+            input_ids,
+            attention_mask,
+            expansion,
+            pooling_strategy,
+            mask_scoring_input_ids,
+        )
+        return BiEncoderEmbedding(embeddings, scoring_mask)
 
     def query_scoring_mask(
         self, input_ids: torch.Tensor | None, attention_mask: torch.Tensor | None
     ) -> torch.Tensor:
         return self._scoring_mask(
-            input_ids, attention_mask, self.config.query_expansion
+            input_ids,
+            attention_mask,
+            expansion=self.config.query_expansion,
+            pooling_strategy=self.config.query_pooling_strategy,
+            mask_scoring_input_ids=self.config.query_mask_scoring_input_ids,
         )
 
     def doc_scoring_mask(
         self, input_ids: torch.Tensor | None, attention_mask: torch.Tensor | None
     ) -> torch.Tensor:
         return self._scoring_mask(
-            input_ids, attention_mask, self.config.query_expansion
+            input_ids,
+            attention_mask,
+            expansion=self.config.query_expansion,
+            pooling_strategy=self.config.doc_pooling_strategy,
+            mask_scoring_input_ids=self.config.doc_mask_scoring_input_ids,
         )
 
     def _scoring_mask(
@@ -121,8 +175,29 @@ class BiEncoderModel(LightningIRModel):
         input_ids: torch.Tensor | None,
         attention_mask: torch.Tensor | None,
         expansion: bool,
+        pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = None,
+        mask_scoring_input_ids: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        raise NotImplementedError("Scoring mask method must be implemented in subclass")
+        if input_ids is not None:
+            shape = input_ids.shape
+            device = input_ids.device
+        elif attention_mask is not None:
+            shape = attention_mask.shape
+            device = attention_mask.device
+        else:
+            raise ValueError("Pass either input_ids or attention_mask")
+        if pooling_strategy is not None:
+            return torch.ones((shape[0], 1), dtype=torch.bool, device=device)
+        scoring_mask = attention_mask
+        if expansion or scoring_mask is None:
+            scoring_mask = torch.ones(shape, dtype=torch.bool, device=device)
+        scoring_mask = scoring_mask.bool()
+        if mask_scoring_input_ids is not None and input_ids is not None:
+            ignore_mask = (
+                input_ids[..., None].eq(mask_scoring_input_ids.to(device)).any(-1)
+            )
+            scoring_mask = scoring_mask & ~ignore_mask
+        return scoring_mask
 
     def score(
         self,
@@ -134,68 +209,6 @@ class BiEncoderModel(LightningIRModel):
             query_embeddings, doc_embeddings, num_docs=num_docs
         )
         return scores
-
-
-class SingleVectorBiEncoderModel(BiEncoderModel):
-    config_class = SingleVectorBiEncoderConfig
-
-    def __init__(self, config: SingleVectorBiEncoderConfig) -> None:
-        super().__init__(config)
-        self.config: SingleVectorBiEncoderConfig
-        if self.config.pooling_strategy is None:
-            raise ValueError("Pooling strategy must be set")
-
-    def process_embeddings(
-        self, embeddings: torch.Tensor, attention_mask: torch.Tensor | None = None
-    ) -> torch.Tensor:
-        embeddings = super().process_embeddings(embeddings, attention_mask)
-        embeddings = self.pooling(embeddings, attention_mask).unsqueeze(1)
-        return embeddings
-
-    def _scoring_mask(
-        self,
-        input_ids: torch.Tensor | None,
-        attention_mask: torch.Tensor | None,
-        expansion: bool,
-    ) -> torch.Tensor:
-        if input_ids is not None:
-            batch_size = input_ids.shape[0]
-            device = input_ids.device
-        elif attention_mask is not None:
-            batch_size = attention_mask.shape[0]
-            device = attention_mask.device
-        else:
-            raise ValueError("Pass either input_ids or attention_mask")
-        return torch.ones((batch_size, 1), dtype=torch.bool, device=device)
-
-
-class MultiVectorBiEncoderModel(BiEncoderModel):
-    config_class = MultiVectorBiEncoderConfig
-
-    def __init__(self, config: MultiVectorBiEncoderConfig) -> None:
-        super().__init__(config)
-        self.config: MultiVectorBiEncoderConfig
-
-    def _scoring_mask(
-        self,
-        input_ids: torch.Tensor | None,
-        attention_mask: torch.Tensor | None,
-        expansion: bool,
-    ) -> torch.Tensor:
-        if input_ids is None:
-            if attention_mask is None:
-                raise ValueError("Pass either input_ids or attention_mask")
-            else:
-                shape = attention_mask.shape
-                device = attention_mask.device
-        else:
-            shape = input_ids.shape
-            device = input_ids.device
-        scoring_mask = attention_mask
-        if expansion or scoring_mask is None:
-            scoring_mask = torch.ones(shape, dtype=torch.bool, device=device)
-        scoring_mask = scoring_mask.bool()
-        return scoring_mask
 
 
 class ScoringFunction(torch.nn.Module):
@@ -212,7 +225,7 @@ class ScoringFunction(torch.nn.Module):
             raise ValueError(
                 f"Unknown similarity function {self.config.similarity_function}"
             )
-        self.aggregation_function = getattr(self.config, "aggregation_function", None)
+        self.doc_aggregation_function = self.config.doc_aggregation_function
 
     def compute_similarity(
         self,
@@ -286,35 +299,36 @@ class ScoringFunction(torch.nn.Module):
         self,
         scores: torch.Tensor,
         mask: torch.Tensor | None,
-        aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"] | None,
+        doc_aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"] | None,
+        dim: int,
     ) -> torch.Tensor:
-        if aggregation_function is None:
+        if doc_aggregation_function is None:
             return scores
-        if aggregation_function == "max":
+        if doc_aggregation_function == "max":
             if mask is not None:
                 scores = scores.masked_fill(~mask, float("-inf"))
-            return scores.max(-1, keepdim=True).values
-        if aggregation_function == "sum":
+            return scores.max(dim, keepdim=True).values
+        if doc_aggregation_function == "sum":
             if mask is not None:
                 scores = scores.masked_fill(~mask, 0)
-            return scores.sum(-1, keepdim=True)
+            return scores.sum(dim, keepdim=True)
         if mask is None:
-            num_non_masked = torch.full(
-                scores.shape[:-1], scores.shape[-1], device=scores.device
-            )
+            shape = list(scores.shape)
+            shape[dim] = 1
+            num_non_masked = torch.full(shape, scores.shape[dim], device=scores.device)
         else:
-            num_non_masked = mask.sum(-1)
-        if aggregation_function == "mean":
+            num_non_masked = mask.sum(dim, keepdim=True)
+        if doc_aggregation_function == "mean":
             return torch.where(
-                num_non_masked == 0, 0, scores.sum(-1, keepdim=True) / num_non_masked
+                num_non_masked == 0, 0, scores.sum(dim, keepdim=True) / num_non_masked
             )
-        if aggregation_function == "harmonic_mean":
+        if doc_aggregation_function == "harmonic_mean":
             return torch.where(
                 num_non_masked == 0,
                 0,
-                num_non_masked / (1 / scores).sum(-1, keepdim=True),
+                num_non_masked / (1 / scores).sum(dim, keepdim=True),
             )
-        raise ValueError(f"Unknown aggregation {aggregation_function}")
+        raise ValueError(f"Unknown aggregation {doc_aggregation_function}")
 
     def score(
         self,
@@ -326,8 +340,8 @@ class ScoringFunction(torch.nn.Module):
         query_embeddings = self.expand_query_embeddings(query_embeddings, num_docs_t)
         doc_embeddings = self.expand_doc_embeddings(doc_embeddings, num_docs_t)
         similarity = self.compute_similarity(query_embeddings, doc_embeddings)
-        scores = self.aggregate(similarity, doc_embeddings.scoring_mask, "max")
+        scores = self.aggregate(similarity, doc_embeddings.scoring_mask, "max", -1)
         scores = self.aggregate(
-            scores, query_embeddings.scoring_mask, self.aggregation_function
+            scores, query_embeddings.scoring_mask, self.doc_aggregation_function, -2
         )
         return scores[..., 0, 0]

@@ -8,13 +8,10 @@ from lightning import Trainer
 
 from lightning_ir import (
     BiEncoderModule,
+    FlatIndexConfig,
     LightningIRDataModule,
     LightningIRModule,
     RunDataset,
-    SingleVectorBiEncoderConfig,
-    MultiVectorBiEncoderConfig,
-    FlatIndexConfig,
-    IVFPQIndexConfig,
 )
 from lightning_ir.lightning_utils.callbacks import (
     IndexCallback,

@@ -1,16 +1,5 @@
-from .config import (
-    BiEncoderConfig,
-    MultiVectorBiEncoderConfig,
-    SingleVectorBiEncoderConfig,
-)
-from .model import (
-    BiEncoderEmbedding,
-    BiEncoderModel,
-    BiEncoderOutput,
-    MultiVectorBiEncoderModel,
-    ScoringFunction,
-    SingleVectorBiEncoderModel,
-)
+from .config import BiEncoderConfig
+from .model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput, ScoringFunction
 from .module import BiEncoderModule
 from .tokenizer import BiEncoderTokenizer
 
@@ -21,9 +10,5 @@ __all__ = [
     "BiEncoderModule",
     "BiEncoderOutput",
     "BiEncoderTokenizer",
-    "MultiVectorBiEncoderConfig",
-    "MultiVectorBiEncoderModel",
-    "SingleVectorBiEncoderConfig",
     "ScoringFunction",
-    "SingleVectorBiEncoderModel",
 ]

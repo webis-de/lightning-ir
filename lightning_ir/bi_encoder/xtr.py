@@ -5,7 +5,7 @@ from transformers import AutoConfig, AutoModel
 
 from ..flash.flash_model import FlashClassFactory
 from ..loss.loss import LossFunction
-from .col import ColConfig, ColModel
+from ..models.col.col import ColConfig, ColModel
 from .config import BiEncoderConfig
 from .model import MultiVectorScoringFunction
 from .module import BiEncoderModule
@@ -87,12 +87,12 @@ class XTRScoringFunction(MultiVectorScoringFunction):
         self,
         scores: torch.Tensor,
         mask: torch.Tensor,
-        aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
+        doc_aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
     ) -> torch.Tensor:
         if self.training and self.normalization == "Z":
             # Z-normalization
             mask = mask & (scores != 0)
-        return super().aggregate(scores, mask, aggregation_function)
+        return super().aggregate(scores, mask, doc_aggregation_function)
 
 
 class XTRModel(ColModel):

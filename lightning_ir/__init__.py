@@ -14,11 +14,7 @@ from .bi_encoder import (
     BiEncoderModule,
     BiEncoderOutput,
     BiEncoderTokenizer,
-    MultiVectorBiEncoderConfig,
-    MultiVectorBiEncoderModel,
     ScoringFunction,
-    SingleVectorBiEncoderConfig,
-    SingleVectorBiEncoderModel,
 )
 from .cross_encoder import (
     CrossEncoderConfig,
@@ -61,6 +57,7 @@ from .loss import (
     RankNet,
     SupervisedMarginMSE,
 )
+from .models import ColConfig, ColModel
 from .retrieve import (
     FlatIndexConfig,
     FlatIndexer,
@@ -71,16 +68,12 @@ from .retrieve import (
     Searcher,
 )
 
-
 AutoConfig.register(BiEncoderConfig.model_type, BiEncoderConfig)
 AutoModel.register(BiEncoderConfig, BiEncoderModel)
-AutoConfig.register(SingleVectorBiEncoderConfig.model_type, SingleVectorBiEncoderConfig)
-AutoModel.register(SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel)
-AutoConfig.register(MultiVectorBiEncoderConfig.model_type, MultiVectorBiEncoderConfig)
-AutoModel.register(MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel)
-
 AutoConfig.register(CrossEncoderConfig.model_type, CrossEncoderConfig)
 AutoModel.register(CrossEncoderConfig, CrossEncoderModel)
+AutoConfig.register(ColConfig.model_type, ColConfig)
+AutoModel.register(ColConfig, ColModel)
 
 
 __all__ = [
@@ -93,6 +86,8 @@ __all__ = [
     "BiEncoderOutput",
     "BiEncoderRunBatch",
     "BiEncoderTokenizer",
+    "ColConfig",
+    "ColModel",
     "ConstantMarginMSE",
     "ConstantSchedulerWithWarmup",
     "CrossEncoderConfig",
@@ -122,8 +117,6 @@ __all__ = [
     "LinearSchedulerWithWarmup",
     "LocalizedContrastiveEstimation",
     "LR_SCHEDULERS",
-    "MultiVectorBiEncoderConfig",
-    "MultiVectorBiEncoderModel",
     "QueryDataset",
     "QuerySample",
     "RankNet",
@@ -135,8 +128,6 @@ __all__ = [
     "SearchCallback",
     "SearchConfig",
     "Searcher",
-    "SingleVectorBiEncoderConfig",
-    "SingleVectorBiEncoderModel",
     "SupervisedMarginMSE",
     "TupleDataset",
     "WarmupScheduler",
