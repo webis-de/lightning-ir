@@ -36,35 +36,37 @@ class LightningIRModel(PreTrainedModel):
         self,
         embeddings: torch.Tensor,
         attention_mask: torch.Tensor | None = None,
-        pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = "mean",
+        pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",
     ) -> torch.Tensor:
         if pooling_strategy is None:
             return embeddings
-        if pooling_strategy == "cls":
+        if pooling_strategy == "first":
             return embeddings[:, [0]]
         if pooling_strategy in ("sum", "mean"):
             if attention_mask is not None:
                 embeddings = embeddings * attention_mask.unsqueeze(-1)
-            embeddings = embeddings.sum(dim=1)
+            embeddings = embeddings.sum(dim=1, keepdim=True)
             if pooling_strategy == "mean":
                 if attention_mask is not None:
-                    embeddings = embeddings / attention_mask.sum(dim=1, keepdim=True)
+                    embeddings = embeddings / attention_mask.sum(
+                        dim=1, keepdim=True
+                    ).unsqueeze(-1)
             return embeddings
         if pooling_strategy == "max":
             if attention_mask is not None:
                 embeddings = embeddings.masked_fill(
                     ~attention_mask.bool().unsqueeze(-1), -1e9
                 )
-            return embeddings.max(dim=1).values
+            return embeddings.max(dim=1, keepdim=True).values
         raise ValueError(f"Unknown pooling strategy: {self.pooling_strategy}")
 
     @classmethod
-    def from_pretrained(cls, *args, **kwargs) -> "LightningIRModel":
-        if not any(not issubclass(base, LightningIRModel) for base in cls.__bases__):
+    def from_pretrained(first, *args, **kwargs) -> "LightningIRModel":
+        if not any(not issubclass(base, LightningIRModel) for base in first.__bases__):
             config = AutoConfig.from_pretrained(*args, **kwargs)
             BackBoneModel = MODEL_MAPPING[CONFIG_MAPPING[config.backbone_model_type]]
-            cls = LightningIRModelClassFactory(BackBoneModel, cls.config_class)
-        return super(LightningIRModel, cls).from_pretrained(*args, **kwargs)
+            first = LightningIRModelClassFactory(BackBoneModel, first.config_class)
+        return super(LightningIRModel, first).from_pretrained(*args, **kwargs)
 
 
 def LightningIRModelClassFactory(

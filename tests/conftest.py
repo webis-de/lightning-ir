@@ -59,11 +59,13 @@ def inference_datasets() -> List[RunDataset]:
 
 DATA_DIR = Path(__file__).parent / "data"
 
-GLOBAL_KWARGS: Dict[str, Any] = dict(query_length=4, doc_length=8)
+GLOBAL_KWARGS: Dict[str, Any] = dict(query_length=8, doc_length=8)
 
 BI_ENCODER_CONFIGS = [
     BiEncoderConfig(
-        query_pooling_strategy=None, doc_pooling_strategy=None, **GLOBAL_KWARGS
+        query_pooling_strategy=None,
+        doc_pooling_strategy=None,
+        **GLOBAL_KWARGS,
     ),
     BiEncoderConfig(**GLOBAL_KWARGS),
 ]

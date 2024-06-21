@@ -14,7 +14,7 @@ class CrossEncoderConfig(LightningIRConfig):
         self,
         query_length: int = 32,
         doc_length: int = 512,
-        pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = "cls",
+        pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "first",
         **kwargs
     ):
         super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)

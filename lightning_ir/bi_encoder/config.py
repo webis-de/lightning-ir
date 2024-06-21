@@ -40,11 +40,11 @@ class BiEncoderConfig(LightningIRConfig):
         similarity_function: Literal["cosine", "l2", "dot"] = "dot",
         query_expansion: bool = False,
         attend_to_query_expanded_tokens: bool = False,
-        query_pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = "mean",
+        query_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",
         query_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
         doc_expansion: bool = False,
         attend_to_doc_expanded_tokens: bool = False,
-        doc_pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = "mean",
+        doc_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
         doc_aggregation_function: Literal[
             "sum", "mean", "max", "harmonic_mean"
@@ -96,7 +96,7 @@ class BiEncoderConfig(LightningIRConfig):
 
     @classmethod
     def get_config_dict(
-        cls, pretrained_model_name_or_path: str | PathLike, **kwargs
+        first, pretrained_model_name_or_path: str | PathLike, **kwargs
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         config_dict, kwargs = super().get_config_dict(
             pretrained_model_name_or_path, **kwargs

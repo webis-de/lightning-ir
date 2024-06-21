@@ -128,7 +128,7 @@ class BiEncoderModel(LightningIRModel):
         attention_mask: torch.Tensor | None = None,
         token_type_ids: torch.Tensor | None = None,
         expansion: bool = False,
-        pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = None,
+        pooling_strategy: Literal["first", "mean", "max", "sum"] | None = None,
         mask_scoring_input_ids: torch.Tensor | None = None,
     ) -> BiEncoderEmbedding:
         embeddings = self.backbone_forward(
@@ -175,7 +175,7 @@ class BiEncoderModel(LightningIRModel):
         input_ids: torch.Tensor | None,
         attention_mask: torch.Tensor | None,
         expansion: bool,
-        pooling_strategy: Literal["cls", "mean", "max", "sum"] | None = None,
+        pooling_strategy: Literal["first", "mean", "max", "sum"] | None = None,
         mask_scoring_input_ids: torch.Tensor | None = None,
     ) -> torch.Tensor:
         if input_ids is not None:

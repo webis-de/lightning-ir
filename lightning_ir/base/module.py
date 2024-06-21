@@ -43,13 +43,21 @@ class LightningIRModule(LightningModule):
         if model is None:
             if model_name_or_path is None:
                 raise ValueError("Either model or model_name_or_path must be provided.")
-            # TODO directly load lightning_ir model
-            loaded_config = AutoConfig.from_pretrained(model_name_or_path)
-            TransformerModel = AutoModel._model_mapping[loaded_config.__class__]
+            TransformerModel = AutoModel._model_mapping[
+                AutoConfig.from_pretrained(model_name_or_path).__class__
+            ]
             DerivedLightningIRModel = LightningIRModelClassFactory(
                 TransformerModel, None if config is None else config.__class__
             )
-            model = DerivedLightningIRModel.from_pretrained(model_name_or_path)
+            ir_config = None
+            if config is not None:
+                ir_config = DerivedLightningIRModel.config_class.from_pretrained(
+                    model_name_or_path
+                )
+                ir_config.update(config.to_added_args_dict())
+            model = DerivedLightningIRModel.from_pretrained(
+                model_name_or_path, config=ir_config
+            )
 
         self.model: LightningIRModel = model
         self.config = self.model.config
