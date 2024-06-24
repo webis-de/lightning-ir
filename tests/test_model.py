@@ -27,36 +27,6 @@ def tuples_datamodule(
     return datamodule
 
 
-def test_doc_padding(
-    bi_encoder_module: BiEncoderModule, inference_datasets: Sequence[RunDataset]
-):
-    datamodule = tuples_datamodule(bi_encoder_module, inference_datasets)
-    model = bi_encoder_module.model
-    batch = next(iter(datamodule.train_dataloader()))
-    doc_encoding = batch.doc_encoding
-    doc_encoding["input_ids"] = doc_encoding["input_ids"][:-1]
-    doc_encoding["attention_mask"] = doc_encoding["attention_mask"][:-1]
-    doc_encoding["token_type_ids"] = doc_encoding["token_type_ids"][:-1]
-
-    query_embeddings = model.encode_query(**batch.query_encoding)
-    doc_embeddings = model.encode_doc(**batch.doc_encoding)
-    with pytest.raises(ValueError):
-        model.score(query_embeddings, doc_embeddings)
-    with pytest.raises(ValueError):
-        model.score(
-            query_embeddings, doc_embeddings, [doc_embeddings.embeddings.shape[0]]
-        )
-    with pytest.raises(ValueError):
-        model.score(
-            query_embeddings, doc_embeddings, [0] * query_embeddings.embeddings.shape[0]
-        )
-
-    num_docs = [len(docs) for docs in batch.doc_ids]
-    num_docs[-1] = num_docs[-1] - 1
-    scores = model.score(query_embeddings, doc_embeddings, num_docs)
-    assert scores.shape[0] == doc_embeddings.embeddings.shape[0]
-
-
 def test_training_step(
     train_module: LightningIRModule, inference_datasets: Sequence[RunDataset]
 ):

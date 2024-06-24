@@ -5,6 +5,8 @@ from huggingface_hub import hf_hub_download
 from transformers import BertModel
 from transformers.modeling_utils import load_state_dict
 
+from lightning_ir.base.model import LightningIRModel
+
 from ...base import LightningIRModelClassFactory
 from .config import ColConfig
 from ...bi_encoder.model import BiEncoderModel
@@ -22,13 +24,26 @@ class ColModel(BiEncoderModel):
         self.config: ColConfig
 
     @classmethod
+    def from_pretrained(
+        cls,
+        model_name_or_path: str | Path,
+        *args,
+        **kwargs,
+    ) -> LightningIRModel:
+        try:
+            col_config_path = hf_hub_download(
+                repo_id=str(model_name_or_path), filename="artifact.metadata"
+            )
+            col_config = json.loads(Path(col_config_path).read_text())
+        except Exception:
+            pass
+        if col_config is not None:
+            return cls.from_colbert_checkpoint(model_name_or_path)
+        return super().from_pretrained(model_name_or_path, *args, **kwargs)
+
+    @classmethod
     def from_colbert_checkpoint(cls, model_name_or_path: Path | str) -> "ColModel":
         col_config = None
-        if isinstance(model_name_or_path, Path):
-            if (model_name_or_path / "artifact.metadata").exists():
-                col_config = json.loads(
-                    (model_name_or_path / "artifact.metadata").read_text()
-                )
         try:
             col_config_path = hf_hub_download(
                 repo_id=str(model_name_or_path), filename="artifact.metadata"

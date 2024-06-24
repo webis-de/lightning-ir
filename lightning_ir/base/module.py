@@ -22,7 +22,7 @@ from .validation_utils import (
 )
 
 if TYPE_CHECKING:
-    from ..data import BiEncoderRunBatch, CrossEncoderRunBatch, RunDataset
+    from ..data import TrainBatch, RunDataset
 
 
 class LightningIRModule(LightningModule):
@@ -73,21 +73,17 @@ class LightningIRModule(LightningModule):
         self.train()
         return super().on_fit_start()
 
-    def forward(
-        self, batch: BiEncoderRunBatch | CrossEncoderRunBatch
-    ) -> LightningIROutput:
+    def forward(self, batch: TrainBatch) -> LightningIROutput:
         raise NotImplementedError
 
     def compute_losses(
         self,
-        batch: BiEncoderRunBatch | CrossEncoderRunBatch,
+        batch: TrainBatch,
         loss_functions: Sequence[LossFunction] | None,
     ) -> Dict[str, torch.Tensor]:
         raise NotImplementedError
 
-    def training_step(
-        self, batch: BiEncoderRunBatch | CrossEncoderRunBatch, batch_idx: int
-    ) -> torch.Tensor:
+    def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
         if self.loss_functions is None:
             raise ValueError("Loss function is not set")
         losses = self.compute_losses(batch, self.loss_functions)
@@ -99,7 +95,7 @@ class LightningIRModule(LightningModule):
 
     def validation_step(
         self,
-        batch: BiEncoderRunBatch | CrossEncoderRunBatch,
+        batch: TrainBatch,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:

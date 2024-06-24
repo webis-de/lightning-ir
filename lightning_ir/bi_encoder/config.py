@@ -96,7 +96,7 @@ class BiEncoderConfig(LightningIRConfig):
 
     @classmethod
     def get_config_dict(
-        first, pretrained_model_name_or_path: str | PathLike, **kwargs
+        cls, pretrained_model_name_or_path: str | PathLike, **kwargs
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         config_dict, kwargs = super().get_config_dict(
             pretrained_model_name_or_path, **kwargs

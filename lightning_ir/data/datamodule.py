@@ -9,19 +9,14 @@ from lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import AutoConfig
 
-from ..bi_encoder import BiEncoderConfig
-from ..cross_encoder import CrossEncoderConfig
-from . import (
-    BiEncoderRunBatch,
-    CrossEncoderRunBatch,
+from .data import IndexBatch, RankBatch, SearchBatch, TrainBatch
+from .dataset import (
     DocDataset,
     DocSample,
-    IndexBatch,
     QueryDataset,
     QuerySample,
     RunDataset,
     RunSample,
-    SearchBatch,
     TupleDataset,
 )
 
@@ -146,25 +141,22 @@ class LightningIRDataModule(LightningDataModule):
     ) -> Dict[str, Any]:
         aggregated = defaultdict(list)
         field_options = {
-            "query_id": {"extend": False, "tensorize": False},
-            "query": {"extend": False, "tensorize": False},
-            "doc_id": {"extend": False, "tensorize": False},
-            "doc_ids": {"extend": False, "tensorize": False},
-            "doc": {"extend": False, "tensorize": False},
-            "docs": {"extend": True, "tensorize": False},
-            "targets": {"extend": True, "tensorize": False},
-            "qrels": {"extend": True, "tensorize": False},
+            "query_id": {"extend": False},
+            "query": {"extend": False},
+            "doc_id": {"extend": False},
+            "doc_ids": {"extend": False},
+            "doc": {"extend": False},
+            "docs": {"extend": False},
+            "targets": {"extend": True},
+            "qrels": {"extend": True},
         }
         for sample in samples:
-            for field in sample._fields:
+            for field in sample.__dict__:
                 extend = field_options[field]["extend"]
-                tensorize = field_options[field]["tensorize"]
                 key = field if field.endswith("s") else f"{field}s"
                 value = getattr(sample, field)
                 if value is None:
                     continue
-                if tensorize:
-                    value = torch.tensor(value)
                 if extend:
                     aggregated[key].extend(value)
                 else:
@@ -173,45 +165,21 @@ class LightningIRDataModule(LightningDataModule):
 
     def _clean_sample(self, aggregated: Dict[str, Any]) -> Dict[str, Any]:
         kwargs: Dict[str, Any] = dict(aggregated)
-        queries = None
-        if "querys" in aggregated:
-            queries = aggregated["querys"]
+        if "querys" in kwargs:
+            kwargs["queries"] = kwargs["querys"]
             del kwargs["querys"]
-        docs = None
-        if "docs" in aggregated:
-            docs = aggregated["docs"]
-            del kwargs["docs"]
-        num_docs = None
-        if "doc_ids" in aggregated:
-            num_docs = [len(doc_ids) for doc_ids in aggregated["doc_ids"]]
-        encodings = self.tokenizer.tokenize(
-            queries,
-            docs,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            num_docs=num_docs,
-        )
-        if not encodings:
-            raise ValueError("No encodings were generated.")
-        kwargs.update(encodings)
-        if "targets" in aggregated:
-            kwargs["targets"] = torch.stack(aggregated["targets"])
+        if "targets" in kwargs:
+            kwargs["targets"] = torch.stack(kwargs["targets"])
         return kwargs
 
     def _parse_batch(
         self, sample: RunSample | QuerySample | DocSample, **kwargs
-    ) -> BiEncoderRunBatch | CrossEncoderRunBatch | IndexBatch | SearchBatch:
+    ) -> RankBatch | TrainBatch | IndexBatch | SearchBatch:
         if isinstance(sample, RunSample):
-            if isinstance(self.config, BiEncoderConfig):
-                return BiEncoderRunBatch(**kwargs)
-            elif isinstance(self.config, CrossEncoderConfig):
-                return CrossEncoderRunBatch(**kwargs)
+            if "targets" in kwargs:
+                return TrainBatch(**kwargs)
             else:
-                raise ValueError(
-                    f"LightningIRDataModule requires a BiEncoderConfig or "
-                    f"CrossEncoderConfig, received {self.config.__class__.__name__}."
-                )
+                return RankBatch(**kwargs)
         if isinstance(sample, QuerySample):
             return SearchBatch(**kwargs)
         if isinstance(sample, DocSample):
@@ -220,10 +188,13 @@ class LightningIRDataModule(LightningDataModule):
 
     def collate_fn(
         self,
-        samples: Sequence[
-            RunSample | QuerySample | DocSample | RunSample | QuerySample | DocSample
-        ],
-    ) -> BiEncoderRunBatch | CrossEncoderRunBatch | IndexBatch | SearchBatch:
+        samples: (
+            Sequence[RunSample | QuerySample | DocSample]
+            | RunSample
+            | QuerySample
+            | DocSample
+        ),
+    ) -> TrainBatch | RankBatch | IndexBatch | SearchBatch:
         if isinstance(samples, (RunSample, QuerySample, DocSample)):
             samples = [samples]
         aggregated = self._aggregate_samples(samples)

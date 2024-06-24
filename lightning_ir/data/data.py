@@ -1,10 +1,12 @@
-from typing import Any, Dict, NamedTuple, Sequence, Tuple
+from dataclasses import dataclass
+
+from typing import Any, Dict, Sequence, Tuple
 
 import torch
-from transformers import BatchEncoding
 
 
-class RunSample(NamedTuple):
+@dataclass
+class RunSample:
     query_id: str
     query: str
     doc_ids: Tuple[str, ...]
@@ -13,7 +15,8 @@ class RunSample(NamedTuple):
     qrels: Sequence[Dict[str, Any]] | None = None
 
 
-class QuerySample(NamedTuple):
+@dataclass
+class QuerySample:
     query_id: str
     query: str
 
@@ -22,7 +25,8 @@ class QuerySample(NamedTuple):
         return cls(sample[0], sample[1])
 
 
-class DocSample(NamedTuple):
+@dataclass
+class DocSample:
     doc_id: str
     doc: str
 
@@ -31,28 +35,27 @@ class DocSample(NamedTuple):
         return cls(sample[0], sample.default_text())
 
 
-class BiEncoderRunBatch(NamedTuple):
+@dataclass
+class RankBatch:
     query_ids: Tuple[str, ...]
-    query_encoding: BatchEncoding
+    queries: Tuple[str, ...]
     doc_ids: Tuple[Tuple[str, ...], ...]
-    doc_encoding: BatchEncoding
+    docs: Tuple[Tuple[str, ...], ...]
+
+
+@dataclass
+class TrainBatch(RankBatch):
     targets: torch.Tensor | None = None
     qrels: Dict[str, int] | None = None
 
 
-class CrossEncoderRunBatch(NamedTuple):
-    query_ids: Tuple[str, ...]
-    doc_ids: Tuple[Tuple[str, ...], ...]
-    encoding: BatchEncoding
-    targets: torch.Tensor | None = None
-    qrels: Dict[str, int] | None = None
-
-
-class IndexBatch(NamedTuple):
+@dataclass
+class IndexBatch:
     doc_ids: Tuple[str, ...]
-    doc_encoding: BatchEncoding
+    docs: Tuple[Tuple[str, ...], ...]
 
 
-class SearchBatch(NamedTuple):
+@dataclass
+class SearchBatch:
     query_ids: Tuple[str, ...]
-    query_encoding: BatchEncoding
+    queries: Tuple[str, ...]

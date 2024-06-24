@@ -6,14 +6,9 @@ from _pytest.fixtures import SubRequest
 
 from lightning_ir.bi_encoder.config import BiEncoderConfig
 from lightning_ir.cross_encoder.model import CrossEncoderConfig
-from lightning_ir.data.data import (
-    BiEncoderRunBatch,
-    CrossEncoderRunBatch,
-    IndexBatch,
-    SearchBatch,
-)
+from lightning_ir.data.data import IndexBatch, SearchBatch, TrainBatch
 from lightning_ir.data.datamodule import LightningIRDataModule
-from lightning_ir.data.dataset import DocDataset, QueryDataset, RunDataset, TupleDataset
+from lightning_ir.data.dataset import RunDataset, TupleDataset
 
 from .conftest import RUNS_DIR
 
@@ -122,8 +117,8 @@ def test_rank_run_dataset(rank_run_datamodule: LightningIRDataModule):
     dataset = dataloader.dataset
 
     batch = next(iter(dataloader))
-    assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
-    for value in batch:
+    assert isinstance(batch, TrainBatch)
+    for value in batch.__dict__.values():
         assert value is not None
     assert batch.targets.shape[0] == datamodule.train_batch_size * dataset.sample_size
     target_ranks = dataset.depth - torch.arange(dataset.sample_size).repeat(
@@ -138,8 +133,8 @@ def test_relevance_run_dataset(relevance_run_datamodule: LightningIRDataModule):
     dataset = dataloader.dataset
 
     batch = next(iter(dataloader))
-    assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
-    for value in batch:
+    assert isinstance(batch, TrainBatch)
+    for value in batch.__dict__.values():
         assert value is not None
     assert batch.targets.shape[0] == datamodule.train_batch_size * dataset.sample_size
 
@@ -151,8 +146,8 @@ def test_single_relevant_run_dataset(
     dataloader = datamodule.train_dataloader()
 
     batch = next(iter(dataloader))
-    assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
-    for value in batch:
+    assert isinstance(batch, TrainBatch)
+    for value in batch.__dict__.values():
         assert value is not None
     assert (batch.targets.max(-1).values > 0).sum() == datamodule.train_batch_size
 
@@ -162,8 +157,8 @@ def test_tuples_dataset(tuples_datamodule: LightningIRDataModule):
     dataset = dataloader.dataset
 
     batch = next(iter(dataloader))
-    assert isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch))
-    for field in batch._fields:
+    assert isinstance(batch, TrainBatch)
+    for field in batch.__dict__.keys():
         value = getattr(batch, field)
         if field == "qrels":
             assert value is None
@@ -176,9 +171,9 @@ def test_query_dataset(query_datamodule: LightningIRDataModule):
     dataloader = query_datamodule.predict_dataloader()[0]
     batch: SearchBatch = next(iter(dataloader))
     assert isinstance(batch, SearchBatch)
-    for field in batch._fields:
+    for field in batch.__dict__.keys():
         value = getattr(batch, field)
-        if field in ("query_encoding", "query_ids"):
+        if field in ("queries", "query_ids"):
             assert value is not None
         else:
             assert value is None
@@ -188,9 +183,9 @@ def test_doc_dataset(doc_datamodule: LightningIRDataModule):
     dataloader = doc_datamodule.predict_dataloader()[0]
     batch: IndexBatch = next(iter(dataloader))
     assert isinstance(batch, IndexBatch)
-    for field in batch._fields:
+    for field in batch.__dict__.keys():
         value = getattr(batch, field)
-        if field in ("doc_encoding", "doc_ids"):
+        if field in ("docs", "doc_ids"):
             assert value is not None
         else:
             assert value is None

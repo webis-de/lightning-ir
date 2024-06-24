@@ -9,7 +9,8 @@ import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
-from ..data import BiEncoderRunBatch, CrossEncoderRunBatch, IndexBatch, SearchBatch
+from ..bi_encoder.model import BiEncoderEmbedding
+from ..data import IndexBatch, RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
 from ..retrieve import (
     FlatIndexConfig,
@@ -23,7 +24,8 @@ from ..retrieve import (
 )
 
 if TYPE_CHECKING:
-    from ..bi_encoder import BiEncoderModule, BiEncoderEmbedding
+    from ..base import LightningIROutput
+    from ..bi_encoder import BiEncoderEmbedding, BiEncoderModule, BiEncoderOutput
     from ..cross_encoder import CrossEncoderModule
 
 
@@ -207,7 +209,7 @@ class RankCallback(BasePredictionWriter):
         self,
         pl_module: BiEncoderModule | CrossEncoderModule,
         prediction: Any,
-        batch: SearchBatch | BiEncoderRunBatch | CrossEncoderRunBatch,
+        batch: SearchBatch | RankBatch,
     ) -> Any:
         raise NotImplementedError("gather method must be implemented in subclass")
 
@@ -217,7 +219,7 @@ class RankCallback(BasePredictionWriter):
         pl_module: BiEncoderModule | CrossEncoderModule,
         prediction: Any,
         batch_indices: Optional[Sequence[int]],
-        batch: SearchBatch | BiEncoderRunBatch | CrossEncoderRunBatch,
+        batch: SearchBatch | RankBatch,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
@@ -263,11 +265,13 @@ class ReRankCallback(RankCallback):
     def gather(
         self,
         pl_module: BiEncoderModule | CrossEncoderModule,
-        prediction: Any,
-        batch: SearchBatch | BiEncoderRunBatch | CrossEncoderRunBatch,
+        prediction: LightningIROutput,
+        batch: SearchBatch | RankBatch,
     ) -> Any:
-        if not isinstance(batch, (BiEncoderRunBatch, CrossEncoderRunBatch)):
-            raise ValueError("Expected BiEncoderRunBatch or CrossEncoderRunBatch")
+        if not isinstance(batch, RankBatch):
+            raise ValueError(f"Expected TrainBatch got {batch.__class__.__name__}")
+        if prediction.scores is None:
+            raise ValueError("scores must be set in the output")
         scores = pl_module.all_gather(prediction.scores)
         doc_ids = pl_module.all_gather(batch.doc_ids)
         return dict(scores=scores, doc_ids=doc_ids)
@@ -307,13 +311,16 @@ class SearchCallback(RankCallback):
     def gather(
         self,
         pl_module: BiEncoderModule | CrossEncoderModule,
-        prediction: Any,
+        prediction: BiEncoderOutput,
         batch: SearchBatch,
     ) -> Dict[str, torch.Tensor]:
         if not isinstance(batch, SearchBatch):
-            raise ValueError("Expected SearchBatch")
-        query_embeddings = pl_module.all_gather(prediction.query_embeddings)
-        return dict(query_embeddings=query_embeddings)
+            raise ValueError(f"Expected SearchBatch got {batch.__class__.__name__}")
+        if prediction.query_embeddings is None:
+            raise ValueError("query_embeddings must be set in the output")
+        embeddings = pl_module.all_gather(prediction.query_embeddings.embeddings)
+        scoring_mask = pl_module.all_gather(prediction.query_embeddings.scoring_mask)
+        return dict(query_embeddings=BiEncoderEmbedding(embeddings, scoring_mask))
 
     def rank(
         self, query_embeddings: BiEncoderEmbedding

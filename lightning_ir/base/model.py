@@ -61,12 +61,16 @@ class LightningIRModel(PreTrainedModel):
         raise ValueError(f"Unknown pooling strategy: {self.pooling_strategy}")
 
     @classmethod
-    def from_pretrained(first, *args, **kwargs) -> "LightningIRModel":
-        if not any(not issubclass(base, LightningIRModel) for base in first.__bases__):
+    def from_pretrained(cls, *args, **kwargs) -> "LightningIRModel":
+        if not any(not issubclass(base, LightningIRModel) for base in cls.__bases__):
             config = AutoConfig.from_pretrained(*args, **kwargs)
-            BackBoneModel = MODEL_MAPPING[CONFIG_MAPPING[config.backbone_model_type]]
-            first = LightningIRModelClassFactory(BackBoneModel, first.config_class)
-        return super(LightningIRModel, first).from_pretrained(*args, **kwargs)
+            if isinstance(config, LightningIRConfig):
+                backbone_model_type = config.backbone_model_type
+            else:
+                backbone_model_type = config.model_type
+            BackboneModel = MODEL_MAPPING[CONFIG_MAPPING[backbone_model_type]]
+            cls = LightningIRModelClassFactory(BackboneModel, cls.config_class)
+        return super(LightningIRModel, cls).from_pretrained(*args, **kwargs)
 
 
 def LightningIRModelClassFactory(

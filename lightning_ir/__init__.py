@@ -24,8 +24,7 @@ from .cross_encoder import (
     CrossEncoderTokenizer,
 )
 from .data import (
-    BiEncoderRunBatch,
-    CrossEncoderRunBatch,
+    TrainBatch,
     DocDataset,
     DocSample,
     IndexBatch,
@@ -84,7 +83,6 @@ __all__ = [
     "BiEncoderModel",
     "BiEncoderModule",
     "BiEncoderOutput",
-    "BiEncoderRunBatch",
     "BiEncoderTokenizer",
     "ColConfig",
     "ColModel",
@@ -94,7 +92,6 @@ __all__ = [
     "CrossEncoderModel",
     "CrossEncoderModule",
     "CrossEncoderOutput",
-    "CrossEncoderRunBatch",
     "CrossEncoderTokenizer",
     "DocDataset",
     "DocSample",
@@ -129,6 +126,7 @@ __all__ = [
     "SearchConfig",
     "Searcher",
     "SupervisedMarginMSE",
+    "TrainBatch",
     "TupleDataset",
     "WarmupScheduler",
 ]

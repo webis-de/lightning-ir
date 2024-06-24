@@ -3,9 +3,11 @@ from typing import Dict, Sequence
 import torch
 
 from ..base.module import LightningIRModule
-from ..data import CrossEncoderRunBatch
+from ..data import RankBatch, TrainBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
-from . import CrossEncoderConfig, CrossEncoderModel, CrossEncoderOutput
+from .config import CrossEncoderConfig
+from .model import CrossEncoderModel, CrossEncoderOutput
+from .tokenizer import CrossEncoderTokenizer
 
 
 class CrossEncoderModule(LightningIRModule):
@@ -23,26 +25,36 @@ class CrossEncoderModule(LightningIRModule):
         )
         self.model: CrossEncoderModel
         self.config: CrossEncoderConfig
+        self.tokenizer: CrossEncoderTokenizer
 
-    def forward(self, batch: CrossEncoderRunBatch) -> CrossEncoderOutput:
-        output = self.model.forward(batch.encoding)
+    def forward(self, batch: RankBatch) -> CrossEncoderOutput:
+        queries = batch.queries
+        docs = [d for docs in batch.docs for d in docs]
+        num_docs = [len(docs) for docs in batch.docs]
+        encoding = self.tokenizer.tokenize(
+            queries,
+            docs,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            num_docs=num_docs,
+        )
+        output = self.model.forward(**encoding)
         return output
 
-    def predict_step(
-        self, batch: CrossEncoderRunBatch, *args, **kwargs
-    ) -> CrossEncoderOutput:
-        if isinstance(batch, CrossEncoderRunBatch):
+    def predict_step(self, batch: RankBatch, *args, **kwargs) -> CrossEncoderOutput:
+        if isinstance(batch, RankBatch):
             return self.forward(batch)
         raise ValueError(f"Unknown batch type {batch.__class__}")
 
     def compute_losses(
         self,
-        batch: CrossEncoderRunBatch,
+        batch: TrainBatch,
         loss_functions: Sequence[LossFunction] | None,
     ) -> Dict[str, torch.Tensor]:
         if loss_functions is None:
             if self.loss_functions is None:
-                raise ValueError("Loss function is not set")
+                raise ValueError("Loss functions are not set")
             loss_functions = self.loss_functions
         output = self.forward(batch)
         scores = output.scores

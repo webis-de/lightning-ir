@@ -17,8 +17,8 @@ def test_same_as_colbert():
     tokenizer = BiEncoderTokenizer.from_pretrained(
         "colbert-ir/colbertv2.0", **model.config.to_dict()
     )
-    query_encoding = tokenizer.tokenize_queries(query, return_tensors="pt")
-    doc_encoding = tokenizer.tokenize_docs(
+    query_encoding = tokenizer.tokenize_query(query, return_tensors="pt")
+    doc_encoding = tokenizer.tokenize_doc(
         documents, return_tensors="pt", padding=True, truncation=True
     )
     with torch.no_grad():

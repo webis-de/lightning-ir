@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 from string import punctuation
 from typing import Literal, Sequence
 
@@ -75,17 +76,23 @@ class BiEncoderModel(LightningIRModel):
 
     def forward(
         self,
-        query_encoding: BatchEncoding,
-        doc_encoding: BatchEncoding,
+        query_encoding: BatchEncoding | None,
+        doc_encoding: BatchEncoding | None,
         num_docs: Sequence[int] | int | None = None,
     ) -> BiEncoderOutput:
-        query_embeddings = self.encode_query(**query_encoding)
-        doc_embeddings = self.encode_doc(**doc_encoding)
-        scores = self.score(
-            query_embeddings,
-            doc_embeddings,
-            num_docs,
-        )
+        query_embeddings = None
+        if query_encoding is not None:
+            query_embeddings = self.encode_query(**query_encoding)
+        doc_embeddings = None
+        if doc_encoding is not None:
+            doc_embeddings = self.encode_doc(**doc_encoding)
+        scores = None
+        if doc_embeddings is not None and query_embeddings is not None:
+            scores = self.score(
+                query_embeddings,
+                doc_embeddings,
+                num_docs,
+            )
         return BiEncoderOutput(
             scores=scores,
             query_embeddings=query_embeddings,

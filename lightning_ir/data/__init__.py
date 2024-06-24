@@ -1,26 +1,26 @@
 from .data import (
-    BiEncoderRunBatch,
-    CrossEncoderRunBatch,
     DocSample,
     IndexBatch,
     QuerySample,
+    RankBatch,
     RunSample,
     SearchBatch,
+    TrainBatch,
 )
-from .dataset import DocDataset, QueryDataset, RunDataset, TupleDataset
 from .datamodule import LightningIRDataModule
+from .dataset import DocDataset, QueryDataset, RunDataset, TupleDataset
 
 __all__ = [
-    "BiEncoderRunBatch",
-    "CrossEncoderRunBatch",
     "DocDataset",
     "DocSample",
     "IndexBatch",
     "LightningIRDataModule",
     "QueryDataset",
     "QuerySample",
+    "RankBatch",
     "RunDataset",
     "RunSample",
     "SearchBatch",
+    "TrainBatch",
     "TupleDataset",
 ]

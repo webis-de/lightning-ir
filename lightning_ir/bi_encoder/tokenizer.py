@@ -94,8 +94,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
     def __call__(self, *args, warn: bool = True, **kwargs) -> BatchEncoding:
         if warn:
             warnings.warn(
-                "BiEncoderTokenizer is being directly called. Use tokenize_queries and "
-                "tokenize_docs to make sure marker_tokens and query/doc expansion is "
+                "BiEncoderTokenizer is being directly called. Use tokenize_query and "
+                "tokenize_doc to make sure marker_tokens and query/doc expansion is "
                 "applied."
             )
         return self.__tokenizer.__call__(*args, **kwargs)
@@ -126,7 +126,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
             encoding["attention_mask"].fill_(1)
         return encoding
 
-    def tokenize_queries(
+    def tokenize_query(
         self, queries: Sequence[str] | str, *args, **kwargs
     ) -> BatchEncoding:
         kwargs["max_length"] = self.query_length
@@ -141,9 +141,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
             self._expand(encoding, self.attend_to_query_expanded_tokens)
         return encoding
 
-    def tokenize_docs(
-        self, docs: Sequence[str] | str, *args, **kwargs
-    ) -> BatchEncoding:
+    def tokenize_doc(self, docs: Sequence[str] | str, *args, **kwargs) -> BatchEncoding:
         kwargs["max_length"] = self.doc_length
         if self.doc_expansion:
             kwargs["padding"] = "max_length"
@@ -165,7 +163,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         encodings = {}
         kwargs.pop("num_docs", None)
         if queries is not None:
-            encodings["query_encoding"] = self.tokenize_queries(queries, **kwargs)
+            encodings["query_encoding"] = self.tokenize_query(queries, **kwargs)
         if docs is not None:
-            encodings["doc_encoding"] = self.tokenize_docs(docs, **kwargs)
+            encodings["doc_encoding"] = self.tokenize_doc(docs, **kwargs)
         return encodings
