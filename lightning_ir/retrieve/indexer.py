@@ -4,13 +4,14 @@ import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 import faiss
 import torch
 
 if TYPE_CHECKING:
-    from ..bi_encoder import BiEncoderConfig
+    from ..data import IndexBatch
+    from ..bi_encoder import BiEncoderConfig, BiEncoderOutput
 
 
 @dataclass
@@ -83,12 +84,13 @@ class Indexer(ABC):
 
         self.set_verbosity()
 
-    def add(
-        self,
-        embeddings: torch.Tensor,
-        doc_ids: Sequence[str],
-        doc_lengths: torch.Tensor,
-    ) -> None:
+    def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
+        doc_embeddings = output.doc_embeddings
+        if doc_embeddings is None:
+            raise ValueError("Expected doc_embeddings in BiEncoderOutput")
+        doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
+        embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
+        doc_ids = index_batch.doc_ids
         embeddings = self.process_embeddings(embeddings)
 
         if embeddings.shape[0]:

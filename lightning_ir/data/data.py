@@ -52,7 +52,7 @@ class TrainBatch(RankBatch):
 @dataclass
 class IndexBatch:
     doc_ids: Tuple[str, ...]
-    docs: Tuple[Tuple[str, ...], ...]
+    docs: Tuple[str, ...]
 
 
 @dataclass

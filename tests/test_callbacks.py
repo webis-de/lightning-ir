@@ -74,7 +74,7 @@ def test_index_callback(
 
 
 @pytest.mark.parametrize("similarity", ("cosine", "dot"))
-@pytest.mark.parametrize("imputation_strategy", ("min", "gather"))
+@pytest.mark.parametrize("imputation_strategy", ("min", "gather", None))
 def test_search_callback(
     tmp_path: Path,
     bi_encoder_module: BiEncoderModule,

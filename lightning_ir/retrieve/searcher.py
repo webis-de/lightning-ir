@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import warnings
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Literal, NamedTuple, Sequence, Tuple
 
@@ -11,14 +10,14 @@ import torch
 from ..bi_encoder.model import BiEncoderEmbedding
 
 if TYPE_CHECKING:
-    from ..bi_encoder import BiEncoderConfig, BiEncoderModel
+    from ..bi_encoder import BiEncoderModule, BiEncoderOutput
 
 
 class SearchConfig(NamedTuple):
     index_path: Path
-    k: int
-    candidate_k: int
-    imputation_strategy: Literal["min", "gather"]
+    k: int = 10
+    candidate_k: int = 100
+    imputation_strategy: Literal["min", "gather"] | None = None
     n_probe: int = 1
 
 
@@ -30,18 +29,9 @@ class SparseDocScores:
 
 
 class Searcher:
-    def __init__(
-        self,
-        search_config: SearchConfig,
-        config: BiEncoderConfig,
-        model: BiEncoderModel,
-    ) -> None:
+    def __init__(self, search_config: SearchConfig, module: BiEncoderModule) -> None:
         self.search_config = search_config
-        self.config = config
-        self.model = model
-
-        if self.config.similarity_function == "l2":
-            warnings.warn("L2 similarity is not tested and may not work correctly")
+        self.module = module
 
         self.index = faiss.read_index(
             str(self.search_config.index_path / "index.faiss")
@@ -100,23 +90,21 @@ class Searcher:
         return doc_scores, doc_ids, new_num_docs
 
     def search(
-        self, query_embeddings: BiEncoderEmbedding
+        self, output: BiEncoderOutput
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
-
+        query_embeddings = output.query_embeddings
+        if query_embeddings is None:
+            raise ValueError("Expected query_embeddings in BiEncoderOutput")
         token_scores, token_doc_idcs = self.token_retrieval(query_embeddings)
         query_lengths = query_embeddings.scoring_mask.sum(-1)
         if self.search_config.imputation_strategy == "gather":
             doc_embeddings, doc_idcs, num_docs = self.gather_imputation(
                 token_doc_idcs, query_lengths
             )
-            doc_scores = self.model.score(query_embeddings, doc_embeddings, num_docs)
-        elif self.search_config.imputation_strategy == "min":
-            doc_scores, doc_idcs, num_docs = self.min_imputation(
-                token_scores, token_doc_idcs, query_lengths
-            )
+            doc_scores = self.module.score(query_embeddings, doc_embeddings, num_docs)
         else:
-            raise ValueError(
-                f"Unknown imputation strategy {self.search_config.imputation_strategy}"
+            doc_scores, doc_idcs, num_docs = self.intra_ranking_imputation(
+                token_scores, token_doc_idcs, query_lengths
             )
 
         doc_scores, doc_ids, num_docs = self.filter_and_sort(
@@ -165,7 +153,7 @@ class Searcher:
         )
         return doc_embeddings, doc_idcs, num_docs
 
-    def min_imputation(
+    def intra_ranking_imputation(
         self,
         token_scores: torch.Tensor,
         token_doc_idcs: torch.Tensor,
@@ -212,21 +200,29 @@ class Searcher:
         ).view(shape)
 
         # impute missing values
-        min_values = (
-            scores.masked_fill(scores == torch.finfo(scores.dtype).min, float("inf"))
-            .min(0)
-            .values[None]
-            .expand_as(scores)
-        )
+        if self.search_config.imputation_strategy == "min":
+            impute_values = (
+                scores.masked_fill(
+                    scores == torch.finfo(scores.dtype).min, float("inf")
+                )
+                .min(0, keepdim=True)
+                .values.expand_as(scores)
+            )
+        elif self.search_config.imputation_strategy is None:
+            impute_values = torch.zeros_like(scores)
+        else:
+            raise ValueError(
+                f"Invalid imputation strategy: {self.search_config.imputation_strategy}"
+            )
         is_inf = torch.isinf(scores)
-        scores[is_inf] = min_values[is_inf]
+        scores[is_inf] = impute_values[is_inf]
 
         # aggregate score per query token
         mask = (
             torch.arange(max_query_length, device=query_lengths.device)
             < query_lengths[:, None]
         ).repeat_interleave(num_docs, dim=0)
-        scores = self.model.scoring_function.aggregate(
-            scores, mask, self.config.doc_aggregation_function, dim=1
+        scores = self.module.scoring_function.aggregate(
+            scores, mask, self.module.config.doc_aggregation_function, dim=1
         ).squeeze(-1)
         return scores, doc_idcs, num_docs.tolist()

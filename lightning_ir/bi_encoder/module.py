@@ -25,6 +25,7 @@ class BiEncoderModule(LightningIRModule):
         self.model: BiEncoderModel
         self.config: BiEncoderConfig
         self.tokenizer: BiEncoderTokenizer
+        self.scoring_function = self.model.scoring_function
         if (
             self.config.add_marker_tokens
             and len(self.tokenizer) != self.config.vocab_size
@@ -32,15 +33,22 @@ class BiEncoderModule(LightningIRModule):
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
 
+    def score(
+        self,
+        query_embeddings: BiEncoderEmbedding,
+        doc_embeddings: BiEncoderEmbedding,
+        num_docs: Sequence[int] | int | None = None,
+    ) -> torch.Tensor:
+        return self.model.score(query_embeddings, doc_embeddings, num_docs)
+
     def forward(self, batch: RankBatch | IndexBatch | SearchBatch) -> BiEncoderOutput:
         queries = getattr(batch, "queries", None)
-        nested_docs = getattr(batch, "docs", None)
-        num_docs = None if nested_docs is None else [len(d) for d in nested_docs]
-        docs = (
-            [d for docs in nested_docs for d in docs]
-            if nested_docs is not None
-            else None
-        )
+        docs = getattr(batch, "docs", None)
+        num_docs = None
+        if isinstance(batch, RankBatch):
+            num_docs = None if docs is None else [len(d) for d in docs]
+            docs = [d for nested in docs for d in nested] if docs is not None else None
+
         encodings = self.tokenizer.tokenize(
             queries,
             docs,

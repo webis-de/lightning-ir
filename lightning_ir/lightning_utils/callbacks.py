@@ -1,15 +1,25 @@
 from __future__ import annotations
 
 import itertools
+from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Sequence, Tuple
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    TypeVar,
+)
 
 import pandas as pd
 import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
-from ..bi_encoder.model import BiEncoderEmbedding
 from ..data import IndexBatch, RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
 from ..retrieve import (
@@ -24,9 +34,11 @@ from ..retrieve import (
 )
 
 if TYPE_CHECKING:
-    from ..base import LightningIROutput
+    from ..base import LightningIROutput, LightningIRModule
     from ..bi_encoder import BiEncoderEmbedding, BiEncoderModule, BiEncoderOutput
-    from ..cross_encoder import CrossEncoderModule
+    from ..cross_encoder import CrossEncoderModule, CrossEncoderOutput
+
+T = TypeVar("T")
 
 
 def format_large_number(number: float) -> str:
@@ -45,7 +57,20 @@ def format_large_number(number: float) -> str:
     return formatted_number
 
 
-class IndexCallback(Callback):
+class GatherMixin:
+
+    def gather(self, pl_module: LightningIRModule, dataclass: T) -> T:
+        if is_dataclass(dataclass):
+            return dataclass.__class__(
+                **{
+                    k: self.gather(pl_module, getattr(dataclass, k))
+                    for k in dataclass.__dataclass_fields__
+                }
+            )
+        return pl_module.all_gather(dataclass)
+
+
+class IndexCallback(Callback, GatherMixin):
     def __init__(
         self,
         index_dir: Path | None,
@@ -56,7 +81,7 @@ class IndexCallback(Callback):
         self.index_dir = index_dir
         self.index_config = index_config
         self.verbose = verbose
-        self.indexer: IVFPQIndexer
+        self.indexer: Indexer
 
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
         if stage != "predict":
@@ -120,7 +145,7 @@ class IndexCallback(Callback):
         self,
         trainer: Trainer,
         pl_module: BiEncoderModule,
-        prediction: Any,
+        prediction: BiEncoderOutput,
         batch: IndexBatch,
         batch_idx: int,
         dataloader_idx: int = 0,
@@ -130,18 +155,13 @@ class IndexCallback(Callback):
                 self.indexer.save()
             self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
 
-        embeddings = pl_module.all_gather(prediction.doc_embeddings.embeddings)
-        scoring_mask = pl_module.all_gather(prediction.doc_embeddings.scoring_mask)
-        doc_ids = pl_module.all_gather(batch.doc_ids)
+        batch = self.gather(pl_module, batch)
+        prediction = self.gather(pl_module, prediction)
+
         if not trainer.is_global_zero:
             return
 
-        embeddings = embeddings.view(-1, pl_module.config.embedding_dim)[
-            scoring_mask.bool().view(-1)
-        ]
-        doc_lengths = scoring_mask.sum(-1)
-
-        self.indexer.add(embeddings, doc_ids, doc_lengths)
+        self.indexer.add(batch, prediction)
         self.log_to_pg(
             {
                 "num_docs": self.indexer.num_docs,
@@ -154,7 +174,7 @@ class IndexCallback(Callback):
         self.indexer.save()
 
 
-class RankCallback(BasePredictionWriter):
+class RankCallback(BasePredictionWriter, GatherMixin):
     def __init__(self, save_dir: Path | None = None) -> None:
         super().__init__()
         self.save_dir = save_dir
@@ -202,33 +222,28 @@ class RankCallback(BasePredictionWriter):
         run_file_path = self.save_dir / f"{run_file}.run"
         return run_file_path
 
-    def rank(self, prediction: Any) -> Tuple[torch.Tensor, List[str], List[int]]:
+    def rank(
+        self, batch: SearchBatch | RankBatch, output: LightningIROutput
+    ) -> Tuple[torch.Tensor, List[str], List[int]]:
         raise NotImplementedError("rank method must be implemented in subclass")
-
-    def gather(
-        self,
-        pl_module: BiEncoderModule | CrossEncoderModule,
-        prediction: Any,
-        batch: SearchBatch | RankBatch,
-    ) -> Any:
-        raise NotImplementedError("gather method must be implemented in subclass")
 
     def write_on_batch_end(
         self,
         trainer: Trainer,
         pl_module: BiEncoderModule | CrossEncoderModule,
-        prediction: Any,
+        prediction: BiEncoderOutput | CrossEncoderOutput,
         batch_indices: Optional[Sequence[int]],
         batch: SearchBatch | RankBatch,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
         query_ids = pl_module.all_gather(batch.query_ids)
-        outputs = self.gather(pl_module, prediction, batch)
+        batch = self.gather(pl_module, batch)
+        prediction = self.gather(pl_module, prediction)
         if not trainer.is_global_zero:
             return
 
-        scores, doc_ids, num_docs = self.rank(**outputs)
+        scores, doc_ids, num_docs = self.rank(batch, prediction)
         scores = scores.float().cpu().numpy()
 
         query_ids = list(
@@ -262,23 +277,13 @@ class RankCallback(BasePredictionWriter):
 
 class ReRankCallback(RankCallback):
 
-    def gather(
-        self,
-        pl_module: BiEncoderModule | CrossEncoderModule,
-        prediction: LightningIROutput,
-        batch: SearchBatch | RankBatch,
-    ) -> Any:
-        if not isinstance(batch, RankBatch):
-            raise ValueError(f"Expected TrainBatch got {batch.__class__.__name__}")
-        if prediction.scores is None:
-            raise ValueError("scores must be set in the output")
-        scores = pl_module.all_gather(prediction.scores)
-        doc_ids = pl_module.all_gather(batch.doc_ids)
-        return dict(scores=scores, doc_ids=doc_ids)
-
     def rank(
-        self, scores: torch.Tensor, doc_ids: Sequence[str]
+        self, batch: RankBatch, output: LightningIROutput
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
+        scores = output.scores
+        if scores is None:
+            raise ValueError("Expected output to have scores")
+        doc_ids = batch.doc_ids
         scores = scores.view(-1)
         num_docs = [len(_doc_ids) for _doc_ids in doc_ids]
         doc_ids = list(itertools.chain.from_iterable(doc_ids))
@@ -298,8 +303,6 @@ class SearchCallback(RankCallback):
         n_probe: int = 1,
     ) -> None:
         super().__init__(save_dir)
-        if imputation_strategy is None:
-            raise ValueError("imputation_strategy must be set")
         self.index_path = index_path
         self.k = k
         self.candidate_k = candidate_k
@@ -308,24 +311,10 @@ class SearchCallback(RankCallback):
         self.index_config: SearchConfig
         self.searcher: Searcher
 
-    def gather(
-        self,
-        pl_module: BiEncoderModule | CrossEncoderModule,
-        prediction: BiEncoderOutput,
-        batch: SearchBatch,
-    ) -> Dict[str, torch.Tensor]:
-        if not isinstance(batch, SearchBatch):
-            raise ValueError(f"Expected SearchBatch got {batch.__class__.__name__}")
-        if prediction.query_embeddings is None:
-            raise ValueError("query_embeddings must be set in the output")
-        embeddings = pl_module.all_gather(prediction.query_embeddings.embeddings)
-        scoring_mask = pl_module.all_gather(prediction.query_embeddings.scoring_mask)
-        return dict(query_embeddings=BiEncoderEmbedding(embeddings, scoring_mask))
-
     def rank(
-        self, query_embeddings: BiEncoderEmbedding
+        self, batch: SearchBatch, output: BiEncoderOutput
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
-        return self.searcher.search(query_embeddings)
+        return self.searcher.search(output)
 
     def on_predict_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
         datasets = super().on_predict_start(trainer, pl_module)
@@ -354,4 +343,4 @@ class SearchCallback(RankCallback):
             self.imputation_strategy,
             self.n_probe,
         )
-        self.searcher = Searcher(self.index_config, pl_module.config, pl_module.model)
+        self.searcher = Searcher(self.index_config, pl_module)
