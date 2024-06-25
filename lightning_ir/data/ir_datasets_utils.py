@@ -6,7 +6,7 @@ from typing import Any, Dict, Literal, NamedTuple, Tuple, Type
 import ir_datasets
 from ir_datasets.datasets.base import Dataset
 from ir_datasets.formats import BaseDocPairs, jsonl, trec, tsv
-from ir_datasets.util import Cache, DownloadConfig
+from ir_datasets.util import Cache, DownloadConfig, GzipExtract
 
 CONSTITUENT_TYPE_MAP: Dict[str, Dict[str, Type]] = {
     "docs": {
@@ -183,7 +183,14 @@ def register_rank_distillm():
     }
     file_name = "rank-distillm-set-encoder.run"
     register_msmarco(
-        base_id, split_id, file_id, dlc_id, dlc_contents, file_name, trec.TrecScoredDocs
+        base_id,
+        split_id,
+        file_id,
+        dlc_id,
+        dlc_contents,
+        file_name,
+        trec.TrecScoredDocs,
+        extract=True,
     )
 
 
@@ -195,6 +202,7 @@ def register_msmarco(
     dlc_contents: Dict[str, Any],
     file_name: str,
     ConstituentType: Type,
+    extract: bool = False,
 ):
     dataset_id = f"{base_id}/{split_id}/{file_id}"
     if dataset_id in ir_datasets.registry._registered:
@@ -206,7 +214,10 @@ def register_msmarco(
     collection = ir_dataset.docs_handler()
     queries = ir_dataset.queries_handler()
     qrels = ir_dataset.qrels_handler()
-    constituent = ConstituentType(Cache(dlc[dlc_id], base_path / split_id / file_name))
+    _dlc = dlc[dlc_id]
+    if extract:
+        _dlc = GzipExtract(_dlc)
+    constituent = ConstituentType(Cache(_dlc, base_path / split_id / file_name))
     dataset = Dataset(collection, queries, qrels, constituent)
     ir_datasets.registry.register(dataset_id, Dataset(dataset))
 
