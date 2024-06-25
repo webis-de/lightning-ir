@@ -8,8 +8,8 @@ from transformers.modeling_utils import load_state_dict
 from lightning_ir.base.model import LightningIRModel
 
 from ...base import LightningIRModelClassFactory
-from .config import ColConfig
 from ...bi_encoder.model import BiEncoderModel
+from .config import ColConfig
 
 
 def round_to_multiple_of_8(x: int) -> int:
@@ -31,14 +31,12 @@ class ColModel(BiEncoderModel):
         **kwargs,
     ) -> LightningIRModel:
         try:
-            col_config_path = hf_hub_download(
+            hf_hub_download(
                 repo_id=str(model_name_or_path), filename="artifact.metadata"
             )
-            col_config = json.loads(Path(col_config_path).read_text())
+            return cls.from_colbert_checkpoint(model_name_or_path)
         except Exception:
             pass
-        if col_config is not None:
-            return cls.from_colbert_checkpoint(model_name_or_path)
         return super().from_pretrained(model_name_or_path, *args, **kwargs)
 
     @classmethod
