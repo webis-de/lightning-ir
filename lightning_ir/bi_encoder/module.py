@@ -48,15 +48,8 @@ class BiEncoderModule(LightningIRModule):
         if isinstance(batch, RankBatch):
             num_docs = None if docs is None else [len(d) for d in docs]
             docs = [d for nested in docs for d in nested] if docs is not None else None
+        encodings = self.prepare_input(queries, docs, num_docs)
 
-        encodings = self.tokenizer.tokenize(
-            queries,
-            docs,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            num_docs=num_docs,
-        )
         if not encodings:
             raise ValueError("No encodings were generated.")
         output = self.model.forward(

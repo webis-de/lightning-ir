@@ -11,7 +11,6 @@ from .tokenizer import CrossEncoderTokenizer
 
 
 class CrossEncoderModule(LightningIRModule):
-
     def __init__(
         self,
         model_name_or_path: str | None = None,
@@ -31,15 +30,8 @@ class CrossEncoderModule(LightningIRModule):
         queries = batch.queries
         docs = [d for docs in batch.docs for d in docs]
         num_docs = [len(docs) for docs in batch.docs]
-        encoding = self.tokenizer.tokenize(
-            queries,
-            docs,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            num_docs=num_docs,
-        )
-        output = self.model.forward(**encoding)
+        encoding = self.prepare_input(queries, docs, num_docs)
+        output = self.model.forward(encoding["encoding"])
         return output
 
     def predict_step(self, batch: RankBatch, *args, **kwargs) -> CrossEncoderOutput:

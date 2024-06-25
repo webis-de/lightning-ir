@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, Dict, Sequence
 
 import torch
 from lightning import LightningModule
-from transformers import AutoConfig, AutoModel
+from transformers import AutoConfig, AutoModel, BatchEncoding
 
 from ..loss.loss import InBatchLossFunction, LossFunction
 from . import (
@@ -22,11 +22,10 @@ from .validation_utils import (
 )
 
 if TYPE_CHECKING:
-    from ..data import TrainBatch, RunDataset
+    from ..data import RunDataset, TrainBatch
 
 
 class LightningIRModule(LightningModule):
-
     def __init__(
         self,
         model_name_or_path: str | None = None,
@@ -75,6 +74,24 @@ class LightningIRModule(LightningModule):
 
     def forward(self, batch: TrainBatch) -> LightningIROutput:
         raise NotImplementedError
+
+    def prepare_input(
+        self,
+        queries: Sequence[str] | None,
+        docs: Sequence[str] | None,
+        num_docs: Sequence[int] | int,
+    ) -> Dict[str, BatchEncoding]:
+        encodings = self.tokenizer.tokenize(
+            queries,
+            docs,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            num_docs=num_docs,
+        )
+        for key in encodings:
+            encodings[key] = encodings[key].to(self.device)
+        return encodings
 
     def compute_losses(
         self,
