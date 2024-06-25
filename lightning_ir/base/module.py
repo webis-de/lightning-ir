@@ -133,10 +133,11 @@ class LightningIRModule(LightningModule):
             dataset_id = dataset.dataset_id
 
         self.validation_step_outputs[dataset_id]["scores"].append(output.scores)
-        self.validation_step_outputs[dataset_id]["targets"].append(batch.targets)
         self.validation_step_outputs[dataset_id]["query_ids"].append(batch.query_ids)
         self.validation_step_outputs[dataset_id]["doc_ids"].append(batch.doc_ids)
         self.validation_step_outputs[dataset_id]["qrels"].append(batch.qrels)
+        if hasattr(batch, "targets"):
+            self.validation_step_outputs[dataset_id]["targets"].append(batch.targets)
 
     def on_validation_epoch_end(self) -> Dict[str, float] | None:
         if self.evaluation_metrics is None:
@@ -151,6 +152,10 @@ class LightningIRModule(LightningModule):
 
             if "loss" in self.evaluation_metrics:
                 scores = scores.view(len(query_ids), -1)
+                if not hasattr(outputs, "targets"):
+                    raise ValueError(
+                        "Targets are not provided for validation loss calculation."
+                    )
                 targets = torch.cat(outputs["targets"]).view(*scores.shape, -1)
                 metrics.update(self.validate_loss(dataset_id, scores, targets))
 
