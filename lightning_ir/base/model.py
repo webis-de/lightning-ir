@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import partial
 from typing import Literal, Type
 
 import torch
@@ -11,6 +12,7 @@ from transformers import (
 )
 from transformers.modeling_outputs import ModelOutput
 
+from ..flash import FLASH_ATTENTION_MAP
 from . import LightningIRConfig
 
 
@@ -25,6 +27,14 @@ class LightningIRModel(PreTrainedModel):
     def __init__(self, config: LightningIRConfig) -> None:
         super().__init__(config)
         self.config = config
+
+        if self.config.backbone_model_type is not None:
+            flash_attn = FLASH_ATTENTION_MAP.get(self.config.backbone_model_type, None)
+            if flash_attn is not None:
+                flash_attn_forward, self_attn_pattern = flash_attn
+                for name, module in self.named_modules():
+                    if name.endswith(self_attn_pattern):
+                        module.forward = partial(flash_attn_forward, module)
 
     def backbone_forward(self, *args, **kwargs):
         raise NotImplementedError
