@@ -119,34 +119,72 @@ def register_kd_docpairs():
     base_id = "msmarco-passage"
     split_id = "train"
     file_id = "kd-docpairs"
-    dlc_id = "train/kd-docpairs"
+    dlc_id = f"{split_id}/{file_id}"
     dlc_contents = {
         "url": (
             "https://zenodo.org/record/4068216/files/bert_cat_ensemble_"
             "msmarcopassage_train_scores_ids.tsv?download=1"
         ),
         "expected_md5": "4d99696386f96a7f1631076bcc53ac3c",
-        "cache_path": "train/kd-docpairs",
+        "cache_path": dlc_id,
     }
     file_name = "bert_cat_ensemble_msmarcopassage_train_scores_ids.tsv"
-    register_msmarco(base_id, split_id, file_id, dlc_id, dlc_contents, file_name)
+    register_msmarco(
+        base_id, split_id, file_id, dlc_id, dlc_contents, file_name, ScoredDocTuples
+    )
 
 
 def register_colbert_docpairs():
     base_id = "msmarco-passage"
     split_id = "train"
     file_id = "colbert-docpairs"
-    dlc_id = "train/colbert-docpairs"
+    dlc_id = f"{split_id}/{file_id}"
     dlc_contents = {
         "url": (
             "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/"
             "resolve/main/examples.json?download=true"
         ),
         "expected_md5": "8be0c71e330ac54dcd77fba058d291c7",
-        "cache_path": "train/colbert-docpairs",
+        "cache_path": dlc_id,
     }
     file_name = "colbert_64way.json"
-    register_msmarco(base_id, split_id, file_id, dlc_id, dlc_contents, file_name)
+    register_msmarco(
+        base_id, split_id, file_id, dlc_id, dlc_contents, file_name, ScoredDocTuples
+    )
+
+
+def register_rank_distillm():
+    base_id = "msmarco-passage"
+    split_id = "train"
+    file_id = "rank-distillm/rankzephyr"
+    dlc_id = f"{split_id}/{file_id}"
+    dlc_contents = {
+        "url": (
+            "https://zenodo.org/records/12528410/files/__rankzephyr-colbert-10000-"
+            "sampled-100__msmarco-passage-train-judged.run?download=1"
+        ),
+        "expected_md5": "49f8dbf2c1ee7a2ca1fe517eda528af6",
+        "cache_path": dlc_id,
+    }
+    file_name = "rank-distillm-rankzephyr.run"
+    register_msmarco(
+        base_id, split_id, file_id, dlc_id, dlc_contents, file_name, trec.TrecScoredDocs
+    )
+
+    file_id = "rank-distillm/set-encoder"
+    dlc_id = f"{split_id}/{file_id}"
+    dlc_contents = {
+        "url": (
+            "https://zenodo.org/records/12528410/files/__set-encoder-colbert__"
+            "msmarco-passage-train-judged.run.gz?download=1"
+        ),
+        "expected_md5": "1f069d0daa9842a54a858cc660149e1a",
+        "cache_path": dlc_id,
+    }
+    file_name = "rank-distillm-set-encoder.run"
+    register_msmarco(
+        base_id, split_id, file_id, dlc_id, dlc_contents, file_name, trec.TrecScoredDocs
+    )
 
 
 def register_msmarco(
@@ -156,6 +194,7 @@ def register_msmarco(
     dlc_id: str,
     dlc_contents: Dict[str, Any],
     file_name: str,
+    ConstituentType: Type,
 ):
     dataset_id = f"{base_id}/{split_id}/{file_id}"
     if dataset_id in ir_datasets.registry._registered:
@@ -167,20 +206,11 @@ def register_msmarco(
     collection = ir_dataset.docs_handler()
     queries = ir_dataset.queries_handler()
     qrels = ir_dataset.qrels_handler()
-    docpairs = ScoredDocTuples(Cache(dlc[dlc_id], base_path / split_id / file_name))
-    dataset = Dataset(collection, queries, qrels, docpairs)
+    constituent = ConstituentType(Cache(dlc[dlc_id], base_path / split_id / file_name))
+    dataset = Dataset(collection, queries, qrels, constituent)
     ir_datasets.registry.register(dataset_id, Dataset(dataset))
-    for split in ("train", "val"):
-        split_path = Path(
-            base_path / split_id / f"__{split}__{dataset_id.replace('/', '-')}.tsv"
-        )
-        if split_path.exists():
-            docpairs = ScoredDocTuples(Cache(None, split_path))
-            dataset = Dataset(collection, queries, qrels, docpairs)
-            ir_datasets.registry.register(
-                f"{base_id}/{split_id}/__{split}__{file_id}", Dataset(dataset)
-            )
 
 
 register_kd_docpairs()
 register_colbert_docpairs()
+register_rank_distillm()

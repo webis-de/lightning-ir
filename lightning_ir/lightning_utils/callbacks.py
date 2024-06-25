@@ -218,7 +218,10 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         if isinstance(dataset, QueryDataset):
             run_file = dataset.dataset_id.replace("/", "-")
         elif isinstance(dataset, RunDataset):
-            run_file = dataset.run_path.name.split(".")[0]
+            if dataset.run_path is None:
+                run_file = dataset.dataset_id.replace("/", "-")
+            else:
+                run_file = dataset.run_path.name.split(".")[0]
         run_file_path = self.save_dir / f"{run_file}.run"
         return run_file_path
 

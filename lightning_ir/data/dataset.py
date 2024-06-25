@@ -19,6 +19,7 @@ RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 
 class IRDataset:
     def __init__(self, dataset: str) -> None:
+        super().__init__()
         if dataset in self.DASHED_DATASET_MAP:
             dataset = self.DASHED_DATASET_MAP[dataset]
         self.dataset = dataset
@@ -135,7 +136,7 @@ class DocDataset(IRDataset, DataParallelIterableDataset):
 class RunDataset(IRDataset, Dataset):
     def __init__(
         self,
-        run_path: Path,
+        run_path_or_id: str,
         depth: int,
         sample_size: int,
         sampling_strategy: Literal["single_relevant", "top", "random"],
@@ -143,11 +144,13 @@ class RunDataset(IRDataset, Dataset):
             Literal["relevance", "subtopic_relevance", "rank", "score"] | None
         ) = None,
     ) -> None:
-        super().__init__(
-            run_path.name[: -len("".join(run_path.suffixes))].split("__")[-1]
-        )
-        super(IRDataset, self).__init__()
-        self.run_path = run_path
+        self.run_path = None
+        if Path(run_path_or_id).is_file():
+            self.run_path = Path(run_path_or_id)
+            dataset = self.run_path.name.split(".")[0].split("__")[-1]
+        else:
+            dataset = run_path_or_id
+        super().__init__(dataset)
         self.depth = depth
         self.sample_size = sample_size
         self.sampling_strategy = sampling_strategy
@@ -202,7 +205,12 @@ class RunDataset(IRDataset, Dataset):
     def load_run(
         self, stage: Literal["fit", "validate", "predict"] | None
     ) -> pd.DataFrame:
-        if set((".tsv", ".run", ".csv")).intersection(self.run_path.suffixes):
+        if self.run_path is None:
+            run = pd.DataFrame(self.ir_dataset.scoreddocs_iter())
+            run["rank"] = run.groupby("query_id")["score"].rank(
+                "dense", ascending=False
+            )
+        elif set((".tsv", ".run", ".csv")).intersection(self.run_path.suffixes):
             run = pd.read_csv(
                 self.run_path,
                 sep=r"\s+",
