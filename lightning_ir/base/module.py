@@ -129,7 +129,7 @@ class LightningIRModule(LightningModule):
             pass
 
         if trainer is not None and trainer.val_dataloaders is not None:
-            dataset = trainer.val_dataloaders[dataloadval_dataloaderser_idx].dataset
+            dataset = trainer.val_dataloaders[dataloader_idx].dataset
             dataset_id = dataset.dataset_id
 
         self.validation_step_outputs[dataset_id]["scores"].append(output.scores)
