@@ -6,7 +6,6 @@ from ..base import LightningIRTokenizer
 
 
 class CrossEncoderTokenizer(LightningIRTokenizer):
-
     def __init__(
         self,
         tokenizer: PreTrainedTokenizerBase,

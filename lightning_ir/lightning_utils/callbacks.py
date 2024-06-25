@@ -34,7 +34,7 @@ from ..retrieve import (
 )
 
 if TYPE_CHECKING:
-    from ..base import LightningIROutput, LightningIRModule
+    from ..base import LightningIRModule, LightningIROutput
     from ..bi_encoder import BiEncoderEmbedding, BiEncoderModule, BiEncoderOutput
     from ..cross_encoder import CrossEncoderModule, CrossEncoderOutput
 
@@ -58,7 +58,6 @@ def format_large_number(number: float) -> str:
 
 
 class GatherMixin:
-
     def gather(self, pl_module: LightningIRModule, dataclass: T) -> T:
         if is_dataclass(dataclass):
             return dataclass.__class__(
@@ -279,7 +278,6 @@ class RankCallback(BasePredictionWriter, GatherMixin):
 
 
 class ReRankCallback(RankCallback):
-
     def rank(
         self, batch: RankBatch, output: LightningIROutput
     ) -> Tuple[torch.Tensor, List[str], List[int]]:

@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-
 from typing import Any, Dict, Sequence, Tuple
 
 import torch

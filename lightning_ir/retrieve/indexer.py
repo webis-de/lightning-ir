@@ -10,13 +10,12 @@ import faiss
 import torch
 
 if TYPE_CHECKING:
-    from ..data import IndexBatch
     from ..bi_encoder import BiEncoderConfig, BiEncoderOutput
+    from ..data import IndexBatch
 
 
 @dataclass
 class IndexConfig:
-
     @classmethod
     def from_pretrained(cls, index_path: Path) -> "IndexConfig":
         with open(index_path / "config.json", "r") as f:
@@ -115,13 +114,16 @@ class Indexer(ABC):
         faiss.write_index(self.index, str(self.index_path / "index.faiss"))
 
     @abstractmethod
-    def to_gpu(self) -> None: ...
+    def to_gpu(self) -> None:
+        ...
 
     @abstractmethod
-    def to_cpu(self) -> None: ...
+    def to_cpu(self) -> None:
+        ...
 
     @abstractmethod
-    def set_verbosity(self) -> None: ...
+    def set_verbosity(self) -> None:
+        ...
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
         return embeddings

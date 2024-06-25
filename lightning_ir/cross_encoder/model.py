@@ -1,9 +1,7 @@
 from dataclasses import dataclass
 
 import torch
-
 from transformers import BatchEncoding
-
 
 from ..base import LightningIRModel, LightningIROutput
 from . import CrossEncoderConfig

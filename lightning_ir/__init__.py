@@ -24,7 +24,6 @@ from .cross_encoder import (
     CrossEncoderTokenizer,
 )
 from .data import (
-    TrainBatch,
     DocDataset,
     DocSample,
     IndexBatch,
@@ -34,6 +33,7 @@ from .data import (
     RunDataset,
     RunSample,
     SearchBatch,
+    TrainBatch,
     TupleDataset,
 )
 from .lightning_utils import (

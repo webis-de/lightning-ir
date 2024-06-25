@@ -5,7 +5,6 @@ from transformers import AutoTokenizer, BatchEncoding, PreTrainedTokenizerBase
 
 
 class LightningIRTokenizer:
-
     def __init__(self, tokenizer: PreTrainedTokenizerBase, **kwargs):
         tokenizer.init_kwargs.update(kwargs)
         self.__tokenizer = tokenizer
