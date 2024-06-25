@@ -5,9 +5,7 @@ from huggingface_hub import hf_hub_download
 from transformers import BertModel
 from transformers.modeling_utils import load_state_dict
 
-from lightning_ir.base.model import LightningIRModel
-
-from ...base import LightningIRModelClassFactory
+from ...base import LightningIRModelClassFactory, LightningIRModel
 from ...bi_encoder.model import BiEncoderModel
 from .config import ColConfig
 
@@ -25,10 +23,7 @@ class ColModel(BiEncoderModel):
 
     @classmethod
     def from_pretrained(
-        cls,
-        model_name_or_path: str | Path,
-        *args,
-        **kwargs,
+        cls, model_name_or_path: str | Path, *args, **kwargs
     ) -> LightningIRModel:
         try:
             hf_hub_download(
