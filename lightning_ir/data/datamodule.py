@@ -93,6 +93,12 @@ class LightningIRDataModule(LightningDataModule):
                     "TupleDataset, QueryDataset, or DocDataset."
                 )
             inference_dataset.setup(stage)
+        if stage == "validate":
+            self.val_dataloader = self.inference_dataloader
+        elif stage == "predict":
+            self.predict_dataloader = self.inference_dataloader
+        else:
+            raise ValueError(f"Unknown stage {stage}")
 
     def setup(self, stage: Literal["fit", "validate", "test", "predict"]) -> None:
         if stage == "fit":
@@ -117,12 +123,6 @@ class LightningIRDataModule(LightningDataModule):
                 else self.shuffle_train
             ),
         )
-
-    def val_dataloader(self) -> List[DataLoader]:
-        return self.inference_dataloader()
-
-    def predict_dataloader(self) -> List[DataLoader]:
-        return self.inference_dataloader()
 
     def inference_dataloader(self) -> List[DataLoader]:
         inference_datasets = self.inference_datasets or []
