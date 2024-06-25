@@ -181,7 +181,7 @@ def register_rank_distillm():
         "expected_md5": "1f069d0daa9842a54a858cc660149e1a",
         "cache_path": dlc_id,
     }
-    file_name = "rank-distillm-set-encoder.run"
+    file_name = "rank-distillm-set-encoder.run.gz"
     register_msmarco(
         base_id,
         split_id,
