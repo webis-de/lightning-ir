@@ -41,12 +41,12 @@ class RankBatch:
     queries: Tuple[str, ...]
     doc_ids: Tuple[Tuple[str, ...], ...]
     docs: Tuple[Tuple[str, ...], ...]
+    qrels: Dict[str, int] | None = None
 
 
 @dataclass
 class TrainBatch(RankBatch):
     targets: torch.Tensor | None = None
-    qrels: Dict[str, int] | None = None
 
 
 @dataclass
