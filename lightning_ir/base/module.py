@@ -22,7 +22,7 @@ from .validation_utils import (
 )
 
 if TYPE_CHECKING:
-    from ..data import RunDataset, TrainBatch
+    from ..data import TrainBatch
 
 
 class LightningIRModule(LightningModule):
@@ -129,9 +129,7 @@ class LightningIRModule(LightningModule):
             pass
 
         if trainer is not None and trainer.val_dataloaders is not None:
-            dataset = trainer.val_dataloaders[dataloader_idx].dataset
-            if not isinstance(dataset, RunDataset):
-                raise ValueError(f"Expected a RunDataset for validation, got {dataset}")
+            dataset = trainer.val_dataloaders[dataloadval_dataloaderser_idx].dataset
             dataset_id = dataset.dataset_id
 
         self.validation_step_outputs[dataset_id]["scores"].append(output.scores)
