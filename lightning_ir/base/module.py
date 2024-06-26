@@ -152,7 +152,7 @@ class LightningIRModule(LightningModule):
 
             if "loss" in self.evaluation_metrics:
                 scores = scores.view(len(query_ids), -1)
-                if not hasattr(outputs, "targets"):
+                if "targets" not in outputs:
                     raise ValueError(
                         "Targets are not provided for validation loss calculation."
                     )
