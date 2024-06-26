@@ -273,10 +273,12 @@ class InBatchLossFunction(LossFunction):
         self,
         pos_sampling_technique: Literal["all", "first"] = "all",
         neg_sampling_technique: Literal["all", "first"] = "all",
+        max_num_neg_samples: int | None = None,
     ):
         super().__init__()
         self.pos_sampling_technique = pos_sampling_technique
         self.neg_sampling_technique = neg_sampling_technique
+        self.max_num_neg_samples = max_num_neg_samples
 
     def get_ib_idcs(
         self, num_queries: int, num_docs: int
@@ -284,23 +286,29 @@ class InBatchLossFunction(LossFunction):
         min_idx = torch.arange(num_queries)[:, None] * num_docs
         max_idx = min_idx + num_docs
         if self.pos_sampling_technique == "all":
-            pos_idcs = torch.arange(num_queries * num_docs)
+            pos_mask = torch.arange(num_queries * num_docs)[None].greater_equal(
+                min_idx
+            ) & torch.arange(num_queries * num_docs)[None].less(max_idx)
         elif self.pos_sampling_technique == "first":
-            pos_idcs = torch.arange(0, num_queries * num_docs, num_docs)
+            pos_mask = torch.arange(num_queries * num_docs)[None].eq(min_idx)
         else:
             raise ValueError("invalid pos sampling technique")
+        pos_idcs = pos_mask.nonzero(as_tuple=True)[1]
         if self.neg_sampling_technique == "all":
             neg_mask = torch.arange(num_queries * num_docs)[None].less(
                 min_idx
             ) | torch.arange(num_queries * num_docs)[None].greater_equal(max_idx)
-            neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
         elif self.neg_sampling_technique == "first":
             neg_mask = torch.arange(num_queries * num_docs)[None, None].eq(min_idx).any(
                 1
             ) & torch.arange(num_queries * num_docs)[None].ne(min_idx)
-            neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
         else:
             raise ValueError("invalid neg sampling technique")
+        neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
+        if self.max_num_neg_samples is not None:
+            neg_idcs = neg_idcs.view(num_queries, -1)[:, torch.randperm(num_docs)]
+            neg_idcs = neg_idcs[:, :self.max_num_neg_samples]
+            neg_idcs = neg_idcs.view(-1)
         return pos_idcs, neg_idcs
 
     def compute_loss(self, scores: torch.Tensor) -> torch.Tensor:
