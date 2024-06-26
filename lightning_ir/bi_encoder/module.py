@@ -90,11 +90,11 @@ class BiEncoderModule(LightningIRModule):
         losses = {}
         for loss_function in loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
-                pos_mask, neg_mask = loss_function.get_ib_masks(*scores.shape)
+                pos_idcs, neg_idcs = loss_function.get_ib_idcs(*scores.shape)
                 ib_doc_embeddings = self.get_ib_doc_embeddings(
                     doc_embeddings,
-                    pos_mask,
-                    neg_mask,
+                    pos_idcs,
+                    neg_idcs,
                     num_queries,
                 )
                 ib_scores = self.model.score(query_embeddings, ib_doc_embeddings)
@@ -111,32 +111,22 @@ class BiEncoderModule(LightningIRModule):
     def get_ib_doc_embeddings(
         self,
         embeddings: BiEncoderEmbedding,
-        pos_mask: torch.Tensor,
-        neg_mask: torch.Tensor,
+        pos_idcs: torch.Tensor,
+        neg_idcs: torch.Tensor,
         num_queries: int,
     ) -> BiEncoderEmbedding:
-        num_total_docs, seq_len, emb_dim = embeddings.embeddings.shape
-        num_docs = num_total_docs // num_queries
-        ib_embeddings = embeddings.embeddings.repeat(num_queries, 1, 1).view(
-            num_queries,
-            num_docs * num_queries,
-            seq_len,
-            emb_dim,
-        )
-        ib_scoring_mask = embeddings.scoring_mask.repeat(num_queries, 1).view(
-            num_queries, num_docs * num_queries, seq_len
-        )
+        _, seq_len, emb_dim = embeddings.embeddings.shape
         ib_embeddings = torch.cat(
             [
-                ib_embeddings[pos_mask].view(num_queries, -1, seq_len, emb_dim),
-                ib_embeddings[neg_mask].view(num_queries, -1, seq_len, emb_dim),
+                embeddings.embeddings[pos_idcs].view(num_queries, -1, seq_len, emb_dim),
+                embeddings.embeddings[neg_idcs].view(num_queries, -1, seq_len, emb_dim),
             ],
             dim=1,
         ).view(-1, seq_len, emb_dim)
         ib_scoring_mask = torch.cat(
             [
-                ib_scoring_mask[pos_mask].view(num_queries, -1, seq_len),
-                ib_scoring_mask[neg_mask].view(num_queries, -1, seq_len),
+                embeddings.scoring_mask[pos_idcs].view(num_queries, -1, seq_len),
+                embeddings.scoring_mask[neg_idcs].view(num_queries, -1, seq_len),
             ],
             dim=1,
         ).view(-1, seq_len)

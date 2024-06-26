@@ -278,30 +278,30 @@ class InBatchLossFunction(LossFunction):
         self.pos_sampling_technique = pos_sampling_technique
         self.neg_sampling_technique = neg_sampling_technique
 
-    def get_ib_masks(
-        self, batch_size: int, depth: int
+    def get_ib_idcs(
+        self, num_queries: int, num_docs: int
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        min_idx = torch.arange(batch_size)[:, None] * depth
-        max_idx = min_idx + depth
+        min_idx = torch.arange(num_queries)[:, None] * num_docs
+        max_idx = min_idx + num_docs
         if self.pos_sampling_technique == "all":
-            pos_mask = torch.arange(batch_size * depth)[None].greater_equal(
-                min_idx
-            ) & torch.arange(batch_size * depth)[None].less(max_idx)
+            pos_idcs = torch.arange(num_queries * num_docs)
         elif self.pos_sampling_technique == "first":
-            pos_mask = torch.arange(batch_size * depth)[None].eq(min_idx)
+            pos_idcs = torch.arange(0, num_queries * num_docs, num_docs)
         else:
             raise ValueError("invalid pos sampling technique")
         if self.neg_sampling_technique == "all":
-            neg_mask = torch.arange(batch_size * depth)[None].less(
+            neg_mask = torch.arange(num_queries * num_docs)[None].less(
                 min_idx
-            ) | torch.arange(batch_size * depth)[None].greater_equal(max_idx)
+            ) | torch.arange(num_queries * num_docs)[None].greater_equal(max_idx)
+            neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
         elif self.neg_sampling_technique == "first":
-            neg_mask = torch.arange(batch_size * depth)[None, None].eq(min_idx).any(
+            neg_mask = torch.arange(num_queries * num_docs)[None, None].eq(min_idx).any(
                 1
-            ) & torch.arange(batch_size * depth)[None].ne(min_idx)
+            ) & torch.arange(num_queries * num_docs)[None].ne(min_idx)
+            neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
         else:
             raise ValueError("invalid neg sampling technique")
-        return pos_mask, neg_mask
+        return pos_idcs, neg_idcs
 
     def compute_loss(self, scores: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError(
