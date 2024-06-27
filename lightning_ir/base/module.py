@@ -143,6 +143,7 @@ class LightningIRModule(LightningModule):
         if self.evaluation_metrics is None:
             return
         metrics = {}
+        average_metrics = defaultdict(list)
         for dataset_id in self.validation_step_outputs:
             outputs = self.validation_step_outputs[dataset_id]
             query_ids = sum(outputs["query_ids"], [])
@@ -168,9 +169,14 @@ class LightningIRModule(LightningModule):
                     run, qrels, evaluation_metrics
                 ).items():
                     metrics[f"{dataset_id}/{metric}"] = value
+                    average_metrics[metric].append(value)
 
         for key, value in metrics.items():
-            self.log(key, value, sync_dist=True)
+            self.log(key, value)
+
+        for metric, values in average_metrics.items():
+            value = sum(values) / len(values)
+            self.log(metric, value, logger=False)
 
         self.validation_step_outputs.clear()
 
