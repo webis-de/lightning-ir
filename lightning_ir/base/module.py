@@ -203,7 +203,7 @@ class LightningIRModule(LightningModule):
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
         if self.trainer is not None and self.trainer.log_dir is not None:
-            if not self.trainer.training or self.trainer.global_rank != 0:
+            if self.trainer.global_rank != 0:
                 return
             _step = self.trainer.global_step
             self.config.save_step = _step
