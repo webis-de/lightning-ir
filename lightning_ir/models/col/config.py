@@ -21,8 +21,7 @@ class ColConfig(BiEncoderConfig):
         normalize: bool = True,
         add_marker_tokens: bool = True,
         embedding_dim: int = 128,
-        linear: bool = True,
-        linear_bias: bool = False,
+        projection: Literal["linear", "linear_no_bias"] | None = "linear_no_bias",
         **kwargs,
     ) -> None:
         super().__init__(
@@ -39,7 +38,6 @@ class ColConfig(BiEncoderConfig):
             normalize=normalize,
             add_marker_tokens=add_marker_tokens,
             embedding_dim=embedding_dim,
-            linear=linear,
-            linear_bias=linear_bias,
+            projection=projection,
             **kwargs,
         )

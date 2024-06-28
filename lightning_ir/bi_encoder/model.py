@@ -1,6 +1,6 @@
 from dataclasses import dataclass
-from pathlib import Path
 from string import punctuation
+import warnings
 from typing import Literal, Sequence
 
 import torch
@@ -25,21 +25,22 @@ class BiEncoderOutput(LightningIROutput):
 class BiEncoderModel(LightningIRModel):
     config_class = BiEncoderConfig
 
-    def __init__(self, config: BiEncoderConfig) -> None:
-        super().__init__(config)
+    def __init__(self, config: BiEncoderConfig, *args, **kwargs) -> None:
+        super().__init__(config, *args, **kwargs)
         self.config: BiEncoderConfig
         self.scoring_function = ScoringFunction(self.config)
-        self.linear = None
-        if self.config.linear:
-            self.linear = torch.nn.Linear(
+        self.projection = None
+        if self.config.projection is not None and "linear" in self.config.projection:
+            self.projection = torch.nn.Linear(
                 self.config.hidden_size,
                 self.config.embedding_dim,
-                bias=self.config.linear_bias,
+                bias="no_bias" not in self.config.projection,
             )
         else:
             if self.config.embedding_dim != self.config.hidden_size:
-                raise ValueError(
-                    "Embedding dim must match hidden size if no linear layer is used"
+                warnings.warn(
+                    "No projection is used but embedding_dim != hidden_size. "
+                    "The output embeddings will not have embedding_size dimensions."
                 )
 
         self.query_mask_scoring_input_ids: torch.Tensor | None = None
@@ -141,8 +142,9 @@ class BiEncoderModel(LightningIRModel):
         embeddings = self.backbone_forward(
             input_ids, attention_mask, token_type_ids
         ).last_hidden_state
-        if self.linear is not None:
-            embeddings = self.linear(embeddings)
+        if self.projection is not None:
+            embeddings = self.projection(embeddings)
+        embeddings = self.sparsification(embeddings, self.config.sparsification)
         embeddings = self.pooling(embeddings, attention_mask, pooling_strategy)
         if self.config.normalize:
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)

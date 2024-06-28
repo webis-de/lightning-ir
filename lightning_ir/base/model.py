@@ -9,6 +9,7 @@ from transformers import (
     AutoConfig,
     PretrainedConfig,
     PreTrainedModel,
+    BertModel,
 )
 from transformers.modeling_outputs import ModelOutput
 
@@ -24,8 +25,8 @@ class LightningIROutput(ModelOutput):
 class LightningIRModel(PreTrainedModel):
     config_class = LightningIRConfig
 
-    def __init__(self, config: LightningIRConfig) -> None:
-        super().__init__(config)
+    def __init__(self, config: LightningIRConfig, *args, **kwargs) -> None:
+        super().__init__(config, *args, **kwargs)
         self.config = config
 
         if self.config.backbone_model_type is not None:
@@ -41,6 +42,19 @@ class LightningIRModel(PreTrainedModel):
 
     def forward(self, *args, **kwargs) -> LightningIROutput:
         raise NotImplementedError
+
+    def sparsification(
+        self,
+        embeddings: torch.Tensor,
+        sparsification_strategy: Literal["relu", "relu_log"] | None = None,
+    ) -> torch.Tensor:
+        if sparsification_strategy is None:
+            return embeddings
+        if sparsification_strategy == "relu":
+            return torch.relu(embeddings)
+        if sparsification_strategy == "relu_log":
+            return torch.log1p(torch.relu(embeddings))
+        raise ValueError(f"Unknown sparsification strategy: {sparsification_strategy}")
 
     def pooling(
         self,
@@ -80,6 +94,8 @@ class LightningIRModel(PreTrainedModel):
                 backbone_model_type = config.model_type
             BackboneModel = MODEL_MAPPING[CONFIG_MAPPING[backbone_model_type]]
             cls = LightningIRModelClassFactory(BackboneModel, cls.config_class)
+        if issubclass(cls, BertModel):
+            kwargs["add_pooling_layer"] = False
         return super(LightningIRModel, cls).from_pretrained(*args, **kwargs)
 
 

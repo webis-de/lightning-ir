@@ -50,10 +50,10 @@ class BiEncoderConfig(LightningIRConfig):
             "sum", "mean", "max", "harmonic_mean"
         ] = "sum",
         normalize: bool = True,
+        sparsification: Literal["relu", "relu_log"] | None = None,
         add_marker_tokens: bool = True,
         embedding_dim: int = 128,
-        linear: bool = True,
-        linear_bias: bool = False,
+        projection: Literal["linear", "linear_no_bias"] | None = "linear",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -68,10 +68,10 @@ class BiEncoderConfig(LightningIRConfig):
         self.doc_mask_scoring_tokens = doc_mask_scoring_tokens
         self.doc_aggregation_function = doc_aggregation_function
         self.normalize = normalize
+        self.sparsification = sparsification
         self.add_marker_tokens = add_marker_tokens
         self.embedding_dim = embedding_dim
-        self.linear = linear
-        self.linear_bias = linear_bias
+        self.projection = projection
 
     def to_dict(self) -> Dict[str, Any]:
         output = super().to_dict()

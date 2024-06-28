@@ -15,8 +15,8 @@ class CrossEncoderOutput(LightningIROutput):
 class CrossEncoderModel(LightningIRModel):
     config_class = CrossEncoderConfig
 
-    def __init__(self, config: CrossEncoderConfig):
-        super().__init__(config)
+    def __init__(self, config: CrossEncoderConfig, *args, **kwargs):
+        super().__init__(config, *args, **kwargs)
         self.config: CrossEncoderConfig
         self.linear = torch.nn.Linear(config.hidden_size, 1)
 

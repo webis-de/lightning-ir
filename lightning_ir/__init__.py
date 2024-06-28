@@ -56,7 +56,7 @@ from .loss import (
     RankNet,
     SupervisedMarginMSE,
 )
-from .models import ColConfig, ColModel
+from .models import ColConfig, ColModel, SpladeConfig, SpladeModel
 from .retrieve import (
     FlatIndexConfig,
     FlatIndexer,
@@ -73,6 +73,8 @@ AutoConfig.register(CrossEncoderConfig.model_type, CrossEncoderConfig)
 AutoModel.register(CrossEncoderConfig, CrossEncoderModel)
 AutoConfig.register(ColConfig.model_type, ColConfig)
 AutoModel.register(ColConfig, ColModel)
+AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
+AutoModel.register(SpladeConfig, SpladeModel)
 
 
 __all__ = [

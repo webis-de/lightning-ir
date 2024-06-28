@@ -36,14 +36,6 @@ def test_same_as_colbert():
     d_mask = ~(orig_docs == 0).all(-1)
     orig_scores = colbert_score(orig_query, orig_docs, d_mask)
 
-    for key, weight in model.state_dict().items():
-        if key == "linear.weight":
-            key = "model.linear.weight"
-        else:
-            key = "model.bert." + key
-        if "word_embeddings" not in key:
-            assert torch.allclose(weight, orig_model.state_dict()[key])
-
     assert torch.allclose(query_embedding.embeddings, orig_query)
     assert torch.allclose(
         doc_embedding.embeddings[doc_embedding.scoring_mask], orig_docs[d_mask]

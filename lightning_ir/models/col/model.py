@@ -17,7 +17,7 @@ def round_to_multiple_of_8(x: int) -> int:
 class ColModel(BiEncoderModel):
     config_class = ColConfig
 
-    def __init__(self, config: ColConfig) -> None:
+    def __init__(self, config: ColConfig, *args, **kwargs) -> None:
         super().__init__(config)
         self.config: ColConfig
 
@@ -65,7 +65,6 @@ class ColModel(BiEncoderModel):
                 "doc_mask_scoring_tokens": (
                     "punctuation" if col_config["mask_punctuation"] else None
                 ),
-                "linear_bias": False,
             }
         )
         model = cls(config=config)
@@ -73,10 +72,11 @@ class ColModel(BiEncoderModel):
             repo_id=str(model_name_or_path), filename="model.safetensors"
         )
         state_dict = load_state_dict(state_dict_path)
+        state_dict.pop("bert.embeddings.position_ids", None)
         for key in list(state_dict.keys()):
             if key.startswith("bert."):
                 state_dict[key[5:]] = state_dict.pop(key)
-        state_dict.pop("embeddings.position_ids", None)
+        state_dict["projection.weight"] = state_dict.pop("linear.weight")
         model.load_state_dict(state_dict)
 
         tokenizer = ColConfig.tokenizer_class.from_pretrained(

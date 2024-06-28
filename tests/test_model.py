@@ -4,7 +4,6 @@ from typing import Sequence
 import pytest
 
 from lightning_ir.base import LightningIRModule
-from lightning_ir.bi_encoder import BiEncoderModule
 from lightning_ir.cross_encoder import CrossEncoderModule
 from lightning_ir.data import LightningIRDataModule, RunDataset, TupleDataset
 from lightning_ir.loss.loss import InBatchLossFunction
@@ -18,7 +17,7 @@ def tuples_datamodule(
     datamodule = LightningIRDataModule(
         module=module,
         num_workers=0,
-        train_batch_size=2,
+        train_batch_size=3,
         inference_batch_size=2,
         train_dataset=TupleDataset("lightning-ir", targets="order", num_docs=2),
         inference_datasets=inference_datasets,
