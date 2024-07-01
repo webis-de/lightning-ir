@@ -1,19 +1,21 @@
-from abc import ABC, abstractmethod
 from typing import Literal, Tuple
+from abc import ABC, abstractmethod
 
 import torch
 
 
 class LossFunction(ABC):
     @abstractmethod
+    def compute_loss(self, *args, **kwargs) -> torch.Tensor: ...
+
+
+class ScoringLossFunction(LossFunction):
+    @abstractmethod
     def compute_loss(
         self,
         scores: torch.Tensor,
         targets: torch.Tensor,
-    ) -> torch.Tensor:
-        raise NotImplementedError(
-            "LossFunction.compute_loss must be implemented by subclasses"
-        )
+    ) -> torch.Tensor: ...
 
     def process_targets(
         self, scores: torch.Tensor, targets: torch.Tensor
@@ -23,13 +25,23 @@ class LossFunction(ABC):
         return targets
 
 
-class PairwiseLossFunction(LossFunction):
+class EmbeddingLossFunction(LossFunction):
+    @abstractmethod
+    def compute_loss(
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+    ) -> torch.Tensor:
+        ...
+
+
+class PairwiseLossFunction(ScoringLossFunction):
     def get_pairwise_idcs(self, targets: torch.Tensor) -> Tuple[torch.Tensor, ...]:
         # pos items are items where label is greater than other label in sample
         return torch.nonzero(targets[..., None] > targets[:, None], as_tuple=True)
 
 
-class ListwiseLossFunction(LossFunction):
+class ListwiseLossFunction(ScoringLossFunction):
     pass
 
 
@@ -268,7 +280,7 @@ class NeuralLossFunction(ListwiseLossFunction):
         return pred_sorted_targets
 
 
-class InBatchLossFunction(LossFunction):
+class InBatchLossFunction(ScoringLossFunction):
     def __init__(
         self,
         pos_sampling_technique: Literal["all", "first"] = "all",
@@ -307,7 +319,7 @@ class InBatchLossFunction(LossFunction):
         neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
         if self.max_num_neg_samples is not None:
             neg_idcs = neg_idcs.view(num_queries, -1)[:, torch.randperm(num_docs)]
-            neg_idcs = neg_idcs[:, :self.max_num_neg_samples]
+            neg_idcs = neg_idcs[:, : self.max_num_neg_samples]
             neg_idcs = neg_idcs.view(-1)
         return pos_idcs, neg_idcs
 
@@ -321,4 +333,48 @@ class InBatchCrossEntropy(InBatchLossFunction):
     def compute_loss(self, scores: torch.Tensor) -> torch.Tensor:
         targets = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
         loss = torch.nn.functional.cross_entropy(scores, targets)
+        return loss
+
+
+class RegularizationLossFunction(EmbeddingLossFunction):
+    def __init__(self, query_weight: float = 1e-4, doc_weight: float = 1e-4) -> None:
+        self.query_weight = query_weight
+        self.doc_weight = doc_weight
+
+
+class L2Regularization(RegularizationLossFunction):
+
+    def compute_loss(
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+    ) -> torch.Tensor:
+        query_loss = self.query_weight * query_embeddings.norm()
+        doc_loss = self.doc_weight * doc_embeddings.norm()
+        loss = query_loss + doc_loss
+        return loss
+
+
+class L1Regularization(RegularizationLossFunction):
+
+    def compute_loss(
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+    ) -> torch.Tensor:
+        query_loss = self.query_weight * query_embeddings.norm(p=1)
+        doc_loss = self.doc_weight * doc_embeddings.norm(p=1)
+        loss = query_loss + doc_loss
+        return loss
+
+
+class FLOPSRegularization(RegularizationLossFunction):
+    def compute_loss(
+        self,
+        query_embeddings: torch.Tensor,
+        doc_embeddings: torch.Tensor,
+    ) -> torch.Tensor:
+        query_loss = torch.sum(torch.mean(torch.abs(query_embeddings), dim=0) ** 2)
+        doc_loss = torch.sum(torch.mean(torch.abs(doc_embeddings), dim=0) ** 2)
+        loss = self.query_weight * query_loss + self.doc_weight * doc_loss
         return loss

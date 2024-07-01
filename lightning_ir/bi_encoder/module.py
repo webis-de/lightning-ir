@@ -4,7 +4,12 @@ import torch
 
 from ..base import LightningIRModule
 from ..data import IndexBatch, RankBatch, SearchBatch, TrainBatch
-from ..loss.loss import InBatchLossFunction, LossFunction
+from ..loss.loss import (
+    LossFunction,
+    InBatchLossFunction,
+    ScoringLossFunction,
+    EmbeddingLossFunction,
+)
 from .config import BiEncoderConfig
 from .model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput
 from .tokenizer import BiEncoderTokenizer
@@ -16,7 +21,7 @@ class BiEncoderModule(LightningIRModule):
         model_name_or_path: str | None = None,
         config: BiEncoderConfig | None = None,
         model: BiEncoderModel | None = None,
-        loss_functions: Sequence[LossFunction] | None = None,
+        loss_functions: Sequence[ScoringLossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
         super().__init__(
@@ -102,9 +107,17 @@ class BiEncoderModule(LightningIRModule):
                 losses[loss_function.__class__.__name__] = loss_function.compute_loss(
                     ib_scores
                 )
-            else:
+            elif isinstance(loss_function, EmbeddingLossFunction):
+                losses[loss_function.__class__.__name__] = loss_function.compute_loss(
+                    query_embeddings.embeddings, doc_embeddings.embeddings
+                )
+            elif isinstance(loss_function, ScoringLossFunction):
                 losses[loss_function.__class__.__name__] = loss_function.compute_loss(
                     scores, targets
+                )
+            else:
+                raise ValueError(
+                    f"Unknown loss function type {loss_function.__class__.__name__}"
                 )
         return losses
 
