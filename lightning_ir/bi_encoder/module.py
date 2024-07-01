@@ -8,6 +8,7 @@ from ..loss.loss import (
     LossFunction,
     InBatchLossFunction,
     ScoringLossFunction,
+    LossFunction,
     EmbeddingLossFunction,
 )
 from .config import BiEncoderConfig
@@ -21,7 +22,7 @@ class BiEncoderModule(LightningIRModule):
         model_name_or_path: str | None = None,
         config: BiEncoderConfig | None = None,
         model: BiEncoderModel | None = None,
-        loss_functions: Sequence[ScoringLossFunction] | None = None,
+        loss_functions: Sequence[LossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
         super().__init__(
