@@ -47,12 +47,17 @@ class SpladeModel(BiEncoderModel):
     def from_pretrained(
         cls, model_name_or_path: str | Path, *args, **kwargs
     ) -> LightningIRModel:
-        if "naver" in str(model_name_or_path):
-            return cls.from_naver_checkpoint(model_name_or_path)
+        config = AutoConfig.from_pretrained(model_name_or_path)
+        mlm = any(
+            architecture.endswith("ForMaskedLM")
+            for architecture in config.architectures
+        )
+        if mlm:
+            return cls.from_mlm_checkpoint(model_name_or_path)
         return super().from_pretrained(model_name_or_path, *args, **kwargs)
 
     @classmethod
-    def from_naver_checkpoint(
+    def from_mlm_checkpoint(
         cls, model_name_or_path: str | Path, *args, **kwargs
     ) -> LightningIRModel:
 
