@@ -26,7 +26,7 @@ class BiEncoderConfig(LightningIRConfig):
             "similarity_function",
             "query_pooling_strategy",
             "doc_pooling_strategy",
-            "doc_aggregation_function",
+            "query_aggregation_function",
             "normalize",
             "embedding_dim",
             "linear",
@@ -42,13 +42,13 @@ class BiEncoderConfig(LightningIRConfig):
         attend_to_query_expanded_tokens: bool = False,
         query_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",
         query_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
+        query_aggregation_function: Literal[
+            "sum", "mean", "max", "harmonic_mean"
+        ] = "sum",
         doc_expansion: bool = False,
         attend_to_doc_expanded_tokens: bool = False,
         doc_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
-        doc_aggregation_function: Literal[
-            "sum", "mean", "max", "harmonic_mean"
-        ] = "sum",
         normalize: bool = True,
         sparsification: Literal["relu", "relu_log"] | None = None,
         add_marker_tokens: bool = True,
@@ -62,11 +62,11 @@ class BiEncoderConfig(LightningIRConfig):
         self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
         self.query_pooling_strategy = query_pooling_strategy
         self.query_mask_scoring_tokens = query_mask_scoring_tokens
+        self.query_aggregation_function = query_aggregation_function
         self.doc_expansion = doc_expansion
         self.attend_to_doc_expanded_tokens = attend_to_doc_expanded_tokens
         self.doc_pooling_strategy = doc_pooling_strategy
         self.doc_mask_scoring_tokens = doc_mask_scoring_tokens
-        self.doc_aggregation_function = doc_aggregation_function
         self.normalize = normalize
         self.sparsification = sparsification
         self.add_marker_tokens = add_marker_tokens

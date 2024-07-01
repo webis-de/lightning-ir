@@ -52,7 +52,7 @@ class ColModel(BiEncoderModel):
             {
                 "name_or_path": str(Path(col_config_path).parent),
                 "similarity_function": "dot",
-                "doc_aggregation_function": "sum",
+                "query_aggregation_function": "sum",
                 "query_expansion": True,
                 "query_length": col_config["query_maxlen"],
                 "attend_to_query_expanded_tokens": col_config["attend_to_mask_tokens"],

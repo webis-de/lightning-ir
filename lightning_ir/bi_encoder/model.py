@@ -234,7 +234,7 @@ class ScoringFunction(torch.nn.Module):
             raise ValueError(
                 f"Unknown similarity function {self.config.similarity_function}"
             )
-        self.doc_aggregation_function = self.config.doc_aggregation_function
+        self.query_aggregation_function = self.config.query_aggregation_function
 
     def compute_similarity(
         self,
@@ -308,16 +308,18 @@ class ScoringFunction(torch.nn.Module):
         self,
         scores: torch.Tensor,
         mask: torch.Tensor | None,
-        doc_aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"] | None,
+        query_aggregation_function: (
+            Literal["max", "sum", "mean", "harmonic_mean"] | None
+        ),
         dim: int,
     ) -> torch.Tensor:
-        if doc_aggregation_function is None:
+        if query_aggregation_function is None:
             return scores
-        if doc_aggregation_function == "max":
+        if query_aggregation_function == "max":
             if mask is not None:
                 scores = scores.masked_fill(~mask, float("-inf"))
             return scores.max(dim, keepdim=True).values
-        if doc_aggregation_function == "sum":
+        if query_aggregation_function == "sum":
             if mask is not None:
                 scores = scores.masked_fill(~mask, 0)
             return scores.sum(dim, keepdim=True)
@@ -327,17 +329,17 @@ class ScoringFunction(torch.nn.Module):
             num_non_masked = torch.full(shape, scores.shape[dim], device=scores.device)
         else:
             num_non_masked = mask.sum(dim, keepdim=True)
-        if doc_aggregation_function == "mean":
+        if query_aggregation_function == "mean":
             return torch.where(
                 num_non_masked == 0, 0, scores.sum(dim, keepdim=True) / num_non_masked
             )
-        if doc_aggregation_function == "harmonic_mean":
+        if query_aggregation_function == "harmonic_mean":
             return torch.where(
                 num_non_masked == 0,
                 0,
                 num_non_masked / (1 / scores).sum(dim, keepdim=True),
             )
-        raise ValueError(f"Unknown aggregation {doc_aggregation_function}")
+        raise ValueError(f"Unknown aggregation {query_aggregation_function}")
 
     def score(
         self,
@@ -351,6 +353,6 @@ class ScoringFunction(torch.nn.Module):
         similarity = self.compute_similarity(query_embeddings, doc_embeddings)
         scores = self.aggregate(similarity, doc_embeddings.scoring_mask, "max", -1)
         scores = self.aggregate(
-            scores, query_embeddings.scoring_mask, self.doc_aggregation_function, -2
+            scores, query_embeddings.scoring_mask, self.query_aggregation_function, -2
         )
         return scores[..., 0, 0]

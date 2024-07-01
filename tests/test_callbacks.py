@@ -1,23 +1,38 @@
 from pathlib import Path
 from typing import Literal, Sequence
 
-import faiss
 import pandas as pd
 import pytest
+from _pytest.fixtures import SubRequest
 from lightning import Trainer
 
 from lightning_ir import (
     BiEncoderModule,
-    FlatIndexConfig,
+    FaissFlatIndexConfig,
+    FaissSearchConfig,
     LightningIRDataModule,
     LightningIRModule,
     RunDataset,
+    SearchConfig,
+    SparseIndexConfig,
+    SparseSearchConfig,
 )
 from lightning_ir.lightning_utils.callbacks import (
     IndexCallback,
     ReRankCallback,
     SearchCallback,
 )
+from lightning_ir.retrieve.indexer import IndexConfig
+
+from .conftest import DATA_DIR
+
+
+@pytest.fixture(
+    params=[FaissFlatIndexConfig("dot"), SparseIndexConfig("dot")],
+    ids=["Faiss", "Sparse"],
+)
+def index_config(request: SubRequest) -> IndexConfig:
+    return request.param
 
 
 def run_datamodule(
@@ -34,23 +49,20 @@ def run_datamodule(
 
 
 # @pytest.mark.parametrize("devices", (1, 2))
-@pytest.mark.parametrize("similarity", ("cosine", "dot", "l2"))
-@pytest.mark.parametrize("devices", (1,))
 def test_index_callback(
     tmp_path: Path,
     bi_encoder_module: BiEncoderModule,
     doc_datamodule: LightningIRDataModule,
-    similarity: Literal["cosine", "dot", "l2"],
-    devices: int,
+    index_config: IndexConfig,
+    # devices: int,
 ):
-    bi_encoder_module.config.similarity_function = similarity
+    bi_encoder_module.config.similarity_function = index_config.similarity_function
     index_dir = tmp_path / "index"
-    index_path = index_dir / doc_datamodule.inference_datasets[0].docs_dataset_id
-    index_config = FlatIndexConfig()
     index_callback = IndexCallback(index_dir, index_config)
+    index_dir = index_dir / doc_datamodule.inference_datasets[0].docs_dataset_id
 
     trainer = Trainer(
-        devices=devices,
+        # devices=devices,
         logger=False,
         enable_checkpointing=False,
         callbacks=[index_callback],
@@ -58,35 +70,69 @@ def test_index_callback(
     trainer.predict(bi_encoder_module, datamodule=doc_datamodule)
 
     assert doc_datamodule.inference_datasets is not None
-    assert index_callback.indexer.num_embeddings == index_callback.indexer.index.ntotal
-    assert (index_path / "index.faiss").exists()
-    assert (index_path / "doc_ids.txt").exists()
-    doc_ids_path = index_path / "doc_ids.txt"
+    assert index_callback.indexer.num_embeddings and index_callback.indexer.num_docs
+    assert index_callback.indexer.num_embeddings >= index_callback.indexer.num_docs
+
+    assert (index_dir / "index.faiss").exists() or (index_dir / "index.pt").exists()
+    assert (index_dir / "doc_ids.txt").exists()
+    doc_ids_path = index_dir / "doc_ids.txt"
     doc_ids = doc_ids_path.read_text().split()
     for idx, doc_id in enumerate(doc_ids):
         assert doc_id == f"doc_id_{idx+1}"
-    assert (index_path / "doc_lengths.pt").exists()
-    assert (index_path / "config.json").exists()
-    if similarity == "l2":
-        assert index_callback.indexer.index.metric_type == faiss.METRIC_L2
-    elif similarity in ("cosine", "dot"):
-        assert index_callback.indexer.index.metric_type == faiss.METRIC_INNER_PRODUCT
+    assert (index_dir / "config.json").exists()
 
 
-@pytest.mark.parametrize("similarity", ("cosine", "dot"))
-@pytest.mark.parametrize("imputation_strategy", ("min", "gather", None))
+def get_index(
+    bi_encoder_module: BiEncoderModule,
+    doc_datamodule: LightningIRDataModule,
+    search_config: SearchConfig,
+) -> Path:
+    if isinstance(search_config, FaissSearchConfig):
+        index_type = "faiss"
+        index_config = FaissFlatIndexConfig(
+            bi_encoder_module.config.similarity_function
+        )
+    elif isinstance(search_config, SparseSearchConfig):
+        index_type = "sparse"
+        index_config = SparseIndexConfig(bi_encoder_module.config.similarity_function)
+    else:
+        raise ValueError("Unknown search_config type")
+    index_dir = (
+        DATA_DIR / "indexes" / f"{index_type}-{index_config.similarity_function}"
+    )
+    if index_dir.exists():
+        return index_dir / "lightning-ir"
+
+    index_callback = IndexCallback(index_dir, index_config)
+
+    trainer = Trainer(
+        logger=False,
+        enable_checkpointing=False,
+        callbacks=[index_callback],
+    )
+    trainer.predict(bi_encoder_module, datamodule=doc_datamodule)
+    return index_dir / "lightning-ir"
+
+
+@pytest.mark.parametrize(
+    "search_config",
+    (
+        FaissSearchConfig(k=5, imputation_strategy="min", candidate_k=10),
+        FaissSearchConfig(k=5, imputation_strategy="gather", candidate_k=10),
+        SparseSearchConfig(k=5),
+    ),
+    ids=["FaissMin", "FaissGather", "Sparse"],
+)
 def test_search_callback(
     tmp_path: Path,
     bi_encoder_module: BiEncoderModule,
     query_datamodule: LightningIRDataModule,
-    similarity: Literal["cosine", "dot", "l2"],
-    imputation_strategy: Literal["min", "gather"],
+    doc_datamodule: LightningIRDataModule,
+    search_config: SearchConfig,
 ):
-    bi_encoder_module.config.similarity_function = similarity
+    index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)
     save_dir = tmp_path / "runs"
-    index_path = Path(__file__).parent / "data" / "indexes" / f"{similarity}-index"
-
-    search_callback = SearchCallback(save_dir, index_path, 5, 10, imputation_strategy)
+    search_callback = SearchCallback(search_config, save_dir, index_dir)
 
     trainer = Trainer(
         logger=False,

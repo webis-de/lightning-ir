@@ -15,7 +15,7 @@ class ColConfig(BiEncoderConfig):
         doc_mask_scoring_tokens: (
             Sequence[str] | Literal["punctuation"] | None
         ) = "punctuation",
-        doc_aggregation_function: Literal[
+        query_aggregation_function: Literal[
             "sum", "mean", "max", "harmonic_mean"
         ] = "sum",
         normalize: bool = True,
@@ -34,7 +34,7 @@ class ColConfig(BiEncoderConfig):
             attend_to_doc_expanded_tokens=False,
             doc_pooling_strategy=None,
             doc_mask_scoring_tokens=doc_mask_scoring_tokens,
-            doc_aggregation_function=doc_aggregation_function,
+            query_aggregation_function=query_aggregation_function,
             normalize=normalize,
             add_marker_tokens=add_marker_tokens,
             embedding_dim=embedding_dim,

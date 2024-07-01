@@ -1,20 +1,27 @@
-from .indexer import (
-    FlatIndexConfig,
-    FlatIndexer,
-    IndexConfig,
-    Indexer,
-    IVFPQIndexConfig,
-    IVFPQIndexer,
+from .faiss_indexer import (
+    FaissFlatIndexConfig,
+    FaissFlatIndexer,
+    FaissIVFPQIndexConfig,
+    FaissIVFPQIndexer,
 )
+from .faiss_searcher import FaissSearchConfig, FaissSearcher
+from .indexer import IndexConfig, Indexer
 from .searcher import SearchConfig, Searcher
+from .sparse_indexer import SparseIndexConfig, SparseIndexer
+
+from .sparse_searcher import SparseSearcher, SparseSearchConfig
 
 __all__ = [
-    "FlatIndexConfig",
-    "FlatIndexer",
+    "FaissFlatIndexConfig",
+    "FaissFlatIndexer",
+    "FaissIVFPQIndexConfig",
+    "FaissIVFPQIndexer",
+    "FaissSearchConfig",
+    "FaissSearcher",
     "IndexConfig",
     "Indexer",
-    "IVFPQIndexConfig",
-    "IVFPQIndexer",
     "SearchConfig",
     "Searcher",
+    "SparseIndexConfig",
+    "SparseIndexer",
 ]

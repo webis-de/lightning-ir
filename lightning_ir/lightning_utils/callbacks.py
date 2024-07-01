@@ -8,7 +8,6 @@ from typing import (
     Any,
     Dict,
     List,
-    Literal,
     Optional,
     Sequence,
     Tuple,
@@ -23,19 +22,25 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 from ..data import IndexBatch, RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
 from ..retrieve import (
-    FlatIndexConfig,
-    FlatIndexer,
+    FaissFlatIndexConfig,
+    FaissFlatIndexer,
+    FaissIVFPQIndexConfig,
+    FaissIVFPQIndexer,
+    SparseIndexConfig,
+    SparseIndexer,
     IndexConfig,
     Indexer,
-    IVFPQIndexConfig,
-    IVFPQIndexer,
     SearchConfig,
     Searcher,
+    FaissSearcher,
+    SparseSearcher,
+    FaissSearchConfig,
+    SparseSearchConfig,
 )
 
 if TYPE_CHECKING:
     from ..base import LightningIRModule, LightningIROutput
-    from ..bi_encoder import BiEncoderEmbedding, BiEncoderModule, BiEncoderOutput
+    from ..bi_encoder import BiEncoderModule, BiEncoderOutput
     from ..cross_encoder import CrossEncoderModule, CrossEncoderOutput
 
 T = TypeVar("T")
@@ -94,7 +99,7 @@ class IndexCallback(Callback, GatherMixin):
         if not all(isinstance(dataset, DocDataset) for dataset in datasets):
             raise ValueError("Expected DocDatasets for indexing")
 
-    def get_index_path(self, pl_module: BiEncoderModule, dataset: DocDataset) -> Path:
+    def get_index_dir(self, pl_module: BiEncoderModule, dataset: DocDataset) -> Path:
         index_dir = self.index_dir
         if index_dir is None:
             default_index_dir = Path(pl_module.config.name_or_path)
@@ -102,10 +107,10 @@ class IndexCallback(Callback, GatherMixin):
                 index_dir = default_index_dir / "indexes"
             else:
                 raise ValueError(
-                    "No index_path provided and model_name_or_path is not a path"
+                    "No index_dir provided and model_name_or_path is not a path"
                 )
-        index_path = index_dir / dataset.docs_dataset_id
-        return index_path
+        index_dir = index_dir / dataset.docs_dataset_id
+        return index_dir
 
     def get_indexer(
         self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int
@@ -115,15 +120,19 @@ class IndexCallback(Callback, GatherMixin):
             raise ValueError("No predict_dataloaders found")
         dataset = dataloaders[dataset_idx].dataset
 
-        index_path = self.get_index_path(pl_module, dataset)
+        index_dir = self.get_index_dir(pl_module, dataset)
 
-        if isinstance(self.index_config, FlatIndexConfig):
-            indexer = FlatIndexer(
-                index_path, self.index_config, pl_module.config, self.verbose
+        if isinstance(self.index_config, FaissFlatIndexConfig):
+            indexer = FaissFlatIndexer(
+                index_dir, self.index_config, pl_module.config, self.verbose
             )
-        elif isinstance(self.index_config, IVFPQIndexConfig):
-            indexer = IVFPQIndexer(
-                index_path, self.index_config, pl_module.config, self.verbose
+        elif isinstance(self.index_config, FaissIVFPQIndexConfig):
+            indexer = FaissIVFPQIndexer(
+                index_dir, self.index_config, pl_module.config, self.verbose
+            )
+        elif isinstance(self.index_config, SparseIndexConfig):
+            indexer = SparseIndexer(
+                index_dir, self.index_config, pl_module.config, self.verbose
             )
         else:
             raise ValueError(
@@ -296,19 +305,13 @@ class ReRankCallback(RankCallback):
 class SearchCallback(RankCallback):
     def __init__(
         self,
+        search_config: SearchConfig,
         save_dir: Path | None = None,
-        index_path: Path | None = None,
-        k: int = 100,
-        candidate_k: int = 1000,
-        imputation_strategy: Literal["min", "gather"] | None = None,
-        n_probe: int = 1,
+        index_dir: Path | None = None,
     ) -> None:
         super().__init__(save_dir)
-        self.index_path = index_path
-        self.k = k
-        self.candidate_k = candidate_k
-        self.imputation_strategy = imputation_strategy
-        self.n_probe = n_probe
+        self.index_dir = index_dir
+        self.search_config = search_config
         self.index_config: SearchConfig
         self.searcher: Searcher
 
@@ -326,22 +329,22 @@ class SearchCallback(RankCallback):
             raise ValueError("All QueryDatasets must have the same docs_dataset_id")
         docs_dataset_id = docs_dataset_ids[0]
 
-        index_path = self.index_path
-        if index_path is None:
+        index_dir = self.index_dir
+        if index_dir is None:
             if Path(pl_module.config.name_or_path).exists():
                 index_dir = Path(pl_module.config.name_or_path) / "indexes"
-                index_path = index_dir / docs_dataset_id
-                if not index_path.exists():
-                    raise ValueError(f"No index found at {index_path}")
+                index_dir = index_dir / docs_dataset_id
+                if not index_dir.exists():
+                    raise ValueError(f"No index found at {index_dir}")
             else:
                 raise ValueError(
-                    "No index_path provided and model_name_or_path is not a path"
+                    "No index_dir provided and model_name_or_path is not a path"
                 )
-        self.index_config = SearchConfig(
-            index_path,
-            self.k,
-            self.candidate_k,
-            self.imputation_strategy,
-            self.n_probe,
-        )
-        self.searcher = Searcher(self.index_config, pl_module)
+        if isinstance(self.search_config, FaissSearchConfig):
+            self.searcher = FaissSearcher(index_dir, self.search_config, pl_module)
+        elif isinstance(self.search_config, SparseSearchConfig):
+            self.searcher = SparseSearcher(index_dir, self.search_config, pl_module)
+        else:
+            raise ValueError(
+                f"Unknown search config type {self.search_config.__class__.__name__}"
+            )

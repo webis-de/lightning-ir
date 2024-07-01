@@ -61,33 +61,47 @@ DATA_DIR = Path(__file__).parent / "data"
 
 GLOBAL_KWARGS: Dict[str, Any] = dict(query_length=8, doc_length=8)
 
-BI_ENCODER_CONFIGS = [
-    BiEncoderConfig(
+BI_ENCODER_GLOBAL_KWARGS = dict(embedding_dim=4)
+
+BI_ENCODER_CONFIGS = {
+    "MultiVectorBiEncoder": BiEncoderConfig(
         query_pooling_strategy=None,
         doc_pooling_strategy=None,
         **GLOBAL_KWARGS,
+        **BI_ENCODER_GLOBAL_KWARGS,
     ),
-    BiEncoderConfig(**GLOBAL_KWARGS),
-]
-
-CROSS_ENCODER_CONFIGS = [
-    CrossEncoderConfig(**GLOBAL_KWARGS),
-]
-
-ALL_CONFIGS = BI_ENCODER_CONFIGS + CROSS_ENCODER_CONFIGS
+    "SingleVectorBiEncoder": BiEncoderConfig(
+        **GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS
+    ),
+}
 
 
-@pytest.fixture(scope="module", params=ALL_CONFIGS)
+CROSS_ENCODER_CONFIGS = {"CrossEncoder": CrossEncoderConfig(**GLOBAL_KWARGS)}
+
+ALL_CONFIGS = {**BI_ENCODER_CONFIGS, **CROSS_ENCODER_CONFIGS}
+
+
+@pytest.fixture(
+    scope="module", params=list(ALL_CONFIGS.values()), ids=list(ALL_CONFIGS.keys())
+)
 def config(request: SubRequest) -> CONFIGS:
     return request.param
 
 
-@pytest.fixture(scope="module", params=BI_ENCODER_CONFIGS)
+@pytest.fixture(
+    scope="module",
+    params=list(BI_ENCODER_CONFIGS.values()),
+    ids=list(BI_ENCODER_CONFIGS.keys()),
+)
 def bi_encoder_config(request: SubRequest) -> CONFIGS:
     return request.param
 
 
-@pytest.fixture(scope="module", params=CROSS_ENCODER_CONFIGS)
+@pytest.fixture(
+    scope="module",
+    params=list(CROSS_ENCODER_CONFIGS.values()),
+    ids=list(CROSS_ENCODER_CONFIGS.keys()),
+)
 def cross_encoder_config(request: SubRequest) -> CONFIGS:
     return request.param
 
@@ -98,6 +112,7 @@ def cross_encoder_config(request: SubRequest) -> CONFIGS:
         RankNet(),
         InBatchCrossEntropy("first", "first"),
     ],
+    ids=["RankNet", "InBatchCrossEntropy"],
 )
 def train_module(
     config: CONFIGS, model_name_or_path: str, request: SubRequest

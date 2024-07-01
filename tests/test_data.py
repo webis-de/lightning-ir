@@ -13,7 +13,9 @@ from lightning_ir.data.dataset import RunDataset, TupleDataset
 from .conftest import RUNS_DIR
 
 
-@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()])
+@pytest.fixture(
+    params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"]
+)
 def rank_run_datamodule(
     model_name_or_path: str,
     inference_datasets: Sequence[RunDataset],
@@ -39,7 +41,9 @@ def rank_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()])
+@pytest.fixture(
+    params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"]
+)
 def relevance_run_datamodule(
     model_name_or_path: str,
     inference_datasets: Sequence[RunDataset],
@@ -65,7 +69,9 @@ def relevance_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()])
+@pytest.fixture(
+    params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"]
+)
 def single_relevant_run_datamodule(
     model_name_or_path: str,
     inference_datasets: Sequence[RunDataset],
@@ -91,7 +97,9 @@ def single_relevant_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()])
+@pytest.fixture(
+    params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"]
+)
 def tuples_datamodule(
     model_name_or_path: str,
     inference_datasets: Sequence[RunDataset],

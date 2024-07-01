@@ -26,7 +26,7 @@ class SpladeConfig(BiEncoderConfig):
             attend_to_doc_expanded_tokens=False,
             doc_pooling_strategy=doc_pooling_strategy,
             doc_mask_scoring_tokens=None,
-            doc_aggregation_function="sum",
+            query_aggregation_function="sum",
             normalize=False,
             add_marker_tokens=False,
             embedding_dim=embedding_dim,

@@ -9,6 +9,7 @@ from lightning_ir.cross_encoder.tokenizer import CrossEncoderTokenizer
 @pytest.mark.parametrize(
     "config",
     (BiEncoderConfig(query_expansion=True, doc_expansion=True), CrossEncoderConfig()),
+    ids=["BiEncoder", "CrossEncoder"],
 )
 def test_serialize_deserialize(
     model_name_or_path: str,
