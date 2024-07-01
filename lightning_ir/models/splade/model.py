@@ -64,22 +64,26 @@ class SpladeModel(BiEncoderModel):
         config = AutoConfig.from_pretrained(model_name_or_path)
         BackboneModel = MODEL_MAPPING[config.__class__]
         cls = LightningIRModelClassFactory(BackboneModel, SpladeConfig)
-        config = cls.config_class.from_pretrained(model_name_or_path)
-        config.update({})
-        model = cls(config=config, add_pooling_layer=False)
-        state_dict_path = hf_hub_download(
-            repo_id=str(model_name_or_path), filename="pytorch_model.bin"
+        model = super(LightningIRModel, cls).from_pretrained(
+            model_name_or_path, *args, add_pooling_layer=False, **kwargs
         )
+        try:
+            state_dict_path = hf_hub_download(
+                repo_id=str(model_name_or_path), filename="model.safetensors"
+            )
+        except Exception:
+            state_dict_path = hf_hub_download(
+                repo_id=str(model_name_or_path), filename="pytorch_model.bin"
+            )
         state_dict = load_state_dict(state_dict_path)
-        state_dict.pop("bert.embeddings.position_ids", None)
         state_dict.pop("cls.predictions.bias", None)
         for key in list(state_dict.keys()):
-            if key.startswith("bert."):
-                state_dict[key[5:]] = state_dict.pop(key)
-            else:
-                new_key = key.replace("cls.predictions", "projection").replace(
-                    ".transform", ""
-                )
-                state_dict[new_key] = state_dict.pop(key)
-        model.load_state_dict(state_dict)
+            if not key.startswith("cls"):
+                state_dict.pop(key)
+                continue
+            new_key = key.replace("cls.predictions", "projection").replace(
+                ".transform", ""
+            )
+            state_dict[new_key] = state_dict.pop(key)
+        model.load_state_dict(state_dict, strict=False)
         return model
