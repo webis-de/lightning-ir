@@ -31,8 +31,7 @@ class EmbeddingLossFunction(LossFunction):
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
 
 class PairwiseLossFunction(ScoringLossFunction):
@@ -318,7 +317,9 @@ class InBatchLossFunction(ScoringLossFunction):
             raise ValueError("invalid neg sampling technique")
         neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
         if self.max_num_neg_samples is not None:
-            neg_idcs = neg_idcs.view(num_queries, -1)[:, torch.randperm(num_docs)]
+            neg_idcs = neg_idcs.view(num_queries, -1)
+            if neg_idcs.shape[-1] > 1:
+                neg_idcs = neg_idcs[:, torch.randperm(num_docs)]
             neg_idcs = neg_idcs[:, : self.max_num_neg_samples]
             neg_idcs = neg_idcs.view(-1)
         return pos_idcs, neg_idcs
