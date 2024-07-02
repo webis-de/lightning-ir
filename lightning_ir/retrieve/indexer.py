@@ -16,8 +16,7 @@ if TYPE_CHECKING:
 
 @dataclass
 class IndexConfig:
-
-    similarity_function: Literal["dot", "cosine"]
+    similarity_function: Literal["cosine", "dot"] | None = None
 
     @classmethod
     def from_pretrained(cls, index_dir: Path) -> "IndexConfig":

@@ -122,6 +122,9 @@ class IndexCallback(Callback, GatherMixin):
 
         index_dir = self.get_index_dir(pl_module, dataset)
 
+        if self.index_config.similarity_function is None:
+            self.index_config.similarity_function = pl_module.config.similarity_function
+
         if isinstance(self.index_config, FaissFlatIndexConfig):
             indexer = FaissFlatIndexer(
                 index_dir, self.index_config, pl_module.config, self.verbose

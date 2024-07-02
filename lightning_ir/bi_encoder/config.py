@@ -37,7 +37,7 @@ class BiEncoderConfig(LightningIRConfig):
 
     def __init__(
         self,
-        similarity_function: Literal["cosine", "l2", "dot"] = "dot",
+        similarity_function: Literal["cosine", "dot"] = "dot",
         query_expansion: bool = False,
         attend_to_query_expanded_tokens: bool = False,
         query_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",

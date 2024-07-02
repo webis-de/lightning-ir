@@ -1,7 +1,7 @@
+import warnings
 from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-import array
 
 import faiss
 import torch
@@ -18,8 +18,8 @@ class FaissFlatIndexConfig(IndexConfig):
 
 @dataclass
 class FaissIVFPQIndexConfig(IndexConfig):
-    num_train_embeddings: int
-    num_centroids: int
+    num_train_embeddings: int | None = None
+    num_centroids: int = 262144
     num_subquantizers: int = 16
     n_bits: int = 8
 
@@ -38,17 +38,14 @@ class FaissIndexer(Indexer):
 
         self.index_factory = index_factory
 
-        if self.bi_encoder_config.similarity_function == "l2":
-            self.metric_type = faiss.METRIC_L2
-        elif self.bi_encoder_config.similarity_function in ("cosine", "dot"):
+        if self.index_config.similarity_function in ("cosine", "dot"):
             self.metric_type = faiss.METRIC_INNER_PRODUCT
         else:
             raise ValueError(
-                f"similarity_function {self.bi_encoder_config.similarity_function} "
-                "unknown"
+                f"similarity_function {self.index_config.similarity_function} unknown"
             )
 
-        if self.bi_encoder_config.similarity_function == "cosine":
+        if self.index_config.similarity_function == "cosine":
             index_factory = "L2norm," + index_factory
         self.index = faiss.index_factory(
             self.bi_encoder_config.embedding_dim, index_factory, self.metric_type
@@ -120,9 +117,17 @@ class FaissIVFPQIndexer(FaissIndexer):
         index_ivf_pq = faiss.downcast_index(self.index.index)
         index_ivf_pq.make_direct_map()
 
+        # default faiss values
+        # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
+        max_points_per_centroid = 256
+        self.num_train_embeddings = (
+            index_config.num_train_embeddings
+            or index_config.num_centroids * max_points_per_centroid
+        )
+
         self._train_embeddings = torch.full(
             (
-                self.index_config.num_train_embeddings,
+                self.num_train_embeddings,
                 self.bi_encoder_config.embedding_dim,
             ),
             torch.nan,
@@ -170,8 +175,8 @@ class FaissIVFPQIndexer(FaissIndexer):
             # if num_train_embeddings overflows, save the remaining embeddings
             start = self.num_embeddings
             end = start + embeddings.shape[0]
-            if end > self.index_config.num_train_embeddings:
-                end = self.index_config.num_train_embeddings
+            if end > self.num_train_embeddings:
+                end = self.num_train_embeddings
             length = end - start
             self._train_embeddings[start:end] = embeddings[:length]
             self.num_embeddings += length
@@ -180,13 +185,16 @@ class FaissIVFPQIndexer(FaissIndexer):
 
     def _train(self, force: bool = False):
         if self._train_embeddings is not None and (
-            force or self.num_embeddings >= self.index_config.num_train_embeddings
+            force or self.num_embeddings >= self.num_train_embeddings
         ):
             if torch.isnan(self._train_embeddings).any():
-                raise ValueError(
-                    "corpus does not contain enough tokens/documents for training. "
-                    "choose a larger corpus or reduce `num_train_embeddings`"
+                warnings.warn(
+                    "Corpus does not contain enough tokens/documents for training. "
+                    "Removing NaN embeddings."
                 )
+                self._train_embeddings = self._train_embeddings[
+                    ~torch.isnan(self._train_embeddings).any(dim=1)
+                ]
             self.index.train(self._train_embeddings)
             if torch.cuda.is_available():
                 self.to_cpu()
