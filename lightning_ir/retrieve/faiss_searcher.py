@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Literal, Tuple
 
-import faiss
 import torch
 
 from ..bi_encoder.model import BiEncoderEmbedding
@@ -28,6 +27,8 @@ class FaissSearcher(Searcher):
         search_config: FaissSearchConfig,
         module: BiEncoderModule,
     ) -> None:
+        import faiss
+
         self.search_config: FaissSearchConfig
         self.index = faiss.read_index(str(index_dir / "index.faiss"))
         super().__init__(index_dir, search_config, module)
