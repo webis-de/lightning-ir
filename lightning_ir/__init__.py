@@ -60,19 +60,6 @@ from .loss import (
     SupervisedMarginMSE,
 )
 from .models import ColConfig, ColModel, SpladeConfig, SpladeModel
-from .retrieve import (
-    FaissFlatIndexConfig,
-    FaissFlatIndexer,
-    FaissIVFPQIndexConfig,
-    FaissIVFPQIndexer,
-    FaissSearchConfig,
-    Indexer,
-    SearchConfig,
-    Searcher,
-    SparseIndexConfig,
-    SparseIndexer,
-    SparseSearchConfig,
-)
 
 AutoConfig.register(BiEncoderConfig.model_type, BiEncoderConfig)
 AutoModel.register(BiEncoderConfig, BiEncoderModel)
@@ -104,16 +91,10 @@ __all__ = [
     "CrossEncoderTokenizer",
     "DocDataset",
     "DocSample",
-    "FaissFlatIndexConfig",
-    "FaissFlatIndexer",
-    "FaissIVFPQIndexConfig",
-    "FaissIVFPQIndexer",
-    "FaissSearchConfig",
     "FLOPSRegularization",
     "InBatchCrossEntropy",
     "IndexBatch",
     "IndexCallback",
-    "Indexer",
     "KLDivergence",
     "L1Regularization",
     "L2Regularization",
@@ -136,11 +117,6 @@ __all__ = [
     "ScoringFunction",
     "SearchBatch",
     "SearchCallback",
-    "SearchConfig",
-    "Searcher",
-    "SparseIndexConfig",
-    "SparseIndexer",
-    "SparseSearchConfig",
     "SupervisedMarginMSE",
     "TrainBatch",
     "TupleDataset",
