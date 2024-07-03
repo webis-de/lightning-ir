@@ -208,8 +208,9 @@ class RunDataset(IRDataset, Dataset):
         if self.run_path is None:
             run = pd.DataFrame(self.ir_dataset.scoreddocs_iter())
             run["rank"] = run.groupby("query_id")["score"].rank(
-                "dense", ascending=False
+                "first", ascending=False
             )
+            run = run.sort_values(["query_id", "rank"])
         elif set((".tsv", ".run", ".csv")).intersection(self.run_path.suffixes):
             run = pd.read_csv(
                 self.run_path,
