@@ -3,7 +3,6 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
 
-import faiss
 import torch
 
 from ..bi_encoder import BiEncoderConfig, BiEncoderOutput
@@ -35,6 +34,7 @@ class FaissIndexer(Indexer):
         verbose: bool = False,
     ) -> None:
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        import faiss
 
         self.index_factory = index_factory
 
@@ -70,6 +70,8 @@ class FaissIndexer(Indexer):
 
     def save(self) -> None:
         super().save()
+        import faiss
+
         if self.num_embeddings != self.index.ntotal:
             raise ValueError("number of embeddings does not match index.ntotal")
         if torch.cuda.is_available():
@@ -104,6 +106,8 @@ class FaissIVFPQIndexer(FaissIndexer):
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
+        import faiss
+
         index_factory = (
             f"OPQ{index_config.num_subquantizers},"
             f"IVF{index_config.num_centroids}_HNSW32,"
@@ -135,6 +139,8 @@ class FaissIVFPQIndexer(FaissIndexer):
         )
 
     def to_gpu(self) -> None:
+        import faiss
+
         clustering_index = faiss.index_cpu_to_all_gpus(
             faiss.IndexFlat(self.bi_encoder_config.embedding_dim, self.metric_type)
         )
@@ -143,6 +149,8 @@ class FaissIVFPQIndexer(FaissIndexer):
         index_ivf_pq.clustering_index = clustering_index
 
     def to_cpu(self) -> None:
+        import faiss
+
         # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
         # move index to cpu but leave quantizer on gpu
         self.index = faiss.index_gpu_to_cpu(self.index)
@@ -154,6 +162,8 @@ class FaissIVFPQIndexer(FaissIndexer):
         index_ivf_pq.quantizer = gpu_quantizer
 
     def set_verbosity(self) -> None:
+        import faiss
+
         index_ivf_pq = faiss.downcast_index(self.index.index)
         for elem in (
             self.index,
