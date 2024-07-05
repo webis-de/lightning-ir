@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 import array
 from pathlib import Path
 import torch
@@ -8,7 +7,6 @@ from ..data import IndexBatch
 from .indexer import IndexConfig, Indexer
 
 
-@dataclass
 class SparseIndexConfig(IndexConfig):
     pass
 

@@ -1,7 +1,7 @@
 import warnings
 from abc import abstractmethod
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import torch
 
@@ -10,17 +10,25 @@ from ..data import IndexBatch
 from .indexer import IndexConfig, Indexer
 
 
-@dataclass
 class FaissFlatIndexConfig(IndexConfig):
     pass
 
 
-@dataclass
 class FaissIVFPQIndexConfig(IndexConfig):
-    num_train_embeddings: int | None = None
-    num_centroids: int = 262144
-    num_subquantizers: int = 16
-    n_bits: int = 8
+
+    def __init__(
+        self,
+        similarity_function: None | Literal["cosine", "dot"] = None,
+        num_train_embeddings: int | None = None,
+        num_centroids: int = 262144,
+        num_subquantizers: int = 16,
+        n_bits: int = 8,
+    ) -> None:
+        super().__init__(similarity_function)
+        self.num_train_embeddings = num_train_embeddings
+        self.num_centroids = num_centroids
+        self.num_subquantizers = num_subquantizers
+        self.n_bits = n_bits
 
 
 class FaissIndexer(Indexer):
