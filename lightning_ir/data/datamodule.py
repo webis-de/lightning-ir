@@ -70,12 +70,12 @@ class LightningIRDataModule(LightningDataModule):
             raise ValueError("A training dataset and config must be provided.")
         self.train_dataset.setup("fit")
 
-    def setup_inference(self, stage: Literal["validate", "predict"]) -> None:
+    def setup_inference(self, stage: Literal["validate", "test"]) -> None:
         if self.inference_datasets is None:
             return
         for inference_dataset in self.inference_datasets:
             if isinstance(inference_dataset, TupleDataset):
-                if stage == "predict":
+                if stage == "test":
                     raise ValueError(
                         "Prediction cannot be performed with TupleDataset."
                     )
@@ -95,17 +95,15 @@ class LightningIRDataModule(LightningDataModule):
             inference_dataset.setup(stage)
         if stage == "validate":
             self.val_dataloader = self.inference_dataloader
-        elif stage == "predict":
-            self.predict_dataloader = self.inference_dataloader
+        elif stage == "test":
+            self.test_dataloader = self.inference_dataloader
         else:
             raise ValueError(f"Unknown stage {stage}")
 
-    def setup(self, stage: Literal["fit", "validate", "test", "predict"]) -> None:
+    def setup(self, stage: Literal["fit", "validate", "test"]) -> None:
         if stage == "fit":
             self.setup_fit()
         if stage == "fit":
-            stage = "validate"
-        if stage == "test":
             stage = "validate"
         self.setup_inference(stage)
 

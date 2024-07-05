@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Sequence
 
 import pandas as pd
 import pytest
@@ -8,19 +8,21 @@ from lightning import Trainer
 
 from lightning_ir import (
     BiEncoderModule,
-    FaissFlatIndexConfig,
-    FaissSearchConfig,
     LightningIRDataModule,
     LightningIRModule,
     RunDataset,
-    SearchConfig,
-    SparseIndexConfig,
-    SparseSearchConfig,
 )
 from lightning_ir.lightning_utils.callbacks import (
     IndexCallback,
     ReRankCallback,
     SearchCallback,
+)
+from lightning_ir.retrieve import (
+    FaissFlatIndexConfig,
+    FaissSearchConfig,
+    SearchConfig,
+    SparseIndexConfig,
+    SparseSearchConfig,
 )
 from lightning_ir.retrieve.indexer import IndexConfig
 
@@ -44,7 +46,7 @@ def run_datamodule(
         inference_batch_size=2,
         inference_datasets=inference_datasets,
     )
-    datamodule.setup(stage="predict")
+    datamodule.setup(stage="test")
     return datamodule
 
 
@@ -67,7 +69,7 @@ def test_index_callback(
         enable_checkpointing=False,
         callbacks=[index_callback],
     )
-    trainer.predict(bi_encoder_module, datamodule=doc_datamodule)
+    trainer.test(bi_encoder_module, datamodule=doc_datamodule)
 
     assert doc_datamodule.inference_datasets is not None
     assert index_callback.indexer.num_embeddings and index_callback.indexer.num_docs
@@ -110,7 +112,7 @@ def get_index(
         enable_checkpointing=False,
         callbacks=[index_callback],
     )
-    trainer.predict(bi_encoder_module, datamodule=doc_datamodule)
+    trainer.test(bi_encoder_module, datamodule=doc_datamodule)
     return index_dir / "lightning-ir"
 
 
@@ -139,9 +141,9 @@ def test_search_callback(
         enable_checkpointing=False,
         callbacks=[search_callback],
     )
-    trainer.predict(bi_encoder_module, datamodule=query_datamodule)
+    trainer.test(bi_encoder_module, datamodule=query_datamodule)
 
-    for dataloader in trainer.predict_dataloaders:
+    for dataloader in trainer.test_dataloaders:
         dataset = dataloader.dataset
         dataset_id = dataset.dataset_id.replace("/", "-")
         assert (save_dir / f"{dataset_id}.run").exists()
@@ -167,9 +169,9 @@ def test_rerank_callback(
         enable_checkpointing=False,
         callbacks=[rerank_callback],
     )
-    trainer.predict(module, datamodule=datamodule)
+    trainer.test(module, datamodule=datamodule)
 
-    for dataloader in trainer.predict_dataloaders:
+    for dataloader in trainer.test_dataloaders:
         dataset = dataloader.dataset
         dataset_id = dataset.dataset_id.replace("/", "-")
         assert (save_dir / f"{dataset_id}.run").exists()

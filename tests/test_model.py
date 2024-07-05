@@ -7,6 +7,7 @@ from lightning_ir.base import LightningIRModule
 from lightning_ir.cross_encoder import CrossEncoderModule
 from lightning_ir.data import LightningIRDataModule, RunDataset, TupleDataset
 from lightning_ir.loss.loss import InBatchLossFunction
+from lightning_ir.main import LightningIRTrainer
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -53,9 +54,14 @@ def test_validation(
     for batch, batch_idx in zip(dataloader, range(2)):
         train_module.validation_step(batch, batch_idx, 0)
 
-    metrics = train_module.on_validation_epoch_end()
+    trainer = LightningIRTrainer(logger=False)
+    trainer.validate(model=train_module, dataloaders=dataloader)
+
+    metrics = trainer.callback_metrics
     assert metrics is not None
     for key, value in metrics.items():
+        if not key:
+            continue
         metric = key.split("/")[1]
         assert metric in {"nDCG@10"} or "validation" in metric
         assert value

@@ -34,11 +34,6 @@ class CrossEncoderModule(LightningIRModule):
         output = self.model.forward(encoding["encoding"])
         return output
 
-    def predict_step(self, batch: RankBatch, *args, **kwargs) -> CrossEncoderOutput:
-        if isinstance(batch, RankBatch):
-            return self.forward(batch)
-        raise ValueError(f"Unknown batch type {batch.__class__}")
-
     def compute_losses(
         self,
         batch: TrainBatch,

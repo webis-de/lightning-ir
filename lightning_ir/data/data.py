@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Sequence, Tuple
+from typing import Any, Dict, List, Tuple
 
 import torch
 
@@ -11,7 +11,7 @@ class RunSample:
     doc_ids: Tuple[str, ...]
     docs: Tuple[str, ...]
     targets: torch.Tensor | None = None
-    qrels: Sequence[Dict[str, Any]] | None = None
+    qrels: List[Dict[str, Any]] | None = None
 
 
 @dataclass
@@ -36,11 +36,11 @@ class DocSample:
 
 @dataclass
 class RankBatch:
-    query_ids: Tuple[str, ...]
     queries: Tuple[str, ...]
-    doc_ids: Tuple[Tuple[str, ...], ...]
     docs: Tuple[Tuple[str, ...], ...]
-    qrels: Dict[str, int] | None = None
+    query_ids: Tuple[str, ...] | None = None
+    doc_ids: Tuple[Tuple[str, ...], ...] | None = None
+    qrels: List[Dict[str, int]] | None = None
 
 
 @dataclass

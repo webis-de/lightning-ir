@@ -3,45 +3,35 @@ from __future__ import annotations
 import itertools
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    List,
-    Optional,
-    Sequence,
-    Tuple,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any, Dict, List, Tuple, TypeVar
 
 import pandas as pd
 import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
-from ..data import IndexBatch, RankBatch, SearchBatch
+from ..data import RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
 from ..retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
     FaissIVFPQIndexConfig,
     FaissIVFPQIndexer,
-    SparseIndexConfig,
-    SparseIndexer,
+    FaissSearchConfig,
+    FaissSearcher,
     IndexConfig,
     Indexer,
     SearchConfig,
     Searcher,
-    FaissSearcher,
-    SparseSearcher,
-    FaissSearchConfig,
+    SparseIndexConfig,
+    SparseIndexer,
     SparseSearchConfig,
+    SparseSearcher,
 )
 
 if TYPE_CHECKING:
     from ..base import LightningIRModule, LightningIROutput
     from ..bi_encoder import BiEncoderModule, BiEncoderOutput
-    from ..cross_encoder import CrossEncoderModule, CrossEncoderOutput
 
 T = TypeVar("T")
 
@@ -88,13 +78,13 @@ class IndexCallback(Callback, GatherMixin):
         self.indexer: Indexer
 
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
-        if stage != "predict":
-            raise ValueError("IndexCallback can only be used in predict stage")
+        if stage != "test":
+            raise ValueError("IndexCallback can only be used in test stage")
 
-    def on_predict_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
-        dataloaders = trainer.predict_dataloaders
+    def on_test_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
+        dataloaders = trainer.test_dataloaders
         if dataloaders is None:
-            raise ValueError("No predict_dataloaders found")
+            raise ValueError("No test_dataloaders found")
         datasets = [dataloader.dataset for dataloader in dataloaders]
         if not all(isinstance(dataset, DocDataset) for dataset in datasets):
             raise ValueError("Expected DocDatasets for indexing")
@@ -115,9 +105,9 @@ class IndexCallback(Callback, GatherMixin):
     def get_indexer(
         self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int
     ) -> Indexer:
-        dataloaders = trainer.predict_dataloaders
+        dataloaders = trainer.test_dataloaders
         if dataloaders is None:
-            raise ValueError("No predict_dataloaders found")
+            raise ValueError("No test_dataloaders found")
         dataset = dataloaders[dataset_idx].dataset
 
         index_dir = self.get_index_dir(pl_module, dataset)
@@ -147,17 +137,17 @@ class IndexCallback(Callback, GatherMixin):
         pg_callback = trainer.progress_bar_callback
         if pg_callback is None or not isinstance(pg_callback, TQDMProgressBar):
             return
-        pg = pg_callback.predict_progress_bar
+        pg = pg_callback.test_progress_bar
         info = {k: format_large_number(v) for k, v in info.items()}
         if pg is not None:
             pg.set_postfix(info)
 
-    def on_predict_batch_end(
+    def on_test_batch_end(
         self,
         trainer: Trainer,
         pl_module: BiEncoderModule,
-        prediction: BiEncoderOutput,
-        batch: IndexBatch,
+        outputs: BiEncoderOutput,
+        batch: Any,
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
@@ -167,12 +157,12 @@ class IndexCallback(Callback, GatherMixin):
             self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
 
         batch = self.gather(pl_module, batch)
-        prediction = self.gather(pl_module, prediction)
+        outputs = self.gather(pl_module, outputs)
 
         if not trainer.is_global_zero:
             return
 
-        self.indexer.add(batch, prediction)
+        self.indexer.add(batch, outputs)
         self.log_to_pg(
             {
                 "num_docs": self.indexer.num_docs,
@@ -180,8 +170,11 @@ class IndexCallback(Callback, GatherMixin):
             },
             trainer,
         )
+        return super().on_test_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        )
 
-    def on_predict_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+    def on_test_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.indexer.save()
 
 
@@ -189,24 +182,30 @@ class RankCallback(BasePredictionWriter, GatherMixin):
     def __init__(self, save_dir: Path | None = None) -> None:
         super().__init__()
         self.save_dir = save_dir
+        self.run_dfs = []
+        self.trainer: Trainer
 
-    def setup(
-        self,
-        trainer: Trainer,
-        pl_module: BiEncoderModule | CrossEncoderModule,
-        stage: str,
-    ) -> None:
-        if stage != "predict":
+    @property
+    def inference_datasets(self) -> List[RunDataset] | List[QueryDataset]:
+        dataloaders = self.trainer.test_dataloaders
+        if dataloaders is None:
+            raise ValueError("No test_dataloaders found")
+        return [dataloader.dataset for dataloader in dataloaders]
+
+    def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
+        if stage != "test":
             raise ValueError(
-                f"{self.__class__.__name__} can only be used in predict stage"
+                f"{self.__class__.__name__} can only be used in test stage"
             )
 
-    def on_predict_start(
-        self, trainer: Trainer, pl_module: BiEncoderModule | CrossEncoderModule
-    ) -> List[QueryDataset] | List[RunDataset]:
-        dataloaders = trainer.predict_dataloaders
-        if dataloaders is None:
-            raise ValueError("No predict_dataloaders found")
+    def on_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_test_start(trainer, pl_module)
+        self.trainer = trainer
+
+    def on_epoch_test_start(
+        self, trainer: Trainer, pl_module: LightningIRModule
+    ) -> None:
+        self.run_dfs = []
         if self.save_dir is None:
             default_save_dir = Path(pl_module.config.name_or_path)
             if default_save_dir.exists():
@@ -216,15 +215,19 @@ class RankCallback(BasePredictionWriter, GatherMixin):
                 raise ValueError(
                     "No save_dir provided and model_name_or_path is not a path"
                 )
-        datasets = [dataloader.dataset for dataloader in dataloaders]
-        return datasets
+
+    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_test_epoch_end(trainer, pl_module)
+        if trainer.is_global_zero:
+            self.write_run_dfs(trainer, -1)
+            self.run_dfs = []
 
     def get_run_path(self, trainer: Trainer, dataset_idx: int) -> Path:
-        dataloaders = trainer.predict_dataloaders
+        dataloaders = trainer.test_dataloaders
         if self.save_dir is None:
             raise ValueError("No save_dir found; call setup before using this method")
         if dataloaders is None:
-            raise ValueError("No predict_dataloaders found")
+            raise ValueError("No test_dataloaders found")
         dataset = dataloaders[dataset_idx].dataset
         if isinstance(dataset, QueryDataset):
             run_file = dataset.dataset_id.replace("/", "-")
@@ -241,23 +244,45 @@ class RankCallback(BasePredictionWriter, GatherMixin):
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
         raise NotImplementedError("rank method must be implemented in subclass")
 
+    def write_run_dfs(self, trainer: Trainer, dataloader_idx: int):
+        if not trainer.is_global_zero or not self.run_dfs:
+            return
+        run_file_path = self.get_run_path(trainer, dataloader_idx)
+        run_file_path.parent.mkdir(exist_ok=True)
+        run_df = pd.concat(self.run_dfs, ignore_index=True)
+        run_df.to_csv(run_file_path, header=False, index=False, sep="\t")
+
+    def on_test_batch_end(
+        self,
+        trainer: Trainer,
+        pl_module: LightningIRModule,
+        outputs: LightningIROutput,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        self.write_on_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        )
+
     def write_on_batch_end(
         self,
         trainer: Trainer,
-        pl_module: BiEncoderModule | CrossEncoderModule,
-        prediction: BiEncoderOutput | CrossEncoderOutput,
-        batch_indices: Optional[Sequence[int]],
+        pl_module: LightningIRModule,
+        outputs: LightningIROutput,
         batch: SearchBatch | RankBatch,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
-        query_ids = pl_module.all_gather(batch.query_ids)
         batch = self.gather(pl_module, batch)
-        prediction = self.gather(pl_module, prediction)
+        outputs = self.gather(pl_module, outputs)
         if not trainer.is_global_zero:
             return
 
-        scores, doc_ids, num_docs = self.rank(batch, prediction)
+        query_ids = batch.query_ids
+        if query_ids is None:
+            raise ValueError("Expected batch to have query_ids")
+        scores, doc_ids, num_docs = self.rank(batch, outputs)
         scores = scores.float().cpu().numpy()
 
         query_ids = list(
@@ -279,14 +304,10 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         run_df["system"] = pl_module.config.model_type
         run_df = run_df[RUN_HEADER]
 
-        run_file_path = self.get_run_path(trainer, dataloader_idx)
-        run_file_path.parent.mkdir(exist_ok=True)
         if batch_idx == 0:
-            mode = "w"
-        else:
-            mode = "a"
-
-        run_df.to_csv(run_file_path, header=False, index=False, sep="\t", mode=mode)
+            self.write_run_dfs(trainer, dataloader_idx - 1)
+            self.run_dfs = []
+        self.run_dfs.append(run_df)
 
 
 class ReRankCallback(RankCallback):
@@ -297,12 +318,23 @@ class ReRankCallback(RankCallback):
         if scores is None:
             raise ValueError("Expected output to have scores")
         doc_ids = batch.doc_ids
+        if doc_ids is None:
+            raise ValueError("Expected batch to have doc_ids")
         scores = scores.view(-1)
         num_docs = [len(_doc_ids) for _doc_ids in doc_ids]
         doc_ids = list(itertools.chain.from_iterable(doc_ids))
         if scores.shape[0] != len(doc_ids):
             raise ValueError("scores and doc_ids must have the same length")
         return scores.view(-1), doc_ids, num_docs
+
+    def on_epoch_test_start(
+        self, trainer: Trainer, pl_module: LightningIRModule
+    ) -> None:
+        super().on_epoch_test_start(trainer, pl_module)
+        if not all(
+            isinstance(dataset, RunDataset) for dataset in self.inference_datasets
+        ):
+            raise ValueError("Expected RunDatasets for re-ranking")
 
 
 class SearchCallback(RankCallback):
@@ -323,15 +355,36 @@ class SearchCallback(RankCallback):
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
         return self.searcher.search(output)
 
-    def on_predict_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
-        datasets = super().on_predict_start(trainer, pl_module)
-        if not all(isinstance(dataset, QueryDataset) for dataset in datasets):
-            raise ValueError("Expected QueryDatasets for searching")
-        docs_dataset_ids = [dataset.docs_dataset_id for dataset in datasets]
-        if len(set(docs_dataset_ids)) != 1:
-            raise ValueError("All QueryDatasets must have the same docs_dataset_id")
-        docs_dataset_id = docs_dataset_ids[0]
+    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        return super().on_test_epoch_start(trainer, pl_module)
 
+    def on_epoch_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        super().on_test_epoch_start(trainer, pl_module)
+        if not all(
+            isinstance(dataset, QueryDataset) for dataset in self.inference_datasets
+        ):
+            raise ValueError("Expected QueryDatasets for searching")
+
+    def on_test_batch_start(
+        self,
+        trainer: Trainer,
+        pl_module: BiEncoderModule,
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> None:
+        super().on_test_batch_start(
+            trainer, pl_module, batch, batch_idx, dataloader_idx
+        )
+        if batch_idx != 0:
+            return
+
+        docs_dataset_id = self.inference_datasets[dataloader_idx].docs_dataset_id
+        prev_docs_dataset_id = self.inference_datasets[
+            dataloader_idx - 1
+        ].docs_dataset_id
+        if dataloader_idx != 0 and docs_dataset_id == prev_docs_dataset_id:
+            return
         index_dir = self.index_dir
         if index_dir is None:
             if Path(pl_module.config.name_or_path).exists():

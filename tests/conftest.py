@@ -138,7 +138,7 @@ def module(config: CONFIGS, model_name_or_path: str) -> LightningIRModule:
     kwargs = dict(
         model_name_or_path=model_name_or_path,
         config=config,
-        evaluation_metrics=["loss", "nDCG@10"],
+        evaluation_metrics=["loss", "nDCG@10", "MRR@10"],
     )
     if isinstance(config, CrossEncoderConfig):
         module = CrossEncoderModule(**kwargs)
@@ -184,7 +184,7 @@ def query_datamodule(model_name_or_path: str) -> LightningIRDataModule:
         inference_batch_size=2,
         inference_datasets=[QueryDataset("lightning-ir", num_queries=2)],
     )
-    datamodule.setup(stage="predict")
+    datamodule.setup(stage="test")
     return datamodule
 
 
@@ -197,5 +197,5 @@ def doc_datamodule(model_name_or_path: str) -> LightningIRDataModule:
         inference_batch_size=2,
         inference_datasets=[DocDataset("lightning-ir")],
     )
-    datamodule.setup(stage="predict")
+    datamodule.setup(stage="test")
     return datamodule

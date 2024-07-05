@@ -146,15 +146,17 @@ class BiEncoderModule(LightningIRModule):
         ).view(-1, seq_len)
         return BiEncoderEmbedding(ib_embeddings, ib_scoring_mask)
 
-    def predict_step(
-        self, batch: IndexBatch | SearchBatch | RankBatch, *args, **kwargs
+    def validation_step(
+        self,
+        batch: TrainBatch | IndexBatch | SearchBatch | RankBatch,
+        batch_idx: int,
+        dataloader_idx: int = 0,
     ) -> BiEncoderOutput:
+        if isinstance(batch, (RankBatch, TrainBatch)):
+            return super().validation_step(batch, batch_idx, dataloader_idx)
         if isinstance(batch, IndexBatch):
             return BiEncoderOutput(doc_embeddings=self.forward(batch).doc_embeddings)
         if isinstance(batch, SearchBatch):
             return BiEncoderOutput(
                 query_embeddings=self.forward(batch).query_embeddings
             )
-        if isinstance(batch, RankBatch):
-            return self.forward(batch)
-        raise ValueError(f"Unknown batch type {batch.__class__}")

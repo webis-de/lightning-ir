@@ -8,17 +8,17 @@ from lightning_ir.loss.loss import (
     ApproxNDCG,
     ApproxRankMSE,
     ConstantMarginMSE,
+    FLOPSRegularization,
     InBatchCrossEntropy,
     InBatchLossFunction,
     KLDivergence,
-    LocalizedContrastiveEstimation,
-    ScoringLossFunction,
-    RankNet,
-    SupervisedMarginMSE,
     L1Regularization,
     L2Regularization,
-    FLOPSRegularization,
+    LocalizedContrastiveEstimation,
+    RankNet,
     RegularizationLossFunction,
+    ScoringLossFunction,
+    SupervisedMarginMSE,
 )
 
 torch.manual_seed(42)
@@ -92,9 +92,7 @@ def test_loss_func(
 
 @pytest.mark.parametrize(
     "InBatchLossFunc",
-    [
-        InBatchCrossEntropy,
-    ],
+    [InBatchCrossEntropy],
 )
 def test_in_batch_loss_func(
     InBatchLossFunc: Type[InBatchLossFunction], scores: torch.Tensor

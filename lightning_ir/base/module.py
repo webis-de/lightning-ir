@@ -22,7 +22,7 @@ from .validation_utils import (
 )
 
 if TYPE_CHECKING:
-    from ..data import TrainBatch
+    from ..data import RankBatch, TrainBatch
 
 
 class LightningIRModule(LightningModule):
@@ -66,13 +66,11 @@ class LightningIRModule(LightningModule):
             self.config.name_or_path, **self.config.to_tokenizer_dict()
         )
 
-        self.validation_step_outputs = defaultdict(lambda: defaultdict(list))
-
     def on_fit_start(self) -> None:
         self.train()
         return super().on_fit_start()
 
-    def forward(self, batch: TrainBatch) -> LightningIROutput:
+    def forward(self, batch: TrainBatch | RankBatch) -> LightningIROutput:
         raise NotImplementedError
 
     def prepare_input(
@@ -112,78 +110,75 @@ class LightningIRModule(LightningModule):
 
     def validation_step(
         self,
-        batch: TrainBatch,
+        batch: TrainBatch | RankBatch,
         batch_idx: int,
         dataloader_idx: int = 0,
-    ) -> None:
+    ) -> LightningIROutput:
+        output = self.forward(batch)
+
         if self.evaluation_metrics is None:
-            return
-        with torch.inference_mode():
-            output = self.forward(batch)
+            return output
 
-        dataset_id = str(dataloader_idx)
-        trainer = None
-        try:
-            trainer = self.trainer
-        except RuntimeError:
-            pass
-
-        if trainer is not None and trainer.val_dataloaders is not None:
-            dataset = trainer.val_dataloaders[dataloader_idx].dataset
-            dataset_id = dataset.dataset_id
-
-        self.validation_step_outputs[dataset_id]["scores"].append(output.scores)
-        self.validation_step_outputs[dataset_id]["query_ids"].append(batch.query_ids)
-        self.validation_step_outputs[dataset_id]["doc_ids"].append(batch.doc_ids)
-        self.validation_step_outputs[dataset_id]["qrels"].append(batch.qrels)
-        if hasattr(batch, "targets"):
-            self.validation_step_outputs[dataset_id]["targets"].append(batch.targets)
-
-    def on_validation_epoch_end(self) -> Dict[str, float] | None:
-        if self.evaluation_metrics is None:
-            return
-        metrics = {}
-        average_metrics = defaultdict(list)
-        for dataset_id in self.validation_step_outputs:
-            outputs = self.validation_step_outputs[dataset_id]
-            query_ids = sum(outputs["query_ids"], [])
-            doc_ids = sum(outputs["doc_ids"], [])
-            scores = torch.cat(outputs["scores"])
-            run = create_run_from_scores(query_ids, doc_ids, scores)
-
-            if "loss" in self.evaluation_metrics:
-                scores = scores.view(len(query_ids), -1)
-                if "targets" not in outputs:
-                    raise ValueError(
-                        "Targets are not provided for validation loss calculation."
-                    )
-                targets = torch.cat(outputs["targets"]).view(*scores.shape, -1)
-                metrics.update(self.validate_loss(dataset_id, scores, targets))
-
-            evaluation_metrics = [
-                metric for metric in self.evaluation_metrics if metric != "loss"
-            ]
-            if evaluation_metrics:
-                qrels = create_qrels_from_dicts(sum(outputs["qrels"], []))
-                for metric, value in evaluate_run(
-                    run, qrels, evaluation_metrics
-                ).items():
-                    metrics[f"{dataset_id}/{metric}"] = value
-                    average_metrics[metric].append(value)
-
+        dataset_id = self.get_dataset_id(dataloader_idx)
+        metrics = self.compute_metrics(batch, output)
         for key, value in metrics.items():
-            self.log(key, value)
+            key = f"{dataset_id}/{key}"
+            self.log(key, value, batch_size=len(batch.queries))
+        return output
 
-        for metric, values in average_metrics.items():
-            value = sum(values) / len(values)
-            self.log(metric, value, logger=False)
+    def test_step(
+        self,
+        batch: TrainBatch | RankBatch,
+        batch_idx: int,
+        dataloader_idx: int = 0,
+    ) -> LightningIROutput:
+        return self.validation_step(batch, batch_idx, dataloader_idx)
 
-        self.validation_step_outputs.clear()
+    def get_dataset_id(self, dataloader_idx: int) -> str:
+        dataset_id = str(dataloader_idx)
+        datamodule = None
+        try:
+            datamodule = getattr(self.trainer, "datamodule", None)
+            dataset_id = datamodule.inference_datasets[dataloader_idx].dataset_id
+        except Exception:
+            pass
+        return dataset_id
 
+    def compute_metrics(
+        self, batch: TrainBatch | RankBatch, ouput: LightningIROutput
+    ) -> Dict[str, float]:
+        metrics = {}
+        if self.evaluation_metrics is None:
+            return metrics
+        scores = ouput.scores
+        query_ids = batch.query_ids
+        doc_ids = batch.doc_ids
+        if scores is None:
+            raise ValueError("Scores are not provided")
+        if query_ids is None:
+            query_ids = tuple(str(i) for i in range(len(batch.queries)))
+        if doc_ids is None:
+            doc_ids = tuple(
+                tuple(str(i + j) for j in range(len(docs)))
+                for i, docs in enumerate(batch.docs)
+            )
+
+        targets = getattr(batch, "targets", None)
+        if "loss" in self.evaluation_metrics and targets is not None:
+            scores = scores.view(len(query_ids), -1)
+            metrics.update(self.validate_loss(scores, targets))
+
+        evaluation_metrics = [
+            metric for metric in self.evaluation_metrics if metric != "loss"
+        ]
+        qrels = None if batch.qrels is None else create_qrels_from_dicts(batch.qrels)
+        if evaluation_metrics and qrels is not None:
+            run = create_run_from_scores(query_ids, doc_ids, scores)
+            metrics.update(evaluate_run(run, qrels, evaluation_metrics))
         return metrics
 
     def validate_loss(
-        self, dataset_id: str, scores: torch.Tensor, targets: torch.Tensor
+        self, scores: torch.Tensor, targets: torch.Tensor
     ) -> Dict[str, float]:
         metrics = {}
         if self.loss_functions is None:
@@ -192,10 +187,26 @@ class LightningIRModule(LightningModule):
             # NOTE skip in-batch losses because they can use a lot of memory
             if isinstance(loss_function, InBatchLossFunction):
                 continue
-            metrics[f"{dataset_id}/validation-{loss_function.__class__.__name__}"] = (
+            metrics[f"validation-{loss_function.__class__.__name__}"] = (
                 loss_function.compute_loss(scores, targets).item()
             )
         return metrics
+
+    def on_validation_epoch_end(self) -> None:
+        try:
+            trainer = self.trainer
+        except RuntimeError:
+            trainer = None
+        if trainer is not None:
+            metrics = trainer.callback_metrics
+            accum_metrics = defaultdict(list)
+            for key, value in metrics.items():
+                accum_metrics["/".join(key.split("/")[1:-1])].append(value)
+            for key, value in accum_metrics.items():
+                self.log(key, torch.stack(value).mean(), logger=False)
+
+    def on_test_epoch_end(self) -> None:
+        self.on_validation_epoch_end()
 
     def save_pretrained(self, save_path: str | Path) -> None:
         self.model.save_pretrained(save_path)

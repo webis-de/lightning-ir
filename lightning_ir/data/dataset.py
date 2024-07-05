@@ -72,7 +72,7 @@ class IRDataset:
     def docs_dataset_id(self) -> str:
         return ir_datasets.docs_parent_id(self.dataset_id)
 
-    def setup(self, stage: Literal["fit", "validate", "predict"] | None) -> None:
+    def setup(self, stage: Literal["fit", "validate", "test"] | None) -> None:
         pass
 
 
@@ -136,7 +136,7 @@ class DocDataset(IRDataset, DataParallelIterableDataset):
 class RunDataset(IRDataset, Dataset):
     def __init__(
         self,
-        run_path_or_id: str,
+        run_path_or_id: Path | str,
         depth: int,
         sample_size: int,
         sampling_strategy: Literal["single_relevant", "top", "random"],
@@ -149,7 +149,7 @@ class RunDataset(IRDataset, Dataset):
             self.run_path = Path(run_path_or_id)
             dataset = self.run_path.name.split(".")[0].split("__")[-1]
         else:
-            dataset = run_path_or_id
+            dataset = str(run_path_or_id)
         super().__init__(dataset)
         self.depth = depth
         self.sample_size = sample_size
@@ -164,17 +164,19 @@ class RunDataset(IRDataset, Dataset):
             )
 
     def setup(
-        self, stage: Literal["fit", "validate", "predict"] | None = None
+        self, stage: Literal["fit", "validate", "test"] | None = None
     ) -> "RunDataset":
         super().setup(stage)
         if stage == "fit":
             if self.targets is None:
                 raise ValueError("Targets are required for training.")
-        if stage == "predict":
+        if stage == "test":
+            if self.targets is not None:
+                warnings.warn("Targets are ignored in predict stage.")
             self.targets = None
 
-        self.run = self.load_run(stage)
-        self.qrels = self.load_qrels(stage)
+        self.run = self.load_run()
+        self.qrels = self.load_qrels()
         self.qrel_groups = None
 
         self.run = self.run.drop_duplicates(["query_id", "doc_id"])
@@ -202,9 +204,7 @@ class RunDataset(IRDataset, Dataset):
 
         return self
 
-    def load_run(
-        self, stage: Literal["fit", "validate", "predict"] | None
-    ) -> pd.DataFrame:
+    def load_run(self) -> pd.DataFrame:
         if self.run_path is None:
             run = pd.DataFrame(self.ir_dataset.scoreddocs_iter())
             run["rank"] = run.groupby("query_id")["score"].rank(
@@ -272,11 +272,7 @@ class RunDataset(IRDataset, Dataset):
             run = run[run["rank"] <= self.depth]
         return run
 
-    def load_qrels(
-        self, stage: Literal["fit", "validate", "predict"] | None
-    ) -> pd.DataFrame | None:
-        if stage == "predict":
-            return None
+    def load_qrels(self) -> pd.DataFrame | None:
         if "relevance" in self.run:
             qrels = self.run[["query_id", "doc_id", "relevance"]]
             if "iteration" in self.run:

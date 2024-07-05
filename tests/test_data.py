@@ -176,7 +176,7 @@ def test_tuples_dataset(tuples_datamodule: LightningIRDataModule):
 
 
 def test_query_dataset(query_datamodule: LightningIRDataModule):
-    dataloader = query_datamodule.predict_dataloader()[0]
+    dataloader = query_datamodule.test_dataloader()[0]
     batch: SearchBatch = next(iter(dataloader))
     assert isinstance(batch, SearchBatch)
     for field in batch.__dict__.keys():
@@ -188,7 +188,7 @@ def test_query_dataset(query_datamodule: LightningIRDataModule):
 
 
 def test_doc_dataset(doc_datamodule: LightningIRDataModule):
-    dataloader = doc_datamodule.predict_dataloader()[0]
+    dataloader = doc_datamodule.test_dataloader()[0]
     batch: IndexBatch = next(iter(dataloader))
     assert isinstance(batch, IndexBatch)
     for field in batch.__dict__.keys():
