@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Set, Mapping
 
 import torch
 from lightning import LightningDataModule, LightningModule, Trainer
@@ -24,7 +24,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 sys.path.append(str(Path.cwd()))
 
 
-class CustomSaveConfigCallback(SaveConfigCallback):
+class LightningIRSaveConfigCallback(SaveConfigCallback):
     @override
     def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
         if stage != "fit" or trainer.logger is None:
@@ -32,7 +32,7 @@ class CustomSaveConfigCallback(SaveConfigCallback):
         return super().setup(trainer, pl_module, stage)
 
 
-class CustomWandbLogger(WandbLogger):
+class LightningIRWandbLogger(WandbLogger):
     @property
     def save_dir(self) -> str | None:
         """Gets the save directory.
@@ -46,49 +46,54 @@ class CustomWandbLogger(WandbLogger):
         return self.experiment.dir
 
 
-class CustomTrainer(Trainer):
+class LightningIRTrainer(Trainer):
     # TODO check that correct callbacks are registered for each subcommand
+
+    def validate(
+        self,
+        model: LightningModule | None = None,
+        dataloaders: Any | LightningDataModule | None = None,
+        ckpt_path: str | Path | None = None,
+        verbose: bool = True,
+        datamodule: LightningDataModule | None = None,
+    ) -> List[Mapping[str, float]]:
+        return super().test(model, dataloaders, ckpt_path, verbose, datamodule)
+
     def index(
         self,
         model: LightningModule | None = None,
         dataloaders: Any | LightningDataModule | None = None,
-        datamodule: LightningDataModule | None = None,
-        return_predictions: bool | None = None,
         ckpt_path: str | Path | None = None,
-    ) -> List[Any] | List[List[Any]] | None:
+        verbose: bool = True,
+        datamodule: LightningDataModule | None = None,
+    ) -> List[Mapping[str, float]]:
         """Index a collection of documents."""
-        return super().predict(
-            model, dataloaders, datamodule, return_predictions, ckpt_path
-        )
+        return super().test(model, dataloaders, ckpt_path, verbose, datamodule)
 
     def search(
         self,
         model: LightningModule | None = None,
         dataloaders: Any | LightningDataModule | None = None,
-        datamodule: LightningDataModule | None = None,
-        return_predictions: bool | None = None,
         ckpt_path: str | Path | None = None,
-    ) -> List[Any] | List[List[Any]] | None:
+        verbose: bool = True,
+        datamodule: LightningDataModule | None = None,
+    ) -> List[Mapping[str, float]]:
         """Search for relevant documents."""
-        return super().predict(
-            model, dataloaders, datamodule, return_predictions, ckpt_path
-        )
+        return super().test(model, dataloaders, ckpt_path, verbose, datamodule)
 
     def re_rank(
         self,
         model: LightningModule | None = None,
         dataloaders: Any | LightningDataModule | None = None,
-        datamodule: LightningDataModule | None = None,
-        return_predictions: bool | None = None,
         ckpt_path: str | Path | None = None,
-    ) -> List[Any] | List[List[Any]] | None:
+        verbose: bool = True,
+        datamodule: LightningDataModule | None = None,
+    ) -> List[Mapping[str, float]]:
         """Re-rank a set of retrieved documents."""
-        return super().predict(
-            model, dataloaders, datamodule, return_predictions, ckpt_path
-        )
+        return super().test(model, dataloaders, ckpt_path, verbose, datamodule)
 
 
-class CustomLightningCLI(LightningCLI):
+class LightningIRCLI(LightningCLI):
     @staticmethod
     def configure_optimizers(
         lightning_module: LightningModule,
@@ -135,7 +140,7 @@ def main():
             python main.py fit \
                 --trainer.callbacks=ModelCheckpoint \
                 --optimizer AdamW \
-                --trainer.logger CustomWandbLogger \
+                --trainer.logger LightningIRWandbLogger \
                 --print_config > default.yaml
 
         To run with the default config:
@@ -144,9 +149,9 @@ def main():
                 --config default.yaml
 
     """
-    CustomLightningCLI(
-        trainer_class=CustomTrainer,
-        save_config_callback=CustomSaveConfigCallback,
+    LightningIRCLI(
+        trainer_class=LightningIRTrainer,
+        save_config_callback=LightningIRSaveConfigCallback,
         save_config_kwargs={"config_filename": "pl_config.yaml", "overwrite": True},
     )
 
