@@ -347,7 +347,6 @@ class SearchCallback(RankCallback):
         super().__init__(save_dir)
         self.index_dir = index_dir
         self.search_config = search_config
-        self.index_config: SearchConfig
         self.searcher: Searcher
 
     def rank(
