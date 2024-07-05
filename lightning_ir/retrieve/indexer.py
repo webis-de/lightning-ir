@@ -3,7 +3,6 @@ from __future__ import annotations
 import array
 import json
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -14,9 +13,12 @@ if TYPE_CHECKING:
     from ..data import IndexBatch
 
 
-@dataclass
 class IndexConfig:
-    similarity_function: Literal["cosine", "dot"] | None = None
+
+    def __init__(
+        self, similarity_function: Literal["cosine", "dot"] | None = None
+    ) -> None:
+        self.similarity_function = similarity_function
 
     @classmethod
     def from_pretrained(cls, index_dir: Path) -> "IndexConfig":
