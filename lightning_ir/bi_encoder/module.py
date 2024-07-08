@@ -160,3 +160,4 @@ class BiEncoderModule(LightningIRModule):
             return BiEncoderOutput(
                 query_embeddings=self.forward(batch).query_embeddings
             )
+        raise ValueError(f"Unknown batch type {type(batch)}")
