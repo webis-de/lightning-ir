@@ -1,6 +1,4 @@
 from __future__ import annotations
-from dataclasses import dataclass
-
 
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -14,9 +12,9 @@ if TYPE_CHECKING:
     from ..bi_encoder import BiEncoderModule, BiEncoderOutput
 
 
-@dataclass
 class SearchConfig:
-    k: int = 10
+    def __init__(self, k: int = 10) -> None:
+        self.k = k
 
 
 class Searcher(ABC):

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Literal, Tuple
 
@@ -13,11 +12,19 @@ if TYPE_CHECKING:
     from ..bi_encoder import BiEncoderModule
 
 
-@dataclass
 class FaissSearchConfig(SearchConfig):
-    candidate_k: int = 100
-    imputation_strategy: Literal["min", "gather"] | None = None
-    n_probe: int = 1
+
+    def __init__(
+        self,
+        k: int = 10,
+        candidate_k: int = 100,
+        imputation_strategy: Literal["min", "gather"] | None = None,
+        n_probe: int = 1,
+    ) -> None:
+        super().__init__(k)
+        self.candidate_k = candidate_k
+        self.imputation_strategy = imputation_strategy
+        self.n_probe = n_probe
 
 
 class FaissSearcher(Searcher):

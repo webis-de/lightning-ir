@@ -1,6 +1,5 @@
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple
 
 import torch
 
@@ -41,7 +40,6 @@ class SparseIndex:
         return torch.matmul(x, y.T)
 
 
-@dataclass
 class SparseSearchConfig(SearchConfig):
     pass
 
