@@ -33,7 +33,7 @@ class BiEncoderConfig(LightningIRConfig):
             "linear_bias",
             "mask_scoring_tokens",
         }
-    )
+    ).union(TOKENIZER_ARGS)
 
     def __init__(
         self,
