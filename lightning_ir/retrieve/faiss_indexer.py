@@ -207,7 +207,7 @@ class FaissIVFPQIndexer(FaissIndexer):
         ):
             if torch.isnan(self._train_embeddings).any():
                 warnings.warn(
-                    "Corpus does not contain enough tokens/documents for training. "
+                    "Corpus contains less tokens/documents than num_train_embeddings. "
                     "Removing NaN embeddings."
                 )
                 self._train_embeddings = self._train_embeddings[
