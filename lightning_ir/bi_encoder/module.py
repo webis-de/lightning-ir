@@ -5,11 +5,10 @@ import torch
 from ..base import LightningIRModule
 from ..data import IndexBatch, RankBatch, SearchBatch, TrainBatch
 from ..loss.loss import (
-    LossFunction,
-    InBatchLossFunction,
-    ScoringLossFunction,
-    LossFunction,
     EmbeddingLossFunction,
+    InBatchLossFunction,
+    LossFunction,
+    ScoringLossFunction,
 )
 from .config import BiEncoderConfig
 from .model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput
