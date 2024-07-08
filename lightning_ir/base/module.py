@@ -201,7 +201,9 @@ class LightningIRModule(LightningModule):
             metrics = trainer.callback_metrics
             accum_metrics = defaultdict(list)
             for key, value in metrics.items():
-                accum_metrics["/".join(key.split("/")[-2])].append(value)
+                split = key.split("/")
+                if "dataloader_idx" in split[-1]:
+                    accum_metrics[split[-2]].append(value)
             for key, value in accum_metrics.items():
                 self.log(key, torch.stack(value).mean(), logger=False)
 
