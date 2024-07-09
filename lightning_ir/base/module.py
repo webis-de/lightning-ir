@@ -120,7 +120,7 @@ class LightningIRModule(LightningModule):
             return output
 
         dataset_id = self.get_dataset_id(dataloader_idx)
-        metrics = self.compute_metrics(batch, output)
+        metrics = self.validate(batch, output)
         for key, value in metrics.items():
             key = f"{dataset_id}/{key}"
             self.log(key, value, batch_size=len(batch.queries))
@@ -144,17 +144,15 @@ class LightningIRModule(LightningModule):
             pass
         return dataset_id
 
-    def compute_metrics(
+    def validate(
         self, batch: TrainBatch | RankBatch, ouput: LightningIROutput
     ) -> Dict[str, float]:
         metrics = {}
-        if self.evaluation_metrics is None:
-            return metrics
         scores = ouput.scores
         query_ids = batch.query_ids
         doc_ids = batch.doc_ids
-        if scores is None:
-            raise ValueError("Scores are not provided")
+        if self.evaluation_metrics is None or scores is None:
+            return metrics
         if query_ids is None:
             query_ids = tuple(str(i) for i in range(len(batch.queries)))
         if doc_ids is None:
@@ -162,27 +160,47 @@ class LightningIRModule(LightningModule):
                 tuple(str(i + j) for j in range(len(docs)))
                 for i, docs in enumerate(batch.docs)
             )
-
+        qrels = getattr(batch, "qrels", None)
         targets = getattr(batch, "targets", None)
-        if "loss" in self.evaluation_metrics and targets is not None:
-            scores = scores.view(len(query_ids), -1)
-            metrics.update(self.validate_loss(scores, targets))
+        metrics.update(self.validate_metrics(scores, query_ids, doc_ids, qrels))
+        metrics.update(self.validate_loss(scores, query_ids, doc_ids, targets))
+        return metrics
 
+    def validate_metrics(
+        self,
+        scores: torch.Tensor,
+        query_ids: Sequence[str],
+        doc_ids: Sequence[Sequence[str]],
+        qrels: Sequence[Dict[str, int]] | None,
+    ) -> Dict[str, float]:
+        metrics = {}
+        if self.evaluation_metrics is None or qrels is None:
+            return metrics
         evaluation_metrics = [
             metric for metric in self.evaluation_metrics if metric != "loss"
         ]
-        qrels = None if batch.qrels is None else create_qrels_from_dicts(batch.qrels)
+        ir_measures_qrels = create_qrels_from_dicts(qrels)
         if evaluation_metrics and qrels is not None:
             run = create_run_from_scores(query_ids, doc_ids, scores)
-            metrics.update(evaluate_run(run, qrels, evaluation_metrics))
+            metrics.update(evaluate_run(run, ir_measures_qrels, evaluation_metrics))
         return metrics
 
     def validate_loss(
-        self, scores: torch.Tensor, targets: torch.Tensor
+        self,
+        scores: torch.Tensor,
+        query_ids: Sequence[str],
+        doc_ids: Sequence[Sequence[str]],
+        targets: torch.Tensor | None,
     ) -> Dict[str, float]:
         metrics = {}
-        if self.loss_functions is None:
-            raise ValueError("Loss function is not set")
+        if (
+            self.evaluation_metrics is None
+            or "loss" not in self.evaluation_metrics
+            or targets is None
+            or self.loss_functions is None
+        ):
+            return metrics
+        scores = scores.view(len(query_ids), -1)
         for loss_function in self.loss_functions:
             # NOTE skip in-batch losses because they can use a lot of memory
             if isinstance(loss_function, InBatchLossFunction):
