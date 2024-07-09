@@ -202,9 +202,10 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         super().on_test_start(trainer, pl_module)
         self.trainer = trainer
 
-    def on_epoch_test_start(
+    def on_test_epoch_start(
         self, trainer: Trainer, pl_module: LightningIRModule
     ) -> None:
+        super().on_test_epoch_start(trainer, pl_module)
         self.run_dfs = []
         if self.save_dir is None:
             default_save_dir = Path(pl_module.config.name_or_path)
@@ -261,6 +262,9 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
+        super().on_test_batch_end(
+            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
+        )
         self.write_on_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
@@ -327,10 +331,10 @@ class ReRankCallback(RankCallback):
             raise ValueError("scores and doc_ids must have the same length")
         return scores.view(-1), doc_ids, num_docs
 
-    def on_epoch_test_start(
+    def on_test_epoch_start(
         self, trainer: Trainer, pl_module: LightningIRModule
     ) -> None:
-        super().on_epoch_test_start(trainer, pl_module)
+        super().on_test_epoch_start(trainer, pl_module)
         if not all(
             isinstance(dataset, RunDataset) for dataset in self.inference_datasets
         ):
@@ -355,9 +359,6 @@ class SearchCallback(RankCallback):
         return self.searcher.search(output)
 
     def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        return super().on_test_epoch_start(trainer, pl_module)
-
-    def on_epoch_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_test_epoch_start(trainer, pl_module)
         if not all(
             isinstance(dataset, QueryDataset) for dataset in self.inference_datasets

@@ -7,7 +7,7 @@ import torch
 
 
 def create_run_from_scores(
-    query_ids: Sequence[str], doc_ids: Sequence[Tuple[str, ...]], scores: torch.Tensor
+    query_ids: Sequence[str], doc_ids: Sequence[Sequence[str]], scores: torch.Tensor
 ) -> pd.DataFrame:
     num_docs = [len(ids) for ids in doc_ids]
     scores = scores.float().cpu().detach().numpy().reshape(-1)
