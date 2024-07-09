@@ -58,3 +58,5 @@ class IndexBatch:
 class SearchBatch:
     query_ids: Tuple[str, ...]
     queries: Tuple[str, ...]
+    doc_ids: Tuple[Tuple[str, ...], ...] | None = None
+    qrels: List[Dict[str, int]] | None = None

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import wraps
 
 import itertools
 from dataclasses import is_dataclass
@@ -10,7 +11,8 @@ import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
-from ..data import RankBatch, SearchBatch
+
+from ..data import RankBatch, SearchBatch, IndexBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
 from ..retrieve import (
     FaissFlatIndexConfig,
@@ -241,9 +243,20 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         return run_file_path
 
     def rank(
-        self, batch: SearchBatch | RankBatch, output: LightningIROutput
+        self, batch: RankBatch, output: LightningIROutput
     ) -> Tuple[torch.Tensor, List[str], List[int]]:
-        raise NotImplementedError("rank method must be implemented in subclass")
+        scores = output.scores
+        if scores is None:
+            raise ValueError("Expected output to have scores")
+        doc_ids = batch.doc_ids
+        if doc_ids is None:
+            raise ValueError("Expected batch to have doc_ids")
+        scores = scores.view(-1)
+        num_docs = [len(_doc_ids) for _doc_ids in doc_ids]
+        doc_ids = list(itertools.chain.from_iterable(doc_ids))
+        if scores.shape[0] != len(doc_ids):
+            raise ValueError("scores and doc_ids must have the same length")
+        return scores.view(-1), doc_ids, num_docs
 
     def write_run_dfs(self, trainer: Trainer, dataloader_idx: int):
         if not trainer.is_global_zero or not self.run_dfs:
@@ -262,10 +275,10 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        super().on_test_batch_end(
+        self.write_on_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
-        self.write_on_batch_end(
+        super().on_test_batch_end(
             trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
         )
 
@@ -312,95 +325,3 @@ class RankCallback(BasePredictionWriter, GatherMixin):
             self.write_run_dfs(trainer, dataloader_idx - 1)
             self.run_dfs = []
         self.run_dfs.append(run_df)
-
-
-class ReRankCallback(RankCallback):
-    def rank(
-        self, batch: RankBatch, output: LightningIROutput
-    ) -> Tuple[torch.Tensor, List[str], List[int]]:
-        scores = output.scores
-        if scores is None:
-            raise ValueError("Expected output to have scores")
-        doc_ids = batch.doc_ids
-        if doc_ids is None:
-            raise ValueError("Expected batch to have doc_ids")
-        scores = scores.view(-1)
-        num_docs = [len(_doc_ids) for _doc_ids in doc_ids]
-        doc_ids = list(itertools.chain.from_iterable(doc_ids))
-        if scores.shape[0] != len(doc_ids):
-            raise ValueError("scores and doc_ids must have the same length")
-        return scores.view(-1), doc_ids, num_docs
-
-    def on_test_epoch_start(
-        self, trainer: Trainer, pl_module: LightningIRModule
-    ) -> None:
-        super().on_test_epoch_start(trainer, pl_module)
-        if not all(
-            isinstance(dataset, RunDataset) for dataset in self.inference_datasets
-        ):
-            raise ValueError("Expected RunDatasets for re-ranking")
-
-
-class SearchCallback(RankCallback):
-    def __init__(
-        self,
-        search_config: SearchConfig,
-        save_dir: Path | None = None,
-        index_dir: Path | None = None,
-    ) -> None:
-        super().__init__(save_dir)
-        self.index_dir = index_dir
-        self.search_config = search_config
-        self.searcher: Searcher
-
-    def rank(
-        self, batch: SearchBatch, output: BiEncoderOutput
-    ) -> Tuple[torch.Tensor, List[str], List[int]]:
-        return self.searcher.search(output)
-
-    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        super().on_test_epoch_start(trainer, pl_module)
-        if not all(
-            isinstance(dataset, QueryDataset) for dataset in self.inference_datasets
-        ):
-            raise ValueError("Expected QueryDatasets for searching")
-
-    def on_test_batch_start(
-        self,
-        trainer: Trainer,
-        pl_module: BiEncoderModule,
-        batch: Any,
-        batch_idx: int,
-        dataloader_idx: int = 0,
-    ) -> None:
-        super().on_test_batch_start(
-            trainer, pl_module, batch, batch_idx, dataloader_idx
-        )
-        if batch_idx != 0:
-            return
-
-        docs_dataset_id = self.inference_datasets[dataloader_idx].docs_dataset_id
-        prev_docs_dataset_id = self.inference_datasets[
-            dataloader_idx - 1
-        ].docs_dataset_id
-        if dataloader_idx != 0 and docs_dataset_id == prev_docs_dataset_id:
-            return
-        index_dir = self.index_dir
-        if index_dir is None:
-            if Path(pl_module.config.name_or_path).exists():
-                index_dir = Path(pl_module.config.name_or_path) / "indexes"
-                index_dir = index_dir / docs_dataset_id
-                if not index_dir.exists():
-                    raise ValueError(f"No index found at {index_dir}")
-            else:
-                raise ValueError(
-                    "No index_dir provided and model_name_or_path is not a path"
-                )
-        if isinstance(self.search_config, FaissSearchConfig):
-            self.searcher = FaissSearcher(index_dir, self.search_config, pl_module)
-        elif isinstance(self.search_config, SparseSearchConfig):
-            self.searcher = SparseSearcher(index_dir, self.search_config, pl_module)
-        else:
-            raise ValueError(
-                f"Unknown search config type {self.search_config.__class__.__name__}"
-            )

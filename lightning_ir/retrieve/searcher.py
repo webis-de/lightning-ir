@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Sequence, Tuple
+from typing import TYPE_CHECKING, List, Sequence, Tuple, Type
 
 import torch
 
@@ -10,11 +10,6 @@ from ..bi_encoder.model import BiEncoderEmbedding
 
 if TYPE_CHECKING:
     from ..bi_encoder import BiEncoderModule, BiEncoderOutput
-
-
-class SearchConfig:
-    def __init__(self, k: int = 10) -> None:
-        self.k = k
 
 
 class Searcher(ABC):
@@ -98,3 +93,10 @@ class Searcher(ABC):
         )
 
         return doc_scores, doc_ids, num_docs
+
+
+class SearchConfig:
+    search_class: Type[Searcher] = Searcher
+
+    def __init__(self, k: int = 10) -> None:
+        self.k = k

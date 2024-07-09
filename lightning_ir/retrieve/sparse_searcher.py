@@ -1,13 +1,16 @@
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, TYPE_CHECKING
 
 import torch
 
-from lightning_ir.bi_encoder.model import BiEncoderEmbedding
-from lightning_ir.bi_encoder.module import BiEncoderModule
 
 from .searcher import SearchConfig, Searcher
 from .sparse_indexer import SparseIndexConfig
+
+if TYPE_CHECKING:
+    from ..bi_encoder import BiEncoderEmbedding, BiEncoderModule
 
 
 class SparseIndex:
@@ -38,10 +41,6 @@ class SparseIndex:
 
     def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.T)
-
-
-class SparseSearchConfig(SearchConfig):
-    pass
 
 
 class SparseSearcher(Searcher):
@@ -95,3 +94,8 @@ class SparseSearcher(Searcher):
             self.module.config.query_aggregation_function,
         ).view(-1)
         return scores, None, None
+
+
+class SparseSearchConfig(SearchConfig):
+
+    search_class = SparseSearcher

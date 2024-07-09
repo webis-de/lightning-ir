@@ -29,6 +29,7 @@ class IRDataset:
             self.ir_dataset = None
         self._queries = None
         self._docs = None
+        self._qrels = None
 
     @property
     def DASHED_DATASET_MAP(self) -> Dict[str, str]:
@@ -61,6 +62,23 @@ class IRDataset:
                 )
             self._docs = self.ir_dataset.docs_store()
         return self._docs
+
+    @property
+    def qrels(self) -> pd.DataFrame | None:
+        if self._qrels is not None:
+            return self._qrels
+        if self.ir_dataset is None:
+            return None
+        qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).rename(
+            {"subtopic_id": "iteration"}, axis=1
+        )
+        if "iteration" not in qrels.columns:
+            qrels["iteration"] = 0
+        qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
+        qrels = qrels.set_index(["query_id", "doc_id", "iteration"]).unstack(level=-1)
+        qrels = qrels.droplevel(0, axis=1)
+        self._qrels = qrels
+        return self._qrels
 
     @property
     def dataset_id(self) -> str:
@@ -112,7 +130,18 @@ class QueryDataset(IRDataset, DataParallelIterableDataset):
         stop = self.num_queries
         step = self.num_replicas
         for sample in islice(self.ir_dataset.queries_iter(), start, stop, step):
-            yield QuerySample.from_ir_dataset_sample(sample)
+            query_sample = QuerySample.from_ir_dataset_sample(sample)
+            if self.qrels is not None:
+                qrels = (
+                    self.qrels.loc[[query_sample.query_id]]
+                    .stack()
+                    .rename("relevance")
+                    .astype(int)
+                    .reset_index()
+                    .to_dict(orient="records")
+                )
+                query_sample.qrels = qrels
+            yield query_sample
 
 
 class DocDataset(IRDataset, DataParallelIterableDataset):
@@ -156,6 +185,8 @@ class RunDataset(IRDataset, Dataset):
         self.sampling_strategy = sampling_strategy
         self.targets = targets
 
+        self.run: pd.DataFrame
+
         if self.sampling_strategy == "top" and self.sample_size > self.depth:
             warnings.warn(
                 "Sample size is greater than depth and top sampling strategy is used. "
@@ -176,20 +207,23 @@ class RunDataset(IRDataset, Dataset):
             self.targets = None
 
         self.run = self.load_run()
-        self.qrels = self.load_qrels()
-        self.qrel_groups = None
-
         self.run = self.run.drop_duplicates(["query_id", "doc_id"])
 
         if self.qrels is not None:
+            run_query_ids = pd.Index(self.run["query_id"].drop_duplicates())
+            qrels_query_ids = self.qrels.index.get_level_values("query_id").unique()
+            query_ids = run_query_ids.intersection(qrels_query_ids)
+            if len(run_query_ids.difference(qrels_query_ids)):
+                self.run = self.run[self.run["query_id"].isin(query_ids)]
             self.run = self.run.merge(
-                self.qrels.add_prefix("relevance_", axis=1),
+                self.qrels.loc[pd.IndexSlice[query_ids, :]].add_prefix(
+                    "relevance_", axis=1
+                ),
                 on=["query_id", "doc_id"],
                 how=(
                     "outer" if self._docs is None else "left"
                 ),  # outer join if docs are from ir_datasets else only keep docs in run
             )
-            self.qrel_groups = self.qrels.groupby("query_id")
 
         if stage == "fit":
             num_docs_per_query = self.run.groupby("query_id").transform("size")
@@ -270,36 +304,30 @@ class RunDataset(IRDataset, Dataset):
             raise ValueError("Invalid run file format.")
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]
-        return run
+        self._run = run
+        return self._run
 
-    def load_qrels(self) -> pd.DataFrame | None:
+    @property
+    def qrels(self) -> pd.DataFrame | None:
+        if self._qrels is not None:
+            return self._qrels
         if "relevance" in self.run:
             qrels = self.run[["query_id", "doc_id", "relevance"]]
             if "iteration" in self.run:
                 qrels["iteration"] = self.run["iteration"]
             else:
                 qrels["iteration"] = "0"
-            self.run = self.run.drop(
+            self._run = self.run.drop(
                 ["relevance", "iteration"], axis=1, errors="ignore"
             )
-        else:
-            if self.ir_dataset is None:
-                return None
-            qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).rename(
-                {"subtopic_id": "iteration"}, axis=1
+            qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
+            qrels = qrels.set_index(["query_id", "doc_id", "iteration"]).unstack(
+                level=-1
             )
-        if "iteration" not in qrels.columns:
-            qrels["iteration"] = 0
-        qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
-        qrels = qrels.set_index(["query_id", "doc_id", "iteration"]).unstack(level=-1)
-        qrels = qrels.droplevel(0, axis=1)
-        run_query_ids = pd.Index(self.run["query_id"].drop_duplicates())
-        qrels_query_ids = qrels.index.get_level_values("query_id").unique()
-        query_ids = run_query_ids.intersection(qrels_query_ids)
-        qrels = qrels.loc[pd.IndexSlice[query_ids, :]]
-        if len(run_query_ids.difference(qrels_query_ids)):
-            self.run = self.run[self.run["query_id"].isin(query_ids)]
-        return qrels
+            qrels = qrels.droplevel(0, axis=1)
+            self._qrels = qrels
+            return self._qrels
+        return super().qrels
 
     def __len__(self) -> int:
         return len(self.query_ids)
@@ -341,9 +369,9 @@ class RunDataset(IRDataset, Dataset):
                 # invert ranks to be higher is better (necessary for loss functions)
                 targets = self.depth - targets + 1
         qrels = None
-        if self.qrel_groups is not None:
+        if self.qrels is not None:
             qrels = (
-                self.qrel_groups.get_group(query_id)
+                self.qrels.loc[[query_id]]
                 .stack()
                 .rename("relevance")
                 .astype(int)

@@ -12,21 +12,6 @@ if TYPE_CHECKING:
     from ..bi_encoder import BiEncoderModule
 
 
-class FaissSearchConfig(SearchConfig):
-
-    def __init__(
-        self,
-        k: int = 10,
-        candidate_k: int = 100,
-        imputation_strategy: Literal["min", "gather"] | None = None,
-        n_probe: int = 1,
-    ) -> None:
-        super().__init__(k)
-        self.candidate_k = candidate_k
-        self.imputation_strategy = imputation_strategy
-        self.n_probe = n_probe
-
-
 class FaissSearcher(Searcher):
     def __init__(
         self,
@@ -189,3 +174,20 @@ class FaissSearcher(Searcher):
             scores, mask, self.module.config.query_aggregation_function, dim=1
         ).squeeze(-1)
         return scores, doc_idcs, num_docs.tolist()
+
+
+class FaissSearchConfig(SearchConfig):
+
+    search_class = FaissSearcher
+
+    def __init__(
+        self,
+        k: int = 10,
+        candidate_k: int = 100,
+        imputation_strategy: Literal["min", "gather"] | None = None,
+        n_probe: int = 1,
+    ) -> None:
+        super().__init__(k)
+        self.candidate_k = candidate_k
+        self.imputation_strategy = imputation_strategy
+        self.n_probe = n_probe

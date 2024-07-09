@@ -12,11 +12,7 @@ from lightning_ir import (
     LightningIRModule,
     RunDataset,
 )
-from lightning_ir.lightning_utils.callbacks import (
-    IndexCallback,
-    ReRankCallback,
-    SearchCallback,
-)
+from lightning_ir.lightning_utils.callbacks import IndexCallback, RankCallback
 from lightning_ir.retrieve import (
     FaissFlatIndexConfig,
     FaissSearchConfig,
@@ -133,13 +129,16 @@ def test_search_callback(
     search_config: SearchConfig,
 ):
     index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)
+    searcher = search_config.search_class(index_dir, search_config, bi_encoder_module)
+    pytest.MonkeyPatch().setattr(bi_encoder_module, "searcher", searcher)
     save_dir = tmp_path / "runs"
-    search_callback = SearchCallback(search_config, save_dir, index_dir)
+    search_callback = RankCallback(save_dir)
 
     trainer = Trainer(
         logger=False,
         enable_checkpointing=False,
         callbacks=[search_callback],
+        inference_mode=False,
     )
     trainer.test(bi_encoder_module, datamodule=query_datamodule)
 
@@ -163,7 +162,7 @@ def test_rerank_callback(
 ):
     datamodule = run_datamodule(module, inference_datasets)
     save_dir = tmp_path / "runs"
-    rerank_callback = ReRankCallback(save_dir)
+    rerank_callback = RankCallback(save_dir)
     trainer = Trainer(
         logger=False,
         enable_checkpointing=False,

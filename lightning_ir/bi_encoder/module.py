@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict, Sequence
 
 import torch
@@ -10,6 +11,7 @@ from ..loss.loss import (
     LossFunction,
     ScoringLossFunction,
 )
+from ..retrieve import SearchConfig
 from .config import BiEncoderConfig
 from .model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput
 from .tokenizer import BiEncoderTokenizer
@@ -23,6 +25,8 @@ class BiEncoderModule(LightningIRModule):
         model: BiEncoderModel | None = None,
         loss_functions: Sequence[LossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
+        index_dir: Path | None = None,
+        search_config: SearchConfig | None = None,
     ):
         super().__init__(
             model_name_or_path, config, model, loss_functions, evaluation_metrics
@@ -37,6 +41,11 @@ class BiEncoderModule(LightningIRModule):
         ):
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
+        self.searcher = None
+        if search_config is not None:
+            if index_dir is None:
+                raise ValueError("index_dir must be set if search_config is set")
+            self.searcher = search_config.search_class(index_dir, search_config, self)
 
     def score(
         self,
@@ -62,6 +71,13 @@ class BiEncoderModule(LightningIRModule):
             encodings.get("doc_encoding", None),
             num_docs,
         )
+        if isinstance(batch, SearchBatch):
+            if self.searcher is None:
+                raise ValueError("Searcher is not set")
+            scores, doc_ids, num_docs = self.searcher.search(output)
+            output.scores = scores
+            docs_ids = tuple(tuple(doc_ids[i : i + n]) for i, n in enumerate(num_docs))
+            batch.doc_ids = docs_ids
         return output
 
     def compute_losses(
@@ -89,7 +105,7 @@ class BiEncoderModule(LightningIRModule):
                 "the output and batch"
             )
 
-        num_queries = len(batch.query_ids)
+        num_queries = len(batch.queries)
         scores = scores.view(num_queries, -1)
         targets = batch.targets.view(*scores.shape, -1)
         losses = {}
@@ -97,10 +113,7 @@ class BiEncoderModule(LightningIRModule):
             if isinstance(loss_function, InBatchLossFunction):
                 pos_idcs, neg_idcs = loss_function.get_ib_idcs(*scores.shape)
                 ib_doc_embeddings = self.get_ib_doc_embeddings(
-                    doc_embeddings,
-                    pos_idcs,
-                    neg_idcs,
-                    num_queries,
+                    doc_embeddings, pos_idcs, neg_idcs, num_queries
                 )
                 ib_scores = self.model.score(query_embeddings, ib_doc_embeddings)
                 ib_scores = ib_scores.view(num_queries, -1)
@@ -151,12 +164,8 @@ class BiEncoderModule(LightningIRModule):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> BiEncoderOutput:
-        if isinstance(batch, (RankBatch, TrainBatch)):
-            return super().validation_step(batch, batch_idx, dataloader_idx)
         if isinstance(batch, IndexBatch):
-            return BiEncoderOutput(doc_embeddings=self.forward(batch).doc_embeddings)
-        if isinstance(batch, SearchBatch):
-            return BiEncoderOutput(
-                query_embeddings=self.forward(batch).query_embeddings
-            )
+            return self.forward(batch)
+        if isinstance(batch, (RankBatch, TrainBatch, SearchBatch)):
+            return super().validation_step(batch, batch_idx, dataloader_idx)
         raise ValueError(f"Unknown batch type {type(batch)}")

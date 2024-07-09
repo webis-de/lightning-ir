@@ -71,13 +71,21 @@ class LightningIRModule(LightningModule):
         return super().on_fit_start()
 
     def forward(self, batch: TrainBatch | RankBatch) -> LightningIROutput:
-        raise NotImplementedError
+        raise NotImplementedError("forward method must be implemented in subclass")
+
+    def on_before_forward(self, batch: TrainBatch | RankBatch) -> None:
+        pass
+
+    def on_after_forward(
+        self, batch: TrainBatch | RankBatch, output: LightningIROutput
+    ) -> None:
+        pass
 
     def prepare_input(
         self,
         queries: Sequence[str] | None,
         docs: Sequence[str] | None,
-        num_docs: Sequence[int] | int,
+        num_docs: Sequence[int] | int | None,
     ) -> Dict[str, BatchEncoding]:
         encodings = self.tokenizer.tokenize(
             queries,
@@ -120,7 +128,13 @@ class LightningIRModule(LightningModule):
             return output
 
         dataset_id = self.get_dataset_id(dataloader_idx)
-        metrics = self.validate(batch, output)
+        metrics = self.validate(
+            scores=output.scores,
+            query_ids=batch.query_ids,
+            doc_ids=batch.doc_ids,
+            qrels=batch.qrels,
+            targets=getattr(batch, "targets", None),
+        )
         for key, value in metrics.items():
             key = f"{dataset_id}/{key}"
             self.log(key, value, batch_size=len(batch.queries))
@@ -145,23 +159,28 @@ class LightningIRModule(LightningModule):
         return dataset_id
 
     def validate(
-        self, batch: TrainBatch | RankBatch, ouput: LightningIROutput
+        self,
+        scores: torch.Tensor | None = None,
+        query_ids: Sequence[str] | None = None,
+        doc_ids: Sequence[Sequence[str]] | None = None,
+        qrels: Sequence[Dict[str, int]] | None = None,
+        targets: torch.Tensor | None = None,
+        num_docs: Sequence[int] | None = None,
     ) -> Dict[str, float]:
         metrics = {}
-        scores = ouput.scores
-        query_ids = batch.query_ids
-        doc_ids = batch.doc_ids
         if self.evaluation_metrics is None or scores is None:
             return metrics
         if query_ids is None:
-            query_ids = tuple(str(i) for i in range(len(batch.queries)))
+            if num_docs is None:
+                raise ValueError("num_docs must be set if query_ids is not set")
+            query_ids = tuple(str(i) for i in range(len(num_docs)))
         if doc_ids is None:
+            if num_docs is None:
+                raise ValueError("num_docs must be set if doc_ids is not set")
             doc_ids = tuple(
-                tuple(str(i + j) for j in range(len(docs)))
-                for i, docs in enumerate(batch.docs)
+                tuple(f"{i}-{j}" for j in range(docs))
+                for i, docs in enumerate(num_docs)
             )
-        qrels = getattr(batch, "qrels", None)
-        targets = getattr(batch, "targets", None)
         metrics.update(self.validate_metrics(scores, query_ids, doc_ids, qrels))
         metrics.update(self.validate_loss(scores, query_ids, doc_ids, targets))
         return metrics

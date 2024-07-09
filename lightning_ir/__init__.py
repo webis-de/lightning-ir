@@ -41,8 +41,7 @@ from .lightning_utils import (
     ConstantSchedulerWithWarmup,
     IndexCallback,
     LinearSchedulerWithWarmup,
-    ReRankCallback,
-    SearchCallback,
+    RankCallback,
     WarmupScheduler,
 )
 from .loss import (
@@ -111,12 +110,11 @@ __all__ = [
     "QueryDataset",
     "QuerySample",
     "RankNet",
-    "ReRankCallback",
+    "RankCallback",
     "RunDataset",
     "RunSample",
     "ScoringFunction",
     "SearchBatch",
-    "SearchCallback",
     "SupervisedMarginMSE",
     "TrainBatch",
     "TupleDataset",
