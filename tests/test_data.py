@@ -181,7 +181,7 @@ def test_query_dataset(query_datamodule: LightningIRDataModule):
     assert isinstance(batch, SearchBatch)
     for field in batch.__dict__.keys():
         value = getattr(batch, field)
-        if field in ("queries", "query_ids"):
+        if field in ("queries", "query_ids", "qrels"):
             assert value is not None
         else:
             assert value is None
