@@ -163,7 +163,9 @@ class FaissSearcher(Searcher):
                 include_self=False,
             ).view(shape)
 
-        if not is_query_single_vector:
+        if is_query_single_vector:
+            scores = scores.squeeze(-1)
+        else:
             # impute missing values
             if self.search_config.imputation_strategy == "min":
                 impute_values = (
