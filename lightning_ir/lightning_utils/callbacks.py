@@ -318,7 +318,7 @@ class RankCallback(BasePredictionWriter, GatherMixin):
             .astype(int)
         )
         run_df["q0"] = 0
-        run_df["system"] = pl_module.config.model_type
+        run_df["system"] = pl_module.model.__class__.__name__
         run_df = run_df[RUN_HEADER]
 
         if batch_idx == 0:
