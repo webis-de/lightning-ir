@@ -232,7 +232,9 @@ def batch(
             return similarity_function(x, y)
         out = torch.zeros(x.shape[0], y.shape[0], device=x.device, dtype=x.dtype)
         for i in range(0, x.shape[0], BATCH_SIZE):
-            out[i : i + BATCH_SIZE] = similarity_function(x[i : i + BATCH_SIZE], y)
+            out[i : i + BATCH_SIZE] = similarity_function(
+                x[i : i + BATCH_SIZE], y[i : i + BATCH_SIZE]
+            )
         return out
 
     return batch_similarity_function
