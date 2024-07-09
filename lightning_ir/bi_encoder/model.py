@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from string import punctuation
+from functools import wraps
 import warnings
-from typing import Literal, Sequence
+from typing import Literal, Sequence, Callable
 
 import torch
 from transformers import BatchEncoding
@@ -220,6 +221,23 @@ class BiEncoderModel(LightningIRModel):
         return scores
 
 
+def batch(
+    similarity_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
+    BATCH_SIZE = 1024
+
+    @wraps(similarity_function)
+    def batch_similarity_function(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        if x.shape[0] <= BATCH_SIZE:
+            return similarity_function(x, y)
+        out = torch.zeros(x.shape[0], y.shape[0], device=x.device, dtype=x.dtype)
+        for i in range(0, x.shape[0], BATCH_SIZE):
+            out[i : i + BATCH_SIZE] = similarity_function(x[i : i + BATCH_SIZE], y)
+        return out
+
+    return batch_similarity_function
+
+
 class ScoringFunction(torch.nn.Module):
     def __init__(self, config: BiEncoderConfig) -> None:
         super().__init__()
@@ -253,13 +271,19 @@ class ScoringFunction(torch.nn.Module):
         )
         return similarity
 
-    def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    @batch
+    def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
 
-    def l2_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    @batch
+    def l2_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return -1 * torch.cdist(x, y).squeeze(-2)
 
-    def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    @batch
+    def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
     def parse_num_docs(
