@@ -76,8 +76,12 @@ class BiEncoderModule(LightningIRModule):
                 raise ValueError("Searcher is not set")
             scores, doc_ids, num_docs = self.searcher.search(output)
             output.scores = scores
-            docs_ids = tuple(tuple(doc_ids[i : i + n]) for i, n in enumerate(num_docs))
-            batch.doc_ids = docs_ids
+            cum_num_docs = [0] + [sum(num_docs[: i + 1]) for i in range(len(num_docs))]
+            doc_ids = tuple(
+                tuple(doc_ids[cum_num_docs[i] : cum_num_docs[i + 1]])
+                for i in range(len(num_docs))
+            )
+            batch.doc_ids = doc_ids
         return output
 
     def compute_losses(
