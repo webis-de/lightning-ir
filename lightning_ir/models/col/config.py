@@ -8,7 +8,7 @@ class ColConfig(BiEncoderConfig):
 
     def __init__(
         self,
-        similarity_function: Literal["cosine", "l2", "dot"] = "dot",
+        similarity_function: Literal["cosine", "dot"] = "dot",
         query_expansion: bool = True,
         attend_to_query_expanded_tokens: bool = False,
         query_mask_scoring_tokens: Sequence[str] | None = None,
@@ -24,15 +24,15 @@ class ColConfig(BiEncoderConfig):
         projection: Literal["linear", "linear_no_bias"] | None = "linear_no_bias",
         **kwargs,
     ) -> None:
+        kwargs["query_pooling_strategy"] = None
+        kwargs["doc_expansion"] = False
+        kwargs["attend_to_doc_expanded_tokens"] = False
+        kwargs["doc_pooling_strategy"] = None
         super().__init__(
             similarity_function=similarity_function,
             query_expansion=query_expansion,
             attend_to_query_expanded_tokens=attend_to_query_expanded_tokens,
-            query_pooling_strategy=None,
             query_mask_scoring_tokens=query_mask_scoring_tokens,
-            doc_expansion=False,
-            attend_to_doc_expanded_tokens=False,
-            doc_pooling_strategy=None,
             doc_mask_scoring_tokens=doc_mask_scoring_tokens,
             query_aggregation_function=query_aggregation_function,
             normalize=normalize,
