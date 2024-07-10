@@ -290,7 +290,7 @@ class RunDataset(IRDataset, Dataset):
                 "first", ascending=False
             )
             run = run.sort_values(["query_id", "rank"])
-        if set((".tsv", ".run", ".csv")).intersection(run_path.suffixes):
+        elif set((".tsv", ".run", ".csv")).intersection(run_path.suffixes):
             run = self.load_csv(run_path)
         elif run_path.suffix == ".parquet":
             run = self.load_parquet(run_path)
