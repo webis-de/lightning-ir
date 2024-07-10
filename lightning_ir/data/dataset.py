@@ -318,7 +318,10 @@ class RunDataset(IRDataset, Dataset):
             run = run.drop("text", axis=1)
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]
-        run = run.astype({"score": np.float32, "rank": np.int32})
+        dtypes = {"rank": np.int32}
+        if "score" in run.columns:
+            dtypes["score"] = np.float32
+        run = run.astype(dtypes)
         return run
 
     @property
