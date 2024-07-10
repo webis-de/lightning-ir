@@ -130,7 +130,7 @@ def test_search_callback(
 ):
     index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)
     searcher = search_config.search_class(index_dir, search_config, bi_encoder_module)
-    pytest.MonkeyPatch().setattr(bi_encoder_module, "searcher", searcher)
+    pytest.MonkeyPatch().setattr(bi_encoder_module, "_searcher", searcher)
     save_dir = tmp_path / "runs"
     search_callback = RankCallback(save_dir)
 
