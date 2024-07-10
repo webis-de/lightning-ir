@@ -50,7 +50,7 @@ class FaissIndexer(Indexer):
     def to_cpu(self) -> None: ...
 
     @abstractmethod
-    def set_verbosity(self) -> None: ...
+    def set_verbosity(self, verbose: bool | None = None) -> None: ...
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
         return embeddings
@@ -202,20 +202,20 @@ class FaissIVFIndexer(FaissIndexer):
                 self.to_cpu()
             self.index.add(self._train_embeddings)
             self._train_embeddings = None
-            self.index.verbose = False
-            self.index.index.verbose = False
+            self.set_verbosity(False)
 
     def save(self) -> None:
         if not self.index.is_trained:
             self._train(force=True)
         return super().save()
 
-    def set_verbosity(self) -> None:
+    def set_verbosity(self, verbose: bool | None = None) -> None:
         import faiss
 
+        verbose = verbose if verbose is not None else self.verbose
         index = faiss.extract_index_ivf(self.index)
         for elem in (index, index.quantizer):
-            setattr(elem, "verbose", self.verbose)
+            setattr(elem, "verbose", verbose)
 
 
 class FaissIVFPQIndexer(FaissIVFIndexer):
@@ -240,16 +240,17 @@ class FaissIVFPQIndexer(FaissIVFIndexer):
         index_ivf = faiss.extract_index_ivf(self.index)
         index_ivf.make_direct_map()
 
-    def set_verbosity(self) -> None:
-        super().set_verbosity()
+    def set_verbosity(self, verbose: bool | None = None) -> None:
+        super().set_verbosity(verbose)
         import faiss
 
+        verbose = verbose if verbose is not None else self.verbose
         index_ivf_pq = faiss.downcast_index(self.index.index)
         for elem in (
             index_ivf_pq.pq,
             index_ivf_pq.quantizer,
         ):
-            setattr(elem, "verbose", self.verbose)
+            setattr(elem, "verbose", verbose)
 
 
 class FaissIndexConfig(IndexConfig):
