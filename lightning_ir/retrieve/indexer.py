@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import array
 import json
-from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -13,7 +12,35 @@ if TYPE_CHECKING:
     from ..data import IndexBatch
 
 
+class Indexer:
+    def __init__(
+        self,
+        index_dir: Path,
+        index_config: IndexConfig,
+        bi_encoder_config: BiEncoderConfig,
+        verbose: bool = False,
+    ) -> None:
+        self.index_dir = index_dir
+        self.index_config = index_config
+        self.bi_encoder_config = bi_encoder_config
+        self.doc_ids = []
+        self.doc_lengths = array.array("I")
+        self.num_embeddings = 0
+        self.num_docs = 0
+        self.verbose = verbose
+
+    def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
+        raise NotImplementedError("add method must be implemented")
+
+    def save(self) -> None:
+        self.index_config.save(self.index_dir)
+        (self.index_dir / "doc_ids.txt").write_text("\n".join(self.doc_ids))
+        doc_lengths = torch.tensor(self.doc_lengths)
+        torch.save(doc_lengths, self.index_dir / "doc_lengths.pt")
+
+
 class IndexConfig:
+    indexer_class = Indexer
 
     def __init__(
         self, similarity_function: Literal["cosine", "dot"] | None = None
@@ -39,30 +66,3 @@ class IndexConfig:
             data["index_dir"] = str(index_dir)
             data["index_type"] = self.__class__.__name__
             json.dump(data, f)
-
-
-class Indexer(ABC):
-    def __init__(
-        self,
-        index_dir: Path,
-        index_config: IndexConfig,
-        bi_encoder_config: BiEncoderConfig,
-        verbose: bool = False,
-    ) -> None:
-        self.index_dir = index_dir
-        self.index_config = index_config
-        self.bi_encoder_config = bi_encoder_config
-        self.doc_ids = []
-        self.doc_lengths = array.array("I")
-        self.num_embeddings = 0
-        self.num_docs = 0
-        self.verbose = verbose
-
-    @abstractmethod
-    def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None: ...
-
-    def save(self) -> None:
-        self.index_config.save(self.index_dir)
-        (self.index_dir / "doc_ids.txt").write_text("\n".join(self.doc_ids))
-        doc_lengths = torch.tensor(self.doc_lengths)
-        torch.save(doc_lengths, self.index_dir / "doc_lengths.pt")

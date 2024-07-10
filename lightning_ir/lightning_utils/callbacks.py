@@ -111,27 +111,9 @@ class IndexCallback(Callback, GatherMixin):
         if self.index_config.similarity_function is None:
             self.index_config.similarity_function = pl_module.config.similarity_function
 
-        # TODO add class to config
-        if isinstance(self.index_config, FaissFlatIndexConfig):
-            indexer = FaissFlatIndexer(
-                index_dir, self.index_config, pl_module.config, self.verbose
-            )
-        elif isinstance(self.index_config, FaissIVFPQIndexConfig):
-            indexer = FaissIVFPQIndexer(
-                index_dir, self.index_config, pl_module.config, self.verbose
-            )
-        elif isinstance(self.index_config, FaissIVFIndexConfig):
-            indexer = FaissIVFIndexer(
-                index_dir, self.index_config, pl_module.config, self.verbose
-            )
-        elif isinstance(self.index_config, SparseIndexConfig):
-            indexer = SparseIndexer(
-                index_dir, self.index_config, pl_module.config, self.verbose
-            )
-        else:
-            raise ValueError(
-                f"Unsupported IndexConfig {self.index_config.__class__.__name__}"
-            )
+        indexer = self.index_config.indexer_class(
+            index_dir, self.index_config, pl_module.config, self.verbose
+        )
         return indexer
 
     def log_to_pg(self, info: Dict[str, Any], trainer: Trainer):

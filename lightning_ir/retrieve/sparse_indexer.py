@@ -7,16 +7,12 @@ from ..data import IndexBatch
 from .indexer import IndexConfig, Indexer
 
 
-class SparseIndexConfig(IndexConfig):
-    pass
-
-
 class SparseIndexer(Indexer):
 
     def __init__(
         self,
         index_dir: Path,
-        index_config: IndexConfig,
+        index_config: "SparseIndexConfig",
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
@@ -59,3 +55,7 @@ class SparseIndexer(Indexer):
             torch.Size([self.num_embeddings, self.bi_encoder_config.embedding_dim]),
         )
         torch.save(index, self.index_dir / "index.pt")
+
+
+class SparseIndexConfig(IndexConfig):
+    indexer_class = SparseIndexer

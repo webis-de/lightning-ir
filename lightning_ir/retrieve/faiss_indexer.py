@@ -10,43 +10,6 @@ from ..data import IndexBatch
 from .indexer import IndexConfig, Indexer
 
 
-class FaissIndexConfig(IndexConfig):
-    def to_dict(self) -> dict:
-        return self.__dict__.copy()
-
-
-class FaissFlatIndexConfig(FaissIndexConfig):
-    pass
-
-
-class FaissIVFIndexConfig(FaissIndexConfig):
-
-    def __init__(
-        self,
-        similarity_function: None | Literal["cosine", "dot"] = None,
-        num_train_embeddings: int | None = None,
-        num_centroids: int = 262144,
-    ) -> None:
-        super().__init__(similarity_function)
-        self.num_train_embeddings = num_train_embeddings
-        self.num_centroids = num_centroids
-
-
-class FaissIVFPQIndexConfig(FaissIVFIndexConfig):
-
-    def __init__(
-        self,
-        similarity_function: None | Literal["cosine", "dot"] = None,
-        num_train_embeddings: int | None = None,
-        num_centroids: int = 262144,
-        num_subquantizers: int = 16,
-        n_bits: int = 8,
-    ) -> None:
-        super().__init__(similarity_function, num_train_embeddings, num_centroids)
-        self.num_subquantizers = num_subquantizers
-        self.n_bits = n_bits
-
-
 class FaissIndexer(Indexer):
 
     INDEX_FACTORY: str
@@ -54,7 +17,7 @@ class FaissIndexer(Indexer):
     def __init__(
         self,
         index_dir: Path,
-        index_config: FaissIndexConfig,
+        index_config: "FaissIndexConfig",
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
@@ -129,7 +92,7 @@ class FaissFlatIndexer(FaissIndexer):
     def __init__(
         self,
         index_dir: Path,
-        index_config: FaissFlatIndexConfig,
+        index_config: "FaissFlatIndexConfig",
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
@@ -152,7 +115,7 @@ class FaissIVFIndexer(FaissIndexer):
     def __init__(
         self,
         index_dir: Path,
-        index_config: FaissIVFIndexConfig,
+        index_config: "FaissIVFIndexConfig",
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
@@ -265,7 +228,7 @@ class FaissIVFPQIndexer(FaissIVFIndexer):
     def __init__(
         self,
         index_dir: Path,
-        index_config: FaissIVFPQIndexConfig,
+        index_config: "FaissIVFPQIndexConfig",
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
@@ -287,3 +250,44 @@ class FaissIVFPQIndexer(FaissIVFIndexer):
             index_ivf_pq.quantizer,
         ):
             setattr(elem, "verbose", self.verbose)
+
+
+class FaissIndexConfig(IndexConfig):
+    indexer_class = FaissIndexer
+
+    def to_dict(self) -> dict:
+        return self.__dict__.copy()
+
+
+class FaissFlatIndexConfig(FaissIndexConfig):
+    indexer_class = FaissFlatIndexer
+
+
+class FaissIVFIndexConfig(FaissIndexConfig):
+    indexer_class = FaissIVFIndexer
+
+    def __init__(
+        self,
+        similarity_function: None | Literal["cosine", "dot"] = None,
+        num_train_embeddings: int | None = None,
+        num_centroids: int = 262144,
+    ) -> None:
+        super().__init__(similarity_function)
+        self.num_train_embeddings = num_train_embeddings
+        self.num_centroids = num_centroids
+
+
+class FaissIVFPQIndexConfig(FaissIVFIndexConfig):
+    indexer_class = FaissIVFPQIndexer
+
+    def __init__(
+        self,
+        similarity_function: None | Literal["cosine", "dot"] = None,
+        num_train_embeddings: int | None = None,
+        num_centroids: int = 262144,
+        num_subquantizers: int = 16,
+        n_bits: int = 8,
+    ) -> None:
+        super().__init__(similarity_function, num_train_embeddings, num_centroids)
+        self.num_subquantizers = num_subquantizers
+        self.n_bits = n_bits
