@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Dict, Iterator, Literal, Tuple
 
 import ir_datasets
-import ir_datasets.docs
+import numpy as np
 import pandas as pd
 import torch
 from ir_datasets.formats import GenericDoc, GenericDocPair
@@ -238,74 +238,89 @@ class RunDataset(IRDataset, Dataset):
 
         return self
 
+    @staticmethod
+    def load_csv(path: Path) -> pd.DataFrame:
+        return pd.read_csv(
+            path,
+            sep=r"\s+",
+            header=None,
+            names=RUN_HEADER,
+            usecols=[0, 2, 3, 4],
+            dtype={"query_id": str, "doc_id": str},
+        )
+
+    @staticmethod
+    def load_parquet(path: Path) -> pd.DataFrame:
+        return pd.read_parquet(path).rename(
+            {
+                "qid": "query_id",
+                "docid": "doc_id",
+                "docno": "doc_id",
+            },
+            axis=1,
+        )
+
+    @staticmethod
+    def load_json(path: Path) -> pd.DataFrame:
+        kwargs = {}
+        if ".jsonl" in path.suffixes:
+            kwargs["lines"] = True
+            kwargs["orient"] = "records"
+        run = pd.read_json(
+            path,
+            **kwargs,
+            dtype={
+                "query_id": str,
+                "qid": str,
+                "doc_id": str,
+                "docid": str,
+                "docno": str,
+            },
+        )
+        return run
+
     def load_run(self) -> pd.DataFrame:
-        if self.run_path is None:
+        run_path = self.run_path
+        if run_path is None:
+            if not self.ir_dataset.has_scoreddocs():
+                raise ValueError("Run file or dataset with scoreddocs required.")
+            run_path = self.ir_dataset.scoreddocs_handler()._scoreddocs_dlc._path
+        if set((".tsv", ".run", ".csv")).intersection(run_path.suffixes):
+            run = self.load_csv(run_path)
+        elif run_path.suffix == ".parquet":
+            run = self.load_parquet(run_path)
+        elif set((".json", ".jsonl")).intersection(run_path.suffixes):
+            run = self.load_json(run_path)
+        elif self.ir_dataset.has_scoreddocs():
             run = pd.DataFrame(self.ir_dataset.scoreddocs_iter())
             run["rank"] = run.groupby("query_id")["score"].rank(
                 "first", ascending=False
             )
             run = run.sort_values(["query_id", "rank"])
-        elif set((".tsv", ".run", ".csv")).intersection(self.run_path.suffixes):
-            run = pd.read_csv(
-                self.run_path,
-                sep=r"\s+",
-                header=None,
-                names=RUN_HEADER,
-                usecols=[0, 2, 3, 4],
-                dtype={"query_id": str, "doc_id": str},
-            )
-        elif self.run_path.suffix == ".parquet":
-            run = pd.read_parquet(self.run_path).rename(
-                {
-                    "qid": "query_id",
-                    "docid": "doc_id",
-                    "docno": "doc_id",
-                },
-                axis=1,
-            )
-        elif set((".json", ".jsonl")).intersection(self.run_path.suffixes):
-            kwargs = {}
-            if ".jsonl" in self.run_path.suffixes:
-                kwargs["lines"] = True
-                kwargs["orient"] = "records"
-            run = pd.read_json(
-                self.run_path,
-                **kwargs,
-                dtype={
-                    "query_id": str,
-                    "qid": str,
-                    "doc_id": str,
-                    "docid": str,
-                    "docno": str,
-                },
-            ).rename(
-                {
-                    "qid": "query_id",
-                    "docid": "doc_id",
-                    "docno": "doc_id",
-                },
-                axis=1,
-            )
-            if "query" in run.columns:
-                self._queries = (
-                    run.drop_duplicates("query_id")
-                    .set_index("query_id")["query"]
-                    .rename("text")
-                )
-                run = run.drop("query", axis=1)
-            if "text" in run.columns:
-                self._docs = (
-                    run.set_index("doc_id")["text"]
-                    .map(lambda x: GenericDoc("", x))
-                    .to_dict()
-                )
-                run = run.drop("text", axis=1)
         else:
             raise ValueError("Invalid run file format.")
+        run = run.rename(
+            {"qid": "query_id", "docid": "doc_id", "docno": "doc_id"},
+            axis=1,
+        )
+        if "query" in run.columns:
+            self._queries = (
+                run.drop_duplicates("query_id")
+                .set_index("query_id")["query"]
+                .rename("text")
+            )
+            run = run.drop("query", axis=1)
+        if "text" in run.columns:
+            self._docs = (
+                run.set_index("doc_id")["text"]
+                .map(lambda x: GenericDoc("", x))
+                .to_dict()
+            )
+            run = run.drop("text", axis=1)
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]
-        self._run = run
-        return self._run
+        run = run.astype({"score": np.float32, "rank": np.int32})
+        return run
 
     @property
     def qrels(self) -> pd.DataFrame | None:
@@ -364,7 +379,7 @@ class RunDataset(IRDataset, Dataset):
             )
             if filtered.empty:
                 raise ValueError(f"targets `{self.targets}` not found in run file")
-            targets = torch.tensor(filtered.values)
+            targets = torch.from_numpy(filtered.values)
             if self.targets == "rank":
                 # invert ranks to be higher is better (necessary for loss functions)
                 targets = self.depth - targets + 1
