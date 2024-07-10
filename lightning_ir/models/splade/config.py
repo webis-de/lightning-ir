@@ -8,7 +8,7 @@ class SpladeConfig(BiEncoderConfig):
 
     def __init__(
         self,
-        similarity_function: Literal["cosine", "l2", "dot"] = "dot",
+        similarity_function: Literal["cosine", "dot"] = "dot",
         query_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "max",
         doc_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "max",
         projection: Literal["linear", "linear_no_bias", "mlm"] | None = "mlm",

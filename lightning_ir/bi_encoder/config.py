@@ -49,7 +49,7 @@ class BiEncoderConfig(LightningIRConfig):
         attend_to_doc_expanded_tokens: bool = False,
         doc_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
-        normalize: bool = True,
+        normalize: bool = False,
         sparsification: Literal["relu", "relu_log"] | None = None,
         add_marker_tokens: bool = True,
         embedding_dim: int = 128,
