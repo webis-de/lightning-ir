@@ -11,7 +11,7 @@ from ..loss.loss import (
     LossFunction,
     ScoringLossFunction,
 )
-from ..retrieve import SearchConfig
+from ..retrieve import SearchConfig, Searcher
 from .config import BiEncoderConfig
 from .model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput
 from .tokenizer import BiEncoderTokenizer
@@ -41,11 +41,21 @@ class BiEncoderModule(LightningIRModule):
         ):
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
-        self.searcher = None
-        if search_config is not None:
-            if index_dir is None:
-                raise ValueError("index_dir must be set if search_config is set")
-            self.searcher = search_config.search_class(index_dir, search_config, self)
+        self._searcher = None
+        self.search_config = search_config
+        self.index_dir = index_dir
+
+    @property
+    def searcher(self) -> Searcher:
+        if self._searcher is None:
+            if self.search_config is None or self.index_dir is None:
+                raise ValueError(
+                    "search_config and index_dir must be set for searching"
+                )
+            self._searcher = self.search_config.search_class(
+                self.index_dir, self.search_config, self
+            )
+        return self._searcher
 
     def score(
         self,
