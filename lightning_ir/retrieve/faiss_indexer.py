@@ -10,11 +10,29 @@ from ..data import IndexBatch
 from .indexer import IndexConfig, Indexer
 
 
-class FaissFlatIndexConfig(IndexConfig):
+class FaissIndexConfig(IndexConfig):
+    def to_dict(self) -> dict:
+        return self.__dict__.copy()
+
+
+class FaissFlatIndexConfig(FaissIndexConfig):
     pass
 
 
-class FaissIVFPQIndexConfig(IndexConfig):
+class FaissIVFIndexConfig(FaissIndexConfig):
+
+    def __init__(
+        self,
+        similarity_function: None | Literal["cosine", "dot"] = None,
+        num_train_embeddings: int | None = None,
+        num_centroids: int = 262144,
+    ) -> None:
+        super().__init__(similarity_function)
+        self.num_train_embeddings = num_train_embeddings
+        self.num_centroids = num_centroids
+
+
+class FaissIVFPQIndexConfig(FaissIVFIndexConfig):
 
     def __init__(
         self,
@@ -24,27 +42,24 @@ class FaissIVFPQIndexConfig(IndexConfig):
         num_subquantizers: int = 16,
         n_bits: int = 8,
     ) -> None:
-        super().__init__(similarity_function)
-        self.num_train_embeddings = num_train_embeddings
-        self.num_centroids = num_centroids
+        super().__init__(similarity_function, num_train_embeddings, num_centroids)
         self.num_subquantizers = num_subquantizers
         self.n_bits = n_bits
 
 
 class FaissIndexer(Indexer):
 
+    INDEX_FACTORY: str
+
     def __init__(
         self,
         index_dir: Path,
-        index_config: IndexConfig,
+        index_config: FaissIndexConfig,
         bi_encoder_config: BiEncoderConfig,
-        index_factory: str,
         verbose: bool = False,
     ) -> None:
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
         import faiss
-
-        self.index_factory = index_factory
 
         if self.index_config.similarity_function in ("cosine", "dot"):
             self.metric_type = faiss.METRIC_INNER_PRODUCT
@@ -53,6 +68,7 @@ class FaissIndexer(Indexer):
                 f"similarity_function {self.index_config.similarity_function} unknown"
             )
 
+        index_factory = self.INDEX_FACTORY.format(**index_config.to_dict())
         if self.index_config.similarity_function == "cosine":
             index_factory = "L2norm," + index_factory
         self.index = faiss.index_factory(
@@ -106,28 +122,42 @@ class FaissIndexer(Indexer):
         self.doc_ids.extend(doc_ids)
 
 
-class FaissIVFPQIndexer(FaissIndexer):
+class FaissFlatIndexer(FaissIndexer):
+
+    INDEX_FACTORY = "Flat"
+
     def __init__(
         self,
         index_dir: Path,
-        index_config: FaissIVFPQIndexConfig,
+        index_config: FaissFlatIndexConfig,
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
-        import faiss
+        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        self.index_config: FaissFlatIndexConfig
 
-        index_factory = (
-            f"OPQ{index_config.num_subquantizers},"
-            f"IVF{index_config.num_centroids}_HNSW32,"
-            f"PQ{index_config.num_subquantizers}x{index_config.n_bits}"
-        )
-        super().__init__(
-            index_dir, index_config, bi_encoder_config, index_factory, verbose
-        )
-        self.index_config: FaissIVFPQIndexConfig
+    def to_gpu(self) -> None:
+        pass
 
-        index_ivf_pq = faiss.downcast_index(self.index.index)
-        index_ivf_pq.make_direct_map()
+    def to_cpu(self) -> None:
+        pass
+
+    def set_verbosity(self) -> None:
+        self.index.verbose = self.verbose
+
+
+class FaissIVFIndexer(FaissIndexer):
+    INDEX_FACTORY = "IVF{num_centroids}_HNSW32,Flat"
+
+    def __init__(
+        self,
+        index_dir: Path,
+        index_config: FaissIVFIndexConfig,
+        bi_encoder_config: BiEncoderConfig,
+        verbose: bool = False,
+    ) -> None:
+
+        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
 
         # default faiss values
         # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
@@ -149,38 +179,29 @@ class FaissIVFPQIndexer(FaissIndexer):
     def to_gpu(self) -> None:
         import faiss
 
+        # clustering_index overrides the index used during clustering but leaves
+        # the quantizer on the gpu
+        # https://faiss.ai/cpp_api/namespace/namespacefaiss_1_1gpu.html
         clustering_index = faiss.index_cpu_to_all_gpus(
             faiss.IndexFlat(self.bi_encoder_config.embedding_dim, self.metric_type)
         )
         clustering_index.verbose = self.verbose
-        index_ivf_pq = faiss.downcast_index(self.index.index)
-        index_ivf_pq.clustering_index = clustering_index
+        index_ivf = faiss.extract_index_ivf(self.index)
+        index_ivf.clustering_index = clustering_index
 
     def to_cpu(self) -> None:
         import faiss
 
+        self.index = faiss.index_gpu_to_cpu(self.index)
+
         # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
         # move index to cpu but leave quantizer on gpu
-        self.index = faiss.index_gpu_to_cpu(self.index)
-        index_ivf_pq = faiss.downcast_index(self.index.index)
-        quantizer = index_ivf_pq.quantizer
+        index_ivf = faiss.extract_index_ivf(self.index)
+        quantizer = index_ivf.quantizer
         gpu_quantizer = faiss.index_cpu_to_gpu(
             faiss.StandardGpuResources(), 0, quantizer
         )
-        index_ivf_pq.quantizer = gpu_quantizer
-
-    def set_verbosity(self) -> None:
-        import faiss
-
-        index_ivf_pq = faiss.downcast_index(self.index.index)
-        for elem in (
-            self.index,
-            self.index.index,
-            index_ivf_pq.cp,
-            index_ivf_pq.pq,
-            index_ivf_pq.quantizer,
-        ):
-            setattr(elem, "verbose", self.verbose)
+        index_ivf.quantizer = gpu_quantizer
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
         embeddings = self._grab_train_embeddings(embeddings)
@@ -226,26 +247,43 @@ class FaissIVFPQIndexer(FaissIndexer):
             self._train(force=True)
         return super().save()
 
+    def set_verbosity(self) -> None:
+        import faiss
 
-class FaissFlatIndexer(FaissIndexer):
+        index = faiss.extract_index_ivf(self.index)
+        for elem in (index, index.quantizer):
+            setattr(elem, "verbose", self.verbose)
+
+
+class FaissIVFPQIndexer(FaissIVFIndexer):
+    INDEX_FACTORY = (
+        "OPQ{num_subquantizers},"
+        "IVF{num_centroids}_HNSW32,"
+        "PQ{num_subquantizers}x{n_bits}"
+    )
+
     def __init__(
         self,
         index_dir: Path,
-        index_config: FaissFlatIndexConfig,
+        index_config: FaissIVFPQIndexConfig,
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
-        index_factory = "Flat"
-        super().__init__(
-            index_dir, index_config, bi_encoder_config, index_factory, verbose
-        )
-        self.index_config: FaissFlatIndexConfig
+        import faiss
 
-    def to_gpu(self) -> None:
-        pass
+        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        self.index_config: FaissIVFPQIndexConfig
 
-    def to_cpu(self) -> None:
-        pass
+        index_ivf = faiss.extract_index_ivf(self.index)
+        index_ivf.make_direct_map()
 
     def set_verbosity(self) -> None:
-        self.index.verbose = self.verbose
+        super().set_verbosity()
+        import faiss
+
+        index_ivf_pq = faiss.downcast_index(self.index.index)
+        for elem in (
+            index_ivf_pq.pq,
+            index_ivf_pq.quantizer,
+        ):
+            setattr(elem, "verbose", self.verbose)

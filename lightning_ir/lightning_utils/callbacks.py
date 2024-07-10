@@ -1,5 +1,4 @@
 from __future__ import annotations
-from functools import wraps
 
 import itertools
 from dataclasses import is_dataclass
@@ -11,24 +10,19 @@ import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
-
-from ..data import RankBatch, SearchBatch, IndexBatch
+from ..data import RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
 from ..retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
+    FaissIVFIndexConfig,
+    FaissIVFIndexer,
     FaissIVFPQIndexConfig,
     FaissIVFPQIndexer,
-    FaissSearchConfig,
-    FaissSearcher,
     IndexConfig,
     Indexer,
-    SearchConfig,
-    Searcher,
     SparseIndexConfig,
     SparseIndexer,
-    SparseSearchConfig,
-    SparseSearcher,
 )
 
 if TYPE_CHECKING:
@@ -117,12 +111,17 @@ class IndexCallback(Callback, GatherMixin):
         if self.index_config.similarity_function is None:
             self.index_config.similarity_function = pl_module.config.similarity_function
 
+        # TODO add class to config
         if isinstance(self.index_config, FaissFlatIndexConfig):
             indexer = FaissFlatIndexer(
                 index_dir, self.index_config, pl_module.config, self.verbose
             )
         elif isinstance(self.index_config, FaissIVFPQIndexConfig):
             indexer = FaissIVFPQIndexer(
+                index_dir, self.index_config, pl_module.config, self.verbose
+            )
+        elif isinstance(self.index_config, FaissIVFIndexConfig):
+            indexer = FaissIVFIndexer(
                 index_dir, self.index_config, pl_module.config, self.verbose
             )
         elif isinstance(self.index_config, SparseIndexConfig):
