@@ -1,7 +1,6 @@
 import warnings
 from abc import abstractmethod
 from pathlib import Path
-from typing import Literal
 
 import torch
 
@@ -24,15 +23,14 @@ class FaissIndexer(Indexer):
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
         import faiss
 
-        if self.index_config.similarity_function in ("cosine", "dot"):
+        similarity_function = bi_encoder_config.similarity_function
+        if similarity_function in ("cosine", "dot"):
             self.metric_type = faiss.METRIC_INNER_PRODUCT
         else:
-            raise ValueError(
-                f"similarity_function {self.index_config.similarity_function} unknown"
-            )
+            raise ValueError(f"similarity_function {similarity_function} unknown")
 
         index_factory = self.INDEX_FACTORY.format(**index_config.to_dict())
-        if self.index_config.similarity_function == "cosine":
+        if similarity_function == "cosine":
             index_factory = "L2norm," + index_factory
         self.index = faiss.index_factory(
             self.bi_encoder_config.embedding_dim, index_factory, self.metric_type
@@ -269,11 +267,10 @@ class FaissIVFIndexConfig(FaissIndexConfig):
 
     def __init__(
         self,
-        similarity_function: None | Literal["cosine", "dot"] = None,
         num_train_embeddings: int | None = None,
         num_centroids: int = 262144,
     ) -> None:
-        super().__init__(similarity_function)
+        super().__init__()
         self.num_train_embeddings = num_train_embeddings
         self.num_centroids = num_centroids
 
@@ -283,12 +280,11 @@ class FaissIVFPQIndexConfig(FaissIVFIndexConfig):
 
     def __init__(
         self,
-        similarity_function: None | Literal["cosine", "dot"] = None,
         num_train_embeddings: int | None = None,
         num_centroids: int = 262144,
         num_subquantizers: int = 16,
         n_bits: int = 8,
     ) -> None:
-        super().__init__(similarity_function, num_train_embeddings, num_centroids)
+        super().__init__(num_train_embeddings, num_centroids)
         self.num_subquantizers = num_subquantizers
         self.n_bits = n_bits

@@ -26,7 +26,7 @@ from .conftest import DATA_DIR
 
 
 @pytest.fixture(
-    params=[FaissFlatIndexConfig("dot"), SparseIndexConfig("dot")],
+    params=[FaissFlatIndexConfig(), SparseIndexConfig()],
     ids=["Faiss", "Sparse"],
 )
 def index_config(request: SubRequest) -> IndexConfig:
@@ -54,7 +54,6 @@ def test_index_callback(
     index_config: IndexConfig,
     # devices: int,
 ):
-    bi_encoder_module.config.similarity_function = index_config.similarity_function
     index_dir = tmp_path / "index"
     index_callback = IndexCallback(index_dir, index_config)
     index_dir = index_dir / doc_datamodule.inference_datasets[0].docs_dataset_id
@@ -87,16 +86,16 @@ def get_index(
 ) -> Path:
     if isinstance(search_config, FaissSearchConfig):
         index_type = "faiss"
-        index_config = FaissFlatIndexConfig(
-            bi_encoder_module.config.similarity_function
-        )
+        index_config = FaissFlatIndexConfig()
     elif isinstance(search_config, SparseSearchConfig):
         index_type = "sparse"
-        index_config = SparseIndexConfig(bi_encoder_module.config.similarity_function)
+        index_config = SparseIndexConfig()
     else:
         raise ValueError("Unknown search_config type")
     index_dir = (
-        DATA_DIR / "indexes" / f"{index_type}-{index_config.similarity_function}"
+        DATA_DIR
+        / "indexes"
+        / f"{index_type}-{bi_encoder_module.config.similarity_function}"
     )
     if index_dir.exists():
         return index_dir / "lightning-ir"

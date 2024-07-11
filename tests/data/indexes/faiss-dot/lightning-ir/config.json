@@ -1,1 +1,4 @@
-{"similarity_function": "dot", "index_dir": "/home/fschlatt/Code/uni/lightning-ir/tests/data/indexes/faiss-dot/lightning-ir", "index_type": "FaissFlatIndexConfig"}
+{
+    "index_dir": "/home/fschlatt/Code/uni/lightning-ir/tests/data/indexes/faiss-dot/lightning-ir",
+    "index_type": "FaissFlatIndexConfig"
+}

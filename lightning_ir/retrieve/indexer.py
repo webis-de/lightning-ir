@@ -3,7 +3,7 @@ from __future__ import annotations
 import array
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -41,11 +41,6 @@ class Indexer:
 
 class IndexConfig:
     indexer_class = Indexer
-
-    def __init__(
-        self, similarity_function: Literal["cosine", "dot"] | None = None
-    ) -> None:
-        self.similarity_function = similarity_function
 
     @classmethod
     def from_pretrained(cls, index_dir: Path) -> "IndexConfig":

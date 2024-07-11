@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal, Tuple
 
 import torch
-
 
 from .searcher import SearchConfig, Searcher
 from .sparse_indexer import SparseIndexConfig
@@ -15,12 +14,14 @@ if TYPE_CHECKING:
 
 class SparseIndex:
 
-    def __init__(self, index_dir: Path) -> None:
+    def __init__(
+        self, index_dir: Path, similarity_function: Literal["dot", "cosine"]
+    ) -> None:
         self.index = torch.load(index_dir / "index.pt")
         self.config = SparseIndexConfig.from_pretrained(index_dir)
-        if self.config.similarity_function == "dot":
+        if similarity_function == "dot":
             self.similarity_function = self.dot_similarity
-        elif self.config.similarity_function == "cosine":
+        elif similarity_function == "cosine":
             self.similarity_function = self.cosine_similarity
         else:
             raise ValueError("Unknown similarity function")
@@ -55,7 +56,7 @@ class SparseSearcher(Searcher):
         module: BiEncoderModule,
     ) -> None:
         self.search_config: SparseSearchConfig
-        self.index = SparseIndex(index_dir)
+        self.index = SparseIndex(index_dir, module.config.similarity_function)
         super().__init__(index_dir, search_config, module)
         self.doc_token_idcs = (
             torch.arange(self.doc_lengths.shape[0])

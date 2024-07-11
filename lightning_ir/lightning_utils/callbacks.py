@@ -3,7 +3,7 @@ from __future__ import annotations
 import itertools
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Tuple, TypeVar
 
 import pandas as pd
 import torch
@@ -12,18 +12,7 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 
 from ..data import RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
-from ..retrieve import (
-    FaissFlatIndexConfig,
-    FaissFlatIndexer,
-    FaissIVFIndexConfig,
-    FaissIVFIndexer,
-    FaissIVFPQIndexConfig,
-    FaissIVFPQIndexer,
-    IndexConfig,
-    Indexer,
-    SparseIndexConfig,
-    SparseIndexer,
-)
+from ..retrieve import IndexConfig, Indexer
 
 if TYPE_CHECKING:
     from ..base import LightningIRModule, LightningIROutput
@@ -72,8 +61,10 @@ class IndexCallback(Callback, GatherMixin):
         self.index_config = index_config
         self.verbose = verbose
         self.indexer: Indexer
+        self.similarity_function: Literal["cosine", "dot"] | None = None
 
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
+        self.similarity_function = pl_module.config.similarity_function
         if stage != "test":
             raise ValueError("IndexCallback can only be used in test stage")
 
@@ -107,9 +98,6 @@ class IndexCallback(Callback, GatherMixin):
         dataset = dataloaders[dataset_idx].dataset
 
         index_dir = self.get_index_dir(pl_module, dataset)
-
-        if self.index_config.similarity_function is None:
-            self.index_config.similarity_function = pl_module.config.similarity_function
 
         indexer = self.index_config.indexer_class(
             index_dir, self.index_config, pl_module.config, self.verbose
