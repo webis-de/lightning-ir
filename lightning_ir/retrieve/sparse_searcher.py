@@ -113,7 +113,7 @@ class SparseSearcher(Searcher):
                 scores,
                 self.module.config.query_aggregation_function,
             )
-        scores = scores.view(-1)
+        scores = scores.reshape(-1)
         return scores, None, None
 
 
