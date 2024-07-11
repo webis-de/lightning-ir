@@ -350,8 +350,8 @@ class L2Regularization(RegularizationLossFunction):
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
     ) -> torch.Tensor:
-        query_loss = self.query_weight * query_embeddings.norm()
-        doc_loss = self.doc_weight * doc_embeddings.norm()
+        query_loss = self.query_weight * query_embeddings.norm(dim=-1).mean()
+        doc_loss = self.doc_weight * doc_embeddings.norm(dim=-1).mean()
         loss = query_loss + doc_loss
         return loss
 
@@ -363,8 +363,8 @@ class L1Regularization(RegularizationLossFunction):
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
     ) -> torch.Tensor:
-        query_loss = self.query_weight * query_embeddings.norm(p=1)
-        doc_loss = self.doc_weight * doc_embeddings.norm(p=1)
+        query_loss = self.query_weight * query_embeddings.norm(p=1, dim=-1).mean()
+        doc_loss = self.doc_weight * doc_embeddings.norm(p=1, dim=-1).mean()
         loss = query_loss + doc_loss
         return loss
 
