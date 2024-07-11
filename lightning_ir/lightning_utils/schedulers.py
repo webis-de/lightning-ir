@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
-
 from typing import Any, Dict, Sequence
 
 from lightning import Callback, LightningModule, Trainer
-from torch import Tensor
 
 from ..base import LightningIRModule
 
