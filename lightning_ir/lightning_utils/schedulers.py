@@ -9,7 +9,7 @@ from ..base import LightningIRModule
 class LambdaWarmupScheduler(Callback, ABC):
 
     def __init__(
-        self, keys: Sequence[str], num_warmup_steps: int, num_training_steps: int
+        self, keys: Sequence[str], num_warmup_steps: int, num_training_steps: int = -1
     ) -> None:
         super().__init__()
         self.keys = keys
@@ -25,10 +25,15 @@ class LambdaWarmupScheduler(Callback, ABC):
         return value * self.lr_lambda(current_step)
 
     def on_train_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        if self.num_training_steps == -1:
+            self.num_training_steps = trainer.estimated_stepping_batches
         for key in self.keys:
             value = pl_module
             for sub_key in key.split("."):
-                value = getattr(value, sub_key)
+                try:
+                    value = value[int(sub_key)]
+                except ValueError:
+                    value = getattr(value, sub_key)
             self.values[key] = float(value)
 
     def on_train_batch_start(
