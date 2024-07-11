@@ -23,8 +23,9 @@ class Searcher(ABC):
 
         self.doc_ids = (self.index_dir / "doc_ids.txt").read_text().split()
         self.doc_lengths = torch.load(self.index_dir / "doc_lengths.pt")
-        if torch.cuda.is_available():
-            self.doc_lengths = self.doc_lengths.cuda()
+
+        self.to_gpu()
+
         self.num_docs = len(self.doc_ids)
         self.cumulative_doc_lengths = torch.cumsum(self.doc_lengths, dim=0)
 
@@ -33,6 +34,10 @@ class Searcher(ABC):
             or self.doc_lengths.sum() != self.num_embeddings
         ):
             raise ValueError("doc_lengths do not match index")
+
+    def to_gpu(self) -> None:
+        if torch.cuda.is_available():
+            self.doc_lengths = self.doc_lengths.cuda()
 
     @property
     @abstractmethod

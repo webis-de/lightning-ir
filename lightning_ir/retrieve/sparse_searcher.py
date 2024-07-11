@@ -26,8 +26,7 @@ class SparseIndex:
             raise ValueError("Unknown similarity function")
 
     def score(self, embeddings: torch.Tensor) -> torch.Tensor:
-        sparse_embeddings = embeddings.to_sparse_coo()
-        similarity = self.similarity_function(sparse_embeddings, self.index).to_dense()
+        similarity = self.similarity_function(embeddings, self.index).to_dense()
         return similarity
 
     @property
@@ -40,7 +39,11 @@ class SparseIndex:
         return -1 * torch.cdist(x, y).squeeze(-2)
 
     def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return torch.matmul(x, y.T)
+        return torch.matmul(y, x.T).T
+
+    def to_gpu(self) -> None:
+        if torch.cuda.is_available():
+            self.index = self.index.cuda()
 
 
 class SparseSearcher(Searcher):
@@ -61,6 +64,17 @@ class SparseSearcher(Searcher):
         )
 
     @property
+    def doc_is_single_vector(self) -> bool:
+        return (
+            self.cumulative_doc_lengths[-1].item()
+            == self.cumulative_doc_lengths.shape[0]
+        )
+
+    def to_gpu(self) -> None:
+        super().to_gpu()
+        self.index.to_gpu()
+
+    @property
     def num_embeddings(self) -> int:
         return self.index.num_embeddings
 
@@ -72,27 +86,33 @@ class SparseSearcher(Searcher):
         scores = self.index.score(embeddings)
 
         # aggregate doc token scores
-        scores = torch.scatter_reduce(
-            torch.zeros(scores.shape[0], self.num_docs, device=scores.device),
-            1,
-            self.doc_token_idcs[None].expand_as(scores),
-            scores,
-            "amax",
-        )
+        if not self.doc_is_single_vector:
+            scores = torch.scatter_reduce(
+                torch.zeros(scores.shape[0], self.num_docs, device=scores.device),
+                1,
+                self.doc_token_idcs[None].expand_as(scores),
+                scores,
+                "amax",
+            )
 
-        query_token_idcs = (
-            torch.arange(query_lengths.shape[0])
-            .to(query_lengths)
-            .repeat_interleave(query_lengths)
-        )
         # aggregate query token scores
-        scores = torch.scatter_reduce(
-            torch.zeros(query_lengths.shape[0], self.num_docs, device=scores.device),
-            0,
-            query_token_idcs[:, None].expand_as(scores),
-            scores,
-            self.module.config.query_aggregation_function,
-        ).view(-1)
+        query_is_single_vector = (query_lengths == 1).all()
+        if not query_is_single_vector:
+            query_token_idcs = (
+                torch.arange(query_lengths.shape[0])
+                .to(query_lengths)
+                .repeat_interleave(query_lengths)
+            )
+            scores = torch.scatter_reduce(
+                torch.zeros(
+                    query_lengths.shape[0], self.num_docs, device=scores.device
+                ),
+                0,
+                query_token_idcs[:, None].expand_as(scores),
+                scores,
+                self.module.config.query_aggregation_function,
+            )
+        scores = scores.view(-1)
         return scores, None, None
 
 
