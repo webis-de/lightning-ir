@@ -50,7 +50,6 @@ class SparseIndexer(Indexer):
         pass
 
     def save(self) -> None:
-        # TODO save as csr tensor
         super().save()
         index = torch.sparse_csr_tensor(
             torch.tensor(self.crow_indices),
