@@ -56,7 +56,7 @@ class SpladeModel(BiEncoderModel):
     @classmethod
     def from_pretrained(
         cls, model_name_or_path: str | Path, *args, **kwargs
-    ) -> LightningIRModel:
+    ) -> "SpladeModel":
         config = AutoConfig.from_pretrained(model_name_or_path)
         mlm = any(
             architecture.endswith("ForMaskedLM")
@@ -72,7 +72,7 @@ class SpladeModel(BiEncoderModel):
     @classmethod
     def from_mlm_checkpoint(
         cls, model_name_or_path: str | Path, *args, **kwargs
-    ) -> LightningIRModel:
+    ) -> "SpladeModel":
 
         config = AutoConfig.from_pretrained(model_name_or_path)
         BackboneModel = MODEL_MAPPING[config.__class__]
