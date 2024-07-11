@@ -24,17 +24,24 @@ class LambdaWarmupScheduler(Callback, ABC):
         value = self.values[key]
         return value * self.lr_lambda(current_step)
 
+    def get_value(self, sub_keys: Sequence[str], obj: object) -> object:
+        for sub_key in sub_keys:
+            try:
+                obj = obj[int(sub_key)]
+            except ValueError:
+                obj = getattr(obj, sub_key)
+        return obj
+
+    def set_value(self, sub_keys: Sequence[str], obj: object, value: float) -> None:
+        obj = self.get_value(sub_keys[:-1], obj)
+        setattr(obj, sub_keys[-1], value)
+
     def on_train_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         if self.num_training_steps == -1:
             self.num_training_steps = trainer.estimated_stepping_batches
         for key in self.keys:
-            value = pl_module
-            for sub_key in key.split("."):
-                try:
-                    value = value[int(sub_key)]
-                except ValueError:
-                    value = getattr(value, sub_key)
-            self.values[key] = float(value)
+            sub_keys = key.split(".")
+            self.values[key] = float(self.get_value(sub_keys, pl_module))
 
     def on_train_batch_start(
         self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int
@@ -42,11 +49,8 @@ class LambdaWarmupScheduler(Callback, ABC):
         step = trainer.global_step + 1
         for key in self.keys:
             value = self.step(key, step)
-            split = key.split(".")
-            module = pl_module
-            for sub_key in split[:-1]:
-                module = getattr(module, sub_key)
-            setattr(module, split[-1], value)
+            sub_keys = key.split(".")
+            self.set_value(sub_keys, pl_module, value)
 
 
 class LinearSchedulerWithWarmup(LambdaWarmupScheduler):
