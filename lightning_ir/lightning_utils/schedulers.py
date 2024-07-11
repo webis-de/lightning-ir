@@ -9,11 +9,16 @@ from ..base import LightningIRModule
 class LambdaWarmupScheduler(Callback, ABC):
 
     def __init__(
-        self, keys: Sequence[str], num_warmup_steps: int, num_training_steps: int = -1
+        self,
+        keys: Sequence[str],
+        num_warmup_steps: int,
+        num_delay_steps: int = 0,
+        num_training_steps: int = -1,
     ) -> None:
         super().__init__()
         self.keys = keys
         self.num_warmup_steps = num_warmup_steps
+        self.num_delay_steps = num_delay_steps
         self.num_training_steps = num_training_steps
         self.values: Dict[str, float] = {}
 
@@ -55,6 +60,9 @@ class LambdaWarmupScheduler(Callback, ABC):
 
 class LinearSchedulerWithWarmup(LambdaWarmupScheduler):
     def lr_lambda(self, current_step: int) -> float:
+        if current_step < self.num_delay_steps:
+            return 0.0
+        current_step -= self.num_delay_steps + 1
         if current_step < self.num_warmup_steps:
             return float(current_step) / float(max(1, self.num_warmup_steps))
         return max(
@@ -67,6 +75,9 @@ class LinearSchedulerWithWarmup(LambdaWarmupScheduler):
 class ConstantSchedulerWithWarmup(LambdaWarmupScheduler):
 
     def lr_lambda(self, current_step: int) -> float:
+        if current_step < self.num_delay_steps:
+            return 0.0
+        current_step -= self.num_delay_steps + 1
         if current_step < self.num_warmup_steps:
             return float(current_step) / float(max(1.0, self.num_warmup_steps))
         return 1.0
