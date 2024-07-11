@@ -17,8 +17,9 @@ class SparseIndexer(Indexer):
         verbose: bool = False,
     ) -> None:
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
-        self.token_idcs = array.array("I")
-        self.dim_idcs = array.array("I")
+        self.crow_indices = array.array("I")
+        self.crow_indices.append(0)
+        self.col_idcs = array.array("I")
         self.values = array.array("f")
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
@@ -32,9 +33,10 @@ class SparseIndexer(Indexer):
         self.doc_ids.extend(index_batch.doc_ids)
 
         token_idcs, dim_idcs = torch.nonzero(embeddings, as_tuple=True)
+        crow_indices = token_idcs.bincount().cumsum(0) + self.crow_indices[-1]
         values = embeddings[token_idcs, dim_idcs]
-        self.token_idcs.extend((token_idcs + self.num_embeddings).cpu().tolist())
-        self.dim_idcs.extend(dim_idcs.cpu().tolist())
+        self.crow_indices.extend(crow_indices.cpu().tolist())
+        self.col_idcs.extend(dim_idcs.cpu().tolist())
         self.values.extend(values.cpu().tolist())
 
         self.doc_lengths.extend(doc_lengths.cpu().tolist())
@@ -48,9 +50,11 @@ class SparseIndexer(Indexer):
         pass
 
     def save(self) -> None:
+        # TODO save as csr tensor
         super().save()
-        index = torch.sparse_coo_tensor(
-            torch.stack([torch.tensor(self.token_idcs), torch.tensor(self.dim_idcs)]),
+        index = torch.sparse_csr_tensor(
+            torch.tensor(self.crow_indices),
+            torch.tensor(self.col_idcs),
             torch.tensor(self.values),
             torch.Size([self.num_embeddings, self.bi_encoder_config.embedding_dim]),
         )
