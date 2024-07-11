@@ -46,12 +46,10 @@ class BiEncoderModule(LightningIRModule):
         self.index_dir = index_dir
 
     @property
-    def searcher(self) -> Searcher:
+    def searcher(self) -> Searcher | None:
         if self._searcher is None:
             if self.search_config is None or self.index_dir is None:
-                raise ValueError(
-                    "search_config and index_dir must be set for searching"
-                )
+                return None
             self._searcher = self.search_config.search_class(
                 self.index_dir, self.search_config, self
             )
@@ -81,9 +79,7 @@ class BiEncoderModule(LightningIRModule):
             encodings.get("doc_encoding", None),
             num_docs,
         )
-        if isinstance(batch, SearchBatch):
-            if self.searcher is None:
-                raise ValueError("Searcher is not set")
+        if isinstance(batch, SearchBatch) and self.searcher is not None:
             scores, doc_ids, num_docs = self.searcher.search(output)
             output.scores = scores
             cum_num_docs = [0] + [sum(num_docs[: i + 1]) for i in range(len(num_docs))]
