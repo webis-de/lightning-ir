@@ -44,6 +44,8 @@ class MLMHead(torch.nn.Module):
 class SpladeModel(BiEncoderModel):
     config_class = SpladeConfig
 
+    _tied_weights_keys = ["projection.decoder.bias", "projection.decoder.weight"]
+
     def __init__(self, config: SpladeConfig, *args, **kwargs) -> None:
         super().__init__(config, *args, **kwargs)
         self.config: SpladeConfig
