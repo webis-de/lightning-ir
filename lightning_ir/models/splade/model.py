@@ -23,7 +23,15 @@ class MLMHead(torch.nn.Module):
         self.LayerNorm = torch.nn.LayerNorm(
             config.hidden_size, eps=config.layer_norm_eps
         )
-        self.decoder = torch.nn.Linear(config.hidden_size, config.vocab_size)
+        self.decoder = torch.nn.Linear(
+            config.hidden_size, config.vocab_size, bias=False
+        )
+        self.bias = torch.nn.Parameter(torch.zeros(config.vocab_size))
+
+        self.decoder.bias = self.bias
+
+    def _tie_weights(self):
+        self.decoder.bias = self.bias
 
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         hidden_states = self.dense(hidden_states)
@@ -55,6 +63,9 @@ class SpladeModel(BiEncoderModel):
         if mlm:
             return cls.from_mlm_checkpoint(model_name_or_path)
         return super().from_pretrained(model_name_or_path, *args, **kwargs)
+
+    def get_output_embeddings(self):
+        return self.projection.decoder
 
     @classmethod
     def from_mlm_checkpoint(
