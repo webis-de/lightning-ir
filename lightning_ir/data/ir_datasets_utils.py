@@ -119,18 +119,18 @@ def register_kd_docpairs():
     base_id = "msmarco-passage"
     split_id = "train"
     file_id = "kd-docpairs"
-    dlc_id = f"{split_id}/{file_id}"
+    cache_path = "bert_cat_ensemble_msmarcopassage_train_scores_ids.tsv"
     dlc_contents = {
         "url": (
             "https://zenodo.org/record/4068216/files/bert_cat_ensemble_"
             "msmarcopassage_train_scores_ids.tsv?download=1"
         ),
         "expected_md5": "4d99696386f96a7f1631076bcc53ac3c",
-        "cache_path": dlc_id,
+        "cache_path": cache_path,
     }
-    file_name = "bert_cat_ensemble_msmarcopassage_train_scores_ids.tsv"
+    file_name = f"{split_id}/{file_id}.tsv"
     register_msmarco(
-        base_id, split_id, file_id, dlc_id, dlc_contents, file_name, ScoredDocTuples
+        base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples
     )
 
 
@@ -138,18 +138,18 @@ def register_colbert_docpairs():
     base_id = "msmarco-passage"
     split_id = "train"
     file_id = "colbert-docpairs"
-    dlc_id = f"{split_id}/{file_id}"
+    cache_path = "colbert_64way.json"
     dlc_contents = {
         "url": (
             "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/"
             "resolve/main/examples.json?download=true"
         ),
         "expected_md5": "8be0c71e330ac54dcd77fba058d291c7",
-        "cache_path": dlc_id,
+        "cache_path": cache_path,
     }
-    file_name = "colbert_64way.json"
+    file_name = f"{split_id}/{file_id}.json"
     register_msmarco(
-        base_id, split_id, file_id, dlc_id, dlc_contents, file_name, ScoredDocTuples
+        base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples
     )
 
 
@@ -157,36 +157,42 @@ def register_rank_distillm():
     base_id = "msmarco-passage"
     split_id = "train"
     file_id = "rank-distillm/rankzephyr"
-    dlc_id = f"{split_id}/{file_id}"
+    cache_path = "rank-distillm-rankzephyr.run"
     dlc_contents = {
         "url": (
             "https://zenodo.org/records/12528410/files/__rankzephyr-colbert-10000-"
             "sampled-100__msmarco-passage-train-judged.run?download=1"
         ),
         "expected_md5": "49f8dbf2c1ee7a2ca1fe517eda528af6",
-        "cache_path": dlc_id,
+        "cache_path": cache_path,
     }
-    file_name = "rank-distillm-rankzephyr.run"
+    file_name = f"{split_id}/{file_id}.run"
     register_msmarco(
-        base_id, split_id, file_id, dlc_id, dlc_contents, file_name, trec.TrecScoredDocs
+        base_id,
+        split_id,
+        file_id,
+        cache_path,
+        dlc_contents,
+        file_name,
+        trec.TrecScoredDocs,
     )
 
     file_id = "rank-distillm/set-encoder"
-    dlc_id = f"{split_id}/{file_id}"
+    cache_path = "rank-distillm-set-encoder.run.gz"
     dlc_contents = {
         "url": (
             "https://zenodo.org/records/12528410/files/__set-encoder-colbert__"
             "msmarco-passage-train-judged.run.gz?download=1"
         ),
         "expected_md5": "1f069d0daa9842a54a858cc660149e1a",
-        "cache_path": dlc_id,
+        "cache_path": cache_path,
     }
-    file_name = "rank-distillm-set-encoder.run.gz"
+    file_name = f"{split_id}/{file_id}.run"
     register_msmarco(
         base_id,
         split_id,
         file_id,
-        dlc_id,
+        cache_path,
         dlc_contents,
         file_name,
         trec.TrecScoredDocs,
@@ -198,7 +204,7 @@ def register_msmarco(
     base_id: str,
     split_id: str,
     file_id: str,
-    dlc_id: str,
+    cache_path: str,
     dlc_contents: Dict[str, Any],
     file_name: str,
     ConstituentType: Type,
@@ -209,12 +215,12 @@ def register_msmarco(
         return
     base_path = ir_datasets.util.home_path() / base_id
     dlc = DownloadConfig.context(base_id, base_path)
-    dlc._contents[dlc_id] = dlc_contents
+    dlc._contents[cache_path] = dlc_contents
     ir_dataset = ir_datasets.load(f"{base_id}/{split_id}")
     collection = ir_dataset.docs_handler()
     queries = ir_dataset.queries_handler()
     qrels = ir_dataset.qrels_handler()
-    _dlc = dlc[dlc_id]
+    _dlc = dlc[cache_path]
     if extract:
         _dlc = GzipExtract(_dlc)
     constituent = ConstituentType(Cache(_dlc, base_path / split_id / file_name))

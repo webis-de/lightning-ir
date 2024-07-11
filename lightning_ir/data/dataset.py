@@ -281,21 +281,28 @@ class RunDataset(IRDataset, Dataset):
 
     def load_run(self) -> pd.DataFrame:
         run_path = self.run_path
+
+        suffix_load_map = {
+            ".tsv": self.load_csv,
+            ".run": self.load_csv,
+            ".csv": self.load_csv,
+            ".parquet": self.load_parquet,
+            ".json": self.load_json,
+            ".jsonl": self.load_json,
+        }
         if run_path is None:
-            if not self.ir_dataset.has_scoreddocs():
+            if self.ir_dataset is None or not self.ir_dataset.has_scoreddocs():
                 raise ValueError("Run file or dataset with scoreddocs required.")
+            run_path = self.ir_dataset.scoreddocs_handler().scoreddocs_path()
+
+        if run_path.suffixes[-1] in suffix_load_map:
+            run = suffix_load_map[run_path.suffixes[-1]](run_path)
+        elif self.ir_dataset.has_scoreddocs():
             run = pd.DataFrame(self.ir_dataset.scoreddocs_iter())
-            # TODO load run directly from path
             run["rank"] = run.groupby("query_id")["score"].rank(
                 "first", ascending=False
             )
             run = run.sort_values(["query_id", "rank"])
-        elif set((".tsv", ".run", ".csv")).intersection(run_path.suffixes):
-            run = self.load_csv(run_path)
-        elif run_path.suffix == ".parquet":
-            run = self.load_parquet(run_path)
-        elif set((".json", ".jsonl")).intersection(run_path.suffixes):
-            run = self.load_json(run_path)
         else:
             raise ValueError("Invalid run file format.")
         run = run.rename(
