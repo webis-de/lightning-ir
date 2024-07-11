@@ -3,7 +3,7 @@ from abc import ABC
 import torch
 
 
-class WarmupScheduler(torch.optim.lr_scheduler.LambdaLR, ABC):
+class WarmupLRScheduler(torch.optim.lr_scheduler.LambdaLR, ABC):
     def __init__(
         self,
         optimizer: torch.optim.Optimizer,
@@ -17,11 +17,10 @@ class WarmupScheduler(torch.optim.lr_scheduler.LambdaLR, ABC):
         self.num_training_steps = num_training_steps
         super().__init__(optimizer, self.lr_lambda, last_epoch, verbose)
 
-    def lr_lambda(self, current_step: int) -> float:
-        ...
+    def lr_lambda(self, current_step: int) -> float: ...
 
 
-class LinearSchedulerWithWarmup(WarmupScheduler):
+class LinearLRSchedulerWithWarmup(WarmupLRScheduler):
     def lr_lambda(self, current_step: int) -> float:
         if current_step < self.num_warmup_steps:
             return float(current_step) / float(max(1, self.num_warmup_steps))
@@ -32,11 +31,11 @@ class LinearSchedulerWithWarmup(WarmupScheduler):
         )
 
 
-class ConstantSchedulerWithWarmup(WarmupScheduler):
+class ConstantLRSchedulerWithWarmup(WarmupLRScheduler):
     def lr_lambda(self, current_step: int) -> float:
         if current_step < self.num_warmup_steps:
             return float(current_step) / float(max(1.0, self.num_warmup_steps))
         return 1.0
 
 
-LR_SCHEDULERS = [LinearSchedulerWithWarmup, ConstantSchedulerWithWarmup]
+LR_SCHEDULERS = [LinearLRSchedulerWithWarmup, ConstantLRSchedulerWithWarmup]
