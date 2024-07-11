@@ -38,11 +38,13 @@ from .data import (
 )
 from .lightning_utils import (
     LR_SCHEDULERS,
+    ConstantLRSchedulerWithWarmup,
     ConstantSchedulerWithWarmup,
     IndexCallback,
+    LinearLRSchedulerWithWarmup,
     LinearSchedulerWithWarmup,
     RankCallback,
-    WarmupScheduler,
+    WarmupLRScheduler,
 )
 from .loss import (
     ApproxMRR,
@@ -99,6 +101,7 @@ __all__ = [
     "BiEncoderTokenizer",
     "ColConfig",
     "ColModel",
+    "ConstantLRSchedulerWithWarmup",
     "ConstantMarginMSE",
     "ConstantSchedulerWithWarmup",
     "CrossEncoderConfig",
@@ -132,6 +135,7 @@ __all__ = [
     "LightningIRModule",
     "LightningIROutput",
     "LightningIRTokenizer",
+    "LinearLRSchedulerWithWarmup",
     "LinearSchedulerWithWarmup",
     "LocalizedContrastiveEstimation",
     "LR_SCHEDULERS",
@@ -152,5 +156,5 @@ __all__ = [
     "SupervisedMarginMSE",
     "TrainBatch",
     "TupleDataset",
-    "WarmupScheduler",
+    "WarmupLRScheduler",
 ]
