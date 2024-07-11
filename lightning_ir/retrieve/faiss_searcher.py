@@ -23,6 +23,7 @@ class FaissSearcher(Searcher):
 
         self.search_config: FaissSearchConfig
         self.index = faiss.read_index(str(index_dir / "index.faiss"))
+        self.index.nprobe = search_config.n_probe
         super().__init__(index_dir, search_config, module)
 
     @property
