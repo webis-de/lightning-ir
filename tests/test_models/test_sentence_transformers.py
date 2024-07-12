@@ -14,7 +14,6 @@ from lightning_ir import BiEncoderModel
     ids=["bert", "minilm"],
 )
 def test_same_as_sentence_transformer(model_name: str):
-    # TODO why does this test fail?!
     query = "This is an example query"
     docs = ["This is an example sentence", "Each sentence is converted"]
 
