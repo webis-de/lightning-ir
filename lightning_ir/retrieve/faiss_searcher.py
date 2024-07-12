@@ -23,7 +23,14 @@ class FaissSearcher(Searcher):
 
         self.search_config: FaissSearchConfig
         self.index = faiss.read_index(str(index_dir / "index.faiss"))
-        self.index.nprobe = search_config.n_probe
+        ivf_index = faiss.extract_index_ivf(self.index)
+        ivf_index.nprobe = search_config.n_probe
+        quantizer = getattr(ivf_index, "quantizer", None)
+        if quantizer is not None:
+            downcasted_quantizer = faiss.downcast_index(quantizer)
+            hnsw = getattr(downcasted_quantizer, "hnsw", None)
+            if hnsw is not None:
+                hnsw.efSearch = search_config.ef_search
         super().__init__(index_dir, search_config, module)
 
     @property
@@ -214,8 +221,10 @@ class FaissSearchConfig(SearchConfig):
         candidate_k: int = 100,
         imputation_strategy: Literal["min", "gather"] | None = None,
         n_probe: int = 1,
+        ef_search: int = 16,
     ) -> None:
         super().__init__(k)
         self.candidate_k = candidate_k
         self.imputation_strategy = imputation_strategy
         self.n_probe = n_probe
+        self.ef_search = ef_search
