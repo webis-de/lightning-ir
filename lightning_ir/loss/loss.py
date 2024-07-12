@@ -321,7 +321,7 @@ class InBatchLossFunction(ScoringLossFunction):
             if neg_idcs.shape[-1] > 1:
                 neg_idcs = neg_idcs[:, torch.randperm(neg_idcs.shape[-1])]
             neg_idcs = neg_idcs[:, : self.max_num_neg_samples]
-            neg_idcs = neg_idcs.view(-1)
+            neg_idcs = neg_idcs.reshape(-1)
         return pos_idcs, neg_idcs
 
     def compute_loss(self, scores: torch.Tensor) -> torch.Tensor:
