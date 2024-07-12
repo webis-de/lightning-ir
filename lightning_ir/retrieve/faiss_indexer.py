@@ -117,8 +117,16 @@ class FaissIVFIndexer(FaissIndexer):
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
-
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+
+        import faiss
+
+        ivf_index = faiss.extract_index_ivf(self.index)
+        if hasattr(ivf_index, "quantizer"):
+            quantizer = ivf_index.quantizer
+            if hasattr(faiss.downcast_index(quantizer), "hnsw"):
+                downcasted_quantizer = faiss.downcast_index(quantizer)
+                downcasted_quantizer.hnsw.efConstruction = index_config.ef_construction
 
         # default faiss values
         # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
@@ -269,10 +277,12 @@ class FaissIVFIndexConfig(FaissIndexConfig):
         self,
         num_train_embeddings: int | None = None,
         num_centroids: int = 262144,
+        ef_construction: int = 40,
     ) -> None:
         super().__init__()
         self.num_train_embeddings = num_train_embeddings
         self.num_centroids = num_centroids
+        self.ef_construction = ef_construction
 
 
 class FaissIVFPQIndexConfig(FaissIVFIndexConfig):
@@ -282,9 +292,10 @@ class FaissIVFPQIndexConfig(FaissIVFIndexConfig):
         self,
         num_train_embeddings: int | None = None,
         num_centroids: int = 262144,
+        ef_construction: int = 40,
         num_subquantizers: int = 16,
         n_bits: int = 8,
     ) -> None:
-        super().__init__(num_train_embeddings, num_centroids)
+        super().__init__(num_train_embeddings, ef_construction, num_centroids)
         self.num_subquantizers = num_subquantizers
         self.n_bits = n_bits
