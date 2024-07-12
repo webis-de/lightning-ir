@@ -32,76 +32,81 @@ class FaissSearcher(Searcher):
 
     @property
     def doc_is_single_vector(self) -> bool:
-        return (
-            self.cumulative_doc_lengths[-1].item()
-            == self.cumulative_doc_lengths.shape[0]
-        )
+        return self.num_docs == self.num_embeddings
 
     def _search(
         self, query_embeddings: BiEncoderEmbedding
     ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
-        token_scores, token_doc_idcs = self.token_retrieval(query_embeddings)
+        candidate_scores, candidate_doc_idcs = self.candidate_retrieval(
+            query_embeddings
+        )
         query_lengths = query_embeddings.scoring_mask.sum(-1)
         if self.search_config.imputation_strategy == "gather":
             doc_embeddings, doc_idcs, num_docs = self.gather_imputation(
-                token_doc_idcs, query_lengths
+                candidate_doc_idcs, query_lengths
             )
             doc_scores = self.module.score(query_embeddings, doc_embeddings, num_docs)
         else:
             doc_scores, doc_idcs, num_docs = self.intra_ranking_imputation(
-                token_scores, token_doc_idcs, query_lengths
+                candidate_scores, candidate_doc_idcs, query_lengths
             )
         return doc_scores, doc_idcs, num_docs
 
-    def token_retrieval(
+    def candidate_retrieval(
         self, query_embeddings: BiEncoderEmbedding
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
-        token_scores, token_idcs = self.index.search(
+        candidate_scores, candidate_idcs = self.index.search(
             embeddings.float().cpu(), self.search_config.candidate_k
         )
-        token_scores = torch.from_numpy(token_scores)
-        token_idcs = torch.from_numpy(token_idcs)
+        candidate_scores = torch.from_numpy(candidate_scores)
+        candidate_idcs = torch.from_numpy(candidate_idcs)
         if self.doc_is_single_vector:
-            token_doc_idcs = token_idcs.to(self.cumulative_doc_lengths.device)
+            candidate_doc_idcs = candidate_idcs.to(self.cumulative_doc_lengths.device)
         else:
-            token_doc_idcs = torch.searchsorted(
+            candidate_doc_idcs = torch.searchsorted(
                 self.cumulative_doc_lengths,
-                token_idcs.to(self.cumulative_doc_lengths.device),
+                candidate_idcs.to(self.cumulative_doc_lengths.device),
                 side="right",
             )
-        return token_scores, token_doc_idcs
+        return candidate_scores, candidate_doc_idcs
 
     def gather_imputation(
-        self, token_doc_idcs: torch.Tensor, query_lengths: torch.Tensor
+        self, candidate_doc_idcs: torch.Tensor, query_lengths: torch.Tensor
     ) -> Tuple[BiEncoderEmbedding, torch.Tensor, List[int]]:
+
+        # unique doc_idcs per query
         doc_idcs_per_query = [
             list(sorted(set(idcs.reshape(-1).tolist())))
-            for idcs in torch.split(token_doc_idcs, query_lengths.tolist())
+            for idcs in torch.split(candidate_doc_idcs, query_lengths.tolist())
         ]
         num_docs = [len(idcs) for idcs in doc_idcs_per_query]
-        doc_idcs = torch.tensor(sum(doc_idcs_per_query, [])).to(token_doc_idcs)
-
+        doc_idcs = torch.tensor(sum(doc_idcs_per_query, [])).to(candidate_doc_idcs)
         unique_doc_idcs, inverse_idcs = torch.unique(doc_idcs, return_inverse=True)
+
+        # gather all vectors for unique doc_idcs
         doc_lengths = self.doc_lengths[unique_doc_idcs]
-        start_token_idcs = self.cumulative_doc_lengths[unique_doc_idcs - 1]
-        start_token_idcs[unique_doc_idcs == 0] = 0
-        token_idcs = torch.cat(
+        start_doc_idcs = self.cumulative_doc_lengths[unique_doc_idcs - 1]
+        start_doc_idcs[unique_doc_idcs == 0] = 0
+        all_doc_idcs = torch.cat(
             [
                 torch.arange(start.item(), start.item() + length.item())
-                for start, length in zip(start_token_idcs.cpu(), doc_lengths.cpu())
+                for start, length in zip(start_doc_idcs.cpu(), doc_lengths.cpu())
             ]
         )
-        token_embeddings = torch.from_numpy(self.index.reconstruct_batch(token_idcs))
+        all_doc_embeddings = torch.from_numpy(
+            self.index.reconstruct_batch(all_doc_idcs)
+        )
         unique_embeddings = torch.nn.utils.rnn.pad_sequence(
             [
                 embeddings
-                for embeddings in torch.split(token_embeddings, doc_lengths.tolist())
+                for embeddings in torch.split(all_doc_embeddings, doc_lengths.tolist())
             ],
             batch_first=True,
         ).to(inverse_idcs.device)
-
         embeddings = unique_embeddings[inverse_idcs]
+
+        # mask out padding
         doc_lengths = doc_lengths[inverse_idcs]
         scoring_mask = (
             torch.arange(embeddings.shape[1], device=embeddings.device)
@@ -114,23 +119,25 @@ class FaissSearcher(Searcher):
 
     def intra_ranking_imputation(
         self,
-        token_scores: torch.Tensor,
-        token_doc_idcs: torch.Tensor,
+        candidate_scores: torch.Tensor,
+        candidate_doc_idcs: torch.Tensor,
         query_lengths: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
         max_query_length = int(query_lengths.max().item())
         is_query_single_vector = max_query_length == 1
 
         if self.doc_is_single_vector:
-            scores = token_scores.view(-1)
-            doc_idcs = token_doc_idcs.view(-1)
-            num_docs = torch.full((token_scores.shape[0],), token_scores.shape[1])
+            scores = candidate_scores.view(-1)
+            doc_idcs = candidate_doc_idcs.view(-1)
+            num_docs = torch.full(
+                (candidate_scores.shape[0],), candidate_scores.shape[1]
+            )
         else:
-            # grab unique doc ids per query token
+            # grab unique doc ids per query candidate
             query_idcs = torch.arange(
                 query_lengths.shape[0], device=query_lengths.device
             ).repeat_interleave(query_lengths)
-            query_token_idcs = torch.cat(
+            query_candidate_idcs = torch.cat(
                 [
                     torch.arange(length.item(), device=query_lengths.device)
                     for length in query_lengths
@@ -138,9 +145,9 @@ class FaissSearcher(Searcher):
             )
             paired_idcs = torch.stack(
                 [
-                    query_idcs.repeat_interleave(token_scores.shape[1]),
-                    query_token_idcs.repeat_interleave(token_scores.shape[1]),
-                    token_doc_idcs.view(-1),
+                    query_idcs.repeat_interleave(candidate_scores.shape[1]),
+                    query_candidate_idcs.repeat_interleave(candidate_scores.shape[1]),
+                    candidate_doc_idcs.view(-1),
                 ]
             ).T
             unique_paired_idcs, inverse_idcs = torch.unique(
@@ -159,7 +166,7 @@ class FaissSearcher(Searcher):
                 torch.full((shape.numel(),), float("inf"), device=query_lengths.device),
                 0,
                 idcs,
-                token_scores.view(-1).to(query_lengths.device),
+                candidate_scores.view(-1).to(query_lengths.device),
                 "max",
                 include_self=False,
             ).view(shape)
@@ -186,7 +193,7 @@ class FaissSearcher(Searcher):
             is_inf = torch.isinf(scores)
             scores[is_inf] = impute_values[is_inf]
 
-            # aggregate score per query token
+            # aggregate score per query vector
             mask = (
                 torch.arange(max_query_length, device=query_lengths.device)
                 < query_lengths[:, None]
