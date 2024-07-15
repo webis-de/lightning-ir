@@ -17,7 +17,7 @@ class SparseIndexer(Indexer):
         verbose: bool = False,
     ) -> None:
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
-        self.crow_indices = array.array("I")
+        self.crow_indices = array.array("L")
         self.crow_indices.append(0)
         self.col_idcs = array.array("I")
         self.values = array.array("f")
