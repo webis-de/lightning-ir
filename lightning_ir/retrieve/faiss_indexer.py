@@ -296,6 +296,6 @@ class FaissIVFPQIndexConfig(FaissIVFIndexConfig):
         num_subquantizers: int = 16,
         n_bits: int = 8,
     ) -> None:
-        super().__init__(num_train_embeddings, ef_construction, num_centroids)
+        super().__init__(num_train_embeddings, num_centroids, ef_construction)
         self.num_subquantizers = num_subquantizers
         self.n_bits = n_bits
