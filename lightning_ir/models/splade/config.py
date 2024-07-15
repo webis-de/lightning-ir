@@ -16,19 +16,19 @@ class SpladeConfig(BiEncoderConfig):
         embedding_dim: int = 30522,
         **kwargs,
     ) -> None:
+        kwargs["query_expansion"] = False
+        kwargs["attend_to_query_expanded_tokens"] = False
+        kwargs["query_mask_scoring_tokens"] = None
+        kwargs["doc_expansion"] = False
+        kwargs["attend_to_doc_expanded_tokens"] = (False,)
+        kwargs["doc_mask_scoring_tokens"] = None
+        kwargs["query_aggregation_function"] = "sum"
+        kwargs["normalize"] = False
+        kwargs["add_marker_tokens"] = False
         super().__init__(
             similarity_function=similarity_function,
-            query_expansion=False,
-            attend_to_query_expanded_tokens=False,
             query_pooling_strategy=query_pooling_strategy,
-            query_mask_scoring_tokens=None,
-            doc_expansion=False,
-            attend_to_doc_expanded_tokens=False,
             doc_pooling_strategy=doc_pooling_strategy,
-            doc_mask_scoring_tokens=None,
-            query_aggregation_function="sum",
-            normalize=False,
-            add_marker_tokens=False,
             embedding_dim=embedding_dim,
             projection=None if projection == "mlm" else projection,
             sparsification=sparsification,
