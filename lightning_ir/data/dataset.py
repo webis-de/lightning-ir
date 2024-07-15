@@ -293,9 +293,11 @@ class RunDataset(IRDataset, Dataset):
         if run_path is None:
             if self.ir_dataset is None or not self.ir_dataset.has_scoreddocs():
                 raise ValueError("Run file or dataset with scoreddocs required.")
-            run_path = self.ir_dataset.scoreddocs_handler().scoreddocs_path()
-
-        if run_path.suffixes[-1] in suffix_load_map:
+            try:
+                run_path = self.ir_dataset.scoreddocs_handler().scoreddocs_path()
+            except NotImplementedError:
+                pass
+        if run_path is not None and run_path.suffixes[-1] in suffix_load_map:
             run = suffix_load_map[run_path.suffixes[-1]](run_path)
         elif self.ir_dataset.has_scoreddocs():
             run = pd.DataFrame(self.ir_dataset.scoreddocs_iter())
