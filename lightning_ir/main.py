@@ -46,16 +46,6 @@ class LightningIRWandbLogger(WandbLogger):
 class LightningIRTrainer(Trainer):
     # TODO check that correct callbacks are registered for each subcommand
 
-    def validate(
-        self,
-        model: LightningModule | None = None,
-        dataloaders: Any | LightningDataModule | None = None,
-        ckpt_path: str | Path | None = None,
-        verbose: bool = True,
-        datamodule: LightningDataModule | None = None,
-    ) -> List[Mapping[str, float]]:
-        return super().test(model, dataloaders, ckpt_path, verbose, datamodule)
-
     def index(
         self,
         model: LightningModule | None = None,
