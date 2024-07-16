@@ -26,9 +26,9 @@ jobs:
         working-directory: ${{github.workspace}}
         run: |
           # Since splade makes problems otherwise:
-          pip3 install "splade@git+https://github.com/naver/splade.git" --break-system-packages --no-deps
-          pip3 install omegaconf==2.1.2 --break-system-packages
-          pip3 install .[test,dev] --break-system-packages
+          pip3 install "splade@git+https://github.com/naver/splade.git" --no-deps
+          pip3 install omegaconf==2.1.2
+          pip3 install .[test,dev]
       - name: Run tests
         working-directory: ${{github.workspace}}
         run: pytest tests
