@@ -29,6 +29,6 @@ jobs:
           RUN pip3 install "splade@git+https://github.com/naver/splade.git" --break-system-packages --no-deps
           RUN pip3 install omegaconf==2.1.2 --break-system-packages
           pip install .[test,dev] --break-system-packages
-      - name: Run tests:
+      - name: Run tests
         working-directory: ${{github.workspace}}
         run: pytest tests
