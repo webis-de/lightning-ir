@@ -28,7 +28,6 @@ jobs:
           pip3 install .[docs]
           cd docs/
           make doctest
-          sphinx-apidoc -o users/api/_autosummary ../lightning_ir/
           make html
           touch _build/html/.nojekyll
       - name: Setup Pages

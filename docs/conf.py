@@ -49,8 +49,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "sphinxawesome_theme"
 html_title = "lightning-ir"
-html_logo = "./logo.png"
-html_logo = "./logo.png"
+# html_logo = "./logo.png"
 language = "en"
 
 html_theme_options: Dict[str, Any] = {
