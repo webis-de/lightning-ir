@@ -1,12 +1,23 @@
-name: Documentation
+name: Deploy Documentation
 on:
   push:
     branches:
       - main
+      - master
 
 jobs:
   build-doc:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,8 +31,13 @@ jobs:
           sphinx-apidoc -o users/api/_autosummary ../lightning_ir/
           make html
           touch _build/html/.nojekyll
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: docs/_build/html
-          target-folder: ./
+          # Upload entire repository
+          path: 'docs/_build/html'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

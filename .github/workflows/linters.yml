@@ -1,8 +1,17 @@
 name: Linters
 
 on:
-  push: {}
-  workflow_dispatch: {}
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+    types:
+      - ready_for_review
+  workflow_dispatch:  {}
 
 jobs:
   mypy:
