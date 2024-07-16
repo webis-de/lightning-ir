@@ -89,6 +89,7 @@ AutoModel.register(ColConfig, ColModel)
 AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
 AutoModel.register(SpladeConfig, SpladeModel)
 
+__version__ = "0.0.1"
 
 __all__ = [
     "ApproxMRR",

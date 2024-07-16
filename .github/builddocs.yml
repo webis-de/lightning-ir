@@ -1,0 +1,27 @@
+name: Documentation
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-doc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install .[docs]
+          cd docs/
+          make doctest
+          sphinx-apidoc -o users/api/_autosummary ../lightning_ir/
+          make html
+          touch _build/html/.nojekyll
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: docs/_build/html
+          target-folder: ./

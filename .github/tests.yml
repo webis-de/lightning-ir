@@ -1,0 +1,22 @@
+name: Documentation
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install self
+        working-directory: ${{github.workspace}}
+        run: |
+          # Since splade makes problems otherwise:
+          RUN pip3 install "splade@git+https://github.com/naver/splade.git" --break-system-packages --no-deps
+          RUN pip3 install omegaconf==2.1.2 --break-system-packages
+          pip install .[test,dev] --break-system-packages
+      - name: Run tests:
+        working-directory: ${{github.workspace}}
+        run: pytest tests
