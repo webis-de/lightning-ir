@@ -81,7 +81,6 @@ class FaissSearcher(Searcher):
     def gather_imputation(
         self, candidate_doc_idcs: torch.Tensor, query_lengths: torch.Tensor
     ) -> Tuple[BiEncoderEmbedding, torch.Tensor, List[int]]:
-
         # unique doc_idcs per query
         doc_idcs_per_query = [
             list(sorted(set(idcs.reshape(-1).tolist())))
@@ -212,7 +211,6 @@ class FaissSearcher(Searcher):
 
 
 class FaissSearchConfig(SearchConfig):
-
     search_class = FaissSearcher
 
     def __init__(

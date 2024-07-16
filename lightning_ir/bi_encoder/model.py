@@ -1,8 +1,8 @@
-from dataclasses import dataclass
-from string import punctuation
-from functools import wraps
 import warnings
-from typing import Literal, Sequence, Callable
+from dataclasses import dataclass
+from functools import wraps
+from string import punctuation
+from typing import Callable, Literal, Sequence
 
 import torch
 from transformers import BatchEncoding

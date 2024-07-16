@@ -5,7 +5,7 @@ from huggingface_hub import hf_hub_download
 from transformers import BertModel
 from transformers.modeling_utils import load_state_dict
 
-from ...base import LightningIRModelClassFactory, LightningIRModel
+from ...base import LightningIRModel, LightningIRModelClassFactory
 from ...bi_encoder.model import BiEncoderModel
 from .config import ColConfig
 

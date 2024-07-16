@@ -17,7 +17,8 @@ class WarmupLRScheduler(torch.optim.lr_scheduler.LambdaLR, ABC):
         self.num_training_steps = num_training_steps
         super().__init__(optimizer, self.lr_lambda, last_epoch, verbose)
 
-    def lr_lambda(self, current_step: int) -> float: ...
+    def lr_lambda(self, current_step: int) -> float:
+        ...
 
 
 class LinearLRSchedulerWithWarmup(WarmupLRScheduler):

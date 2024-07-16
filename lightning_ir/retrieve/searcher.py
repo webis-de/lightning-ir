@@ -41,12 +41,14 @@ class Searcher(ABC):
 
     @property
     @abstractmethod
-    def num_embeddings(self) -> int: ...
+    def num_embeddings(self) -> int:
+        ...
 
     @abstractmethod
     def _search(
         self, query_embeddings: BiEncoderEmbedding
-    ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]: ...
+    ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
+        ...
 
     def _filter_and_sort(
         self,

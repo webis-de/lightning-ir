@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Set, Mapping
+from typing import Any, Dict, List, Mapping, Set
 
 import torch
 from lightning import LightningDataModule, LightningModule, Trainer

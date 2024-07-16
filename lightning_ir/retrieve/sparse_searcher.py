@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 
 
 class SparseIndex:
-
     def __init__(
         self, index_dir: Path, similarity_function: Literal["dot", "cosine"]
     ) -> None:
@@ -48,7 +47,6 @@ class SparseIndex:
 
 
 class SparseSearcher(Searcher):
-
     def __init__(
         self,
         index_dir: Path,
@@ -118,5 +116,4 @@ class SparseSearcher(Searcher):
 
 
 class SparseSearchConfig(SearchConfig):
-
     search_class = SparseSearcher

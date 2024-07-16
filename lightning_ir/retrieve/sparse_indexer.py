@@ -1,5 +1,6 @@
 import array
 from pathlib import Path
+
 import torch
 
 from ..bi_encoder import BiEncoderConfig, BiEncoderOutput
@@ -8,7 +9,6 @@ from .indexer import IndexConfig, Indexer
 
 
 class SparseIndexer(Indexer):
-
     def __init__(
         self,
         index_dir: Path,
