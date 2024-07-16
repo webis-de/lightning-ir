@@ -94,7 +94,9 @@ class KLDivergence(ListwiseLossFunction):
         targets = self.process_targets(scores, targets)
         scores = torch.nn.functional.log_softmax(scores, dim=-1)
         targets = torch.nn.functional.log_softmax(targets.to(scores), dim=-1)
-        loss = torch.nn.functional.kl_div(scores, targets, log_target=True)
+        loss = torch.nn.functional.kl_div(
+            scores, targets, log_target=True, reduction="batchmean"
+        )
         return loss
 
 
