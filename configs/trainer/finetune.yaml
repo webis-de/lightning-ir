@@ -1,0 +1,22 @@
+seed_everything: 0
+trainer:
+  accelerator: auto
+  strategy: auto
+  devices: auto
+  num_nodes: 1
+  precision: bf16-mixed
+  logger: true
+  callbacks:
+  - class_path: ModelCheckpoint
+    init_args:
+      monitor: nDCG@10
+      mode: max
+      save_on_train_epoch_end: false
+      save_top_k: 1
+      every_n_epochs: 1
+  max_epochs: null
+  max_steps: 50000
+  val_check_interval: 4000
+  check_val_every_n_epoch: null
+  accumulate_grad_batches: 4
+  gradient_clip_val: 1

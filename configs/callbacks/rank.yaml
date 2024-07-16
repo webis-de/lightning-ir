@@ -1,0 +1,5 @@
+trainer:
+  callbacks+:
+  - class_path: RankCallback
+    init_args:
+      save_dir: ./runs

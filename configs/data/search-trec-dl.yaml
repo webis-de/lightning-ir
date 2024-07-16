@@ -1,0 +1,12 @@
+data:
+  class_path: LightningIRDataModule
+  init_args:
+    num_workers: 1
+    inference_batch_size: 4
+    inference_datasets:
+      - class_path: QueryDataset
+        init_args:
+          query_dataset: msmarco-passage/trec-dl-2019/judged
+      - class_path: QueryDataset
+        init_args:
+          query_dataset: msmarco-passage/trec-dl-2020/judged

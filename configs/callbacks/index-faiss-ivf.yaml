@@ -1,0 +1,10 @@
+trainer:
+  callbacks+:
+  - class_path: IndexCallback
+    init_args:
+      index_dir: indexes/bi-encoder
+      index_config:
+        class_path: FaissIVFIndexConfig
+        init_args:
+          num_centroids: 65536
+          ef_construction: 256

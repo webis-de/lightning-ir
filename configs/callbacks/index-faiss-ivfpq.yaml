@@ -1,0 +1,10 @@
+trainer:
+  callbacks+:
+  - class_path: IndexCallback
+    init_args:
+      index_config:
+        class_path: FaissIVFPQIndexConfig
+        init_args:
+          num_centroids: 262144
+          num_subquantizers: 16
+          n_bits: 8

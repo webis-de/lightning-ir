@@ -1,0 +1,4 @@
+model:
+  class_path: CrossEncoderModule
+  init_args:
+    model_name_or_path: webis/monoelectra-base

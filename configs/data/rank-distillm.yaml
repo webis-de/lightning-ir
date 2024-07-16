@@ -1,0 +1,14 @@
+data:
+  class_path: LightningIRDataModule
+  init_args:
+    num_workers: 1
+    train_batch_size: 16
+    train_dataset:
+      class_path: RunDataset
+      init_args:
+        run_path_or_id: msmarco-passage/train/rank-distillm/set-encoder
+        depth: 50
+        sample_size: 8
+        sampling_strategy: random
+        targets: score
+    

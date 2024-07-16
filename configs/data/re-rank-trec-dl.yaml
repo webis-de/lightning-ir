@@ -1,0 +1,18 @@
+data:
+  class_path: LightningIRDataModule
+  init_args:
+    num_workers: 1
+    inference_batch_size: 4
+    inference_datasets:
+      - class_path: RunDataset
+        init_args:
+          run_path_or_id: msmarco-passage/trec-dl-2019/judged
+          depth: 1000
+          sample_size: 1000
+          sampling_strategy: top
+      - class_path: RunDataset
+        init_args:
+          run_path_or_id: msmarco-passage/trec-dl-2020/judged
+          depth: 1000
+          sample_size: 1000
+          sampling_strategy: top
