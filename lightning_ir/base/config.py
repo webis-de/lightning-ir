@@ -9,6 +9,9 @@ if TYPE_CHECKING:
 
 
 class LightningIRConfig(PretrainedConfig):
+    """The configuration class to instantiate a LightningIR model. It is inherited from
+    the `transformers.PretrainedConfig` class."""
+
     model_type = "lightning-ir"
     backbone_model_type: str | None = None
     tokenizer_class: Type[LightningIRTokenizer] | None = None
@@ -16,12 +19,14 @@ class LightningIRConfig(PretrainedConfig):
     TOKENIZER_ARGS = {"query_length", "doc_length"}
     ADDED_ARGS = TOKENIZER_ARGS
 
-    def __init__(
-        self,
-        query_length: int = 32,
-        doc_length: int = 512,
-        **kwargs,
-    ):
+    def __init__(self, query_length: int = 32, doc_length: int = 512, **kwargs):
+        """Initializes the configuration.
+
+        :param query_length: Maximum query length, defaults to 32
+        :type query_length: int, optional
+        :param doc_length: Maximum document length, defaults to 512
+        :type doc_length: int, optional
+        """
         super().__init__(**kwargs)
         self.query_length = query_length
         self.doc_length = doc_length

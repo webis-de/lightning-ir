@@ -8,6 +8,8 @@ from .tokenizer import BiEncoderTokenizer
 
 
 class BiEncoderConfig(LightningIRConfig):
+    """The configuration class to instantiate a Bi-Encoder model."""
+
     model_type = "bi-encoder"
     tokenizer_class: Type[BiEncoderTokenizer] = BiEncoderTokenizer
 
@@ -51,11 +53,44 @@ class BiEncoderConfig(LightningIRConfig):
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
         normalize: bool = False,
         sparsification: Literal["relu", "relu_log"] | None = None,
-        add_marker_tokens: bool = True,
+        add_marker_tokens: bool = False,
         embedding_dim: int = 768,
         projection: Literal["linear", "linear_no_bias"] | None = "linear",
         **kwargs,
     ):
+        """Initializes a bi-encoder configuration.
+
+        :param similarity_function: Similarity function to compute scores between query and document embeddings, defaults to "dot"
+        :type similarity_function: Literal[&quot;cosine&quot;, &quot;dot&quot;], optional
+        :param query_expansion: Whether to expand queries with mask tokens, defaults to False
+        :type query_expansion: bool, optional
+        :param attend_to_query_expanded_tokens: Whether to allow query tokens to attend to mask tokens, defaults to False
+        :type attend_to_query_expanded_tokens: bool, optional
+        :param query_pooling_strategy: Whether and how to pool the query token embeddings, defaults to "mean"
+        :type query_pooling_strategy: Literal[&quot;first&quot;, &quot;mean&quot;, &quot;max&quot;, &quot;sum&quot;] | None, optional
+        :param query_mask_scoring_tokens: Whether and which query tokens to ignore during scoring, defaults to None
+        :type query_mask_scoring_tokens: Sequence[str] | Literal[&quot;punctuation&quot;] | None, optional
+        :param query_aggregation_function: How to aggregate similarity scores over query tokens, defaults to "sum"
+        :type query_aggregation_function: Literal[ &quot;sum&quot;, &quot;mean&quot;, &quot;max&quot;, &quot;harmonic_mean&quot; ], optional
+        :param doc_expansion: Whether to expand documents with mask tokens, defaults to False
+        :type doc_expansion: bool, optional
+        :param attend_to_doc_expanded_tokens: Whether to allow document tokens to attend to mask tokens, defaults to False
+        :type attend_to_doc_expanded_tokens: bool, optional
+        :param doc_pooling_strategy: Whether andhow to pool document token embeddings, defaults to "mean"
+        :type doc_pooling_strategy: Literal[&quot;first&quot;, &quot;mean&quot;, &quot;max&quot;, &quot;sum&quot;] | None, optional
+        :param doc_mask_scoring_tokens: Whether and which document tokens to ignore during scoring, defaults to None
+        :type doc_mask_scoring_tokens: Sequence[str] | Literal[&quot;punctuation&quot;] | None, optional
+        :param normalize: Whether to normalize query and document embeddings, defaults to False
+        :type normalize: bool, optional
+        :param sparsification: Whether and which sparsification function to apply, defaults to None
+        :type sparsification: Literal[&quot;relu&quot;, &quot;relu_log&quot;] | None, optional
+        :param add_marker_tokens: Whether to add extra marker tokens [Q] / [D] to queries / documents, defaults to False
+        :type add_marker_tokens: bool, optional
+        :param embedding_dim: The output embedding dimension, defaults to 768
+        :type embedding_dim: int, optional
+        :param projection: Whether and how to project the output emeddings, defaults to "linear"
+        :type projection: Literal[&quot;linear&quot;, &quot;linear_no_bias&quot;] | None, optional
+        """
         super().__init__(**kwargs)
         self.similarity_function = similarity_function
         self.query_expansion = query_expansion
