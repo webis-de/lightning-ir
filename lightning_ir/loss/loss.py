@@ -6,8 +6,7 @@ import torch
 
 class LossFunction(ABC):
     @abstractmethod
-    def compute_loss(self, *args, **kwargs) -> torch.Tensor:
-        ...
+    def compute_loss(self, *args, **kwargs) -> torch.Tensor: ...
 
 
 class ScoringLossFunction(LossFunction):
@@ -16,12 +15,9 @@ class ScoringLossFunction(LossFunction):
         self,
         scores: torch.Tensor,
         targets: torch.Tensor,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
-    def process_targets(
-        self, scores: torch.Tensor, targets: torch.Tensor
-    ) -> torch.Tensor:
+    def process_targets(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         if targets.ndim > scores.ndim:
             return targets.max(-1).values
         return targets
@@ -33,8 +29,7 @@ class EmbeddingLossFunction(LossFunction):
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
 
 class PairwiseLossFunction(ScoringLossFunction):
@@ -60,9 +55,7 @@ class MarginMSE(PairwiseLossFunction):
         if isinstance(self.margin, float):
             target_margin = torch.tensor(self.margin, device=scores.device)
         elif self.margin == "scores":
-            target_margin = (
-                targets[query_idcs, pos_idcs] - targets[query_idcs, neg_idcs]
-            )
+            target_margin = targets[query_idcs, pos_idcs] - targets[query_idcs, neg_idcs]
         else:
             raise ValueError("invalid margin type")
         loss = torch.nn.functional.mse_loss(margin, target_margin.clamp(min=0))
@@ -86,9 +79,7 @@ class RankNet(PairwiseLossFunction):
         pos = scores[query_idcs, pos_idcs]
         neg = scores[query_idcs, neg_idcs]
         margin = pos - neg
-        loss = torch.nn.functional.binary_cross_entropy_with_logits(
-            margin, torch.ones_like(margin)
-        )
+        loss = torch.nn.functional.binary_cross_entropy_with_logits(margin, torch.ones_like(margin))
         return loss
 
 
@@ -97,9 +88,7 @@ class KLDivergence(ListwiseLossFunction):
         targets = self.process_targets(scores, targets)
         scores = torch.nn.functional.log_softmax(scores, dim=-1)
         targets = torch.nn.functional.log_softmax(targets.to(scores), dim=-1)
-        loss = torch.nn.functional.kl_div(
-            scores, targets, log_target=True, reduction="batchmean"
-        )
+        loss = torch.nn.functional.kl_div(scores, targets, log_target=True, reduction="batchmean")
         return loss
 
 
@@ -121,9 +110,7 @@ class ApproxLossFunction(ListwiseLossFunction):
         score_diff = scores[:, None] - scores[..., None]
         normalized_score_diff = torch.sigmoid(score_diff / temperature)
         # set diagonal to 0
-        normalized_score_diff = normalized_score_diff * (
-            1 - torch.eye(scores.shape[1], device=scores.device)
-        )
+        normalized_score_diff = normalized_score_diff * (1 - torch.eye(scores.shape[1], device=scores.device))
         approx_ranks = normalized_score_diff.sum(-1) + 1
         return approx_ranks
 
@@ -172,9 +159,7 @@ class ApproxNDCG(ApproxLossFunction):
     def compute_loss(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         targets = self.process_targets(scores, targets)
         approx_ranks = self.get_approx_ranks(scores, self.temperature)
-        ndcg = self.get_ndcg(
-            approx_ranks, targets, k=None, scale_gains=self.scale_gains
-        )
+        ndcg = self.get_ndcg(approx_ranks, targets, k=None, scale_gains=self.scale_gains)
         loss = 1 - ndcg
         return loss.mean()
 
@@ -184,9 +169,7 @@ class ApproxMRR(ApproxLossFunction):
         super().__init__(temperature)
 
     @staticmethod
-    def get_mrr(
-        ranks: torch.Tensor, targets: torch.Tensor, k: int | None = None
-    ) -> torch.Tensor:
+    def get_mrr(ranks: torch.Tensor, targets: torch.Tensor, k: int | None = None) -> torch.Tensor:
         targets = targets.clamp(None, 1)
         reciprocal_ranks = 1 / ranks
         mrr = reciprocal_ranks * targets
@@ -216,9 +199,7 @@ class ApproxRankMSE(ApproxLossFunction):
         targets = self.process_targets(scores, targets)
         approx_ranks = self.get_approx_ranks(scores, self.temperature)
         ranks = torch.argsort(torch.argsort(targets, descending=True)) + 1
-        loss = torch.nn.functional.mse_loss(
-            approx_ranks, ranks.to(approx_ranks), reduction="none"
-        )
+        loss = torch.nn.functional.mse_loss(approx_ranks, ranks.to(approx_ranks), reduction="none")
         if self.discount == "log2":
             weight = 1 / torch.log2(ranks + 1)
         elif self.discount == "reciprocal":
@@ -233,9 +214,7 @@ class ApproxRankMSE(ApproxLossFunction):
 class NeuralLossFunction(ListwiseLossFunction):
     # TODO add neural loss functions
 
-    def __init__(
-        self, temperature: float = 1, tol: float = 1e-5, max_iter: int = 50
-    ) -> None:
+    def __init__(self, temperature: float = 1, tol: float = 1e-5, max_iter: int = 50) -> None:
         super().__init__()
         self.temperature = temperature
         self.tol = tol
@@ -274,13 +253,9 @@ class NeuralLossFunction(ListwiseLossFunction):
 
         return mat
 
-    def get_sorted_targets(
-        self, scores: torch.Tensor, targets: torch.Tensor
-    ) -> torch.Tensor:
+    def get_sorted_targets(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         permutation_matrix = self.neural_sort(scores)
-        pred_sorted_targets = torch.matmul(
-            permutation_matrix, targets[..., None].to(permutation_matrix)
-        ).squeeze(-1)
+        pred_sorted_targets = torch.matmul(permutation_matrix, targets[..., None].to(permutation_matrix)).squeeze(-1)
         return pred_sorted_targets
 
 
@@ -296,28 +271,26 @@ class InBatchLossFunction(ScoringLossFunction):
         self.neg_sampling_technique = neg_sampling_technique
         self.max_num_neg_samples = max_num_neg_samples
 
-    def get_ib_idcs(
-        self, num_queries: int, num_docs: int
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_ib_idcs(self, num_queries: int, num_docs: int) -> Tuple[torch.Tensor, torch.Tensor]:
         min_idx = torch.arange(num_queries)[:, None] * num_docs
         max_idx = min_idx + num_docs
         if self.pos_sampling_technique == "all":
-            pos_mask = torch.arange(num_queries * num_docs)[None].greater_equal(
-                min_idx
-            ) & torch.arange(num_queries * num_docs)[None].less(max_idx)
+            pos_mask = torch.arange(num_queries * num_docs)[None].greater_equal(min_idx) & torch.arange(
+                num_queries * num_docs
+            )[None].less(max_idx)
         elif self.pos_sampling_technique == "first":
             pos_mask = torch.arange(num_queries * num_docs)[None].eq(min_idx)
         else:
             raise ValueError("invalid pos sampling technique")
         pos_idcs = pos_mask.nonzero(as_tuple=True)[1]
         if self.neg_sampling_technique == "all":
-            neg_mask = torch.arange(num_queries * num_docs)[None].less(
-                min_idx
-            ) | torch.arange(num_queries * num_docs)[None].greater_equal(max_idx)
+            neg_mask = torch.arange(num_queries * num_docs)[None].less(min_idx) | torch.arange(num_queries * num_docs)[
+                None
+            ].greater_equal(max_idx)
         elif self.neg_sampling_technique == "first":
-            neg_mask = torch.arange(num_queries * num_docs)[None, None].eq(min_idx).any(
-                1
-            ) & torch.arange(num_queries * num_docs)[None].ne(min_idx)
+            neg_mask = torch.arange(num_queries * num_docs)[None, None].eq(min_idx).any(1) & torch.arange(
+                num_queries * num_docs
+            )[None].ne(min_idx)
         else:
             raise ValueError("invalid neg sampling technique")
         neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
@@ -330,9 +303,7 @@ class InBatchLossFunction(ScoringLossFunction):
         return pos_idcs, neg_idcs
 
     def compute_loss(self, scores: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError(
-            "InBatchLossFunction.compute_loss must be implemented by subclasses"
-        )
+        raise NotImplementedError("InBatchLossFunction.compute_loss must be implemented by subclasses")
 
 
 class InBatchCrossEntropy(InBatchLossFunction):
@@ -380,5 +351,6 @@ class FLOPSRegularization(RegularizationLossFunction):
     ) -> torch.Tensor:
         query_loss = torch.sum(torch.mean(torch.abs(query_embeddings), dim=0) ** 2)
         doc_loss = torch.sum(torch.mean(torch.abs(doc_embeddings), dim=0) ** 2)
-        loss = self.query_weight * query_loss + self.doc_weight * doc_loss
+        anti_zero = 1 / (torch.sum(query_embeddings) ** 2) + 1 / (torch.sum(doc_embeddings) ** 2)
+        loss = self.query_weight * query_loss + self.doc_weight * doc_loss + anti_zero
         return loss
