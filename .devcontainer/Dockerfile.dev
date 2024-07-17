@@ -1,0 +1,28 @@
+FROM debian:stable
+
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get update && apt-get install -y locales &&\
+	echo "en_US.UTF-8 UTF-8" | tee -a /etc/locale.gen && locale-gen
+
+# Tools
+RUN apt-get update && apt-get -y install sudo git python3 python3-pip
+
+# Dependencies
+#  pytorch for CPU
+RUN apt-get install -y libpcre3-dev
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu --break-system-packages
+
+# Since splade makes problems otherwise:
+RUN pip3 install "splade@git+https://github.com/naver/splade.git" --break-system-packages --no-deps
+RUN pip3 install omegaconf==2.1.2 --break-system-packages
+
+# Change root Password to 1234
+RUN echo 'root:1234' | chpasswd
+
+# Create new user: "dev" with password "1234" and change to that user
+RUN useradd -ms /bin/bash dev \
+ 	&& echo 'dev:1234' | chpasswd \
+	&& usermod -aG sudo dev \
+	&& groupadd -g 973 docker \
+	&& usermod -aG docker dev
+USER dev
