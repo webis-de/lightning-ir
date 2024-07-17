@@ -5,12 +5,7 @@ import torch
 
 from ..base import LightningIRModule
 from ..data import IndexBatch, RankBatch, SearchBatch, TrainBatch
-from ..loss.loss import (
-    EmbeddingLossFunction,
-    InBatchLossFunction,
-    LossFunction,
-    ScoringLossFunction,
-)
+from ..loss.loss import EmbeddingLossFunction, InBatchLossFunction, LossFunction, ScoringLossFunction
 from ..retrieve import SearchConfig, Searcher
 from .config import BiEncoderConfig
 from .model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput
@@ -118,6 +113,13 @@ class BiEncoderModule(LightningIRModule):
                 losses[loss_function.__class__.__name__] = loss_function.compute_loss(scores, targets)
             else:
                 raise ValueError(f"Unknown loss function type {loss_function.__class__.__name__}")
+        if self.config.sparsification is not None:
+            query_num_nonzero = (
+                torch.nonzero(query_embeddings.embeddings).shape[0] / query_embeddings.embeddings.shape[0]
+            )
+            doc_num_nonzero = torch.nonzero(doc_embeddings.embeddings).shape[0] / doc_embeddings.embeddings.shape[0]
+            self.log("query_num_nonzero", query_num_nonzero)
+            self.log("doc_num_nonzero", doc_num_nonzero)
         return losses
 
     def get_ib_doc_embeddings(
