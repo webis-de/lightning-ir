@@ -6,9 +6,10 @@ from lightning import LightningDataModule, LightningModule, Trainer
 from torch.utils.data import DataLoader, Dataset
 
 from lightning_ir.lightning_utils.schedulers import (
-    ConstantSchedulerWithWarmup,
+    ConstantSchedulerWithLinearWarmup,
+    ConstantSchedulerWithQuadraticWarmup,
     LambdaWarmupScheduler,
-    LinearSchedulerWithWarmup,
+    LinearSchedulerWithLinearWarmup,
 )
 
 
@@ -47,14 +48,15 @@ class DummyDataModule(LightningDataModule):
 
 
 @pytest.mark.parametrize(
-    "scheduler",
+    "scheduler,value",
     (
-        LinearSchedulerWithWarmup(["dummy_object.value"], 20, 100),
-        ConstantSchedulerWithWarmup(["dummy_object.value"], 20, 100),
+        (LinearSchedulerWithLinearWarmup(["dummy_object.value"], num_warmup_steps=20, num_training_steps=100), 50),
+        (ConstantSchedulerWithLinearWarmup(["dummy_object.value"], num_warmup_steps=20, num_training_steps=100), 50),
+        (ConstantSchedulerWithQuadraticWarmup(["dummy_object.value"], num_warmup_steps=20, num_training_steps=100), 25),
     ),
-    ids=["Linear", "Constant"],
+    ids=["Linear", "Constant", "Quadratic"],
 )
-def test_scheduler(scheduler: LambdaWarmupScheduler):
+def test_scheduler(scheduler: LambdaWarmupScheduler, value: float):
     trainer = Trainer(
         callbacks=[scheduler],
         max_steps=10,
@@ -67,4 +69,4 @@ def test_scheduler(scheduler: LambdaWarmupScheduler):
     trainer.fit(module, datamodule=DummyDataModule())
 
     assert scheduler.values["dummy_object.value"] == 100
-    assert module.dummy_object.value == 50
+    assert module.dummy_object.value == value

@@ -57,10 +57,10 @@ class LambdaWarmupScheduler(Callback, ABC):
 
 class LinearSchedulerWithLinearWarmup(LambdaWarmupScheduler):
     def value_lambda(self, current_step: int) -> float:
-        if current_step < self.num_delay_steps:
+        if current_step <= self.num_delay_steps:
             return 0.0
-        current_step -= self.num_delay_steps + 1
-        if current_step < self.num_warmup_steps:
+        current_step -= self.num_delay_steps
+        if current_step <= self.num_warmup_steps:
             return current_step / self.num_warmup_steps
         return max(
             0.0,
@@ -70,19 +70,19 @@ class LinearSchedulerWithLinearWarmup(LambdaWarmupScheduler):
 
 class ConstantSchedulerWithLinearWarmup(LambdaWarmupScheduler):
     def value_lambda(self, current_step: int) -> float:
-        if current_step < self.num_delay_steps:
+        if current_step <= self.num_delay_steps:
             return 0.0
-        current_step -= self.num_delay_steps + 1
-        if current_step < self.num_warmup_steps:
+        current_step -= self.num_delay_steps
+        if current_step <= self.num_warmup_steps:
             return current_step / self.num_warmup_steps
         return 1.0
 
 
 class ConstantSchedulerWithQuadraticWarmup(LambdaWarmupScheduler):
     def value_lambda(self, current_step: int) -> float:
-        if current_step < self.num_delay_steps:
+        if current_step <= self.num_delay_steps:
             return 0.0
-        current_step -= self.num_delay_steps + 1
-        if current_step < self.num_warmup_steps:
+        current_step -= self.num_delay_steps
+        if current_step <= self.num_warmup_steps:
             return (current_step / self.num_warmup_steps) ** 2
         return 1.0
