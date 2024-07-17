@@ -284,8 +284,8 @@ class RunDataset(IRDataset, Dataset):
                 run_path = self.ir_dataset.scoreddocs_handler().scoreddocs_path()
             except NotImplementedError:
                 pass
-        if run_path is not None and run_path.suffixes[-1] in suffix_load_map:
-            run = suffix_load_map[run_path.suffixes[-1]](run_path)
+        if run_path is not None and run_path.suffixes[0] in suffix_load_map:
+            run = suffix_load_map[run_path.suffixes[0]](run_path)
         elif self.ir_dataset is not None and self.ir_dataset.has_scoreddocs():
             run = pd.DataFrame(self.ir_dataset.scoreddocs_iter())
             run["rank"] = run.groupby("query_id")["score"].rank("first", ascending=False)
