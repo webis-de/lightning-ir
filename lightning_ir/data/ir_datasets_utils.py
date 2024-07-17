@@ -36,15 +36,11 @@ def load_constituent(
         return getattr(ir_datasets.load(constituent), f"{constituent_type}_handler")
     constituent_path = Path(constituent)
     if not constituent_path.exists():
-        raise ValueError(
-            f"unable to load {constituent}, expected an `ir_datasets` id or valid path"
-        )
+        raise ValueError(f"unable to load {constituent}, expected an `ir_datasets` id or valid path")
     suffix = constituent_path.suffixes[0]
     constituent_types = CONSTITUENT_TYPE_MAP[constituent_type]
     if suffix not in constituent_types:
-        raise ValueError(
-            f"Unknown file type: {suffix}, expected one of {constituent_types.keys()}"
-        )
+        raise ValueError(f"Unknown file type: {suffix}, expected one of {constituent_types.keys()}")
     ConstituentType = constituent_types[suffix]
     return ConstituentType(Cache(None, constituent_path), **kwargs)
 
@@ -63,15 +59,11 @@ def register_local(
 
     docs = load_constituent(docs, "docs")
     queries = load_constituent(queries, "queries")
-    qrels = load_constituent(
-        qrels, "qrels", qrels_defs=qrels_defs if qrels_defs is not None else {}
-    )
+    qrels = load_constituent(qrels, "qrels", qrels_defs=qrels_defs if qrels_defs is not None else {})
     docpairs = load_constituent(docpairs, "docpairs")
     scoreddocs = load_constituent(scoreddocs, "scoreddocs")
 
-    ir_datasets.registry.register(
-        dataset_id, Dataset(docs, queries, qrels, docpairs, scoreddocs)
-    )
+    ir_datasets.registry.register(dataset_id, Dataset(docs, queries, qrels, docpairs, scoreddocs))
 
 
 class ScoredDocTuple(NamedTuple):
@@ -129,9 +121,7 @@ def register_kd_docpairs():
         "cache_path": cache_path,
     }
     file_name = f"{split_id}/{file_id}.tsv"
-    register_msmarco(
-        base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples
-    )
+    register_msmarco(base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples)
 
 
 def register_colbert_docpairs():
@@ -141,16 +131,13 @@ def register_colbert_docpairs():
     cache_path = "colbert_64way.json"
     dlc_contents = {
         "url": (
-            "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/"
-            "resolve/main/examples.json?download=true"
+            "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/" "resolve/main/examples.json?download=true"
         ),
         "expected_md5": "8be0c71e330ac54dcd77fba058d291c7",
         "cache_path": cache_path,
     }
     file_name = f"{split_id}/{file_id}.json"
-    register_msmarco(
-        base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples
-    )
+    register_msmarco(base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples)
 
 
 def register_rank_distillm():

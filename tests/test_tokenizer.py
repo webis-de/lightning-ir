@@ -55,9 +55,7 @@ def test_bi_encoder_tokenizer(model_name_or_path: str):
 
 
 def test_cross_encoder_tokenizer(model_name_or_path: str):
-    tokenizer = CrossEncoderTokenizer.from_pretrained(
-        model_name_or_path, query_length=2, doc_length=4
-    )
+    tokenizer = CrossEncoderTokenizer.from_pretrained(model_name_or_path, query_length=2, doc_length=4)
 
     query = "What is the capital of France?"
     doc = "Paris is the capital of France."
@@ -69,6 +67,4 @@ def test_cross_encoder_tokenizer(model_name_or_path: str):
     doc = ["Paris is the capital of France."]
     encoding = tokenizer.tokenize(query, doc)["encoding"]
     assert encoding is not None
-    assert (
-        len(encoding.input_ids[0]) == tokenizer.query_length + tokenizer.doc_length + 3
-    )
+    assert len(encoding.input_ids[0]) == tokenizer.query_length + tokenizer.doc_length + 3

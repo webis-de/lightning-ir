@@ -70,9 +70,7 @@ BI_ENCODER_CONFIGS = {
         **GLOBAL_KWARGS,
         **BI_ENCODER_GLOBAL_KWARGS,
     ),
-    "SingleVectorBiEncoder": BiEncoderConfig(
-        **GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS
-    ),
+    "SingleVectorBiEncoder": BiEncoderConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
 }
 
 
@@ -81,9 +79,7 @@ CROSS_ENCODER_CONFIGS = {"CrossEncoder": CrossEncoderConfig(**GLOBAL_KWARGS)}
 ALL_CONFIGS = {**BI_ENCODER_CONFIGS, **CROSS_ENCODER_CONFIGS}
 
 
-@pytest.fixture(
-    scope="module", params=list(ALL_CONFIGS.values()), ids=list(ALL_CONFIGS.keys())
-)
+@pytest.fixture(scope="module", params=list(ALL_CONFIGS.values()), ids=list(ALL_CONFIGS.keys()))
 def config(request: SubRequest) -> CONFIGS:
     return request.param
 
@@ -114,9 +110,7 @@ def cross_encoder_config(request: SubRequest) -> CONFIGS:
     ],
     ids=["RankNet", "InBatchCrossEntropy"],
 )
-def train_module(
-    config: CONFIGS, model_name_or_path: str, request: SubRequest
-) -> LightningIRModule:
+def train_module(config: CONFIGS, model_name_or_path: str, request: SubRequest) -> LightningIRModule:
     loss_function = request.param
     kwargs = dict(
         model_name_or_path=model_name_or_path,
@@ -150,9 +144,7 @@ def module(config: CONFIGS, model_name_or_path: str) -> LightningIRModule:
 
 
 @pytest.fixture(scope="module")
-def bi_encoder_module(
-    bi_encoder_config: BiEncoderConfig, model_name_or_path: str
-) -> LightningIRModule:
+def bi_encoder_module(bi_encoder_config: BiEncoderConfig, model_name_or_path: str) -> LightningIRModule:
     kwargs = dict(
         model_name_or_path=model_name_or_path,
         config=bi_encoder_config,
@@ -163,9 +155,7 @@ def bi_encoder_module(
 
 
 @pytest.fixture(scope="module")
-def cross_encoder_module(
-    cross_encoder_config: CrossEncoderConfig, model_name_or_path: str
-) -> LightningIRModule:
+def cross_encoder_module(cross_encoder_config: CrossEncoderConfig, model_name_or_path: str) -> LightningIRModule:
     kwargs = dict(
         model_name_or_path=model_name_or_path,
         config=cross_encoder_config,

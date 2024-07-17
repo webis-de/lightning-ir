@@ -35,11 +35,7 @@ def create_qrels_from_dicts(qrels: Sequence[Dict[str, int]]) -> pd.DataFrame:
     return pd.DataFrame.from_records(qrels)
 
 
-def evaluate_run(
-    run: pd.DataFrame, qrels: pd.DataFrame, measures: Sequence[str]
-) -> Dict[str, float]:
+def evaluate_run(run: pd.DataFrame, qrels: pd.DataFrame, measures: Sequence[str]) -> Dict[str, float]:
     parsed_measures = [ir_measures.parse_measure(measure) for measure in measures]
-    metrics = {
-        str(measure): measure.calc_aggregate(qrels, run) for measure in parsed_measures
-    }
+    metrics = {str(measure): measure.calc_aggregate(qrels, run) for measure in parsed_measures}
     return metrics

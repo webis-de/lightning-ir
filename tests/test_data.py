@@ -13,9 +13,7 @@ from lightning_ir.data.dataset import RunDataset, TupleDataset
 from .conftest import RUNS_DIR
 
 
-@pytest.fixture(
-    params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"]
-)
+@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"])
 def rank_run_datamodule(
     model_name_or_path: str,
     inference_datasets: Sequence[RunDataset],
@@ -41,9 +39,7 @@ def rank_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(
-    params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"]
-)
+@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"])
 def relevance_run_datamodule(
     model_name_or_path: str,
     inference_datasets: Sequence[RunDataset],
@@ -69,9 +65,7 @@ def relevance_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(
-    params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"]
-)
+@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"])
 def single_relevant_run_datamodule(
     model_name_or_path: str,
     inference_datasets: Sequence[RunDataset],
@@ -97,9 +91,7 @@ def single_relevant_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(
-    params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"]
-)
+@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"])
 def tuples_datamodule(
     model_name_or_path: str,
     inference_datasets: Sequence[RunDataset],
@@ -129,9 +121,7 @@ def test_rank_run_dataset(rank_run_datamodule: LightningIRDataModule):
     for value in batch.__dict__.values():
         assert value is not None
     assert batch.targets.shape[0] == datamodule.train_batch_size * dataset.sample_size
-    target_ranks = dataset.depth - torch.arange(dataset.sample_size).repeat(
-        datamodule.train_batch_size
-    )
+    target_ranks = dataset.depth - torch.arange(dataset.sample_size).repeat(datamodule.train_batch_size)
     assert (batch.targets[..., 0] == target_ranks).all()
 
 

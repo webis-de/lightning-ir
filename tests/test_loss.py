@@ -57,12 +57,8 @@ def labels(batch_size: int, depth: int) -> torch.Tensor:
 
 
 @pytest.fixture(scope="module")
-def embeddings(
-    batch_size: int, sequence_length: int, embedding_dim: int
-) -> torch.Tensor:
-    tensor = torch.randn(
-        (batch_size, sequence_length, embedding_dim), requires_grad=True
-    )
+def embeddings(batch_size: int, sequence_length: int, embedding_dim: int) -> torch.Tensor:
+    tensor = torch.randn((batch_size, sequence_length, embedding_dim), requires_grad=True)
     return tensor
 
 
@@ -94,18 +90,14 @@ def test_loss_func(
     "InBatchLossFunc",
     [InBatchCrossEntropy],
 )
-def test_in_batch_loss_func(
-    InBatchLossFunc: Type[InBatchLossFunction], scores: torch.Tensor
-):
+def test_in_batch_loss_func(InBatchLossFunc: Type[InBatchLossFunction], scores: torch.Tensor):
     loss_func = InBatchLossFunc()
     loss = loss_func.compute_loss(scores)
     assert loss >= 0
     assert loss.requires_grad
 
 
-@pytest.mark.parametrize(
-    "RegularizationLossFunc", [L1Regularization, L2Regularization, FLOPSRegularization]
-)
+@pytest.mark.parametrize("RegularizationLossFunc", [L1Regularization, L2Regularization, FLOPSRegularization])
 def test_regularization_loss_func(
     RegularizationLossFunc: Type[RegularizationLossFunction],
     embeddings: torch.Tensor,

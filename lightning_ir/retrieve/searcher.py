@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 
 
 class Searcher(ABC):
-    def __init__(
-        self, index_dir: Path, search_config: SearchConfig, module: BiEncoderModule
-    ) -> None:
+    def __init__(self, index_dir: Path, search_config: SearchConfig, module: BiEncoderModule) -> None:
         super().__init__()
         self.index_dir = index_dir
         self.search_config = search_config
@@ -29,10 +27,7 @@ class Searcher(ABC):
         self.num_docs = len(self.doc_ids)
         self.cumulative_doc_lengths = torch.cumsum(self.doc_lengths, dim=0)
 
-        if (
-            self.doc_lengths.shape[0] != self.num_docs
-            or self.doc_lengths.sum() != self.num_embeddings
-        ):
+        if self.doc_lengths.shape[0] != self.num_docs or self.doc_lengths.sum() != self.num_embeddings:
             raise ValueError("doc_lengths do not match index")
 
     def to_gpu(self) -> None:
@@ -45,9 +40,7 @@ class Searcher(ABC):
         ...
 
     @abstractmethod
-    def _search(
-        self, query_embeddings: BiEncoderEmbedding
-    ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
+    def _search(self, query_embeddings: BiEncoderEmbedding) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
         ...
 
     def _filter_and_sort(
@@ -78,26 +71,17 @@ class Searcher(ABC):
             k = min(self.search_config.k, scores.shape[0])
             values, idcs = torch.topk(scores, k)
             _doc_scores.append(values)
-            doc_ids.extend(
-                [
-                    self.doc_ids[doc_idx]
-                    for doc_idx in per_query_doc_idcs[query_idx][idcs].cpu()
-                ]
-            )
+            doc_ids.extend([self.doc_ids[doc_idx] for doc_idx in per_query_doc_idcs[query_idx][idcs].cpu()])
             new_num_docs.append(k)
         doc_scores = torch.cat(_doc_scores)
         return doc_scores, doc_ids, new_num_docs
 
-    def search(
-        self, output: BiEncoderOutput
-    ) -> Tuple[torch.Tensor, List[str], List[int]]:
+    def search(self, output: BiEncoderOutput) -> Tuple[torch.Tensor, List[str], List[int]]:
         query_embeddings = output.query_embeddings
         if query_embeddings is None:
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
         doc_scores, doc_idcs, num_docs = self._search(query_embeddings)
-        doc_scores, doc_ids, num_docs = self._filter_and_sort(
-            doc_scores, doc_idcs, num_docs
-        )
+        doc_scores, doc_ids, num_docs = self._filter_and_sort(doc_scores, doc_idcs, num_docs)
 
         return doc_scores, doc_ids, num_docs
 

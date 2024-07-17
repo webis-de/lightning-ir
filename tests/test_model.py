@@ -12,9 +12,7 @@ from lightning_ir.main import LightningIRTrainer
 DATA_DIR = Path(__file__).parent / "data"
 
 
-def tuples_datamodule(
-    module: LightningIRModule, inference_datasets: Sequence[RunDataset]
-) -> LightningIRDataModule:
+def tuples_datamodule(module: LightningIRModule, inference_datasets: Sequence[RunDataset]) -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
         module=module,
         num_workers=0,
@@ -27,17 +25,14 @@ def tuples_datamodule(
     return datamodule
 
 
-def test_training_step(
-    train_module: LightningIRModule, inference_datasets: Sequence[RunDataset]
-):
+def test_training_step(train_module: LightningIRModule, inference_datasets: Sequence[RunDataset]):
     if train_module.loss_functions is None:
         pytest.skip("Loss function is not set")
     datamodule = tuples_datamodule(train_module, inference_datasets)
     dataloader = datamodule.train_dataloader()
     batch = next(iter(dataloader))
     if isinstance(train_module, CrossEncoderModule) and any(
-        isinstance(loss_function, InBatchLossFunction)
-        for loss_function in train_module.loss_functions
+        isinstance(loss_function, InBatchLossFunction) for loss_function in train_module.loss_functions
     ):
         with pytest.raises(RuntimeError):
             loss = train_module.training_step(batch, 0)
@@ -46,9 +41,7 @@ def test_training_step(
     assert loss
 
 
-def test_validation(
-    train_module: LightningIRModule, inference_datasets: Sequence[RunDataset]
-):
+def test_validation(train_module: LightningIRModule, inference_datasets: Sequence[RunDataset]):
     datamodule = tuples_datamodule(train_module, inference_datasets)
     dataloader = datamodule.val_dataloader()[0]
     for batch, batch_idx in zip(dataloader, range(2)):
@@ -67,9 +60,7 @@ def test_validation(
         assert value
 
 
-def test_seralize_deserialize(
-    module: LightningIRModule, tmpdir_factory: pytest.TempdirFactory
-):
+def test_seralize_deserialize(module: LightningIRModule, tmpdir_factory: pytest.TempdirFactory):
     model = module.model
     save_dir = tmpdir_factory.mktemp(model.config_class.model_type)
     model.save_pretrained(save_dir)

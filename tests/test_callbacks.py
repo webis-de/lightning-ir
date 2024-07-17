@@ -33,9 +33,7 @@ def index_config(request: SubRequest) -> IndexConfig:
     return request.param
 
 
-def run_datamodule(
-    module: LightningIRModule, inference_datasets: Sequence[RunDataset]
-) -> LightningIRDataModule:
+def run_datamodule(module: LightningIRModule, inference_datasets: Sequence[RunDataset]) -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
         module=module,
         num_workers=0,
@@ -92,11 +90,7 @@ def get_index(
         index_config = SparseIndexConfig()
     else:
         raise ValueError("Unknown search_config type")
-    index_dir = (
-        DATA_DIR
-        / "indexes"
-        / f"{index_type}-{bi_encoder_module.config.similarity_function}"
-    )
+    index_dir = DATA_DIR / "indexes" / f"{index_type}-{bi_encoder_module.config.similarity_function}"
     if index_dir.exists():
         return index_dir / "lightning-ir"
 

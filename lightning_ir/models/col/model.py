@@ -22,13 +22,9 @@ class ColModel(BiEncoderModel):
         self.config: ColConfig
 
     @classmethod
-    def from_pretrained(
-        cls, model_name_or_path: str | Path, *args, **kwargs
-    ) -> LightningIRModel:
+    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> LightningIRModel:
         try:
-            hf_hub_download(
-                repo_id=str(model_name_or_path), filename="artifact.metadata"
-            )
+            hf_hub_download(repo_id=str(model_name_or_path), filename="artifact.metadata")
             return cls.from_colbert_checkpoint(model_name_or_path)
         except Exception:
             pass
@@ -38,9 +34,7 @@ class ColModel(BiEncoderModel):
     def from_colbert_checkpoint(cls, model_name_or_path: Path | str) -> "ColModel":
         col_config = None
         try:
-            col_config_path = hf_hub_download(
-                repo_id=str(model_name_or_path), filename="artifact.metadata"
-            )
+            col_config_path = hf_hub_download(repo_id=str(model_name_or_path), filename="artifact.metadata")
             col_config = json.loads(Path(col_config_path).read_text())
         except Exception:
             pass
@@ -62,15 +56,11 @@ class ColModel(BiEncoderModel):
                 "normalize": True,
                 "add_marker_tokens": True,
                 "embedding_dim": col_config["dim"],
-                "doc_mask_scoring_tokens": (
-                    "punctuation" if col_config["mask_punctuation"] else None
-                ),
+                "doc_mask_scoring_tokens": ("punctuation" if col_config["mask_punctuation"] else None),
             }
         )
         model = cls(config=config)
-        state_dict_path = hf_hub_download(
-            repo_id=str(model_name_or_path), filename="model.safetensors"
-        )
+        state_dict_path = hf_hub_download(repo_id=str(model_name_or_path), filename="model.safetensors")
         state_dict = load_state_dict(state_dict_path)
         state_dict.pop("bert.embeddings.position_ids", None)
         for key in list(state_dict.keys()):
@@ -79,9 +69,7 @@ class ColModel(BiEncoderModel):
         state_dict["projection.weight"] = state_dict.pop("linear.weight")
         model.load_state_dict(state_dict)
 
-        tokenizer = ColConfig.tokenizer_class.from_pretrained(
-            model_name_or_path, **config.to_tokenizer_dict()
-        )
+        tokenizer = ColConfig.tokenizer_class.from_pretrained(model_name_or_path, **config.to_tokenizer_dict())
         query_token_id = tokenizer.query_token_id
         doc_token_id = tokenizer.doc_token_id
         model.resize_token_embeddings(len(tokenizer), 8)

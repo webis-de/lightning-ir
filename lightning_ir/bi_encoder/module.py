@@ -28,17 +28,12 @@ class BiEncoderModule(LightningIRModule):
         index_dir: Path | None = None,
         search_config: SearchConfig | None = None,
     ):
-        super().__init__(
-            model_name_or_path, config, model, loss_functions, evaluation_metrics
-        )
+        super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics)
         self.model: BiEncoderModel
         self.config: BiEncoderConfig
         self.tokenizer: BiEncoderTokenizer
         self.scoring_function = self.model.scoring_function
-        if (
-            self.config.add_marker_tokens
-            and len(self.tokenizer) != self.config.vocab_size
-        ):
+        if self.config.add_marker_tokens and len(self.tokenizer) != self.config.vocab_size:
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
         self._searcher = None
@@ -50,9 +45,7 @@ class BiEncoderModule(LightningIRModule):
         if self._searcher is None:
             if self.search_config is None or self.index_dir is None:
                 return None
-            self._searcher = self.search_config.search_class(
-                self.index_dir, self.search_config, self
-            )
+            self._searcher = self.search_config.search_class(self.index_dir, self.search_config, self)
         return self._searcher
 
     def score(
@@ -83,10 +76,7 @@ class BiEncoderModule(LightningIRModule):
             scores, doc_ids, num_docs = self.searcher.search(output)
             output.scores = scores
             cum_num_docs = [0] + [sum(num_docs[: i + 1]) for i in range(len(num_docs))]
-            doc_ids = tuple(
-                tuple(doc_ids[cum_num_docs[i] : cum_num_docs[i + 1]])
-                for i in range(len(num_docs))
-            )
+            doc_ids = tuple(tuple(doc_ids[cum_num_docs[i] : cum_num_docs[i + 1]]) for i in range(len(num_docs)))
             batch.doc_ids = doc_ids
         return output
 
@@ -104,15 +94,9 @@ class BiEncoderModule(LightningIRModule):
         scores = output.scores
         query_embeddings = output.query_embeddings
         doc_embeddings = output.doc_embeddings
-        if (
-            batch.targets is None
-            or query_embeddings is None
-            or doc_embeddings is None
-            or scores is None
-        ):
+        if batch.targets is None or query_embeddings is None or doc_embeddings is None or scores is None:
             raise ValueError(
-                "targets, scores, query_embeddings, and doc_embeddings must be set in "
-                "the output and batch"
+                "targets, scores, query_embeddings, and doc_embeddings must be set in " "the output and batch"
             )
 
         num_queries = len(batch.queries)
@@ -122,26 +106,18 @@ class BiEncoderModule(LightningIRModule):
         for loss_function in loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
                 pos_idcs, neg_idcs = loss_function.get_ib_idcs(*scores.shape)
-                ib_doc_embeddings = self.get_ib_doc_embeddings(
-                    doc_embeddings, pos_idcs, neg_idcs, num_queries
-                )
+                ib_doc_embeddings = self.get_ib_doc_embeddings(doc_embeddings, pos_idcs, neg_idcs, num_queries)
                 ib_scores = self.model.score(query_embeddings, ib_doc_embeddings)
                 ib_scores = ib_scores.view(num_queries, -1)
-                losses[loss_function.__class__.__name__] = loss_function.compute_loss(
-                    ib_scores
-                )
+                losses[loss_function.__class__.__name__] = loss_function.compute_loss(ib_scores)
             elif isinstance(loss_function, EmbeddingLossFunction):
                 losses[loss_function.__class__.__name__] = loss_function.compute_loss(
                     query_embeddings.embeddings, doc_embeddings.embeddings
                 )
             elif isinstance(loss_function, ScoringLossFunction):
-                losses[loss_function.__class__.__name__] = loss_function.compute_loss(
-                    scores, targets
-                )
+                losses[loss_function.__class__.__name__] = loss_function.compute_loss(scores, targets)
             else:
-                raise ValueError(
-                    f"Unknown loss function type {loss_function.__class__.__name__}"
-                )
+                raise ValueError(f"Unknown loss function type {loss_function.__class__.__name__}")
         return losses
 
     def get_ib_doc_embeddings(

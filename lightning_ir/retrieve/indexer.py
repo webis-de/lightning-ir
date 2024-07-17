@@ -47,9 +47,7 @@ class IndexConfig:
         with open(index_dir / "config.json", "r") as f:
             data = json.load(f)
             if data["index_type"] != cls.__name__:
-                raise ValueError(
-                    f"Expected index_type {cls.__name__}, got {data['index_type']}"
-                )
+                raise ValueError(f"Expected index_type {cls.__name__}, got {data['index_type']}")
             data.pop("index_type", None)
             data.pop("index_dir", None)
             return cls(**data)

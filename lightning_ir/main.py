@@ -90,20 +90,14 @@ class LightningIRCLI(LightningCLI):
         if lr_scheduler is None:
             return optimizer
 
-        return [optimizer], [
-            {"scheduler": lr_scheduler, "interval": lr_scheduler.interval}
-        ]
+        return [optimizer], [{"scheduler": lr_scheduler, "interval": lr_scheduler.interval}]
 
     def add_arguments_to_parser(self, parser):
         parser.add_lr_scheduler_args(tuple(LR_SCHEDULERS))
-        parser.link_arguments(
-            "model.init_args.model_name_or_path", "data.init_args.model_name_or_path"
-        )
+        parser.link_arguments("model.init_args.model_name_or_path", "data.init_args.model_name_or_path")
         parser.link_arguments("model.init_args.config", "data.init_args.config")
         parser.link_arguments("model", "data.init_args.model", apply_on="instantiate")
-        parser.link_arguments(
-            "trainer.max_steps", "lr_scheduler.init_args.num_training_steps"
-        )
+        parser.link_arguments("trainer.max_steps", "lr_scheduler.init_args.num_training_steps")
 
     @staticmethod
     def subcommands() -> Dict[str, Set[str]]:

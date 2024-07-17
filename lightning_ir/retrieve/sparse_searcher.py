@@ -13,9 +13,7 @@ if TYPE_CHECKING:
 
 
 class SparseIndex:
-    def __init__(
-        self, index_dir: Path, similarity_function: Literal["dot", "cosine"]
-    ) -> None:
+    def __init__(self, index_dir: Path, similarity_function: Literal["dot", "cosine"]) -> None:
         self.index = torch.load(index_dir / "index.pt")
         self.config = SparseIndexConfig.from_pretrained(index_dir)
         if similarity_function == "dot":
@@ -57,17 +55,12 @@ class SparseSearcher(Searcher):
         self.index = SparseIndex(index_dir, module.config.similarity_function)
         super().__init__(index_dir, search_config, module)
         self.doc_token_idcs = (
-            torch.arange(self.doc_lengths.shape[0])
-            .to(self.doc_lengths)
-            .repeat_interleave(self.doc_lengths)
+            torch.arange(self.doc_lengths.shape[0]).to(self.doc_lengths).repeat_interleave(self.doc_lengths)
         )
 
     @property
     def doc_is_single_vector(self) -> bool:
-        return (
-            self.cumulative_doc_lengths[-1].item()
-            == self.cumulative_doc_lengths.shape[0]
-        )
+        return self.cumulative_doc_lengths[-1].item() == self.cumulative_doc_lengths.shape[0]
 
     def to_gpu(self) -> None:
         super().to_gpu()
@@ -77,9 +70,7 @@ class SparseSearcher(Searcher):
     def num_embeddings(self) -> int:
         return self.index.num_embeddings
 
-    def _search(
-        self, query_embeddings: BiEncoderEmbedding
-    ) -> Tuple[torch.Tensor, None, None]:
+    def _search(self, query_embeddings: BiEncoderEmbedding) -> Tuple[torch.Tensor, None, None]:
         embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
         query_lengths = query_embeddings.scoring_mask.sum(-1)
         scores = self.index.score(embeddings)
@@ -97,15 +88,9 @@ class SparseSearcher(Searcher):
         # aggregate query token scores
         query_is_single_vector = (query_lengths == 1).all()
         if not query_is_single_vector:
-            query_token_idcs = (
-                torch.arange(query_lengths.shape[0])
-                .to(query_lengths)
-                .repeat_interleave(query_lengths)
-            )
+            query_token_idcs = torch.arange(query_lengths.shape[0]).to(query_lengths).repeat_interleave(query_lengths)
             scores = torch.scatter_reduce(
-                torch.zeros(
-                    query_lengths.shape[0], self.num_docs, device=scores.device
-                ),
+                torch.zeros(query_lengths.shape[0], self.num_docs, device=scores.device),
                 0,
                 query_token_idcs[:, None].expand_as(scores),
                 scores,

@@ -116,9 +116,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         self._tokenizer.post_processor = orig_post_processor
         return encoding
 
-    def _expand(
-        self, encoding: BatchEncoding, attend_to_expanded_tokens: bool
-    ) -> BatchEncoding:
+    def _expand(self, encoding: BatchEncoding, attend_to_expanded_tokens: bool) -> BatchEncoding:
         input_ids = encoding["input_ids"]
         input_ids[input_ids == self.pad_token_id] = self.mask_token_id
         encoding["input_ids"] = input_ids
@@ -126,17 +124,13 @@ class BiEncoderTokenizer(LightningIRTokenizer):
             encoding["attention_mask"].fill_(1)
         return encoding
 
-    def tokenize_query(
-        self, queries: Sequence[str] | str, *args, **kwargs
-    ) -> BatchEncoding:
+    def tokenize_query(self, queries: Sequence[str] | str, *args, **kwargs) -> BatchEncoding:
         kwargs["max_length"] = self.query_length
         if self.query_expansion:
             kwargs["padding"] = "max_length"
         else:
             kwargs["truncation"] = True
-        encoding = self._encode(
-            queries, *args, post_processor=self.query_post_processor, **kwargs
-        )
+        encoding = self._encode(queries, *args, post_processor=self.query_post_processor, **kwargs)
         if self.query_expansion:
             self._expand(encoding, self.attend_to_query_expanded_tokens)
         return encoding
@@ -147,9 +141,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
             kwargs["padding"] = "max_length"
         else:
             kwargs["truncation"] = True
-        encoding = self._encode(
-            docs, *args, post_processor=self.doc_post_processor, **kwargs
-        )
+        encoding = self._encode(docs, *args, post_processor=self.doc_post_processor, **kwargs)
         if self.doc_expansion:
             self._expand(encoding, self.attend_to_doc_expanded_tokens)
         return encoding

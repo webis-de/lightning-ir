@@ -41,10 +41,7 @@ class GatherMixin:
     def gather(self, pl_module: LightningIRModule, dataclass: T) -> T:
         if is_dataclass(dataclass):
             return dataclass.__class__(
-                **{
-                    k: self.gather(pl_module, getattr(dataclass, k))
-                    for k in dataclass.__dataclass_fields__
-                }
+                **{k: self.gather(pl_module, getattr(dataclass, k)) for k in dataclass.__dataclass_fields__}
             )
         return pl_module.all_gather(dataclass)
 
@@ -83,15 +80,11 @@ class IndexCallback(Callback, GatherMixin):
             if default_index_dir.exists():
                 index_dir = default_index_dir / "indexes"
             else:
-                raise ValueError(
-                    "No index_dir provided and model_name_or_path is not a path"
-                )
+                raise ValueError("No index_dir provided and model_name_or_path is not a path")
         index_dir = index_dir / dataset.docs_dataset_id
         return index_dir
 
-    def get_indexer(
-        self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int
-    ) -> Indexer:
+    def get_indexer(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Indexer:
         dataloaders = trainer.test_dataloaders
         if dataloaders is None:
             raise ValueError("No test_dataloaders found")
@@ -99,9 +92,7 @@ class IndexCallback(Callback, GatherMixin):
 
         index_dir = self.get_index_dir(pl_module, dataset)
 
-        indexer = self.index_config.indexer_class(
-            index_dir, self.index_config, pl_module.config, self.verbose
-        )
+        indexer = self.index_config.indexer_class(index_dir, self.index_config, pl_module.config, self.verbose)
         return indexer
 
     def log_to_pg(self, info: Dict[str, Any], trainer: Trainer):
@@ -141,9 +132,7 @@ class IndexCallback(Callback, GatherMixin):
             },
             trainer,
         )
-        return super().on_test_batch_end(
-            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
-        )
+        return super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def on_test_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         self.indexer.save()
@@ -165,17 +154,13 @@ class RankCallback(BasePredictionWriter, GatherMixin):
 
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         if stage != "test":
-            raise ValueError(
-                f"{self.__class__.__name__} can only be used in test stage"
-            )
+            raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
 
     def on_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_test_start(trainer, pl_module)
         self.trainer = trainer
 
-    def on_test_epoch_start(
-        self, trainer: Trainer, pl_module: LightningIRModule
-    ) -> None:
+    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         super().on_test_epoch_start(trainer, pl_module)
         self.run_dfs = []
         if self.save_dir is None:
@@ -184,9 +169,7 @@ class RankCallback(BasePredictionWriter, GatherMixin):
                 self.save_dir = default_save_dir / "runs"
                 print(f"Using default save_dir {self.save_dir}")
             else:
-                raise ValueError(
-                    "No save_dir provided and model_name_or_path is not a path"
-                )
+                raise ValueError("No save_dir provided and model_name_or_path is not a path")
 
     def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_test_epoch_end(trainer, pl_module)
@@ -211,9 +194,7 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         run_file_path = self.save_dir / f"{run_file}.run"
         return run_file_path
 
-    def rank(
-        self, batch: RankBatch, output: LightningIROutput
-    ) -> Tuple[torch.Tensor, List[str], List[int]]:
+    def rank(self, batch: RankBatch, output: LightningIROutput) -> Tuple[torch.Tensor, List[str], List[int]]:
         scores = output.scores
         if scores is None:
             raise ValueError("Expected output to have scores")
@@ -244,12 +225,8 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        self.write_on_batch_end(
-            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
-        )
-        super().on_test_batch_end(
-            trainer, pl_module, outputs, batch, batch_idx, dataloader_idx
-        )
+        self.write_on_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def write_on_batch_end(
         self,
@@ -272,20 +249,11 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         scores = scores.float().cpu().numpy()
 
         query_ids = list(
-            itertools.chain.from_iterable(
-                itertools.repeat(query_id, num)
-                for query_id, num in zip(query_ids, num_docs)
-            )
+            itertools.chain.from_iterable(itertools.repeat(query_id, num) for query_id, num in zip(query_ids, num_docs))
         )
-        run_df = pd.DataFrame(
-            zip(query_ids, doc_ids, scores), columns=["query_id", "doc_id", "score"]
-        )
+        run_df = pd.DataFrame(zip(query_ids, doc_ids, scores), columns=["query_id", "doc_id", "score"])
         run_df = run_df.sort_values(["query_id", "score"], ascending=[True, False])
-        run_df["rank"] = (
-            run_df.groupby("query_id")["score"]
-            .rank(ascending=False, method="first")
-            .astype(int)
-        )
+        run_df["rank"] = run_df.groupby("query_id")["score"].rank(ascending=False, method="first").astype(int)
         run_df["q0"] = 0
         run_df["system"] = pl_module.model.__class__.__name__
         run_df = run_df[RUN_HEADER]

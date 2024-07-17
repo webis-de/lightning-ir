@@ -35,9 +35,7 @@ class LightningIRDataModule(LightningDataModule):
         shuffle_train: bool = True,
         inference_batch_size: int | None = None,
         train_dataset: RunDataset | TupleDataset | None = None,
-        inference_datasets: (
-            Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None
-        ) = None,
+        inference_datasets: (Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None) = None,
     ) -> None:
         super().__init__()
         if config is not None:
@@ -47,16 +45,12 @@ class LightningIRDataModule(LightningDataModule):
         elif model_name_or_path is not None:
             self.config = AutoConfig.from_pretrained(model_name_or_path)
         else:
-            raise ValueError(
-                "Either module, config, or model_name_or_path must be provided."
-            )
+            raise ValueError("Either module, config, or model_name_or_path must be provided.")
         Tokenizer = self.config.__class__.tokenizer_class
 
         if model_name_or_path is None:
             model_name_or_path = self.config.name_or_path
-        self.tokenizer = Tokenizer.from_pretrained(
-            model_name_or_path, **self.config.to_tokenizer_dict()
-        )
+        self.tokenizer = Tokenizer.from_pretrained(model_name_or_path, **self.config.to_tokenizer_dict())
         self.num_workers = num_workers
 
         self.train_batch_size = train_batch_size
@@ -76,21 +70,15 @@ class LightningIRDataModule(LightningDataModule):
         for inference_dataset in self.inference_datasets:
             if isinstance(inference_dataset, TupleDataset):
                 if stage == "test":
-                    raise ValueError(
-                        "Prediction cannot be performed with TupleDataset."
-                    )
+                    raise ValueError("Prediction cannot be performed with TupleDataset.")
             elif isinstance(inference_dataset, RunDataset):
                 if inference_dataset.sampling_strategy == "single_relevant":
-                    raise ValueError(
-                        "Inference RunDataset cannot use the single_relevant "
-                        "sampling strategy."
-                    )
+                    raise ValueError("Inference RunDataset cannot use the single_relevant " "sampling strategy.")
             elif isinstance(inference_dataset, (QueryDataset, DocDataset)):
                 pass
             else:
                 raise ValueError(
-                    "Inference Dataset must be of type RunDataset, "
-                    "TupleDataset, QueryDataset, or DocDataset."
+                    "Inference Dataset must be of type RunDataset, " "TupleDataset, QueryDataset, or DocDataset."
                 )
             inference_dataset.setup(stage)
         if stage == "validate":
@@ -115,11 +103,7 @@ class LightningIRDataModule(LightningDataModule):
             batch_size=self.train_batch_size,
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
-            shuffle=(
-                False
-                if isinstance(self.train_dataset, IterableDataset)
-                else self.shuffle_train
-            ),
+            shuffle=(False if isinstance(self.train_dataset, IterableDataset) else self.shuffle_train),
         )
 
     def inference_dataloader(self) -> List[DataLoader]:
@@ -134,9 +118,7 @@ class LightningIRDataModule(LightningDataModule):
             for dataset in inference_datasets
         ]
 
-    def _aggregate_samples(
-        self, samples: Sequence[RunSample | QuerySample | DocSample]
-    ) -> Dict[str, Any]:
+    def _aggregate_samples(self, samples: Sequence[RunSample | QuerySample | DocSample]) -> Dict[str, Any]:
         aggregated = defaultdict(list)
         field_options = {
             "query_id": {"extend": False},
@@ -186,12 +168,7 @@ class LightningIRDataModule(LightningDataModule):
 
     def collate_fn(
         self,
-        samples: (
-            Sequence[RunSample | QuerySample | DocSample]
-            | RunSample
-            | QuerySample
-            | DocSample
-        ),
+        samples: (Sequence[RunSample | QuerySample | DocSample] | RunSample | QuerySample | DocSample),
     ) -> TrainBatch | RankBatch | IndexBatch | SearchBatch:
         if isinstance(samples, (RunSample, QuerySample, DocSample)):
             samples = [samples]

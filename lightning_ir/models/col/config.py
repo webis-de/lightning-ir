@@ -12,12 +12,8 @@ class ColConfig(BiEncoderConfig):
         query_expansion: bool = True,
         attend_to_query_expanded_tokens: bool = False,
         query_mask_scoring_tokens: Sequence[str] | None = None,
-        doc_mask_scoring_tokens: (
-            Sequence[str] | Literal["punctuation"] | None
-        ) = "punctuation",
-        query_aggregation_function: Literal[
-            "sum", "mean", "max", "harmonic_mean"
-        ] = "sum",
+        doc_mask_scoring_tokens: (Sequence[str] | Literal["punctuation"] | None) = "punctuation",
+        query_aggregation_function: Literal["sum", "mean", "max", "harmonic_mean"] = "sum",
         normalize: bool = True,
         add_marker_tokens: bool = True,
         embedding_dim: int = 128,

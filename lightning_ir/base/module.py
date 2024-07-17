@@ -36,27 +36,19 @@ class LightningIRModule(LightningModule):
     ):
         super().__init__()
         if model is not None and model_name_or_path is not None:
-            raise ValueError(
-                "Only one of model or model_name_or_path must be provided."
-            )
+            raise ValueError("Only one of model or model_name_or_path must be provided.")
         if model is None:
             if model_name_or_path is None:
                 raise ValueError("Either model or model_name_or_path must be provided.")
-            TransformerModel = AutoModel._model_mapping[
-                AutoConfig.from_pretrained(model_name_or_path).__class__
-            ]
+            TransformerModel = AutoModel._model_mapping[AutoConfig.from_pretrained(model_name_or_path).__class__]
             DerivedLightningIRModel = LightningIRModelClassFactory(
                 TransformerModel, None if config is None else config.__class__
             )
             ir_config = None
             if config is not None:
-                ir_config = DerivedLightningIRModel.config_class.from_pretrained(
-                    model_name_or_path
-                )
+                ir_config = DerivedLightningIRModel.config_class.from_pretrained(model_name_or_path)
                 ir_config.update(config.to_added_args_dict())
-            model = DerivedLightningIRModel.from_pretrained(
-                model_name_or_path, config=ir_config
-            )
+            model = DerivedLightningIRModel.from_pretrained(model_name_or_path, config=ir_config)
 
         self.model: LightningIRModel = model
         self.config = self.model.config
@@ -76,9 +68,7 @@ class LightningIRModule(LightningModule):
     def on_before_forward(self, batch: TrainBatch | RankBatch) -> None:
         pass
 
-    def on_after_forward(
-        self, batch: TrainBatch | RankBatch, output: LightningIROutput
-    ) -> None:
+    def on_after_forward(self, batch: TrainBatch | RankBatch, output: LightningIROutput) -> None:
         pass
 
     def prepare_input(
@@ -177,10 +167,7 @@ class LightningIRModule(LightningModule):
         if doc_ids is None:
             if num_docs is None:
                 raise ValueError("num_docs must be set if doc_ids is not set")
-            doc_ids = tuple(
-                tuple(f"{i}-{j}" for j in range(docs))
-                for i, docs in enumerate(num_docs)
-            )
+            doc_ids = tuple(tuple(f"{i}-{j}" for j in range(docs)) for i, docs in enumerate(num_docs))
         metrics.update(self.validate_metrics(scores, query_ids, doc_ids, qrels))
         metrics.update(self.validate_loss(scores, query_ids, doc_ids, targets))
         return metrics
@@ -195,9 +182,7 @@ class LightningIRModule(LightningModule):
         metrics = {}
         if self.evaluation_metrics is None or qrels is None:
             return metrics
-        evaluation_metrics = [
-            metric for metric in self.evaluation_metrics if metric != "loss"
-        ]
+        evaluation_metrics = [metric for metric in self.evaluation_metrics if metric != "loss"]
         ir_measures_qrels = create_qrels_from_dicts(qrels)
         if evaluation_metrics and qrels is not None:
             run = create_run_from_scores(query_ids, doc_ids, scores)
@@ -224,9 +209,9 @@ class LightningIRModule(LightningModule):
             # NOTE skip in-batch losses because they can use a lot of memory
             if isinstance(loss_function, InBatchLossFunction):
                 continue
-            metrics[
-                f"validation-{loss_function.__class__.__name__}"
-            ] = loss_function.compute_loss(scores, targets).item()
+            metrics[f"validation-{loss_function.__class__.__name__}"] = loss_function.compute_loss(
+                scores, targets
+            ).item()
         return metrics
 
     def on_validation_epoch_end(self) -> None:

@@ -20,9 +20,7 @@ def test_same_as_sentence_transformer(model_name: str):
     orig_model = SentenceTransformer(model_name)
     orig_query_embeddings = orig_model.encode(query)
     orig_doc_embeddings = orig_model.encode(docs)
-    orig_scores = util.dot_score(
-        torch.from_numpy(orig_query_embeddings), torch.from_numpy(orig_doc_embeddings)
-    )
+    orig_scores = util.dot_score(torch.from_numpy(orig_query_embeddings), torch.from_numpy(orig_doc_embeddings))
 
     model = BiEncoderModel.from_pretrained(
         model_name,

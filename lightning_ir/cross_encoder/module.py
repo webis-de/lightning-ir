@@ -19,9 +19,7 @@ class CrossEncoderModule(LightningIRModule):
         loss_functions: Sequence[LossFunction] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
-        super().__init__(
-            model_name_or_path, config, model, loss_functions, evaluation_metrics
-        )
+        super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics)
         self.model: CrossEncoderModel
         self.config: CrossEncoderConfig
         self.tokenizer: CrossEncoderTokenizer
@@ -54,10 +52,6 @@ class CrossEncoderModule(LightningIRModule):
         losses = {}
         for loss_function in loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
-                raise NotImplementedError(
-                    "InBatchLossFunction not implemented for cross-encoders"
-                )
-            losses[loss_function.__class__.__name__] = loss_function.compute_loss(
-                scores, targets
-            )
+                raise NotImplementedError("InBatchLossFunction not implemented for cross-encoders")
+            losses[loss_function.__class__.__name__] = loss_function.compute_loss(scores, targets)
         return losses

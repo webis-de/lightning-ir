@@ -22,7 +22,8 @@ class LambdaWarmupScheduler(Callback, ABC):
         self.values: Dict[str, float] = {}
 
     @abstractmethod
-    def value_lambda(self, current_step: int) -> float: ...
+    def value_lambda(self, current_step: int) -> float:
+        ...
 
     def step(self, key: str, current_step: int) -> float:
         value = self.values[key]

@@ -31,9 +31,7 @@ class FaissIndexer(Indexer):
         index_factory = self.INDEX_FACTORY.format(**index_config.to_dict())
         if similarity_function == "cosine":
             index_factory = "L2norm," + index_factory
-        self.index = faiss.index_factory(
-            self.bi_encoder_config.embedding_dim, index_factory, self.metric_type
-        )
+        self.index = faiss.index_factory(self.bi_encoder_config.embedding_dim, index_factory, self.metric_type)
 
         self.set_verbosity()
 
@@ -133,8 +131,7 @@ class FaissIVFIndexer(FaissIndexer):
         # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
         max_points_per_centroid = 256
         self.num_train_embeddings = (
-            index_config.num_train_embeddings
-            or index_config.num_centroids * max_points_per_centroid
+            index_config.num_train_embeddings or index_config.num_centroids * max_points_per_centroid
         )
 
         self._train_embeddings = torch.full(
@@ -168,9 +165,7 @@ class FaissIVFIndexer(FaissIndexer):
         # move index to cpu but leave quantizer on gpu
         index_ivf = faiss.extract_index_ivf(self.index)
         quantizer = index_ivf.quantizer
-        gpu_quantizer = faiss.index_cpu_to_gpu(
-            faiss.StandardGpuResources(), 0, quantizer
-        )
+        gpu_quantizer = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, quantizer)
         index_ivf.quantizer = gpu_quantizer
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
@@ -193,17 +188,12 @@ class FaissIVFIndexer(FaissIndexer):
         return embeddings
 
     def _train(self, force: bool = False):
-        if self._train_embeddings is not None and (
-            force or self.num_embeddings >= self.num_train_embeddings
-        ):
+        if self._train_embeddings is not None and (force or self.num_embeddings >= self.num_train_embeddings):
             if torch.isnan(self._train_embeddings).any():
                 warnings.warn(
-                    "Corpus contains less tokens/documents than num_train_embeddings. "
-                    "Removing NaN embeddings."
+                    "Corpus contains less tokens/documents than num_train_embeddings. " "Removing NaN embeddings."
                 )
-                self._train_embeddings = self._train_embeddings[
-                    ~torch.isnan(self._train_embeddings).any(dim=1)
-                ]
+                self._train_embeddings = self._train_embeddings[~torch.isnan(self._train_embeddings).any(dim=1)]
             self.index.train(self._train_embeddings)
             if torch.cuda.is_available():
                 self.to_cpu()
@@ -226,11 +216,7 @@ class FaissIVFIndexer(FaissIndexer):
 
 
 class FaissIVFPQIndexer(FaissIVFIndexer):
-    INDEX_FACTORY = (
-        "OPQ{num_subquantizers},"
-        "IVF{num_centroids}_HNSW32,"
-        "PQ{num_subquantizers}x{n_bits}"
-    )
+    INDEX_FACTORY = "OPQ{num_subquantizers}," "IVF{num_centroids}_HNSW32," "PQ{num_subquantizers}x{n_bits}"
 
     def __init__(
         self,

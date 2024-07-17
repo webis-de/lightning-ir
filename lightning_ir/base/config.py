@@ -32,9 +32,7 @@ class LightningIRConfig(PretrainedConfig):
         self.doc_length = doc_length
 
     def to_added_args_dict(self) -> Dict[str, Any]:
-        return {
-            arg: getattr(self, arg) for arg in self.ADDED_ARGS if hasattr(self, arg)
-        }
+        return {arg: getattr(self, arg) for arg in self.ADDED_ARGS if hasattr(self, arg)}
 
     def to_tokenizer_dict(self) -> Dict[str, Any]:
         return {arg: getattr(self, arg) for arg in self.TOKENIZER_ARGS}

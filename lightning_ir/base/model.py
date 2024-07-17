@@ -72,15 +72,11 @@ class LightningIRModel(PreTrainedModel):
             embeddings = embeddings.sum(dim=1, keepdim=True)
             if pooling_strategy == "mean":
                 if attention_mask is not None:
-                    embeddings = embeddings / attention_mask.sum(
-                        dim=1, keepdim=True
-                    ).unsqueeze(-1)
+                    embeddings = embeddings / attention_mask.sum(dim=1, keepdim=True).unsqueeze(-1)
             return embeddings
         if pooling_strategy == "max":
             if attention_mask is not None:
-                embeddings = embeddings.masked_fill(
-                    ~attention_mask.bool().unsqueeze(-1), -1e9
-                )
+                embeddings = embeddings.masked_fill(~attention_mask.bool().unsqueeze(-1), -1e9)
             return embeddings.max(dim=1, keepdim=True).values
         raise ValueError(f"Unknown pooling strategy: {self.pooling_strategy}")
 
@@ -111,10 +107,7 @@ def LightningIRModelClassFactory(
         raise ValueError(f"config_class not found in {BackboneModel.__name__}")
 
     if MixinConfig is None or not issubclass(MixinConfig, LightningIRConfig):
-        raise ValueError(
-            f"Model {BackboneModel} is not a LightningIRModel, pass a "
-            "LightningIRConfig to create one."
-        )
+        raise ValueError(f"Model {BackboneModel} is not a LightningIRModel, pass a " "LightningIRConfig to create one.")
 
     lir_model_type = MixinConfig.model_type
     LightningIRModelMixin: Type[LightningIRModel] | None = MODEL_MAPPING[MixinConfig]
