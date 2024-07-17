@@ -46,8 +46,8 @@ For more details, see the [Usage](#usage) section.
 
 | Model Name                                                          | TREC DL 19 | TREC DL 20 |
 | ------------------------------------------------------------------- | ---------- | ---------- |
-| [monoelectra-base](https://huggingface.co/webis/monoelectra-base)   | 0.715      | 0.715      |
-| [monoelectra-large](https://huggingface.co/webis/monoelectra-large) | 0.730      | 0.730      |
+| [monoelectra-base](https://huggingface.co/webis/monoelectra-base)   | 0.75       | 0.77       |
+| [monoelectra-large](https://huggingface.co/webis/monoelectra-large) | 0.75       | 0.79       |
 | monoT5 (Coming soon)                                                | --         | --         |
 
 ### Bi-encoders

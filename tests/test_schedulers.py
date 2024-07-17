@@ -1,14 +1,14 @@
 from typing import Any
-import pytest
 
-from lightning import LightningModule, LightningDataModule, Trainer
-from torch.utils.data import Dataset, DataLoader
+import pytest
 import torch
+from lightning import LightningDataModule, LightningModule, Trainer
+from torch.utils.data import DataLoader, Dataset
 
 from lightning_ir.lightning_utils.schedulers import (
-    LinearSchedulerWithWarmup,
     ConstantSchedulerWithWarmup,
     LambdaWarmupScheduler,
+    LinearSchedulerWithWarmup,
 )
 
 
@@ -18,7 +18,6 @@ class DummyObject:
 
 
 class DummyModule(LightningModule):
-
     def __init__(self):
         super().__init__()
         self.param = torch.nn.Parameter(torch.tensor(0.0))
@@ -32,7 +31,6 @@ class DummyModule(LightningModule):
 
 
 class DummyDataset(Dataset):
-
     def __len__(self) -> int:
         return 100
 
@@ -41,7 +39,6 @@ class DummyDataset(Dataset):
 
 
 class DummyDataModule(LightningDataModule):
-
     def __init__(self) -> None:
         super().__init__()
 

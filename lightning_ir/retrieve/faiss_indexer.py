@@ -10,7 +10,6 @@ from .indexer import IndexConfig, Indexer
 
 
 class FaissIndexer(Indexer):
-
     INDEX_FACTORY: str
 
     def __init__(
@@ -42,13 +41,16 @@ class FaissIndexer(Indexer):
             self.to_gpu()
 
     @abstractmethod
-    def to_gpu(self) -> None: ...
+    def to_gpu(self) -> None:
+        ...
 
     @abstractmethod
-    def to_cpu(self) -> None: ...
+    def to_cpu(self) -> None:
+        ...
 
     @abstractmethod
-    def set_verbosity(self, verbose: bool | None = None) -> None: ...
+    def set_verbosity(self, verbose: bool | None = None) -> None:
+        ...
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
         return embeddings
@@ -84,7 +86,6 @@ class FaissIndexer(Indexer):
 
 
 class FaissFlatIndexer(FaissIndexer):
-
     INDEX_FACTORY = "Flat"
 
     def __init__(

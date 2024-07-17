@@ -7,9 +7,9 @@ from transformers import (
     CONFIG_MAPPING,
     MODEL_MAPPING,
     AutoConfig,
+    BertModel,
     PretrainedConfig,
     PreTrainedModel,
-    BertModel,
 )
 from transformers.modeling_outputs import ModelOutput
 

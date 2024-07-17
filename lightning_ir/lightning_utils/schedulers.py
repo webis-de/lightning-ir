@@ -7,7 +7,6 @@ from ..base import LightningIRModule
 
 
 class LambdaWarmupScheduler(Callback, ABC):
-
     def __init__(
         self,
         keys: Sequence[str],
@@ -23,7 +22,8 @@ class LambdaWarmupScheduler(Callback, ABC):
         self.values: Dict[str, float] = {}
 
     @abstractmethod
-    def lr_lambda(self, current_step: int) -> float: ...
+    def lr_lambda(self, current_step: int) -> float:
+        ...
 
     def step(self, key: str, current_step: int) -> float:
         value = self.values[key]
@@ -73,7 +73,6 @@ class LinearSchedulerWithWarmup(LambdaWarmupScheduler):
 
 
 class ConstantSchedulerWithWarmup(LambdaWarmupScheduler):
-
     def lr_lambda(self, current_step: int) -> float:
         if current_step < self.num_delay_steps:
             return 0.0

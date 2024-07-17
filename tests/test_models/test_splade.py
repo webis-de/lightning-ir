@@ -1,12 +1,11 @@
 import torch
-from splade.models.models_utils import get_model
 from omegaconf import DictConfig
+from splade.models.models_utils import get_model
 
 from lightning_ir import SpladeModel
 
 
 def test_same_as_splade():
-
     query = "What is the capital of France?"
     documents = [
         "Paris is the capital of France.",
