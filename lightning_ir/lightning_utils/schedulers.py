@@ -22,12 +22,11 @@ class LambdaWarmupScheduler(Callback, ABC):
         self.values: Dict[str, float] = {}
 
     @abstractmethod
-    def lr_lambda(self, current_step: int) -> float:
-        ...
+    def value_lambda(self, current_step: int) -> float: ...
 
     def step(self, key: str, current_step: int) -> float:
         value = self.values[key]
-        return value * self.lr_lambda(current_step)
+        return value * self.value_lambda(current_step)
 
     def get_value(self, sub_keys: Sequence[str], obj: object) -> object:
         for sub_key in sub_keys:
@@ -48,9 +47,7 @@ class LambdaWarmupScheduler(Callback, ABC):
             sub_keys = key.split(".")
             self.values[key] = float(self.get_value(sub_keys, pl_module))
 
-    def on_train_batch_start(
-        self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int
-    ) -> None:
+    def on_train_batch_start(self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int) -> None:
         step = trainer.global_step + 1
         for key in self.keys:
             value = self.step(key, step)
@@ -58,25 +55,34 @@ class LambdaWarmupScheduler(Callback, ABC):
             self.set_value(sub_keys, pl_module, value)
 
 
-class LinearSchedulerWithWarmup(LambdaWarmupScheduler):
-    def lr_lambda(self, current_step: int) -> float:
+class LinearSchedulerWithLinearWarmup(LambdaWarmupScheduler):
+    def value_lambda(self, current_step: int) -> float:
         if current_step < self.num_delay_steps:
             return 0.0
         current_step -= self.num_delay_steps + 1
         if current_step < self.num_warmup_steps:
-            return float(current_step) / float(max(1, self.num_warmup_steps))
+            return current_step / self.num_warmup_steps
         return max(
             0.0,
-            float(self.num_training_steps - current_step)
-            / float(max(1, self.num_training_steps - self.num_warmup_steps)),
+            (self.num_training_steps - current_step) / (self.num_training_steps - self.num_warmup_steps),
         )
 
 
-class ConstantSchedulerWithWarmup(LambdaWarmupScheduler):
-    def lr_lambda(self, current_step: int) -> float:
+class ConstantSchedulerWithLinearWarmup(LambdaWarmupScheduler):
+    def value_lambda(self, current_step: int) -> float:
         if current_step < self.num_delay_steps:
             return 0.0
         current_step -= self.num_delay_steps + 1
         if current_step < self.num_warmup_steps:
-            return float(current_step) / float(max(1.0, self.num_warmup_steps))
+            return current_step / self.num_warmup_steps
+        return 1.0
+
+
+class ConstantSchedulerWithQuadraticWarmup(LambdaWarmupScheduler):
+    def value_lambda(self, current_step: int) -> float:
+        if current_step < self.num_delay_steps:
+            return 0.0
+        current_step -= self.num_delay_steps + 1
+        if current_step < self.num_warmup_steps:
+            return (current_step / self.num_warmup_steps) ** 2
         return 1.0
