@@ -23,14 +23,19 @@ class FaissSearcher(Searcher):
 
         self.search_config: FaissSearchConfig
         self.index = faiss.read_index(str(index_dir / "index.faiss"))
-        ivf_index = faiss.extract_index_ivf(self.index)
-        ivf_index.nprobe = search_config.n_probe
-        quantizer = getattr(ivf_index, "quantizer", None)
-        if quantizer is not None:
-            downcasted_quantizer = faiss.downcast_index(quantizer)
-            hnsw = getattr(downcasted_quantizer, "hnsw", None)
-            if hnsw is not None:
-                hnsw.efSearch = search_config.ef_search
+        ivf_index = None
+        try:
+            ivf_index = faiss.extract_index_ivf(self.index)
+        except RuntimeError:
+            pass
+        if ivf_index is not None:
+            ivf_index.nprobe = search_config.n_probe
+            quantizer = getattr(ivf_index, "quantizer", None)
+            if quantizer is not None:
+                downcasted_quantizer = faiss.downcast_index(quantizer)
+                hnsw = getattr(downcasted_quantizer, "hnsw", None)
+                if hnsw is not None:
+                    hnsw.efSearch = search_config.ef_search
         super().__init__(index_dir, search_config, module)
 
     @property
