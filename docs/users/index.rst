@@ -8,7 +8,6 @@
 
 .. autosummary::
    :toctree: _autosummary
-   :template: module-template.rst
    :recursive:
 
    lightning_ir
