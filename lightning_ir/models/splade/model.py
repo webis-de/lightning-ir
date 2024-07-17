@@ -20,12 +20,8 @@ class MLMHead(torch.nn.Module):
             self.transform_act_fn = ACT2FN[config.hidden_act]
         else:
             self.transform_act_fn = config.hidden_act
-        self.LayerNorm = torch.nn.LayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
-        self.decoder = torch.nn.Linear(
-            config.hidden_size, config.vocab_size, bias=False
-        )
+        self.LayerNorm = torch.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.decoder = torch.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.bias = torch.nn.Parameter(torch.zeros(config.vocab_size))
 
         self.decoder.bias = self.bias
@@ -54,25 +50,18 @@ class SpladeModel(BiEncoderModel):
             self.projection = MLMHead(config)
 
     @classmethod
-    def from_pretrained(
-        cls, model_name_or_path: str | Path, *args, **kwargs
-    ) -> "SpladeModel":
+    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> "SpladeModel":
         config = AutoConfig.from_pretrained(model_name_or_path)
-        mlm = any(
-            architecture.endswith("ForMaskedLM")
-            for architecture in config.architectures
-        )
+        mlm = any(architecture.endswith("ForMaskedLM") for architecture in config.architectures)
         if mlm:
-            return cls.from_mlm_checkpoint(model_name_or_path)
+            return cls.from_mlm_checkpoint(model_name_or_path, *args, **kwargs)
         return super().from_pretrained(model_name_or_path, *args, **kwargs)
 
     def get_output_embeddings(self):
         return self.projection.decoder
 
     @classmethod
-    def from_mlm_checkpoint(
-        cls, model_name_or_path: str | Path, *args, **kwargs
-    ) -> "SpladeModel":
+    def from_mlm_checkpoint(cls, model_name_or_path: str | Path, *args, **kwargs) -> "SpladeModel":
         config = AutoConfig.from_pretrained(model_name_or_path)
         BackboneModel = MODEL_MAPPING[config.__class__]
         cls = LightningIRModelClassFactory(BackboneModel, SpladeConfig)
@@ -80,22 +69,16 @@ class SpladeModel(BiEncoderModel):
             model_name_or_path, *args, add_pooling_layer=False, **kwargs
         )
         try:
-            state_dict_path = hf_hub_download(
-                repo_id=str(model_name_or_path), filename="model.safetensors"
-            )
+            state_dict_path = hf_hub_download(repo_id=str(model_name_or_path), filename="model.safetensors")
         except Exception:
-            state_dict_path = hf_hub_download(
-                repo_id=str(model_name_or_path), filename="pytorch_model.bin"
-            )
+            state_dict_path = hf_hub_download(repo_id=str(model_name_or_path), filename="pytorch_model.bin")
         state_dict = load_state_dict(state_dict_path)
         state_dict.pop("cls.predictions.bias", None)
         for key in list(state_dict.keys()):
             if not key.startswith("cls"):
                 state_dict.pop(key)
                 continue
-            new_key = key.replace("cls.predictions", "projection").replace(
-                ".transform", ""
-            )
+            new_key = key.replace("cls.predictions", "projection").replace(".transform", "")
             state_dict[new_key] = state_dict.pop(key)
         model.load_state_dict(state_dict, strict=False)
         return model
