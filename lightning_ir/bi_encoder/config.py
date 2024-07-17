@@ -44,9 +44,7 @@ class BiEncoderConfig(LightningIRConfig):
         attend_to_query_expanded_tokens: bool = False,
         query_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",
         query_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
-        query_aggregation_function: Literal[
-            "sum", "mean", "max", "harmonic_mean"
-        ] = "sum",
+        query_aggregation_function: Literal["sum", "mean", "max", "harmonic_mean"] = "sum",
         doc_expansion: bool = False,
         attend_to_doc_expanded_tokens: bool = False,
         doc_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "mean",
@@ -116,9 +114,7 @@ class BiEncoderConfig(LightningIRConfig):
             output.pop("doc_mask_scoring_tokens")
         return output
 
-    def save_pretrained(
-        self, save_directory: str | PathLike, push_to_hub: bool = False, **kwargs
-    ):
+    def save_pretrained(self, save_directory: str | PathLike, push_to_hub: bool = False, **kwargs):
         with open(os.path.join(save_directory, "mask_scoring_tokens.json"), "w") as f:
             json.dump(
                 {
@@ -133,13 +129,9 @@ class BiEncoderConfig(LightningIRConfig):
     def get_config_dict(
         cls, pretrained_model_name_or_path: str | PathLike, **kwargs
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-        config_dict, kwargs = super().get_config_dict(
-            pretrained_model_name_or_path, **kwargs
-        )
+        config_dict, kwargs = super().get_config_dict(pretrained_model_name_or_path, **kwargs)
         mask_scoring_tokens = None
-        mask_scoring_tokens_path = os.path.join(
-            pretrained_model_name_or_path, "mask_scoring_tokens.json"
-        )
+        mask_scoring_tokens_path = os.path.join(pretrained_model_name_or_path, "mask_scoring_tokens.json")
         if os.path.exists(mask_scoring_tokens_path):
             with open(mask_scoring_tokens_path) as f:
                 mask_scoring_tokens = json.load(f)
