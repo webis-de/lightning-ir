@@ -159,7 +159,7 @@ class RunDataset(IRDataset, Dataset):
         run_path_or_id: Path | str,
         depth: int,
         sample_size: int,
-        sampling_strategy: Literal["single_relevant", "top", "random"],
+        sampling_strategy: Literal["single_relevant", "top", "random", "log_random"],
         targets: Literal["relevance", "subtopic_relevance", "rank", "score"] | None = None,
         normalize_targets: bool = False,
     ) -> None:
@@ -345,8 +345,12 @@ class RunDataset(IRDataset, Dataset):
             group = pd.concat([relevant, non_relevant])
         elif self.sampling_strategy == "top":
             group = group.head(self.sample_size)
-        elif self.sampling_strategy == "random":
-            group = group.sample(self.sample_size)
+        elif "random" in self.sampling_strategy:
+            weights = None
+            if self.sampling_strategy == "log_random":
+                weights = 1 / np.log1p(group["rank"])
+                weights[weights.isna()] = weights.min()
+            group = group.sample(self.sample_size, weights=weights)
         else:
             raise ValueError("Invalid sampling strategy.")
 
