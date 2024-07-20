@@ -6,18 +6,18 @@ from .lr_schedulers import (
     WarmupLRScheduler,
 )
 from .schedulers import (
-    ConstantSchedulerWithLinearWarmup,
-    ConstantSchedulerWithQuadraticWarmup,
-    LinearSchedulerWithLinearWarmup,
+    GenericConstantSchedulerWithLinearWarmup,
+    GenericConstantSchedulerWithQuadraticWarmup,
+    GenericLinearSchedulerWithLinearWarmup,
 )
 
 __all__ = [
     "ConstantLRSchedulerWithLinearWarmup",
-    "ConstantSchedulerWithQuadraticWarmup",
-    "ConstantSchedulerWithLinearWarmup",
+    "GenericConstantSchedulerWithQuadraticWarmup",
+    "GenericConstantSchedulerWithLinearWarmup",
     "IndexCallback",
     "LinearLRSchedulerWithLinearWarmup",
-    "LinearSchedulerWithLinearWarmup",
+    "GenericLinearSchedulerWithLinearWarmup",
     "LR_SCHEDULERS",
     "RankCallback",
     "WarmupLRScheduler",
