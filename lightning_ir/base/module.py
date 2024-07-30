@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
 
 import torch
 from lightning import LightningModule
@@ -43,14 +43,14 @@ class LightningIRModule(LightningModule):
 
         self.model: LightningIRModel = model
         self.config = self.model.config
-        self.loss_functions: Dict[LossFunction, float] | None = None
+        self.loss_functions: List[Tuple[LossFunction, float]] | None = None
         if loss_functions is not None:
-            self.loss_functions = {}
+            self.loss_functions = []
             for loss_function in loss_functions:
                 if isinstance(loss_function, LossFunction):
-                    self.loss_functions[loss_function] = 1.0
+                    self.loss_functions.append((loss_function, 1.0))
                 else:
-                    self.loss_functions[loss_function[0]] = loss_function[1]
+                    self.loss_functions.append(loss_function)
         self.evaluation_metrics = evaluation_metrics
         self.tokenizer = self.config.__class__.tokenizer_class.from_pretrained(
             self.config.name_or_path, **self.config.to_tokenizer_dict()
@@ -81,7 +81,7 @@ class LightningIRModule(LightningModule):
             encodings[key] = encodings[key].to(self.device)
         return encodings
 
-    def compute_losses(self, batch: TrainBatch) -> Dict[LossFunction, torch.Tensor]:
+    def compute_losses(self, batch: TrainBatch) -> List[torch.Tensor]:
         raise NotImplementedError
 
     def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
@@ -89,12 +89,12 @@ class LightningIRModule(LightningModule):
             raise ValueError("Loss function is not set")
         losses = self.compute_losses(batch)
         total_loss = torch.tensor(0)
-        for loss_function, loss in losses.items():
+        assert len(losses) == len(self.loss_functions)
+        for (loss_function, loss_weight), loss in zip(self.loss_functions, losses):
             self.log(loss_function.__class__.__name__, loss)
-            total_loss = total_loss + loss * self.loss_functions[loss_function]
-        loss = sum(losses.values(), torch.tensor(0))
-        self.log("loss", loss, prog_bar=True)
-        return loss
+            total_loss = total_loss + loss * loss_weight
+        self.log("loss", total_loss, prog_bar=True)
+        return total_loss
 
     def validation_step(
         self,
@@ -195,7 +195,7 @@ class LightningIRModule(LightningModule):
         ):
             return metrics
         scores = scores.view(len(query_ids), -1)
-        for loss_function in self.loss_functions:
+        for loss_function, _ in self.loss_functions:
             # NOTE skip in-batch losses because they can use a lot of memory
             if isinstance(loss_function, InBatchLossFunction):
                 continue

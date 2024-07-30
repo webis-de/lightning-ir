@@ -32,7 +32,7 @@ def test_training_step(train_module: LightningIRModule, inference_datasets: Sequ
     dataloader = datamodule.train_dataloader()
     batch = next(iter(dataloader))
     if isinstance(train_module, CrossEncoderModule) and any(
-        isinstance(loss_function, InBatchLossFunction) for loss_function in train_module.loss_functions
+        isinstance(loss_function[0], InBatchLossFunction) for loss_function in train_module.loss_functions
     ):
         with pytest.raises(RuntimeError):
             loss = train_module.training_step(batch, 0)

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Sequence, Tuple
+from typing import List, Sequence, Tuple
 
 import torch
 
@@ -75,7 +75,7 @@ class BiEncoderModule(LightningIRModule):
             batch.doc_ids = doc_ids
         return output
 
-    def compute_losses(self, batch: TrainBatch) -> Dict[LossFunction, torch.Tensor]:
+    def compute_losses(self, batch: TrainBatch) -> List[torch.Tensor]:
         if self.loss_functions is None:
             raise ValueError("Loss function is not set")
         output = self.forward(batch)
@@ -91,20 +91,18 @@ class BiEncoderModule(LightningIRModule):
         num_queries = len(batch.queries)
         scores = scores.view(num_queries, -1)
         targets = batch.targets.view(*scores.shape, -1)
-        losses: Dict[LossFunction, torch.Tensor] = {}
-        for loss_function in self.loss_functions:
+        losses = []
+        for loss_function, _ in self.loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
                 pos_idcs, neg_idcs = loss_function.get_ib_idcs(*scores.shape)
                 ib_doc_embeddings = self.get_ib_doc_embeddings(doc_embeddings, pos_idcs, neg_idcs, num_queries)
                 ib_scores = self.model.score(query_embeddings, ib_doc_embeddings)
                 ib_scores = ib_scores.view(num_queries, -1)
-                losses[loss_function] = loss_function.compute_loss(ib_scores)
+                losses.append(loss_function.compute_loss(ib_scores))
             elif isinstance(loss_function, EmbeddingLossFunction):
-                losses[loss_function] = loss_function.compute_loss(
-                    query_embeddings.embeddings, doc_embeddings.embeddings
-                )
+                losses.append(loss_function.compute_loss(query_embeddings.embeddings, doc_embeddings.embeddings))
             elif isinstance(loss_function, ScoringLossFunction):
-                losses[loss_function] = loss_function.compute_loss(scores, targets)
+                losses.append(loss_function.compute_loss(scores, targets))
             else:
                 raise ValueError(f"Unknown loss function type {loss_function.__class__.__name__}")
         if self.config.sparsification is not None:
