@@ -32,15 +32,9 @@ class CrossEncoderModule(LightningIRModule):
         output = self.model.forward(encoding["encoding"])
         return output
 
-    def compute_losses(
-        self,
-        batch: TrainBatch,
-        loss_functions: Sequence[LossFunction] | None,
-    ) -> Dict[str, torch.Tensor]:
-        if loss_functions is None:
-            if self.loss_functions is None:
-                raise ValueError("Loss functions are not set")
-            loss_functions = self.loss_functions
+    def compute_losses(self, batch: TrainBatch) -> Dict[LossFunction, torch.Tensor]:
+        if self.loss_functions is None:
+            raise ValueError("loss_functions must be set in the module")
         output = self.forward(batch)
         scores = output.scores
         if scores is None or batch.targets is None:
@@ -50,8 +44,8 @@ class CrossEncoderModule(LightningIRModule):
         targets = batch.targets.view(*scores.shape, -1)
 
         losses = {}
-        for loss_function in loss_functions:
+        for loss_function in self.loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
                 raise NotImplementedError("InBatchLossFunction not implemented for cross-encoders")
-            losses[loss_function.__class__.__name__] = loss_function.compute_loss(scores, targets)
+            losses[loss_function] = loss_function.compute_loss(scores, targets)
         return losses

@@ -2,24 +2,15 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Sequence
+from typing import TYPE_CHECKING, Any, Dict, Mapping, Sequence
 
 import torch
 from lightning import LightningModule
 from transformers import AutoConfig, AutoModel, BatchEncoding
 
 from ..loss.loss import InBatchLossFunction, LossFunction
-from . import (
-    LightningIRConfig,
-    LightningIRModel,
-    LightningIRModelClassFactory,
-    LightningIROutput,
-)
-from .validation_utils import (
-    create_qrels_from_dicts,
-    create_run_from_scores,
-    evaluate_run,
-)
+from . import LightningIRConfig, LightningIRModel, LightningIRModelClassFactory, LightningIROutput
+from .validation_utils import create_qrels_from_dicts, create_run_from_scores, evaluate_run
 
 if TYPE_CHECKING:
     from ..data import RankBatch, TrainBatch
@@ -31,7 +22,7 @@ class LightningIRModule(LightningModule):
         model_name_or_path: str | None = None,
         config: LightningIRConfig | None = None,
         model: LightningIRModel | None = None,
-        loss_functions: Sequence[LossFunction] | None = None,
+        loss_functions: Sequence[LossFunction] | Mapping[LossFunction, float] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
         super().__init__()
@@ -52,6 +43,8 @@ class LightningIRModule(LightningModule):
 
         self.model: LightningIRModel = model
         self.config = self.model.config
+        if loss_functions is not None and not isinstance(loss_functions, dict):
+            loss_functions = {loss_function: 1.0 for loss_function in loss_functions}
         self.loss_functions = loss_functions
         self.evaluation_metrics = evaluation_metrics
         self.tokenizer = self.config.__class__.tokenizer_class.from_pretrained(
@@ -89,19 +82,17 @@ class LightningIRModule(LightningModule):
             encodings[key] = encodings[key].to(self.device)
         return encodings
 
-    def compute_losses(
-        self,
-        batch: TrainBatch,
-        loss_functions: Sequence[LossFunction] | None,
-    ) -> Dict[str, torch.Tensor]:
+    def compute_losses(self, batch: TrainBatch) -> Dict[LossFunction, torch.Tensor]:
         raise NotImplementedError
 
     def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
         if self.loss_functions is None:
             raise ValueError("Loss function is not set")
-        losses = self.compute_losses(batch, self.loss_functions)
-        for key, loss in losses.items():
-            self.log(key, loss)
+        losses = self.compute_losses(batch)
+        total_loss = torch.tensor(0)
+        for loss_function, loss in losses.items():
+            self.log(loss_function.__class__.__name__, loss)
+            total_loss = total_loss + loss * self.loss_functions[loss_function]
         loss = sum(losses.values(), torch.tensor(0))
         self.log("loss", loss, prog_bar=True)
         return loss

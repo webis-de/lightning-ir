@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Dict, Sequence
+from typing import Dict, Mapping, Sequence
 
 import torch
 
@@ -75,15 +75,9 @@ class BiEncoderModule(LightningIRModule):
             batch.doc_ids = doc_ids
         return output
 
-    def compute_losses(
-        self,
-        batch: TrainBatch,
-        loss_functions: Sequence[LossFunction] | None,
-    ) -> Dict[str, torch.Tensor]:
-        if loss_functions is None:
-            if self.loss_functions is None:
-                raise ValueError("Loss functions are not set")
-            loss_functions = self.loss_functions
+    def compute_losses(self, batch: TrainBatch) -> Dict[LossFunction, torch.Tensor]:
+        if self.loss_functions is None:
+            raise ValueError("Loss function is not set")
         output = self.forward(batch)
 
         scores = output.scores
@@ -97,20 +91,20 @@ class BiEncoderModule(LightningIRModule):
         num_queries = len(batch.queries)
         scores = scores.view(num_queries, -1)
         targets = batch.targets.view(*scores.shape, -1)
-        losses = {}
-        for loss_function in loss_functions:
+        losses: Dict[LossFunction, torch.Tensor] = {}
+        for loss_function in self.loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
                 pos_idcs, neg_idcs = loss_function.get_ib_idcs(*scores.shape)
                 ib_doc_embeddings = self.get_ib_doc_embeddings(doc_embeddings, pos_idcs, neg_idcs, num_queries)
                 ib_scores = self.model.score(query_embeddings, ib_doc_embeddings)
                 ib_scores = ib_scores.view(num_queries, -1)
-                losses[loss_function.__class__.__name__] = loss_function.compute_loss(ib_scores)
+                losses[loss_function] = loss_function.compute_loss(ib_scores)
             elif isinstance(loss_function, EmbeddingLossFunction):
-                losses[loss_function.__class__.__name__] = loss_function.compute_loss(
+                losses[loss_function] = loss_function.compute_loss(
                     query_embeddings.embeddings, doc_embeddings.embeddings
                 )
             elif isinstance(loss_function, ScoringLossFunction):
-                losses[loss_function.__class__.__name__] = loss_function.compute_loss(scores, targets)
+                losses[loss_function] = loss_function.compute_loss(scores, targets)
             else:
                 raise ValueError(f"Unknown loss function type {loss_function.__class__.__name__}")
         if self.config.sparsification is not None:
