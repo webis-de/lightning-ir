@@ -22,7 +22,7 @@ class LightningIRModule(LightningModule):
         model_name_or_path: str | None = None,
         config: LightningIRConfig | None = None,
         model: LightningIRModel | None = None,
-        loss_functions: Sequence[LossFunction] | Sequence[Tuple[LossFunction, float]] | None = None,
+        loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
         super().__init__()
@@ -62,12 +62,6 @@ class LightningIRModule(LightningModule):
 
     def forward(self, batch: TrainBatch | RankBatch) -> LightningIROutput:
         raise NotImplementedError("forward method must be implemented in subclass")
-
-    def on_before_forward(self, batch: TrainBatch | RankBatch) -> None:
-        pass
-
-    def on_after_forward(self, batch: TrainBatch | RankBatch, output: LightningIROutput) -> None:
-        pass
 
     def prepare_input(
         self,

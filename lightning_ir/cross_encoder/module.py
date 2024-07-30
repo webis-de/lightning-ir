@@ -16,7 +16,7 @@ class CrossEncoderModule(LightningIRModule):
         model_name_or_path: str | None = None,
         config: CrossEncoderConfig | None = None,
         model: CrossEncoderModel | None = None,
-        loss_functions: Sequence[LossFunction] | Sequence[Tuple[LossFunction, float]] | None = None,
+        loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
         super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics)

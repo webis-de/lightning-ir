@@ -18,7 +18,7 @@ class BiEncoderModule(LightningIRModule):
         model_name_or_path: str | None = None,
         config: BiEncoderConfig | None = None,
         model: BiEncoderModel | None = None,
-        loss_functions: Sequence[LossFunction] | Sequence[Tuple[LossFunction, float]] | None = None,
+        loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
         index_dir: Path | None = None,
         search_config: SearchConfig | None = None,
