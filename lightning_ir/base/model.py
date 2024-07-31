@@ -3,14 +3,7 @@ from functools import partial
 from typing import Literal, Type
 
 import torch
-from transformers import (
-    CONFIG_MAPPING,
-    MODEL_MAPPING,
-    AutoConfig,
-    BertModel,
-    PretrainedConfig,
-    PreTrainedModel,
-)
+from transformers import CONFIG_MAPPING, MODEL_MAPPING, AutoConfig, BertModel, PretrainedConfig, PreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 
 from ..flash import FLASH_ATTENTION_MAP
@@ -107,7 +100,7 @@ def LightningIRModelClassFactory(
         raise ValueError(f"config_class not found in {BackboneModel.__name__}")
 
     if MixinConfig is None or not issubclass(MixinConfig, LightningIRConfig):
-        raise ValueError(f"Model {BackboneModel} is not a LightningIRModel, pass a " "LightningIRConfig to create one.")
+        raise ValueError(f"Model {BackboneModel} is not a LightningIRModel, pass a LightningIRConfig to create one.")
 
     lir_model_type = MixinConfig.model_type
     LightningIRModelMixin: Type[LightningIRModel] | None = MODEL_MAPPING[MixinConfig]

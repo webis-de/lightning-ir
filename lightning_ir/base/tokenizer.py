@@ -21,10 +21,7 @@ class LightningIRTokenizer:
         return len(self.__tokenizer)
 
     def tokenize(
-        self,
-        queries: str | Sequence[str] | None = None,
-        docs: str | Sequence[str] | None = None,
-        **kwargs,
+        self, queries: str | Sequence[str] | None = None, docs: str | Sequence[str] | None = None, **kwargs
     ) -> Dict[str, BatchEncoding]:
         raise NotImplementedError("Tokenizer must implement tokenize method.")
 
