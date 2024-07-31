@@ -2,7 +2,7 @@ import warnings
 from typing import Dict, Sequence
 
 from tokenizers.processors import TemplateProcessing
-from transformers import BatchEncoding, PreTrainedTokenizerBase
+from transformers import BatchEncoding, BertTokenizer, BertTokenizerFast, PreTrainedTokenizerBase
 
 from ..base import LightningIRTokenizer
 
@@ -49,6 +49,9 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         self.query_post_processor = None
         self.doc_post_processor = None
         if add_marker_tokens:
+            # TODO support other tokenizers
+            if not isinstance(tokenizer, (BertTokenizer, BertTokenizerFast)):
+                raise ValueError("Adding marker tokens is only supported for BertTokenizer.")
             self.add_tokens([query_token, doc_token], special_tokens=True)
             self.query_post_processor = TemplateProcessing(
                 single=f"[CLS] {self.query_token} $0 [SEP]",
