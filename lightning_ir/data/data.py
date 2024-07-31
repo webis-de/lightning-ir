@@ -5,7 +5,7 @@ import torch
 
 
 @dataclass
-class RunSample:
+class RankSample:
     query_id: str
     query: str
     doc_ids: Tuple[str, ...]

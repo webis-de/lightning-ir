@@ -10,15 +10,7 @@ from torch.utils.data import DataLoader, IterableDataset
 from transformers import AutoConfig
 
 from .data import IndexBatch, RankBatch, SearchBatch, TrainBatch
-from .dataset import (
-    DocDataset,
-    DocSample,
-    QueryDataset,
-    QuerySample,
-    RunDataset,
-    RunSample,
-    TupleDataset,
-)
+from .dataset import DocDataset, DocSample, QueryDataset, QuerySample, RankSample, RunDataset, TupleDataset
 
 if TYPE_CHECKING:
     from ..base import LightningIRConfig, LightningIRModule
@@ -35,7 +27,7 @@ class LightningIRDataModule(LightningDataModule):
         shuffle_train: bool = True,
         inference_batch_size: int | None = None,
         train_dataset: RunDataset | TupleDataset | None = None,
-        inference_datasets: (Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None) = None,
+        inference_datasets: Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None = None,
     ) -> None:
         super().__init__()
         if config is not None:
@@ -73,12 +65,12 @@ class LightningIRDataModule(LightningDataModule):
                     raise ValueError("Prediction cannot be performed with TupleDataset.")
             elif isinstance(inference_dataset, RunDataset):
                 if inference_dataset.sampling_strategy == "single_relevant":
-                    raise ValueError("Inference RunDataset cannot use the single_relevant " "sampling strategy.")
+                    raise ValueError("Inference RunDataset cannot use the single_relevant sampling strategy.")
             elif isinstance(inference_dataset, (QueryDataset, DocDataset)):
                 pass
             else:
                 raise ValueError(
-                    "Inference Dataset must be of type RunDataset, " "TupleDataset, QueryDataset, or DocDataset."
+                    "Inference Dataset must be of type RunDataset, TupleDataset, QueryDataset, or DocDataset."
                 )
             inference_dataset.setup(stage)
         if stage == "validate":
@@ -110,15 +102,12 @@ class LightningIRDataModule(LightningDataModule):
         inference_datasets = self.inference_datasets or []
         return [
             DataLoader(
-                dataset,
-                batch_size=self.inference_batch_size,
-                num_workers=self.num_workers,
-                collate_fn=self.collate_fn,
+                dataset, batch_size=self.inference_batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn
             )
             for dataset in inference_datasets
         ]
 
-    def _aggregate_samples(self, samples: Sequence[RunSample | QuerySample | DocSample]) -> Dict[str, Any]:
+    def _aggregate_samples(self, samples: Sequence[RankSample | QuerySample | DocSample]) -> Dict[str, Any]:
         aggregated = defaultdict(list)
         field_options = {
             "query_id": {"extend": False},
@@ -153,9 +142,9 @@ class LightningIRDataModule(LightningDataModule):
         return kwargs
 
     def _parse_batch(
-        self, sample: RunSample | QuerySample | DocSample, **kwargs
+        self, sample: RankSample | QuerySample | DocSample, **kwargs
     ) -> RankBatch | TrainBatch | IndexBatch | SearchBatch:
-        if isinstance(sample, RunSample):
+        if isinstance(sample, RankSample):
             if "targets" in kwargs:
                 return TrainBatch(**kwargs)
             else:
@@ -168,9 +157,9 @@ class LightningIRDataModule(LightningDataModule):
 
     def collate_fn(
         self,
-        samples: (Sequence[RunSample | QuerySample | DocSample] | RunSample | QuerySample | DocSample),
+        samples: Sequence[RankSample | QuerySample | DocSample] | RankSample | QuerySample | DocSample,
     ) -> TrainBatch | RankBatch | IndexBatch | SearchBatch:
-        if isinstance(samples, (RunSample, QuerySample, DocSample)):
+        if isinstance(samples, (RankSample, QuerySample, DocSample)):
             samples = [samples]
         aggregated = self._aggregate_samples(samples)
         kwargs = self._clean_sample(aggregated)

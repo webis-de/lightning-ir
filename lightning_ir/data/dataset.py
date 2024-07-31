@@ -11,7 +11,7 @@ from ir_datasets.formats import GenericDoc, GenericDocPair
 from torch.distributed import get_rank, get_world_size
 from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
-from .data import DocSample, QuerySample, RunSample
+from .data import DocSample, QuerySample, RankSample
 from .ir_datasets_utils import ScoredDocTuple
 
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
@@ -376,7 +376,7 @@ class RunDataset(IRDataset, Dataset):
     def __len__(self) -> int:
         return len(self.query_ids)
 
-    def __getitem__(self, idx: int) -> RunSample:
+    def __getitem__(self, idx: int) -> RankSample:
         query_id = str(self.query_ids[idx])
         group = self.run_groups.get_group(query_id).copy()
         query = self.queries[query_id]
@@ -408,7 +408,7 @@ class RunDataset(IRDataset, Dataset):
                 .reset_index()
                 .to_dict(orient="records")
             )
-        return RunSample(query_id, query, doc_ids, docs, targets, qrels)
+        return RankSample(query_id, query, doc_ids, docs, targets, qrels)
 
 
 class TupleDataset(IRDataset, IterableDataset):
@@ -447,11 +447,11 @@ class TupleDataset(IRDataset, IterableDataset):
         docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
         return doc_ids, docs, targets
 
-    def __iter__(self) -> Iterator[RunSample]:
+    def __iter__(self) -> Iterator[RankSample]:
         for sample in self.ir_dataset.docpairs_iter():
             query_id = sample.query_id
             query = self.queries.loc[query_id]
             doc_ids, docs, targets = self.parse_sample(sample)
             if targets is not None:
                 targets = torch.tensor(targets)
-            yield RunSample(query_id, query, doc_ids, docs, targets)
+            yield RankSample(query_id, query, doc_ids, docs, targets)

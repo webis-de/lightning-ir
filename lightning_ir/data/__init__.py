@@ -1,12 +1,4 @@
-from .data import (
-    DocSample,
-    IndexBatch,
-    QuerySample,
-    RankBatch,
-    RunSample,
-    SearchBatch,
-    TrainBatch,
-)
+from .data import DocSample, IndexBatch, QuerySample, RankBatch, RankSample, SearchBatch, TrainBatch
 from .datamodule import LightningIRDataModule
 from .dataset import DocDataset, QueryDataset, RunDataset, TupleDataset
 
@@ -19,7 +11,7 @@ __all__ = [
     "QuerySample",
     "RankBatch",
     "RunDataset",
-    "RunSample",
+    "RankSample",
     "SearchBatch",
     "TrainBatch",
     "TupleDataset",
