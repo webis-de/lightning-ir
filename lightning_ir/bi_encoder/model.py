@@ -11,6 +11,32 @@ from ..base import LightningIRModel, LightningIROutput
 from . import BiEncoderConfig
 
 
+class MLMHead(torch.nn.Module):
+    def __init__(self, config: BiEncoderConfig) -> None:
+        super().__init__()
+        self.config = config
+        self.dense = torch.nn.Linear(config.hidden_size, config.hidden_size)
+        if isinstance(config.hidden_act, str):
+            self.transform_act_fn = ACT2FN[config.hidden_act]
+        else:
+            self.transform_act_fn = config.hidden_act
+        self.LayerNorm = torch.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.decoder = torch.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+        self.bias = torch.nn.Parameter(torch.zeros(config.vocab_size))
+
+        self.decoder.bias = self.bias
+
+    def _tie_weights(self):
+        self.decoder.bias = self.bias
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.transform_act_fn(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states)
+        hidden_states = self.decoder(hidden_states)
+        return hidden_states
+
+
 @dataclass
 class BiEncoderEmbedding:
     embeddings: torch.Tensor
@@ -31,12 +57,17 @@ class BiEncoderModel(LightningIRModel):
         self.config: BiEncoderConfig
         self.scoring_function = ScoringFunction(self.config)
         self.projection = None
-        if self.config.projection is not None and "linear" in self.config.projection:
-            self.projection = torch.nn.Linear(
-                self.config.hidden_size,
-                self.config.embedding_dim,
-                bias="no_bias" not in self.config.projection,
-            )
+        if self.config.projection is not None:
+            if "linear" in self.config.projection:
+                self.projection = torch.nn.Linear(
+                    self.config.hidden_size,
+                    self.config.embedding_dim,
+                    bias="no_bias" not in self.config.projection,
+                )
+            elif self.config.projection == "mlm":
+                self.projection = MLMHead(config)
+            else:
+                raise ValueError(f"Unknown projection {self.config.projection}")
         else:
             if self.config.embedding_dim != self.config.hidden_size:
                 warnings.warn(

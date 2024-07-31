@@ -53,7 +53,7 @@ class BiEncoderConfig(LightningIRConfig):
         sparsification: Literal["relu", "relu_log"] | None = None,
         add_marker_tokens: bool = False,
         embedding_dim: int = 768,
-        projection: Literal["linear", "linear_no_bias"] | None = "linear",
+        projection: Literal["linear", "linear_no_bias", "mlm"] | None = "linear",
         **kwargs,
     ):
         """Initializes a bi-encoder configuration.

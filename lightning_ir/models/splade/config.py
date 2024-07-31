@@ -8,7 +8,6 @@ class SpladeConfig(BiEncoderConfig):
 
     def __init__(
         self,
-        similarity_function: Literal["cosine", "dot"] = "dot",
         query_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "max",
         doc_pooling_strategy: Literal["first", "mean", "max", "sum"] | None = "max",
         projection: Literal["linear", "linear_no_bias", "mlm"] | None = "mlm",
@@ -26,12 +25,10 @@ class SpladeConfig(BiEncoderConfig):
         kwargs["normalize"] = False
         kwargs["add_marker_tokens"] = False
         super().__init__(
-            similarity_function=similarity_function,
             query_pooling_strategy=query_pooling_strategy,
             doc_pooling_strategy=doc_pooling_strategy,
             embedding_dim=embedding_dim,
-            projection=None if projection == "mlm" else projection,
+            projection=projection,
             sparsification=sparsification,
             **kwargs,
         )
-        self.projection = projection
