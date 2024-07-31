@@ -272,9 +272,7 @@ class ScoringFunction(torch.nn.Module):
         self.query_aggregation_function = self.config.query_aggregation_function
 
     def compute_similarity(
-        self,
-        query_embeddings: BiEncoderEmbedding,
-        doc_embeddings: BiEncoderEmbedding,
+        self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding
     ) -> torch.Tensor:
         # if torch.cuda.is_available():
         #     # bfloat16 similarity yields weird values with gpu, so we use fp16 instead
