@@ -25,10 +25,10 @@ class ColModel(BiEncoderModel):
     def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> LightningIRModel:
         try:
             hf_hub_download(repo_id=str(model_name_or_path), filename="artifact.metadata")
-            return cls.from_colbert_checkpoint(model_name_or_path)
         except Exception:
-            pass
-        return super().from_pretrained(model_name_or_path, *args, **kwargs)
+            return super().from_pretrained(model_name_or_path, *args, **kwargs)
+        finally:
+            return cls.from_colbert_checkpoint(model_name_or_path)
 
     @classmethod
     def from_colbert_checkpoint(cls, model_name_or_path: Path | str) -> "ColModel":
