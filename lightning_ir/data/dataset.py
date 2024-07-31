@@ -153,13 +153,58 @@ class DocDataset(IRDataset, DataParallelIterableDataset):
             yield DocSample.from_ir_dataset_sample(sample)
 
 
+class Sampler:
+
+    @staticmethod
+    def single_relevant(group: pd.DataFrame, sample_size: int) -> pd.DataFrame:
+        relevance = group.filter(like="relevance").max(axis=1).fillna(0)
+        relevant = group.loc[relevance.gt(0)].sample(1)
+        non_relevant_bool = relevance.eq(0) & ~group["rank"].isna()
+        num_non_relevant = non_relevant_bool.sum()
+        sample_non_relevant = min(sample_size - 1, num_non_relevant)
+        non_relevant = group.loc[non_relevant_bool].sample(sample_non_relevant)
+        return pd.concat([relevant, non_relevant])
+
+    @staticmethod
+    def top(group: pd.DataFrame, sample_size: int) -> pd.DataFrame:
+        return group.head(sample_size)
+
+    @staticmethod
+    def top_and_random(group: pd.DataFrame, sample_size: int) -> pd.DataFrame:
+        top_size = sample_size // 2
+        random_size = sample_size - top_size
+        top = group.head(top_size)
+        random = group.iloc[top_size:].sample(random_size)
+        return pd.concat([top, random])
+
+    @staticmethod
+    def random(group: pd.DataFrame, sample_size: int) -> pd.DataFrame:
+        return group.sample(sample_size)
+
+    @staticmethod
+    def log_random(group: pd.DataFrame, sample_size: int) -> pd.DataFrame:
+        weights = 1 / np.log1p(group["rank"])
+        weights[weights.isna()] = weights.min()
+        return group.sample(sample_size, weights=weights)
+
+    @staticmethod
+    def sample(
+        df: pd.DataFrame,
+        sample_size: int,
+        sampling_strategy: Literal["single_relevant", "top", "random", "log_random", "top_and_random"],
+    ) -> pd.DataFrame:
+        if hasattr(Sampler, sampling_strategy):
+            return getattr(Sampler, sampling_strategy)(df, sample_size)
+        raise ValueError("Invalid sampling strategy.")
+
+
 class RunDataset(IRDataset, Dataset):
     def __init__(
         self,
         run_path_or_id: Path | str,
         depth: int,
         sample_size: int,
-        sampling_strategy: Literal["single_relevant", "top", "random", "log_random"],
+        sampling_strategy: Literal["single_relevant", "top", "random", "log_random", "top_and_random"],
         targets: Literal["relevance", "subtopic_relevance", "rank", "score"] | None = None,
         normalize_targets: bool = False,
     ) -> None:
@@ -335,24 +380,7 @@ class RunDataset(IRDataset, Dataset):
         query_id = str(self.query_ids[idx])
         group = self.run_groups.get_group(query_id).copy()
         query = self.queries[query_id]
-        if self.sampling_strategy == "single_relevant":
-            relevance = group.filter(like="relevance").max(axis=1).fillna(0)
-            relevant = group.loc[relevance.gt(0)].sample(1)
-            non_relevant_bool = relevance.eq(0) & ~group["rank"].isna()
-            num_non_relevant = non_relevant_bool.sum()
-            sample_non_relevant = min(self.sample_size - 1, num_non_relevant)
-            non_relevant = group.loc[non_relevant_bool].sample(sample_non_relevant)
-            group = pd.concat([relevant, non_relevant])
-        elif self.sampling_strategy == "top":
-            group = group.head(self.sample_size)
-        elif "random" in self.sampling_strategy:
-            weights = None
-            if self.sampling_strategy == "log_random":
-                weights = 1 / np.log1p(group["rank"])
-                weights[weights.isna()] = weights.min()
-            group = group.sample(self.sample_size, weights=weights)
-        else:
-            raise ValueError("Invalid sampling strategy.")
+        group = Sampler.sample(group, self.sample_size, self.sampling_strategy)
 
         doc_ids = tuple(group["doc_id"])
         docs = tuple(self.docs.get(doc_id).default_text() for doc_id in doc_ids)
