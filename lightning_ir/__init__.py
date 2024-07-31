@@ -61,7 +61,7 @@ from .loss import (
     RankNet,
     SupervisedMarginMSE,
 )
-from .models import ColConfig, ColModel, SpladeConfig, SpladeModel
+from .models import ColConfig, ColModel, SpladeConfig, SpladeModel, XTRConfig, XTRModel
 from .retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
@@ -89,6 +89,8 @@ AutoConfig.register(ColConfig.model_type, ColConfig)
 AutoModel.register(ColConfig, ColModel)
 AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
 AutoModel.register(SpladeConfig, SpladeModel)
+AutoConfig.register(XTRConfig.model_type, XTRConfig)
+AutoModel.register(XTRConfig, XTRModel)
 
 __version__ = "0.0.1"
 
@@ -160,4 +162,6 @@ __all__ = [
     "TrainBatch",
     "TupleDataset",
     "WarmupLRScheduler",
+    "XTRConfig",
+    "XTRModel",
 ]
