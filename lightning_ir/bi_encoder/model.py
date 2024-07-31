@@ -6,6 +6,7 @@ from typing import Callable, Literal, Sequence
 
 import torch
 from transformers import BatchEncoding
+from transformers.activations import ACT2FN
 
 from ..base import LightningIRModel, LightningIROutput
 from . import BiEncoderConfig
