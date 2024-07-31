@@ -51,6 +51,10 @@ class BiEncoderOutput(LightningIROutput):
 
 
 class BiEncoderModel(LightningIRModel):
+
+    _tied_weights_keys = ["projection.decoder.bias", "projection.decoder.weight", "encoder.embed_tokens.weight"]
+    _keys_to_ignore_on_load_unexpected = [r"decoder"]
+
     config_class = BiEncoderConfig
 
     def __init__(self, config: BiEncoderConfig, *args, **kwargs) -> None:
