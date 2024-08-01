@@ -22,11 +22,8 @@ class CrossEncoderModel(LightningIRModel):
 
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
         embeddings = self.backbone_forward(**encoding).last_hidden_state
-
-        embeddings = self.pooling(
-            embeddings,
-            encoding.get("attention_mask", None),
-            pooling_strategy=self.config.pooling_strategy,
+        embeddings = self._pooling(
+            embeddings, encoding.get("attention_mask", None), pooling_strategy=self.config.pooling_strategy
         )
         scores = self.linear(embeddings).squeeze(-1)
         return CrossEncoderOutput(scores=scores, embeddings=embeddings)

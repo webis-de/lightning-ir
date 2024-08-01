@@ -172,8 +172,8 @@ class BiEncoderModel(LightningIRModel):
         embeddings = self.backbone_forward(input_ids, attention_mask, token_type_ids).last_hidden_state
         if self.projection is not None:
             embeddings = self.projection(embeddings)
-        embeddings = self.sparsification(embeddings, self.config.sparsification)
-        embeddings = self.pooling(embeddings, attention_mask, pooling_strategy)
+        embeddings = self._sparsification(embeddings, self.config.sparsification)
+        embeddings = self._pooling(embeddings, attention_mask, pooling_strategy)
         if self.config.normalize:
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self._scoring_mask(
