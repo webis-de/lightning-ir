@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import array
 import json
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -12,7 +13,7 @@ if TYPE_CHECKING:
     from ..data import IndexBatch
 
 
-class Indexer:
+class Indexer(ABC):
     def __init__(
         self,
         index_dir: Path,
@@ -29,8 +30,8 @@ class Indexer:
         self.num_docs = 0
         self.verbose = verbose
 
-    def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
-        raise NotImplementedError("add method must be implemented")
+    @abstractmethod
+    def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None: ...
 
     def save(self) -> None:
         self.index_config.save(self.index_dir)
