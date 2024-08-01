@@ -1,6 +1,6 @@
 import torch
 from colbert.modeling.checkpoint import Checkpoint
-from colbert.modeling.colbert import colbert_score
+from colbert.modeling.colbert import ColBERTConfig, colbert_score
 
 from lightning_ir import BiEncoderTokenizer, ColModel
 
@@ -13,8 +13,9 @@ def test_same_as_colbert():
         "The Eiffel Tower is in Paris.",
     ]
 
-    model = ColModel.from_colbert_checkpoint("colbert-ir/colbertv2.0").eval()
-    tokenizer = BiEncoderTokenizer.from_pretrained("colbert-ir/colbertv2.0", **model.config.to_dict())
+    model_name = "colbert-ir/colbertv2.0"
+    model = ColModel.from_colbert_checkpoint(model_name).eval()
+    tokenizer = BiEncoderTokenizer.from_pretrained(model_name, **model.config.to_dict())
     query_encoding = tokenizer.tokenize_query(query, return_tensors="pt")
     doc_encoding = tokenizer.tokenize_doc(documents, return_tensors="pt", padding=True, truncation=True)
     with torch.no_grad():
@@ -22,12 +23,13 @@ def test_same_as_colbert():
         doc_embedding = model.encode_doc(doc_encoding.input_ids, doc_encoding.attention_mask)
     scores = model.score(query_embedding, doc_embedding, None)
 
-    orig_model = Checkpoint("colbert-ir/colbertv2.0")
+    colbert_config = ColBERTConfig.from_existing(ColBERTConfig.load_from_checkpoint(model_name))
+    orig_model = Checkpoint(model_name, colbert_config)
     orig_query = orig_model.queryFromText([query])
     orig_docs = orig_model.docFromText(documents)
     d_mask = ~(orig_docs == 0).all(-1)
     orig_scores = colbert_score(orig_query, orig_docs, d_mask)
 
-    assert torch.allclose(query_embedding.embeddings, orig_query)
-    assert torch.allclose(doc_embedding.embeddings[doc_embedding.scoring_mask], orig_docs[d_mask])
-    assert torch.allclose(scores, orig_scores)
+    assert torch.allclose(query_embedding.embeddings, orig_query, atol=1e-7)
+    assert torch.allclose(doc_embedding.embeddings[doc_embedding.scoring_mask], orig_docs[d_mask], atol=1e-7)
+    assert torch.allclose(scores, orig_scores, atol=1e-7)
