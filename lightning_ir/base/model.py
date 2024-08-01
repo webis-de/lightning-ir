@@ -4,7 +4,7 @@ from functools import partial
 from typing import Literal, Type
 
 import torch
-from transformers import CONFIG_MAPPING, MODEL_MAPPING, AutoConfig, BertModel, PretrainedConfig, PreTrainedModel
+from transformers import CONFIG_MAPPING, MODEL_MAPPING, BertModel, PretrainedConfig, PreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 
 from ..flash import FLASH_ATTENTION_MAP
@@ -166,7 +166,7 @@ def LightningIRModelClassFactory(
     BackboneModel: Type[PreTrainedModel], MixinConfig: Type[LightningIRConfig] | None = None
 ) -> Type[LightningIRModel]:
     """Creates a derived LightningIRModel from a transformers.PreTrainedModel_ backbone model and a
-    :class:`LightningIRConfig` mixin config. If the backbone model is already a LightningIRModel, it is returned as is.
+    :class:`.LightningIRConfig` mixin config. If the backbone model is already a LightningIRModel, it is returned as is.
 
     .. _transformers.PreTrainedModel: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel
 
