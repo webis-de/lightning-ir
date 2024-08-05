@@ -1,14 +1,14 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import partial
 from typing import Literal, Type
 
 import torch
-from transformers import CONFIG_MAPPING, MODEL_MAPPING, BertModel, PretrainedConfig, PreTrainedModel
+from transformers import MODEL_MAPPING, BertModel
 from transformers.modeling_outputs import ModelOutput
 
 from ..flash import FLASH_ATTENTION_MAP
-from . import LightningIRConfig
+from .class_factory import LightningIRModelClassFactory
+from .config import LightningIRConfig
 
 
 @dataclass
@@ -24,7 +24,7 @@ class LightningIROutput(ModelOutput):
     scores: torch.Tensor | None = None
 
 
-class LightningIRModel(ABC):
+class LightningIRModel:
     """Base class for the LightningIR models. Derived classes implement the forward functionality for handling query
     and document embeddings. It acts as mixin for a transformers.PreTrainedModel_ backbone model.
 
@@ -51,18 +51,16 @@ class LightningIRModel(ABC):
                     if name.endswith(self_attn_pattern):
                         module.forward = partial(flash_attn_forward, module)
 
-    @abstractmethod
     def backbone_forward(self, *args, **kwargs):
         """Forward method of the backbone model. Is set by the :func:`LightningIRModelClassFactory`.
 
         :raises NotImplementedError: LightningIRModelClassFactory must set the backbone forward method
         """
-        ...
+        raise NotImplementedError
 
-    @abstractmethod
     def forward(self, *args, **kwargs) -> LightningIROutput:
         """Forward method of the model. Must be implemented by the derived class."""
-        ...
+        raise NotImplementedError
 
     def _sparsification(
         self, embeddings: torch.Tensor, sparsification_strategy: Literal["relu", "relu_log"] | None = None
@@ -123,7 +121,7 @@ class LightningIRModel(ABC):
         raise ValueError(f"Unknown pooling strategy: {self.pooling_strategy}")
 
     @classmethod
-    def from_pretrained(cls, *args, **kwargs) -> "LightningIRModel":
+    def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> "LightningIRModel":
         """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method and returns a
         derived LightningIRModel. See :func:`LightningIRModelClassFactory` for more details.
 
@@ -144,71 +142,23 @@ class LightningIRModel(ABC):
         :return: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin.
         :rtype: LightningIRModel
         """
-        if cls is LightningIRModel:
-            raise ValueError("LightningIRModel is an abstract class. Use either BiEncoderModel or CrossEncoderModel.")
-        if all(issubclass(base, LightningIRModel) for base in cls.__bases__):
+        # provides AutoModel.from_pretrained support
+        config = kwargs.get("config", None)
+        if all(issubclass(base, LightningIRModel) for base in cls.__bases__) or cls is LightningIRModel:
             # no backbone models found, create derived lightning-ir model based on backbone model
-            config_dict, _ = PretrainedConfig.get_config_dict(*args, **kwargs)
-            backbone_model_type = config_dict.get("backbone_model_type", None) or config_dict.get("model_type", None)
-            if backbone_model_type is None:
-                raise ValueError("No backbone model found in the configuration")
-            try:
-                BackboneModel = MODEL_MAPPING[CONFIG_MAPPING[backbone_model_type]]
-            except KeyError:
-                raise ValueError(f"Model {backbone_model_type} not found in the model mapping.")
-            cls = LightningIRModelClassFactory(BackboneModel, cls.config_class)
+            BackboneConfig = LightningIRModelClassFactory.get_backbone_config(model_name_or_path)
+            BackboneModel = MODEL_MAPPING[BackboneConfig]
+            if config is not None:
+                config_class = config.__class__
+            elif cls is not LightningIRModel:
+                config_class = cls.config_class
+            else:
+                raise ValueError("Pass a config to `from_pretrained`.")
+            cls = LightningIRModelClassFactory(config_class).from_backbone_class(BackboneModel)
+            if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
+                derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)
+                derived_config.update(config.to_dict())
+                kwargs["config"] = derived_config
         if issubclass(cls, BertModel):
             kwargs["add_pooling_layer"] = False
-        return super(LightningIRModel, cls).from_pretrained(*args, **kwargs)
-
-
-def LightningIRModelClassFactory(
-    BackboneModel: Type[PreTrainedModel], MixinConfig: Type[LightningIRConfig] | None = None
-) -> Type[LightningIRModel]:
-    """Creates a derived LightningIRModel from a transformers.PreTrainedModel_ backbone model and a
-    :class:`.LightningIRConfig` mixin config. If the backbone model is already a LightningIRModel, it is returned as is.
-
-    .. _transformers.PreTrainedModel: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel
-
-    :param BackboneModel: Backbone model
-    :type BackboneModel: Type[PreTrainedModel]
-    :param MixinConfig: LightningIR mixin config, defaults to None
-    :type MixinConfig: Type[LightningIRConfig] | None, optional
-    :raises ValueError: If the backbone model is not a valid backbone model.
-    :raises ValueError: If the backbone model is not a LightningIRModel and no LightningIRConfig is passed.
-    :raises ValueError: If the LightningIRModel mixin is not registered with the Hugging Face model mapping.
-    :return: The derived LightningIRModel
-    :rtype: Type[LightningIRModel]
-    """
-    if issubclass(BackboneModel, LightningIRModel):
-        return BackboneModel
-
-    BackboneConfig = BackboneModel.config_class
-    if BackboneConfig is None or not issubclass(BackboneConfig, PretrainedConfig):
-        raise ValueError(f"Model {BackboneModel} is not a valid backbone model because it is missing a `config_class`.")
-
-    if MixinConfig is None or not issubclass(MixinConfig, LightningIRConfig):
-        raise ValueError(f"Model {BackboneModel} is not a LightningIRModel, pass a LightningIRConfig to create one.")
-
-    lir_model_type = MixinConfig.model_type
-    LightningIRModelMixin: Type[LightningIRModel] | None = MODEL_MAPPING.get(MixinConfig, None)
-    if LightningIRModelMixin is None:
-        raise ValueError(f"Unable to find a LightningIRModel for config {MixinConfig.__name__}.")
-
-    cc_lir_model_type = "".join(s.title() for s in lir_model_type.split("-"))
-    cc_model_type = BackboneConfig.__name__[:-6]
-    ModelConfig = type(
-        f"{cc_lir_model_type}{cc_model_type}Config",
-        (MixinConfig, BackboneConfig),
-        {
-            "backbone_model_type": BackboneConfig.model_type,
-        },
-    )
-
-    DerivedLightningIRModel = type(
-        f"{cc_lir_model_type}{cc_model_type}Model",
-        (LightningIRModelMixin, BackboneModel),
-        {"config_class": ModelConfig, "backbone_forward": BackboneModel.forward},
-    )
-
-    return DerivedLightningIRModel
+        return super(LightningIRModel, cls).from_pretrained(model_name_or_path, *args, **kwargs)

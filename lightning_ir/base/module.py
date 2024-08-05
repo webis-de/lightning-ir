@@ -6,10 +6,12 @@ from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
 
 import torch
 from lightning import LightningModule
-from transformers import AutoConfig, AutoModel, BatchEncoding
+from transformers import BatchEncoding
 
 from ..loss.loss import InBatchLossFunction, LossFunction
-from . import LightningIRConfig, LightningIRModel, LightningIRModelClassFactory, LightningIROutput
+from .config import LightningIRConfig
+from .model import LightningIRModel, LightningIROutput
+from .tokenizer import LightningIRTokenizer
 from .validation_utils import create_qrels_from_dicts, create_run_from_scores, evaluate_run
 
 if TYPE_CHECKING:
@@ -31,15 +33,7 @@ class LightningIRModule(LightningModule):
         if model is None:
             if model_name_or_path is None:
                 raise ValueError("Either model or model_name_or_path must be provided.")
-            TransformerModel = AutoModel._model_mapping[AutoConfig.from_pretrained(model_name_or_path).__class__]
-            DerivedLightningIRModel = LightningIRModelClassFactory(
-                TransformerModel, None if config is None else config.__class__
-            )
-            ir_config = None
-            if config is not None:
-                ir_config = DerivedLightningIRModel.config_class.from_pretrained(model_name_or_path)
-                ir_config.update(config.to_added_args_dict())
-            model = DerivedLightningIRModel.from_pretrained(model_name_or_path, config=ir_config)
+            model = LightningIRModel.from_pretrained(model_name_or_path, config=config)
 
         self.model: LightningIRModel = model
         self.config = self.model.config
@@ -52,16 +46,14 @@ class LightningIRModule(LightningModule):
                 else:
                     self.loss_functions.append(loss_function)
         self.evaluation_metrics = evaluation_metrics
-        self.tokenizer = self.config.__class__.tokenizer_class.from_pretrained(
-            self.config.name_or_path, **self.config.to_tokenizer_dict()
-        )
+        self.tokenizer = LightningIRTokenizer.from_pretrained(self.config.name_or_path, config=config)
 
     def on_fit_start(self) -> None:
         self.train()
         return super().on_fit_start()
 
     def forward(self, batch: TrainBatch | RankBatch) -> LightningIROutput:
-        raise NotImplementedError("forward method must be implemented in subclass")
+        raise NotImplementedError
 
     def prepare_input(
         self,

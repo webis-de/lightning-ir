@@ -1,13 +1,11 @@
-from __future__ import annotations
+from typing import Any, Dict, Set
 
-from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Dict, Set, Type
+from transformers import CONFIG_MAPPING
 
-if TYPE_CHECKING:
-    from . import LightningIRTokenizer
+from .class_factory import LightningIRConfigClassFactory
 
 
-class LightningIRConfig(ABC):
+class LightningIRConfig:
     """The configuration class to instantiate a LightningIR model. Acts as a mixin for the
     transformers.PretrainedConfig_ class.
 
@@ -18,12 +16,6 @@ class LightningIRConfig(ABC):
     """Model type for the configuration."""
     backbone_model_type: str | None = None
     """Backbone model type for the configuration. Set by :func:`LightningIRModelClassFactory`."""
-
-    @property
-    @abstractmethod
-    def tokenizer_class(self) -> Type[LightningIRTokenizer] | None:
-        """Tokenizer class for the configuration. Needs to be set in derived config."""
-        ...
 
     TOKENIZER_ARGS: Set[str] = {"query_length", "doc_length"}
     """Arguments for the tokenizer."""
@@ -68,6 +60,22 @@ class LightningIRConfig(ABC):
             output = getattr(super(), "to_dict")()
         else:
             output = self.to_added_args_dict()
-        if self.__class__.model_type is not None:
-            output["backbone_model_type"] = self.__class__.backbone_model_type
         return output
+
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any], *args, **kwargs) -> "LightningIRConfig":
+        if all(issubclass(base, LightningIRConfig) for base in cls.__bases__) or cls is LightningIRConfig:
+            if "backbone_model_type" in config_dict:
+                backbone_model_type = config_dict["backbone_model_type"]
+                model_type = config_dict["model_type"]
+                if cls is not LightningIRConfig and model_type != cls.model_type:
+                    raise ValueError(
+                        f"Model type {model_type} does not match configuration model type {cls.model_type}"
+                    )
+            else:
+                backbone_model_type = config_dict["model_type"]
+                model_type = cls.model_type
+            MixinConfig = CONFIG_MAPPING[model_type]
+            BackboneConfig = CONFIG_MAPPING[backbone_model_type]
+            cls = LightningIRConfigClassFactory(MixinConfig).from_backbone_class(BackboneConfig)
+        return super(LightningIRConfig, cls).from_dict(config_dict, *args, **kwargs)

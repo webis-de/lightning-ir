@@ -2,15 +2,19 @@ import warnings
 from typing import Dict, Sequence
 
 from tokenizers.processors import TemplateProcessing
-from transformers import BatchEncoding, BertTokenizer, BertTokenizerFast, PreTrainedTokenizerBase
+from transformers import BatchEncoding, BertTokenizer, BertTokenizerFast
 
 from ..base import LightningIRTokenizer
+from .config import BiEncoderConfig
 
 
 class BiEncoderTokenizer(LightningIRTokenizer):
+
+    config_class = BiEncoderConfig
+
     def __init__(
         self,
-        tokenizer: PreTrainedTokenizerBase,
+        *args,
         query_token: str = "[QUE]",
         doc_token: str = "[DOC]",
         query_expansion: bool = False,
@@ -23,7 +27,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         **kwargs,
     ):
         super().__init__(
-            tokenizer=tokenizer,
+            *args,
             query_token=query_token,
             doc_token=doc_token,
             query_expansion=query_expansion,
@@ -46,11 +50,11 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         self._query_token = query_token
         self._doc_token = doc_token
 
-        self.query_post_processor = None
-        self.doc_post_processor = None
+        self.query_post_processor: TemplateProcessing | None = None
+        self.doc_post_processor: TemplateProcessing | None = None
         if add_marker_tokens:
             # TODO support other tokenizers
-            if not isinstance(tokenizer, (BertTokenizer, BertTokenizerFast)):
+            if not isinstance(self, (BertTokenizer, BertTokenizerFast)):
                 raise ValueError("Adding marker tokens is only supported for BertTokenizer.")
             self.add_tokens([query_token, doc_token], special_tokens=True)
             self.query_post_processor = TemplateProcessing(
@@ -101,7 +105,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
                 "tokenize_doc to make sure marker_tokens and query/doc expansion is "
                 "applied."
             )
-        return self.__tokenizer.__call__(*args, **kwargs)
+        return super().__call__(*args, **kwargs)
 
     def _encode(
         self,

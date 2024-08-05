@@ -9,6 +9,7 @@ from lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
 from transformers import AutoConfig
 
+from ..base.tokenizer import LightningIRTokenizer
 from .data import IndexBatch, RankBatch, SearchBatch, TrainBatch
 from .dataset import DocDataset, DocSample, QueryDataset, QuerySample, RankSample, RunDataset, TupleDataset
 
@@ -38,11 +39,10 @@ class LightningIRDataModule(LightningDataModule):
             self.config = AutoConfig.from_pretrained(model_name_or_path)
         else:
             raise ValueError("Either module, config, or model_name_or_path must be provided.")
-        Tokenizer = self.config.__class__.tokenizer_class
 
         if model_name_or_path is None:
             model_name_or_path = self.config.name_or_path
-        self.tokenizer = Tokenizer.from_pretrained(model_name_or_path, **self.config.to_tokenizer_dict())
+        self.tokenizer = LightningIRTokenizer.from_pretrained(model_name_or_path, config=self.config)
         self.num_workers = num_workers
 
         self.train_batch_size = train_batch_size

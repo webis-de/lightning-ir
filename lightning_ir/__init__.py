@@ -1,4 +1,4 @@
-from transformers import AutoConfig, AutoModel
+from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from .base import (
     LightningIRConfig,
@@ -83,14 +83,19 @@ from .retrieve import (
 
 AutoConfig.register(BiEncoderConfig.model_type, BiEncoderConfig)
 AutoModel.register(BiEncoderConfig, BiEncoderModel)
+AutoTokenizer.register(BiEncoderConfig, BiEncoderTokenizer)
 AutoConfig.register(CrossEncoderConfig.model_type, CrossEncoderConfig)
 AutoModel.register(CrossEncoderConfig, CrossEncoderModel)
+AutoTokenizer.register(CrossEncoderConfig, CrossEncoderTokenizer)
 AutoConfig.register(ColConfig.model_type, ColConfig)
 AutoModel.register(ColConfig, ColModel)
+AutoTokenizer.register(ColConfig, BiEncoderTokenizer)
 AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
 AutoModel.register(SpladeConfig, SpladeModel)
+AutoTokenizer.register(SpladeConfig, BiEncoderTokenizer)
 AutoConfig.register(XTRConfig.model_type, XTRConfig)
 AutoModel.register(XTRConfig, XTRModel)
+AutoTokenizer.register(XTRConfig, BiEncoderTokenizer)
 
 __version__ = "0.0.1"
 

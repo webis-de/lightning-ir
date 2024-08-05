@@ -2,7 +2,7 @@ import torch
 from omegaconf import DictConfig
 from splade.models.models_utils import get_model
 
-from lightning_ir import SpladeModel
+from lightning_ir import BiEncoderTokenizer, SpladeModel
 
 
 def test_same_as_splade():
@@ -25,7 +25,7 @@ def test_same_as_splade():
     orig_doc_embeddings = orig_model(d_kwargs=orig_doc_encodings)["d_rep"]
 
     model = SpladeModel.from_pretrained(model_name).eval()
-    tokenizer = SpladeModel.config_class.tokenizer_class.from_pretrained(model_name, **model.config.to_tokenizer_dict())
+    tokenizer = BiEncoderTokenizer.from_pretrained(model_name, config=model.config)
     query_encoding = tokenizer.tokenize_query(query, return_tensors="pt")
     doc_encoding = tokenizer.tokenize_doc(documents, return_tensors="pt", padding=True)
     with torch.no_grad():

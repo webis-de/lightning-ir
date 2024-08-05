@@ -1,17 +1,15 @@
 import json
 import os
 from os import PathLike
-from typing import Any, Dict, Literal, Sequence, Tuple, Type
+from typing import Any, Dict, Literal, Sequence, Tuple
 
 from ..base import LightningIRConfig
-from .tokenizer import BiEncoderTokenizer
 
 
 class BiEncoderConfig(LightningIRConfig):
     """The configuration class to instantiate a Bi-Encoder model."""
 
     model_type = "bi-encoder"
-    tokenizer_class: Type[BiEncoderTokenizer] = BiEncoderTokenizer
 
     TOKENIZER_ARGS = LightningIRConfig.TOKENIZER_ARGS.union(
         {
@@ -116,13 +114,7 @@ class BiEncoderConfig(LightningIRConfig):
 
     def save_pretrained(self, save_directory: str | PathLike, push_to_hub: bool = False, **kwargs):
         with open(os.path.join(save_directory, "mask_scoring_tokens.json"), "w") as f:
-            json.dump(
-                {
-                    "query": self.query_mask_scoring_tokens,
-                    "doc": self.doc_mask_scoring_tokens,
-                },
-                f,
-            )
+            json.dump({"query": self.query_mask_scoring_tokens, "doc": self.doc_mask_scoring_tokens}, f)
         return super().save_pretrained(save_directory, push_to_hub, **kwargs)
 
     @classmethod

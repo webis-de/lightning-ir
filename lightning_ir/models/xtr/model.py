@@ -77,7 +77,7 @@ class XTRModel(ColModel):
     def from_xtr_checkpoint(cls, model_name_or_path: Path | str) -> "XTRModel":
         from transformers import T5EncoderModel
 
-        cls = LightningIRModelClassFactory(T5EncoderModel, XTRConfig)
+        cls = LightningIRModelClassFactory(XTRConfig).from_backbone_class(T5EncoderModel)
         config = cls.config_class.from_pretrained(model_name_or_path)
         config.update(
             {

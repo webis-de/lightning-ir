@@ -1,31 +1,22 @@
 from typing import Dict, Sequence
 
-from transformers import BatchEncoding, PreTrainedTokenizerBase
+from transformers import BatchEncoding
 
 from ..base import LightningIRTokenizer
+from .config import CrossEncoderConfig
 
 
 class CrossEncoderTokenizer(LightningIRTokenizer):
-    def __init__(
-        self,
-        tokenizer: PreTrainedTokenizerBase,
-        query_length: int = 32,
-        doc_length: int = 512,
-        **kwargs,
-    ):
-        super().__init__(
-            tokenizer=tokenizer,
-            query_length=query_length,
-            doc_length=doc_length,
-            **kwargs,
-        )
-        self.query_length = query_length
-        self.doc_length = doc_length
+
+    config_class = CrossEncoderConfig
+
+    def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
+        super().__init__(*args, query_length=query_length, doc_length=doc_length, **kwargs)
 
     def tokenize(
         self,
-        queries: str | Sequence[str],
-        docs: str | Sequence[str],
+        queries: str | Sequence[str] | None = None,
+        docs: str | Sequence[str] | None = None,
         num_docs: Sequence[int] | None = None,
         **kwargs,
     ) -> Dict[str, BatchEncoding]:

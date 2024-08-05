@@ -2,10 +2,9 @@ import json
 from pathlib import Path
 
 from huggingface_hub import hf_hub_download
-from transformers import BertModel
 from transformers.modeling_utils import load_state_dict
 
-from ...base import LightningIRModel, LightningIRModelClassFactory
+from ...base import LightningIRModel, LightningIRModelClassFactory, LightningIRTokenizerClassFactory
 from ...bi_encoder.model import BiEncoderModel
 from .config import ColConfig
 
@@ -40,7 +39,7 @@ class ColModel(BiEncoderModel):
             pass
         if col_config is None:
             raise ValueError(f"{model_name_or_path} is not a valid col checkpoint.")
-        cls = LightningIRModelClassFactory(BertModel, ColConfig)
+        cls = LightningIRModelClassFactory(ColConfig).from_pretrained(model_name_or_path)
         config = cls.config_class.from_pretrained(model_name_or_path)
         config.update(
             {
@@ -69,7 +68,11 @@ class ColModel(BiEncoderModel):
         state_dict["projection.weight"] = state_dict.pop("linear.weight")
         model.load_state_dict(state_dict)
 
-        tokenizer = ColConfig.tokenizer_class.from_pretrained(model_name_or_path, **config.to_tokenizer_dict())
+        tokenizer = (
+            LightningIRTokenizerClassFactory(ColConfig)
+            .from_pretrained(model_name_or_path)
+            .from_pretrained(model_name_or_path, config=config)
+        )
         query_token_id = tokenizer.query_token_id
         doc_token_id = tokenizer.doc_token_id
         model.resize_token_embeddings(len(tokenizer), 8)

@@ -39,7 +39,7 @@ def test_same_as_xtr():
     orig_doc_encoding = orig_tokenizer(documents, return_tensors="pt", padding=True, truncation=True)
 
     model = XTRModel.from_pretrained(model_name).eval()
-    tokenizer = BiEncoderTokenizer.from_pretrained(model_name, **model.config.to_dict())
+    tokenizer = BiEncoderTokenizer.from_pretrained(model_name, config=model.config)
     query_encoding = tokenizer.tokenize_query(query, return_tensors="pt")
     doc_encoding = tokenizer.tokenize_doc(documents, return_tensors="pt", padding=True, truncation=True)
 

@@ -31,7 +31,7 @@ class SpladeModel(BiEncoderModel):
     def from_mlm_checkpoint(cls, model_name_or_path: str | Path, *args, **kwargs) -> "SpladeModel":
         config = AutoConfig.from_pretrained(model_name_or_path)
         BackboneModel = MODEL_MAPPING[config.__class__]
-        cls = LightningIRModelClassFactory(BackboneModel, SpladeConfig)
+        cls = LightningIRModelClassFactory(SpladeConfig).from_backbone_class(BackboneModel)
         model = super(LightningIRModel, cls).from_pretrained(
             model_name_or_path, *args, add_pooling_layer=False, **kwargs
         )

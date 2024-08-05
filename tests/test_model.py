@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Sequence
 
 import pytest
+from transformers import AutoModel
 
 from lightning_ir.base import LightningIRModule
 from lightning_ir.cross_encoder import CrossEncoderModule
@@ -60,14 +61,14 @@ def test_validation(train_module: LightningIRModule, inference_datasets: Sequenc
         assert value
 
 
-def test_seralize_deserialize(module: LightningIRModule, tmpdir_factory: pytest.TempdirFactory):
+def test_seralize_deserialize(module: LightningIRModule, tmp_path: Path):
     model = module.model
-    save_dir = tmpdir_factory.mktemp(model.config_class.model_type)
+    save_dir = str(tmp_path / model.config_class.model_type)
     model.save_pretrained(save_dir)
-    kwargs = {}
     new_models = [
-        model.__class__.from_pretrained(save_dir, **kwargs),
-        model.__class__.__bases__[0].from_pretrained(save_dir, **kwargs),
+        model.__class__.from_pretrained(save_dir),
+        model.__class__.__bases__[0].from_pretrained(save_dir),
+        AutoModel.from_pretrained(save_dir),
     ]
     for new_model in new_models:
         for key, value in model.config.__dict__.items():
@@ -78,9 +79,6 @@ def test_seralize_deserialize(module: LightningIRModule, tmpdir_factory: pytest.
                 "transformers_version",
                 "model_type",
             ):
-                continue
-            if key == "mask_punctuation":
-                assert value and not getattr(new_model.config, key)
                 continue
             assert getattr(new_model.config, key) == value
         for key, value in model.state_dict().items():

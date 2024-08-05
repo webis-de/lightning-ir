@@ -82,6 +82,9 @@ class BiEncoderModel(LightningIRModel):
 
         self.query_mask_scoring_input_ids: torch.Tensor | None = None
         self.doc_mask_scoring_input_ids: torch.Tensor | None = None
+        self.add_mask_scoring_input_ids()
+
+    def add_mask_scoring_input_ids(self) -> None:
         for sequence in ("query", "doc"):
             mask_scoring_tokens = getattr(self.config, f"{sequence}_mask_scoring_tokens")
             if mask_scoring_tokens is None:
@@ -89,20 +92,22 @@ class BiEncoderModel(LightningIRModel):
             if mask_scoring_tokens == "punctuation":
                 mask_scoring_tokens = list(punctuation)
             try:
-                tokenizer = self.config.__class__.tokenizer_class.from_pretrained(self.config.name_or_path)
+                from transformers import AutoTokenizer
+
+                tokenizer = AutoTokenizer.from_pretrained(self.config.name_or_path)
+                # vocab_file_names =
+                # mask_scoring_input_ids =
             except OSError:
-                raise ValueError("Can't use token scoring masking if the checkpoint does not " "have a tokenizer.")
+                raise ValueError("Can't use token scoring masking if the checkpoint does not have a tokenizer.")
+            mask_scoring_input_ids = []
+            for token in mask_scoring_tokens:
+                if token not in tokenizer.vocab:
+                    raise ValueError(f"Token {token} not in tokenizer vocab")
+                mask_scoring_input_ids.append(tokenizer.vocab[token])
             setattr(
                 self,
                 f"{sequence}_mask_scoring_input_ids",
-                tokenizer(
-                    mask_scoring_tokens,
-                    add_special_tokens=False,
-                    return_tensors="pt",
-                    return_attention_mask=False,
-                    return_token_type_ids=False,
-                    warn=False,
-                ).input_ids[:, 0],
+                torch.tensor(mask_scoring_input_ids, dtype=torch.long),
             )
 
     def forward(

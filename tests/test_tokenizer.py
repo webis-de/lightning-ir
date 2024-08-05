@@ -1,9 +1,9 @@
 import pytest
+from transformers import AutoTokenizer
 
+from lightning_ir.base.tokenizer import LightningIRTokenizerClassFactory
 from lightning_ir.bi_encoder.config import BiEncoderConfig
-from lightning_ir.bi_encoder.tokenizer import BiEncoderTokenizer
 from lightning_ir.cross_encoder.config import CrossEncoderConfig
-from lightning_ir.cross_encoder.tokenizer import CrossEncoderTokenizer
 
 
 @pytest.mark.parametrize(
@@ -18,25 +18,25 @@ def test_serialize_deserialize(
 ):
     save_dir = tmpdir_factory.mktemp(config.model_type)
     tokenizer_kwargs = config.to_tokenizer_dict()
-    if config.model_type == "bi-encoder":
-        Tokenizer = BiEncoderTokenizer
-    elif config.model_type == "cross-encoder":
-        Tokenizer = CrossEncoderTokenizer
-    else:
-        raise ValueError("Invalid model type")
+    Tokenizer = LightningIRTokenizerClassFactory(config.__class__).from_pretrained(model_name_or_path)
     tokenizer = Tokenizer.from_pretrained(model_name_or_path, **tokenizer_kwargs)
     tokenizer.save_pretrained(save_dir)
-    new_tokenizer = Tokenizer.from_pretrained(save_dir)
-    assert tokenizer is not None
-    assert new_tokenizer is not None
-    for key in tokenizer_kwargs:
-        assert getattr(tokenizer, key) == getattr(new_tokenizer, key)
+    new_tokenizers = [
+        AutoTokenizer.from_pretrained(save_dir),
+        Tokenizer.from_pretrained(save_dir),
+        Tokenizer.__bases__[0].from_pretrained(save_dir),
+    ]
+    for new_tokenizer in new_tokenizers:
+        for key in tokenizer_kwargs:
+            assert getattr(tokenizer, key) == getattr(new_tokenizer, key)
 
 
 def test_bi_encoder_tokenizer(model_name_or_path: str):
+    Tokenizer = LightningIRTokenizerClassFactory(BiEncoderConfig).from_pretrained(model_name_or_path)
+    tokenizer = Tokenizer.from_pretrained(model_name_or_path)
+
     query = "What is the capital of France?"
     doc = "Paris is the capital of France."
-    tokenizer = BiEncoderTokenizer.from_pretrained(model_name_or_path)
     encoding = tokenizer.tokenize(query, doc)
     assert encoding is not None
     query_encoding = encoding["query_encoding"]
@@ -55,7 +55,8 @@ def test_bi_encoder_tokenizer(model_name_or_path: str):
 
 
 def test_cross_encoder_tokenizer(model_name_or_path: str):
-    tokenizer = CrossEncoderTokenizer.from_pretrained(model_name_or_path, query_length=2, doc_length=4)
+    Tokenizer = LightningIRTokenizerClassFactory(CrossEncoderConfig).from_pretrained(model_name_or_path)
+    tokenizer = Tokenizer.from_pretrained(model_name_or_path, query_length=2, doc_length=4)
 
     query = "What is the capital of France?"
     doc = "Paris is the capital of France."

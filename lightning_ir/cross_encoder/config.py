@@ -1,12 +1,10 @@
-from typing import Literal, Type
+from typing import Literal
 
 from ..base import LightningIRConfig
-from .tokenizer import CrossEncoderTokenizer
 
 
 class CrossEncoderConfig(LightningIRConfig):
     model_type = "cross-encoder"
-    tokenizer_class: Type[CrossEncoderTokenizer] = CrossEncoderTokenizer
 
     ADDED_ARGS = LightningIRConfig.ADDED_ARGS.union({"pooling_strategy"})
 

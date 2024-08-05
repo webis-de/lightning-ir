@@ -16,7 +16,6 @@ from lightning_ir.lightning_utils.lr_schedulers import LR_SCHEDULERS, WarmupLRSc
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
 
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 sys.path.append(str(Path.cwd()))
 
