@@ -51,7 +51,9 @@ class LightningIRConfig:
         return {arg: getattr(self, arg) for arg in self.TOKENIZER_ARGS}
 
     def to_dict(self) -> Dict[str, Any]:
-        """Overrides the `to_dict` method to include the added arguments and the backbone model type.
+        """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments and the backbone model type.
+
+        .. transformers._PretrainedConfig.to_dict: https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig.to_dict
 
         :return: Configuration dictionary
         :rtype: Dict[str, Any]
@@ -64,6 +66,17 @@ class LightningIRConfig:
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any], *args, **kwargs) -> "LightningIRConfig":
+        """Loads the configuration from a dictionary. Wraps the transformers.PretrainedConfig.from_dict_ method to
+        return a derived LightningIRConfig class. See :class:`.LightningIRConfigClassFactory` for more details.
+
+        .. _transformers.PretrainedConfig.from_dict: https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig.from_dict
+
+        :param config_dict: Configuration dictionary
+        :type config_dict: Dict[str, Any]
+        :raises ValueError: If the model type does not match the configuration model type
+        :return: Derived LightningIRConfig class
+        :rtype: LightningIRConfig
+        """
         if all(issubclass(base, LightningIRConfig) for base in cls.__bases__) or cls is LightningIRConfig:
             if "backbone_model_type" in config_dict:
                 backbone_model_type = config_dict["backbone_model_type"]

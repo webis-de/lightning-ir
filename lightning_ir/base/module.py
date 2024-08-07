@@ -19,6 +19,11 @@ if TYPE_CHECKING:
 
 
 class LightningIRModule(LightningModule):
+    """LightningIRModule base class. LightningIRModules contain a LightningIRModel and a LightningIRTokenizer and
+    implements the training, validation, and testing steps for the model. Derived classes must implement the forward
+    method for the model.
+    """
+
     def __init__(
         self,
         model_name_or_path: str | None = None,
@@ -27,6 +32,25 @@ class LightningIRModule(LightningModule):
         loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
     ):
+        """Initializes the LightningIRModule.
+
+        .. _ir-measures: https://ir-measur.es/en/latest/index.html
+
+        :param model_name_or_path: Name or path of backbone model or fine-tuned LightningIR model, defaults to None
+        :type model_name_or_path: str | None, optional
+        :param config: LightningIRConfig to apply when loading from backbone model, defaults to None
+        :type config: LightningIRConfig | None, optional
+        :param model: Already instantiated LightningIR model, defaults to None
+        :type model: LightningIRModel | None, optional
+        :param loss_functions: Loss functions to apply during fine-tuning, optional loss weights can be provided per
+            loss function, defaults to None
+        :type loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None, optional
+        :param evaluation_metrics: Metrics corresponding to ir-measures_ measure strings to apply during validation or
+            testing, defaults to None
+        :type evaluation_metrics: Sequence[str] | None, optional
+        :raises ValueError: If both model and model_name_or_path are provided
+        :raises ValueError: If neither model nor model_name_or_path are provided
+        """
         super().__init__()
         if model is not None and model_name_or_path is not None:
             raise ValueError("Only one of model or model_name_or_path must be provided.")
@@ -49,36 +73,73 @@ class LightningIRModule(LightningModule):
         self.tokenizer = LightningIRTokenizer.from_pretrained(self.config.name_or_path, config=config)
 
     def on_fit_start(self) -> None:
+        """Called at the very beginning of fit.
+
+        If on DDP it is called on every process
+        """
+        # NOTE huggingface models are in eval mode by default
         self.train()
         return super().on_fit_start()
 
     def forward(self, batch: TrainBatch | RankBatch) -> LightningIROutput:
+        """Handles the forward pass of the model.
+
+        :param batch: Batch of training or ranking data
+        :type batch: TrainBatch | RankBatch
+        :raises NotImplementedError: Must be implemented by derived class
+        :return: Model output
+        :rtype: LightningIROutput
+        """
         raise NotImplementedError
 
     def prepare_input(
-        self,
-        queries: Sequence[str] | None,
-        docs: Sequence[str] | None,
-        num_docs: Sequence[int] | int | None,
+        self, queries: Sequence[str] | None, docs: Sequence[str] | None, num_docs: Sequence[int] | int | None
     ) -> Dict[str, BatchEncoding]:
+        """Tokenizes queries and documents and returns the tokenized BatchEncoding_.
+
+        :: _BatchEncoding: https://huggingface.co/transformers/main_classes/tokenizer#transformers.BatchEncoding
+
+        :param queries: Queries to tokenize
+        :type queries: Sequence[str] | None
+        :param docs: Documents to tokenize
+        :type docs: Sequence[str] | None
+        :param num_docs: Number of documents per query, if None num_docs is inferred by `len(docs) // len(queries)`,
+            defaults to None
+        :type num_docs: Sequence[int] | int | None
+        :return: Tokenized queries and documents, format depends on the tokenizer
+        :rtype: Dict[str, BatchEncoding]
+        """
         encodings = self.tokenizer.tokenize(
-            queries,
-            docs,
-            return_tensors="pt",
-            padding=True,
-            truncation=True,
-            num_docs=num_docs,
+            queries, docs, return_tensors="pt", padding=True, truncation=True, num_docs=num_docs
         )
         for key in encodings:
             encodings[key] = encodings[key].to(self.device)
         return encodings
 
     def compute_losses(self, batch: TrainBatch) -> List[torch.Tensor]:
+        """Computes the losses for the batch.
+
+        :param batch: Batch of training data
+        :type batch: TrainBatch
+        :raises NotImplementedError: Must be implemented by derived class
+        :return: List of losses, one for each loss function
+        :rtype: List[torch.Tensor]
+        """
         raise NotImplementedError
 
     def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
+        """Handles the training step for the model.
+
+        :param batch: Batch of training data
+        :type batch: TrainBatch
+        :param batch_idx: Index of the batch
+        :type batch_idx: int
+        :raises ValueError: If no loss functions are set
+        :return: Sum of the losses weighted by the loss weights
+        :rtype: torch.Tensor
+        """
         if self.loss_functions is None:
-            raise ValueError("Loss function is not set")
+            raise ValueError("Loss functions are not set")
         losses = self.compute_losses(batch)
         total_loss = torch.tensor(0)
         assert len(losses) == len(self.loss_functions)
@@ -89,11 +150,19 @@ class LightningIRModule(LightningModule):
         return total_loss
 
     def validation_step(
-        self,
-        batch: TrainBatch | RankBatch,
-        batch_idx: int,
-        dataloader_idx: int = 0,
+        self, batch: TrainBatch | RankBatch, batch_idx: int, dataloader_idx: int = 0
     ) -> LightningIROutput:
+        """Handles the validation step for the model.
+
+        :param batch: Batch of validation or testing data
+        :type batch: TrainBatch | RankBatch
+        :param batch_idx: Index of the batch
+        :type batch_idx: int
+        :param dataloader_idx: Index of the dataloader, defaults to 0
+        :type dataloader_idx: int, optional
+        :return: Model output
+        :rtype: LightningIROutput
+        """
         output = self.forward(batch)
 
         if self.evaluation_metrics is None:
@@ -118,9 +187,29 @@ class LightningIRModule(LightningModule):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> LightningIROutput:
+        """Handles the testing step for the model. Passes the batch to the validation step.
+
+        :param batch: Batch of testing data
+        :type batch: TrainBatch | RankBatch
+        :param batch_idx: Index of the batch
+        :type batch_idx: int
+        :param dataloader_idx: Index of the dataloader, defaults to 0
+        :type dataloader_idx: int, optional
+        :return: Model output
+        :rtype: LightningIROutput
+        """
         return self.validation_step(batch, batch_idx, dataloader_idx)
 
     def get_dataset_id(self, dataloader_idx: int) -> str:
+        """Gets the dataset id from the dataloader index for logging.
+
+        .. _ir-datasets: https://ir-datasets.com/
+
+        :param dataloader_idx: Index of the dataloader
+        :type dataloader_idx: int
+        :return: ir-datasets_ dataset id or dataloader index
+        :rtype: str
+        """
         dataset_id = str(dataloader_idx)
         datamodule = None
         try:
@@ -139,7 +228,26 @@ class LightningIRModule(LightningModule):
         targets: torch.Tensor | None = None,
         num_docs: Sequence[int] | None = None,
     ) -> Dict[str, float]:
-        metrics = {}
+        """Validates the model output with the evaluation metrics and loss functions.
+
+        :param scores: Model output scores, defaults to None
+        :type scores: torch.Tensor | None, optional
+        :param query_ids: ids of the queries, defaults to None
+        :type query_ids: Sequence[str] | None, optional
+        :param doc_ids: ids of the documents, defaults to None
+        :type doc_ids: Sequence[Sequence[str]] | None, optional
+        :param qrels: Mappings of doc_id -> relevance for each query, defaults to None
+        :type qrels: Sequence[Dict[str, int]] | None, optional
+        :param targets: Target tensor used during fine-tuning, defaults to None
+        :type targets: torch.Tensor | None, optional
+        :param num_docs: Number of documents per query, defaults to None
+        :type num_docs: Sequence[int] | None, optional
+        :raises ValueError: If num_docs can not be parsed and query_ids are not set
+        :raises ValueError: If num_docs can not be parsed and doc_ids are not set
+        :return: _description_
+        :rtype: Dict[str, float]
+        """
+        metrics: Dict[str, float] = {}
         if self.evaluation_metrics is None or scores is None:
             return metrics
         if query_ids is None:
@@ -151,7 +259,7 @@ class LightningIRModule(LightningModule):
                 raise ValueError("num_docs must be set if doc_ids is not set")
             doc_ids = tuple(tuple(f"{i}-{j}" for j in range(docs)) for i, docs in enumerate(num_docs))
         metrics.update(self.validate_metrics(scores, query_ids, doc_ids, qrels))
-        metrics.update(self.validate_loss(scores, query_ids, doc_ids, targets))
+        metrics.update(self.validate_loss(scores, query_ids, targets))
         return metrics
 
     def validate_metrics(
@@ -161,7 +269,20 @@ class LightningIRModule(LightningModule):
         doc_ids: Sequence[Sequence[str]],
         qrels: Sequence[Dict[str, int]] | None,
     ) -> Dict[str, float]:
-        metrics = {}
+        """Validates the model output with the evaluation metrics.
+
+        :param scores: Model output scores
+        :type scores: torch.Tensor
+        :param query_ids: ids of the queries
+        :type query_ids: Sequence[str]
+        :param doc_ids: ids of the documents
+        :type doc_ids: Sequence[Sequence[str]]
+        :param qrels: Mappings of doc_id -> relevance for each query, defaults to None
+        :type qrels: Sequence[Dict[str, int]] | None
+        :return: Evaluation metrics
+        :rtype: Dict[str, float]
+        """
+        metrics: Dict[str, float] = {}
         if self.evaluation_metrics is None or qrels is None:
             return metrics
         evaluation_metrics = [metric for metric in self.evaluation_metrics if metric != "loss"]
@@ -172,13 +293,20 @@ class LightningIRModule(LightningModule):
         return metrics
 
     def validate_loss(
-        self,
-        scores: torch.Tensor,
-        query_ids: Sequence[str],
-        doc_ids: Sequence[Sequence[str]],
-        targets: torch.Tensor | None,
+        self, scores: torch.Tensor, query_ids: Sequence[str], targets: torch.Tensor | None
     ) -> Dict[str, float]:
-        metrics = {}
+        """Validates the model output with the loss functions.
+
+        :param scores: Model output scores
+        :type scores: torch.Tensor
+        :param query_ids: ids of the queries
+        :type query_ids: Sequence[str]
+        :param targets: Target tensor used during fine-tuning
+        :type targets: torch.Tensor | None
+        :return: Loss metrics
+        :rtype: Dict[str, float]
+        """
+        metrics: Dict[str, float] = {}
         if (
             self.evaluation_metrics is None
             or "loss" not in self.evaluation_metrics
@@ -197,6 +325,7 @@ class LightningIRModule(LightningModule):
         return metrics
 
     def on_validation_epoch_end(self) -> None:
+        """Logs the accumulated metrics for each dataloader."""
         try:
             trainer = self.trainer
         except RuntimeError:
@@ -212,13 +341,20 @@ class LightningIRModule(LightningModule):
                 self.log(key, torch.stack(value).mean(), logger=False)
 
     def on_test_epoch_end(self) -> None:
+        """Logs the accumulated metrics for each dataloader."""
         self.on_validation_epoch_end()
 
     def save_pretrained(self, save_path: str | Path) -> None:
+        """Saves the model and tokenizer to the save path.
+
+        :param save_path: Path to save the model and tokenizer
+        :type save_path: str | Path
+        """
         self.model.save_pretrained(save_path)
         self.tokenizer.save_pretrained(save_path)
 
     def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+        """Saves the model and tokenizer to the trainer's log directory."""
         if self.trainer is not None and self.trainer.log_dir is not None:
             if self.trainer.global_rank != 0:
                 return

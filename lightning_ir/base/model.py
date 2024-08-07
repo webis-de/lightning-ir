@@ -25,7 +25,7 @@ class LightningIROutput(ModelOutput):
 
 
 class LightningIRModel:
-    """Base class for the LightningIR models. Derived classes implement the forward functionality for handling query
+    """Base class for LightningIR models. Derived classes implement the forward method for handling query
     and document embeddings. It acts as mixin for a transformers.PreTrainedModel_ backbone model.
 
     .. _transformers.PreTrainedModel: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel
@@ -122,24 +122,28 @@ class LightningIRModel:
 
     @classmethod
     def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> "LightningIRModel":
-        """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method and returns a
-        derived LightningIRModel. See :func:`LightningIRModelClassFactory` for more details.
+        """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method and to return a
+        derived LightningIRModel. See :class:`LightningIRModelClassFactory` for more details.
 
         .. _transformers.PreTrainedModel.from_pretrained: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained
 
         .. highlight:: python
         .. code-block:: python
 
+            >>> # Loading using model class and backbone checkpoint
             >>> type(CrossEncoderModel.from_pretrained("bert-base-uncased"))
             ...
-            <class 'lightning_ir.base.model.CrossEncoderBertModel'>
-            >>> type(ColModel.from_pretrained("bert-base-uncased"))
+            <class 'lightning_ir.base.class_factory.CrossEncoderBertModel'>
+            >>> # Loading using base class and backbone checkpoint
+            >>> type(LightningIRModel.from_pretrained("bert-base-uncased", config=CrossEncoderConfig()))
             ...
-            <class 'lightning_ir.base.model.ColBertModel'>
+            <class 'lightning_ir.base.class_factory.CrossEncoderBertModel'>
 
-        :raises ValueError: If called on the abstract class :class:`LightningIRModel`.
-        :raises ValueError: If the backbone model is not found.
-        :return: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin.
+
+        :param model_name_or_path: Name or path of the pretrained model
+        :type model_name_or_path: str
+        :raises ValueError: If called on the abstract class :class:`LightningIRModel` and no config is passed
+        :return: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin
         :rtype: LightningIRModel
         """
         # provides AutoModel.from_pretrained support

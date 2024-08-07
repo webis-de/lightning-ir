@@ -7,10 +7,23 @@ from .config import LightningIRConfig
 
 
 class LightningIRTokenizer:
+    """Base class for LightningIR tokenizers. Derived classes implement the tokenize method for handling query
+    and document tokenization. It acts as mixin for a transformers.PreTrainedTokenizer_ backbone tokenizer.
+
+    .. _transformers.PreTrainedTokenizer: https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizer
+    """
 
     config_class = LightningIRConfig
+    """Configuration class for the tokenizer."""
 
     def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
+        """Initializes the tokenizer.
+
+        :param query_length: Maximum number of tokens per query, defaults to 32
+        :type query_length: int, optional
+        :param doc_length: Maximum number of tokens per document, defaults to 512
+        :type doc_length: int, optional
+        """
         super().__init__(*args, **kwargs)
         self.query_length = query_length
         self.doc_length = doc_length
@@ -18,10 +31,43 @@ class LightningIRTokenizer:
     def tokenize(
         self, queries: str | Sequence[str] | None = None, docs: str | Sequence[str] | None = None, **kwargs
     ) -> Dict[str, BatchEncoding]:
+        """Tokenizes queries and documents.
+
+        :param queries: Queries to tokenize, defaults to None
+        :type queries: str | Sequence[str] | None, optional
+        :param docs: Documents to tokenize, defaults to None
+        :type docs: str | Sequence[str] | None, optional
+        :raises NotImplementedError: Must be implemented by the derived class
+        :return: Dictionary of tokenized queries and documents
+        :rtype: Dict[str, BatchEncoding]
+        """
         raise NotImplementedError
 
     @classmethod
     def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> "LightningIRTokenizer":
+        """Loads a pretrained tokenizer. Wraps the transformers.PreTrainedTokenizer.from_pretrained_ method to return a
+        derived LightningIRTokenizer class. See :class:`.LightningIRTokenizerClassFactory` for more details.
+
+        .. _transformers.PreTrainedTokenizer.from_pretrained: https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizer.from_pretrained
+
+        .. highlight:: python
+        .. code-block:: python
+
+            >>> Loading using model class and backbone checkpoint
+            >>> type(BiEncoderTokenizer.from_pretrained("bert-base-uncased"))
+            ...
+            <class 'lightning_ir.base.class_factory.BiEncoderBertTokenizerFast'>
+            >>> Loading using base class and backbone checkpoint
+            >>> type(LightningIRTokenizer.from_pretrained("bert-base-uncased", config=BiEncoderConfig()))
+            ...
+            <class 'lightning_ir.base.class_factory.BiEncoderBertTokenizerFast'>
+
+        :param model_name_or_path: Name or path of the pretrained tokenizer
+        :type model_name_or_path: str
+        :raises ValueError: If called on the abstract class :class:`LightningIRTokenizer` and no config is passed
+        :return: A derived LightningIRTokenizer consisting of a backbone tokenizer and a LightningIRTokenizer mixin
+        :rtype: LightningIRTokenizer
+        """
         config = kwargs.get("config", None)
         if config is not None:
             kwargs.update(config.to_tokenizer_dict())
