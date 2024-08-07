@@ -26,8 +26,7 @@ class ColModel(BiEncoderModel):
             hf_hub_download(repo_id=str(model_name_or_path), filename="artifact.metadata")
         except Exception:
             return super().from_pretrained(model_name_or_path, *args, **kwargs)
-        finally:
-            return cls.from_colbert_checkpoint(model_name_or_path)
+        return cls.from_colbert_checkpoint(model_name_or_path)
 
     @classmethod
     def from_colbert_checkpoint(cls, model_name_or_path: Path | str) -> "ColModel":
