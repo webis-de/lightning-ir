@@ -47,6 +47,20 @@ class LightningIRClassFactory(ABC):
         return CONFIG_MAPPING[backbone_model_type]
 
     @staticmethod
+    def get_lightning_ir_config(model_name_or_path: str | Path) -> Type[LightningIRConfig] | None:
+        """Grabs the LightningIR configuration class from a checkpoint of a pretrained Lightning IR model.
+
+        :param model_name_or_path: Path to the model or its name
+        :type model_name_or_path: str | Path
+        :return: Configuration class of the Lightning IR model
+        :rtype: Type[LightningIRConfig]
+        """
+        model_type = LightningIRClassFactory.get_lightning_ir_model_type(model_name_or_path)
+        if model_type is None:
+            return None
+        return CONFIG_MAPPING[model_type]
+
+    @staticmethod
     def get_backbone_model_type(model_name_or_path: str | Path, *args, **kwargs) -> str:
         """Grabs the model type from a checkpoint of a pretrained HuggingFace model.
 
@@ -58,6 +72,20 @@ class LightningIRClassFactory(ABC):
         config_dict, _ = PretrainedConfig.get_config_dict(model_name_or_path, *args, **kwargs)
         backbone_model_type = config_dict.get("backbone_model_type", None) or config_dict.get("model_type")
         return backbone_model_type
+
+    @staticmethod
+    def get_lightning_ir_model_type(model_name_or_path: str | Path) -> str | None:
+        """Grabs the Lightning IR model type from a checkpoint of a pretrained HuggingFace model.
+
+        :param model_name_or_path: Path to the model or its name
+        :type model_name_or_path: str | Path
+        :return: Model type of the Lightning IR model
+        :rtype: str | None
+        """
+        config_dict, _ = PretrainedConfig.get_config_dict(model_name_or_path)
+        if "backbone_model_type" not in config_dict:
+            return None
+        return config_dict.get("model_type", None)
 
     @property
     def cc_lir_model_type(self) -> str:
