@@ -150,14 +150,16 @@ class LightningIRModel:
         config = kwargs.get("config", None)
         if all(issubclass(base, LightningIRModel) for base in cls.__bases__) or cls is LightningIRModel:
             # no backbone models found, create derived lightning-ir model based on backbone model
-            BackboneConfig = LightningIRModelClassFactory.get_backbone_config(model_name_or_path)
-            BackboneModel = MODEL_MAPPING[BackboneConfig]
             if config is not None:
                 config_class = config.__class__
             elif cls is not LightningIRModel:
                 config_class = cls.config_class
             else:
-                raise ValueError("Pass a config to `from_pretrained`.")
+                config_class = LightningIRModelClassFactory.get_lightning_ir_config(model_name_or_path)
+                if config_class is None:
+                    raise ValueError("Pass a config to `from_pretrained`.")
+            BackboneConfig = LightningIRModelClassFactory.get_backbone_config(model_name_or_path)
+            BackboneModel = MODEL_MAPPING[BackboneConfig]
             cls = LightningIRModelClassFactory(config_class).from_backbone_class(BackboneModel)
             if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
                 derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)

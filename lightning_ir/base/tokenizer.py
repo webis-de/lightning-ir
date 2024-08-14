@@ -73,17 +73,19 @@ class LightningIRTokenizer:
             kwargs.update(config.to_tokenizer_dict())
         if all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__) or cls is LightningIRTokenizer:
             # no backbone models found, create derived lightning-ir tokenizer based on backbone model
+            if config is not None:
+                Config = config.__class__
+            elif cls is not LightningIRTokenizer and hasattr(cls, "config_class"):
+                Config = cls.config_class
+            else:
+                Config = LightningIRTokenizerClassFactory.get_lightning_ir_config(model_name_or_path)
+                if Config is None:
+                    raise ValueError("Pass a config to `from_pretrained`.")
             BackboneConfig = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
             BackboneTokenizers = TOKENIZER_MAPPING[BackboneConfig]
             if kwargs.get("use_fast", True):
                 BackboneTokenizer = BackboneTokenizers[1]
             else:
                 BackboneTokenizer = BackboneTokenizers[0]
-            if config is not None:
-                Config = config.__class__
-            elif cls is not LightningIRTokenizer and hasattr(cls, "config_class"):
-                Config = cls.config_class
-            else:
-                raise ValueError("Pass a config to `from_pretrained`.")
             cls = LightningIRTokenizerClassFactory(Config).from_backbone_class(BackboneTokenizer)
         return super(LightningIRTokenizer, cls).from_pretrained(model_name_or_path, *args, **kwargs)
