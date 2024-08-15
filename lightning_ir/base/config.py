@@ -51,9 +51,10 @@ class LightningIRConfig:
         return {arg: getattr(self, arg) for arg in self.TOKENIZER_ARGS}
 
     def to_dict(self) -> Dict[str, Any]:
-        """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments and the backbone model type.
+        """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments and the backbone
+        model type.
 
-        .. transformers._PretrainedConfig.to_dict: https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig.to_dict
+        .. _transformers.PretrainedConfig.to_dict: https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig.to_dict # noqa
 
         :return: Configuration dictionary
         :rtype: Dict[str, Any]
