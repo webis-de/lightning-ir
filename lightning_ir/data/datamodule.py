@@ -96,13 +96,18 @@ class LightningIRDataModule(LightningDataModule):
             num_workers=self.num_workers,
             collate_fn=self.collate_fn,
             shuffle=(False if isinstance(self.train_dataset, IterableDataset) else self.shuffle_train),
+            prefetch_factor=16 if self.num_workers > 0 else None,
         )
 
     def inference_dataloader(self) -> List[DataLoader]:
         inference_datasets = self.inference_datasets or []
         return [
             DataLoader(
-                dataset, batch_size=self.inference_batch_size, num_workers=self.num_workers, collate_fn=self.collate_fn
+                dataset,
+                batch_size=self.inference_batch_size,
+                num_workers=self.num_workers,
+                collate_fn=self.collate_fn,
+                prefetch_factor=16 if self.num_workers > 0 else None,
             )
             for dataset in inference_datasets
         ]
