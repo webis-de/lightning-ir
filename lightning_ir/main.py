@@ -16,8 +16,9 @@ from lightning_ir.lightning_utils.lr_schedulers import LR_SCHEDULERS, WarmupLRSc
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
 
-
 sys.path.append(str(Path.cwd()))
+
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 
 class LightningIRSaveConfigCallback(SaveConfigCallback):
