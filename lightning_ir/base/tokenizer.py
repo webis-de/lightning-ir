@@ -68,7 +68,7 @@ class LightningIRTokenizer:
         :return: A derived LightningIRTokenizer consisting of a backbone tokenizer and a LightningIRTokenizer mixin
         :rtype: LightningIRTokenizer
         """
-        config = kwargs.get("config", None)
+        config = kwargs.pop("config", None)
         if config is not None:
             kwargs.update(config.to_tokenizer_dict())
         if all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__) or cls is LightningIRTokenizer:
