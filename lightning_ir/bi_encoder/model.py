@@ -245,7 +245,7 @@ class BiEncoderModel(LightningIRModel):
         return scores
 
 
-def batch(
+def _batch(
     similarity_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     BATCH_SIZE = 1024
@@ -290,17 +290,17 @@ class ScoringFunction(torch.nn.Module):
         return similarity
 
     @staticmethod
-    @batch
+    @_batch
     def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
 
     @staticmethod
-    @batch
+    @_batch
     def l2_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return -1 * torch.cdist(x, y).squeeze(-2)
 
     @staticmethod
-    @batch
+    @_batch
     def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
@@ -318,7 +318,7 @@ class ScoringFunction(torch.nn.Module):
                 raise ValueError("Num docs does not match doc embeddings")
         if num_docs is None:
             if doc_embeddings.embeddings.shape[0] % batch_size != 0:
-                raise ValueError("Docs are not evenly distributed in batch, but no num_docs provided")
+                raise ValueError("Docs are not evenly distributed in _batch, but no num_docs provided")
             num_docs = [doc_embeddings.embeddings.shape[0] // batch_size] * batch_size
         return torch.tensor(num_docs, device=query_embeddings.embeddings.device)
 
