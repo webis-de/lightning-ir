@@ -360,12 +360,12 @@ class RunDataset(IRDataset, Dataset):
         if self._qrels is not None:
             return self._qrels
         if "relevance" in self.run:
-            qrels = self.run[["query_id", "doc_id", "relevance"]]
+            qrels = self.run[["query_id", "doc_id", "relevance"]].copy()
             if "iteration" in self.run:
                 qrels["iteration"] = self.run["iteration"]
             else:
                 qrels["iteration"] = "0"
-            self._run = self.run.drop(["relevance", "iteration"], axis=1, errors="ignore")
+            self.run = self.run.drop(["relevance", "iteration"], axis=1, errors="ignore")
             qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
             qrels = qrels.set_index(["query_id", "doc_id", "iteration"]).unstack(level=-1)
             qrels = qrels.droplevel(0, axis=1)
