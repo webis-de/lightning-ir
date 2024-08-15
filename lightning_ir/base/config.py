@@ -91,4 +91,5 @@ class LightningIRConfig:
             MixinConfig = CONFIG_MAPPING[model_type]
             BackboneConfig = CONFIG_MAPPING[backbone_model_type]
             cls = LightningIRConfigClassFactory(MixinConfig).from_backbone_class(BackboneConfig)
+            return cls.from_dict(config_dict, *args, **kwargs)
         return super(LightningIRConfig, cls).from_dict(config_dict, *args, **kwargs)

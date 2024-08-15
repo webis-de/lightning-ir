@@ -88,4 +88,5 @@ class LightningIRTokenizer:
             else:
                 BackboneTokenizer = BackboneTokenizers[0]
             cls = LightningIRTokenizerClassFactory(Config).from_backbone_class(BackboneTokenizer)
+            return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         return super(LightningIRTokenizer, cls).from_pretrained(model_name_or_path, *args, **kwargs)

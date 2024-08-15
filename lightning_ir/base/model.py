@@ -165,6 +165,7 @@ class LightningIRModel:
                 derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)
                 derived_config.update(config.to_dict())
                 kwargs["config"] = derived_config
+            return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         if issubclass(cls, BertModel):
             kwargs["add_pooling_layer"] = False
         return super(LightningIRModel, cls).from_pretrained(model_name_or_path, *args, **kwargs)
