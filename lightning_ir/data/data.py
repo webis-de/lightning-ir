@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Sequence
 
 import torch
 
@@ -8,8 +8,8 @@ import torch
 class RankSample:
     query_id: str
     query: str
-    doc_ids: Tuple[str, ...]
-    docs: Tuple[str, ...]
+    doc_ids: Sequence[str]
+    docs: Sequence[str]
     targets: torch.Tensor | None = None
     qrels: List[Dict[str, Any]] | None = None
 
@@ -36,10 +36,10 @@ class DocSample:
 
 @dataclass
 class RankBatch:
-    queries: Tuple[str, ...]
-    docs: Tuple[Tuple[str, ...], ...]
-    query_ids: Tuple[str, ...] | None = None
-    doc_ids: Tuple[Tuple[str, ...], ...] | None = None
+    queries: Sequence[str]
+    docs: Sequence[Sequence[str]]
+    query_ids: Sequence[str] | None = None
+    doc_ids: Sequence[Sequence[str]] | None = None
     qrels: List[Dict[str, int]] | None = None
 
 
@@ -50,13 +50,13 @@ class TrainBatch(RankBatch):
 
 @dataclass
 class IndexBatch:
-    doc_ids: Tuple[str, ...]
-    docs: Tuple[str, ...]
+    doc_ids: Sequence[str]
+    docs: Sequence[str]
 
 
 @dataclass
 class SearchBatch:
-    query_ids: Tuple[str, ...]
-    queries: Tuple[str, ...]
-    doc_ids: Tuple[Tuple[str, ...], ...] | None = None
+    query_ids: Sequence[str]
+    queries: Sequence[str]
+    doc_ids: Sequence[Sequence[str]] | None = None
     qrels: List[Dict[str, int]] | None = None
