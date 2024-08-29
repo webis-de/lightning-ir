@@ -25,13 +25,14 @@ class BiEncoderConfig(LightningIRConfig):
         {
             "similarity_function",
             "query_pooling_strategy",
-            "doc_pooling_strategy",
+            "query_mask_scoring_tokens",
             "query_aggregation_function",
+            "doc_pooling_strategy",
+            "doc_mask_scoring_tokens",
             "normalize",
+            "sparsification",
             "embedding_dim",
-            "linear",
-            "linear_bias",
-            "mask_scoring_tokens",
+            "projection",
         }
     ).union(TOKENIZER_ARGS)
 
