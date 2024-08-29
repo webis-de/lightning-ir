@@ -1,21 +1,17 @@
-from __future__ import annotations
-
 from collections import defaultdict
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Sequence, Tuple
 
 import torch
 from lightning import LightningModule
 from transformers import BatchEncoding
 
+from ..data import RankBatch, TrainBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
 from .tokenizer import LightningIRTokenizer
 from .validation_utils import create_qrels_from_dicts, create_run_from_scores, evaluate_run
-
-if TYPE_CHECKING:
-    from ..data import RankBatch, TrainBatch
 
 
 class LightningIRModule(LightningModule):
@@ -80,6 +76,24 @@ class LightningIRModule(LightningModule):
         # NOTE huggingface models are in eval mode by default
         self.train()
         return super().on_fit_start()
+
+    def score(self, queries: Sequence[str] | str, docs: Sequence[Sequence[str]] | Sequence[str]) -> LightningIROutput:
+        """Computes relevance scores for queries and documents.
+
+        :param queries: Queries to score
+        :type queries: Sequence[str]
+        :param docs: Documents to score
+        :type docs: Sequence[Sequence[str]]
+        :return: Model output
+        :rtype: LightningIROutput
+        """
+        if isinstance(queries, str):
+            queries = (queries,)
+        if isinstance(docs[0], str):
+            docs = (docs,)
+        batch = RankBatch(queries, docs, None, None)
+        with torch.no_grad():
+            return self.forward(batch)
 
     def forward(self, batch: TrainBatch | RankBatch) -> LightningIROutput:
         """Handles the forward pass of the model.
