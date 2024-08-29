@@ -15,14 +15,14 @@ if TYPE_CHECKING:
 class FaissSearcher(Searcher):
     def __init__(
         self,
-        index_dir: Path,
+        index_dir: Path | str,
         search_config: FaissSearchConfig,
         module: BiEncoderModule,
     ) -> None:
         import faiss
 
         self.search_config: FaissSearchConfig
-        self.index = faiss.read_index(str(index_dir / "index.faiss"))
+        self.index = faiss.read_index(str(Path(index_dir) / "index.faiss"))
         ivf_index = None
         try:
             ivf_index = faiss.extract_index_ivf(self.index)
@@ -51,7 +51,7 @@ class FaissSearcher(Searcher):
         query_lengths = query_embeddings.scoring_mask.sum(-1)
         if self.search_config.imputation_strategy == "gather":
             doc_embeddings, doc_idcs, num_docs = self.gather_imputation(candidate_doc_idcs, query_lengths)
-            doc_scores = self.module.score(query_embeddings, doc_embeddings, num_docs)
+            doc_scores = self.module.model.score(query_embeddings, doc_embeddings, num_docs)
         else:
             doc_scores, doc_idcs, num_docs = self.intra_ranking_imputation(
                 candidate_scores, candidate_doc_idcs, query_lengths

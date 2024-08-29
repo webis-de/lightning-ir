@@ -13,9 +13,9 @@ if TYPE_CHECKING:
 
 
 class Searcher(ABC):
-    def __init__(self, index_dir: Path, search_config: SearchConfig, module: BiEncoderModule) -> None:
+    def __init__(self, index_dir: Path | str, search_config: SearchConfig, module: BiEncoderModule) -> None:
         super().__init__()
-        self.index_dir = index_dir
+        self.index_dir = Path(index_dir)
         self.search_config = search_config
         self.module = module
 
