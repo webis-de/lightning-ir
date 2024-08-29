@@ -67,12 +67,6 @@ class LightningIRDataModule(LightningDataModule):
                 raise ValueError(
                     "Inference Dataset must be of type RunDataset, TupleDataset, QueryDataset, or DocDataset."
                 )
-        if stage == "validate":
-            self.val_dataloader = self.inference_dataloader
-        elif stage == "test":
-            self.test_dataloader = self.inference_dataloader
-        else:
-            raise ValueError(f"Unknown stage {stage}")
 
     def setup(self, stage: Literal["fit", "validate", "test"]) -> None:
         if stage == "fit":
@@ -93,6 +87,12 @@ class LightningIRDataModule(LightningDataModule):
             shuffle=(False if isinstance(self.train_dataset, IterableDataset) else self.shuffle_train),
             prefetch_factor=16 if self.num_workers > 0 else None,
         )
+
+    def val_dataloader(self) -> List[DataLoader]:
+        return self.inference_dataloader()
+
+    def test_dataloader(self) -> List[DataLoader]:
+        return self.inference_dataloader()
 
     def inference_dataloader(self) -> List[DataLoader]:
         inference_datasets = self.inference_datasets or []
