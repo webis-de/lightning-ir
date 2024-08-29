@@ -43,14 +43,6 @@ class BiEncoderModule(LightningIRModule):
             self._searcher = self.search_config.search_class(self.index_dir, self.search_config, self)
         return self._searcher
 
-    def score(
-        self,
-        query_embeddings: BiEncoderEmbedding,
-        doc_embeddings: BiEncoderEmbedding,
-        num_docs: Sequence[int] | int | None = None,
-    ) -> torch.Tensor:
-        return self.model.score(query_embeddings, doc_embeddings, num_docs)
-
     def forward(self, batch: RankBatch | IndexBatch | SearchBatch) -> BiEncoderOutput:
         queries = getattr(batch, "queries", None)
         docs = getattr(batch, "docs", None)
@@ -63,9 +55,7 @@ class BiEncoderModule(LightningIRModule):
         if not encodings:
             raise ValueError("No encodings were generated.")
         output = self.model.forward(
-            encodings.get("query_encoding", None),
-            encodings.get("doc_encoding", None),
-            num_docs,
+            encodings.get("query_encoding", None), encodings.get("doc_encoding", None), num_docs
         )
         if isinstance(batch, SearchBatch) and self.searcher is not None:
             scores, doc_ids, num_docs = self.searcher.search(output)

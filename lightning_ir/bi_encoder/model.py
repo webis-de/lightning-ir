@@ -124,16 +124,8 @@ class BiEncoderModel(LightningIRModel):
             doc_embeddings = self.encode_doc(**doc_encoding)
         scores = None
         if doc_embeddings is not None and query_embeddings is not None:
-            scores = self.score(
-                query_embeddings,
-                doc_embeddings,
-                num_docs,
-            )
-        return BiEncoderOutput(
-            scores=scores,
-            query_embeddings=query_embeddings,
-            doc_embeddings=doc_embeddings,
-        )
+            scores = self.score(query_embeddings, doc_embeddings, num_docs)
+        return BiEncoderOutput(scores=scores, query_embeddings=query_embeddings, doc_embeddings=doc_embeddings)
 
     def encode_query(
         self,
