@@ -25,5 +25,5 @@ class CrossEncoderModel(LightningIRModel):
         embeddings = self._pooling(
             embeddings, encoding.get("attention_mask", None), pooling_strategy=self.config.pooling_strategy
         )
-        scores = self.linear(embeddings).squeeze(-1)
+        scores = self.linear(embeddings).view(-1)
         return CrossEncoderOutput(scores=scores, embeddings=embeddings)
