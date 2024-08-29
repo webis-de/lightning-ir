@@ -61,6 +61,7 @@ from .loss import (
     RankNet,
     SupervisedMarginMSE,
 )
+from .main import LightningIRTrainer
 from .models import ColConfig, ColModel, SpladeConfig, SpladeModel, XTRConfig, XTRModel
 from .retrieve import (
     FaissFlatIndexConfig,
@@ -146,6 +147,7 @@ __all__ = [
     "LightningIRModule",
     "LightningIROutput",
     "LightningIRTokenizer",
+    "LightningIRTrainer",
     "LinearLRSchedulerWithLinearWarmup",
     "LocalizedContrastiveEstimation",
     "LR_SCHEDULERS",
