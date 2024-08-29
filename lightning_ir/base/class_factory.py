@@ -247,8 +247,6 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
                     return getattr(config, "backbone_model_type", None) or getattr(config, "model_type")
             raise ValueError("No backbone model found in the configuration")
 
-        # config_dict = get_tokenizer_config(model_name_or_path)
-
     def from_pretrained(
         self, model_name_or_path: str | Path, *args, use_fast: bool = True, **kwargs
     ) -> Type[LightningIRTokenizer]:
@@ -296,10 +294,12 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
         )
         if DerivedLightningIRTokenizers[1] is not None:
             DerivedLightningIRTokenizers[1].slow_tokenizer_class = DerivedLightningIRTokenizers[0]
+
         DerivedLightningIRConfig = LightningIRConfigClassFactory(self.MixinConfig).from_backbone_class(BackboneConfig)
         AutoTokenizer.register(
             DerivedLightningIRConfig, DerivedLightningIRTokenizers[0], DerivedLightningIRTokenizers[1]
         )
+
         return DerivedLightningIRTokenizers
 
     def from_backbone_class(self, BackboneClass: Type[PreTrainedTokenizerBase]) -> Type[LightningIRTokenizer]:
