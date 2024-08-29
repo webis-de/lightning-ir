@@ -196,7 +196,7 @@ def test_json_dataset():
         sample_size=5,
         sampling_strategy="top",
         targets="rank",
-    ).setup()
+    )
     sample = dataset[0]
     assert sample is not None
     assert sample.query_id is not None
