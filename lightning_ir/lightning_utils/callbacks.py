@@ -81,7 +81,7 @@ class IndexCallback(Callback, GatherMixin):
                 index_dir = default_index_dir / "indexes"
             else:
                 raise ValueError("No index_dir provided and model_name_or_path is not a path")
-        index_dir = index_dir / dataset.docs_dataset_id
+            index_dir = index_dir / dataset.docs_dataset_id
         return index_dir
 
     def get_indexer(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Indexer:
