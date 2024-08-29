@@ -51,11 +51,6 @@ class LightningIRDataModule(LightningDataModule):
         self.train_dataset = train_dataset
         self.inference_datasets = inference_datasets
 
-    def setup_fit(self) -> None:
-        if self.train_dataset is None:
-            raise ValueError("A training dataset and config must be provided.")
-        self.train_dataset.setup("fit")
-
     def setup_inference(self, stage: Literal["validate", "test"]) -> None:
         if self.inference_datasets is None:
             return
@@ -72,7 +67,6 @@ class LightningIRDataModule(LightningDataModule):
                 raise ValueError(
                     "Inference Dataset must be of type RunDataset, TupleDataset, QueryDataset, or DocDataset."
                 )
-            inference_dataset.setup(stage)
         if stage == "validate":
             self.val_dataloader = self.inference_dataloader
         elif stage == "test":
@@ -82,7 +76,8 @@ class LightningIRDataModule(LightningDataModule):
 
     def setup(self, stage: Literal["fit", "validate", "test"]) -> None:
         if stage == "fit":
-            self.setup_fit()
+            if self.train_dataset is None:
+                raise ValueError("A training dataset and config must be provided.")
         if stage == "fit":
             stage = "validate"
         self.setup_inference(stage)
