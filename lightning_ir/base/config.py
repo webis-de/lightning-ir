@@ -63,6 +63,8 @@ class LightningIRConfig:
             output = getattr(super(), "to_dict")()
         else:
             output = self.to_added_args_dict()
+        if self.backbone_model_type is not None:
+            output["backbone_model_type"] = self.backbone_model_type
         return output
 
     @classmethod
