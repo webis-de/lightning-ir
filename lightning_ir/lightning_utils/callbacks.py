@@ -200,7 +200,7 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         if not trainer.is_global_zero or not self.run_dfs:
             return
         run_file_path = self.get_run_path(trainer, dataloader_idx)
-        run_file_path.parent.mkdir(exist_ok=True)
+        run_file_path.parent.mkdir(parents=True, exist_ok=True)
         run_df = pd.concat(self.run_dfs, ignore_index=True)
         run_df.to_csv(run_file_path, header=False, index=False, sep="\t")
 
