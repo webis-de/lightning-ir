@@ -3,16 +3,18 @@ from __future__ import annotations
 import itertools
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Sequence, Tuple, TypeVar
 
 import pandas as pd
 import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
 
+from lightning_ir.base import LightningIROutput
+
 from ..data import RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
-from ..retrieve import IndexConfig, Indexer
+from ..retrieve import IndexConfig, Indexer, SearchConfig, Searcher
 
 if TYPE_CHECKING:
     from ..base import LightningIRModule, LightningIROutput
@@ -49,19 +51,17 @@ class GatherMixin:
 class IndexCallback(Callback, GatherMixin):
     def __init__(
         self,
-        index_dir: Path | None,
+        index_dir: Path | str | None,
         index_config: IndexConfig,
         verbose: bool = False,
     ) -> None:
         super().__init__()
-        self.index_dir = index_dir
         self.index_config = index_config
+        self.index_dir = index_dir
         self.verbose = verbose
         self.indexer: Indexer
-        self.similarity_function: Literal["cosine", "dot"] | None = None
 
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
-        self.similarity_function = pl_module.config.similarity_function
         if stage != "test":
             raise ValueError("IndexCallback can only be used in test stage")
 
@@ -82,7 +82,7 @@ class IndexCallback(Callback, GatherMixin):
             else:
                 raise ValueError("No index_dir provided and model_name_or_path is not a path")
             index_dir = index_dir / dataset.docs_dataset_id
-        return index_dir
+        return Path(index_dir)
 
     def get_indexer(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Indexer:
         dataloaders = trainer.test_dataloaders
@@ -143,22 +143,10 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         super().__init__()
         self.save_dir = save_dir
         self.run_dfs = []
-        self.trainer: Trainer
-
-    @property
-    def inference_datasets(self) -> List[RunDataset] | List[QueryDataset]:
-        dataloaders = self.trainer.test_dataloaders
-        if dataloaders is None:
-            raise ValueError("No test_dataloaders found")
-        return [dataloader.dataset for dataloader in dataloaders]
 
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         if stage != "test":
             raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
-
-    def on_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        super().on_test_start(trainer, pl_module)
-        self.trainer = trainer
 
     def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         super().on_test_epoch_start(trainer, pl_module)
@@ -206,7 +194,7 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         doc_ids = list(itertools.chain.from_iterable(doc_ids))
         if scores.shape[0] != len(doc_ids):
             raise ValueError("scores and doc_ids must have the same length")
-        return scores.view(-1), doc_ids, num_docs
+        return scores, doc_ids, num_docs
 
     def write_run_dfs(self, trainer: Trainer, dataloader_idx: int):
         if not trainer.is_global_zero or not self.run_dfs:
@@ -225,27 +213,29 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        self.write_on_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
+        batch_indices = trainer.predict_loop.current_batch_indices
+        self.write_on_batch_end(trainer, pl_module, outputs, batch_indices, batch, batch_idx, dataloader_idx)
         super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def write_on_batch_end(
         self,
         trainer: Trainer,
         pl_module: LightningIRModule,
-        outputs: LightningIROutput,
-        batch: SearchBatch | RankBatch,
+        prediction: LightningIROutput,
+        batch_indices: Sequence[int] | None,
+        batch: Any,
         batch_idx: int,
         dataloader_idx: int,
     ) -> None:
         batch = self.gather(pl_module, batch)
-        outputs = self.gather(pl_module, outputs)
+        prediction = self.gather(pl_module, prediction)
         if not trainer.is_global_zero:
             return
 
         query_ids = batch.query_ids
         if query_ids is None:
             raise ValueError("Expected batch to have query_ids")
-        scores, doc_ids, num_docs = self.rank(batch, outputs)
+        scores, doc_ids, num_docs = self.rank(batch, prediction)
         scores = scores.float().cpu().numpy()
 
         query_ids = list(
@@ -262,3 +252,37 @@ class RankCallback(BasePredictionWriter, GatherMixin):
             self.write_run_dfs(trainer, dataloader_idx - 1)
             self.run_dfs = []
         self.run_dfs.append(run_df)
+
+
+class SearchCallback(RankCallback):
+    def __init__(
+        self,
+        index_dir: Path,
+        search_config: SearchConfig,
+        save_dir: Path | None = None,
+    ) -> None:
+        super().__init__(save_dir)
+        self.index_dir = index_dir
+        self.search_config = search_config
+        self.searcher: Searcher
+
+    def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
+        if stage != "test":
+            raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
+        self.searcher = self.search_config.search_class(self.index_dir, self.search_config, pl_module)
+
+    def rank(
+        self, batch: SearchBatch | RankBatch, output: LightningIROutput
+    ) -> Tuple[torch.Tensor | List[str] | List[int]]:
+        if isinstance(batch, SearchBatch):
+            doc_scores, flat_doc_ids, num_docs = self.searcher.search(output)
+            cum_num_docs = [0] + [sum(num_docs[: i + 1]) for i in range(len(num_docs))]
+            doc_ids = tuple(tuple(flat_doc_ids[cum_num_docs[i] : cum_num_docs[i + 1]]) for i in range(len(num_docs)))
+            output.scores = doc_scores
+            dummy_docs = [[""] * num for num in num_docs]
+            batch = RankBatch(batch.queries, dummy_docs, batch.query_ids, doc_ids, batch.qrels)
+        return super().rank(batch, output)
+
+
+class ReRankCallback(RankCallback):
+    pass

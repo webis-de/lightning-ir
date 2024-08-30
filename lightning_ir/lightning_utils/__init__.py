@@ -1,4 +1,4 @@
-from .callbacks import IndexCallback, RankCallback
+from .callbacks import IndexCallback, RankCallback, ReRankCallback, SearchCallback
 from .lr_schedulers import (
     LR_SCHEDULERS,
     ConstantLRSchedulerWithLinearWarmup,
@@ -13,12 +13,14 @@ from .schedulers import (
 
 __all__ = [
     "ConstantLRSchedulerWithLinearWarmup",
-    "GenericConstantSchedulerWithQuadraticWarmup",
     "GenericConstantSchedulerWithLinearWarmup",
+    "GenericConstantSchedulerWithQuadraticWarmup",
+    "GenericLinearSchedulerWithLinearWarmup",
     "IndexCallback",
     "LinearLRSchedulerWithLinearWarmup",
-    "GenericLinearSchedulerWithLinearWarmup",
     "LR_SCHEDULERS",
     "RankCallback",
+    "ReRankCallback",
+    "SearchCallback",
     "WarmupLRScheduler",
 ]
