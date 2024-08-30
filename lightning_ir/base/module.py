@@ -6,7 +6,7 @@ import torch
 from lightning import LightningModule
 from transformers import BatchEncoding
 
-from ..data import RankBatch, TrainBatch
+from ..data import RankBatch, SearchBatch, TrainBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
@@ -95,7 +95,7 @@ class LightningIRModule(LightningModule):
         with torch.no_grad():
             return self.forward(batch)
 
-    def forward(self, batch: TrainBatch | RankBatch) -> LightningIROutput:
+    def forward(self, batch: TrainBatch | RankBatch | SearchBatch) -> LightningIROutput:
         """Handles the forward pass of the model.
 
         :param batch: Batch of training or ranking data
@@ -164,7 +164,7 @@ class LightningIRModule(LightningModule):
         return total_loss
 
     def validation_step(
-        self, batch: TrainBatch | RankBatch, batch_idx: int, dataloader_idx: int = 0
+        self, batch: TrainBatch | RankBatch | SearchBatch, batch_idx: int, dataloader_idx: int = 0
     ) -> LightningIROutput:
         """Handles the validation step for the model.
 

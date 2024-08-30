@@ -3,7 +3,7 @@ from typing import List, Sequence, Tuple
 import torch
 
 from ..base.module import LightningIRModule
-from ..data import RankBatch, TrainBatch
+from ..data import RankBatch, SearchBatch, TrainBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import CrossEncoderConfig
 from .model import CrossEncoderModel, CrossEncoderOutput
@@ -24,7 +24,9 @@ class CrossEncoderModule(LightningIRModule):
         self.config: CrossEncoderConfig
         self.tokenizer: CrossEncoderTokenizer
 
-    def forward(self, batch: RankBatch) -> CrossEncoderOutput:
+    def forward(self, batch: RankBatch | TrainBatch | SearchBatch) -> CrossEncoderOutput:
+        if isinstance(batch, SearchBatch):
+            raise NotImplementedError("Searching is not available for cross-encoders")
         queries = batch.queries
         docs = [d for docs in batch.docs for d in docs]
         num_docs = [len(docs) for docs in batch.docs]
