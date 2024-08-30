@@ -257,9 +257,9 @@ class RankCallback(BasePredictionWriter, GatherMixin):
 class SearchCallback(RankCallback):
     def __init__(
         self,
-        index_dir: Path,
+        index_dir: Path | str,
         search_config: SearchConfig,
-        save_dir: Path | None = None,
+        save_dir: Path | str | None = None,
     ) -> None:
         super().__init__(save_dir)
         self.index_dir = index_dir
