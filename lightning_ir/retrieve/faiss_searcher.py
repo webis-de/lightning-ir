@@ -14,10 +14,7 @@ if TYPE_CHECKING:
 
 class FaissSearcher(Searcher):
     def __init__(
-        self,
-        index_dir: Path | str,
-        search_config: FaissSearchConfig,
-        module: BiEncoderModule,
+        self, index_dir: Path | str, search_config: FaissSearchConfig, module: BiEncoderModule, use_gpu: bool = False
     ) -> None:
         import faiss
 
@@ -36,7 +33,7 @@ class FaissSearcher(Searcher):
                 hnsw = getattr(downcasted_quantizer, "hnsw", None)
                 if hnsw is not None:
                     hnsw.efSearch = search_config.ef_search
-        super().__init__(index_dir, search_config, module)
+        super().__init__(index_dir, search_config, module, use_gpu)
 
     @property
     def num_embeddings(self) -> int:
@@ -47,6 +44,7 @@ class FaissSearcher(Searcher):
         return self.num_docs == self.num_embeddings
 
     def _search(self, query_embeddings: BiEncoderEmbedding) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
+        query_embeddings = query_embeddings.to(self.device)
         candidate_scores, candidate_doc_idcs = self.candidate_retrieval(query_embeddings)
         query_lengths = query_embeddings.scoring_mask.sum(-1)
         if self.search_config.imputation_strategy == "gather":

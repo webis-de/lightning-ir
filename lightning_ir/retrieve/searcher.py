@@ -13,11 +13,14 @@ if TYPE_CHECKING:
 
 
 class Searcher(ABC):
-    def __init__(self, index_dir: Path | str, search_config: SearchConfig, module: BiEncoderModule) -> None:
+    def __init__(
+        self, index_dir: Path | str, search_config: SearchConfig, module: BiEncoderModule, use_gpu: bool = True
+    ) -> None:
         super().__init__()
         self.index_dir = Path(index_dir)
         self.search_config = search_config
         self.module = module
+        self.device = torch.device("cuda") if use_gpu and torch.cuda.is_available() else torch.device("cpu")
 
         self.doc_ids = (self.index_dir / "doc_ids.txt").read_text().split()
         self.doc_lengths = torch.load(self.index_dir / "doc_lengths.pt")
@@ -31,17 +34,14 @@ class Searcher(ABC):
             raise ValueError("doc_lengths do not match index")
 
     def to_gpu(self) -> None:
-        if torch.cuda.is_available():
-            self.doc_lengths = self.doc_lengths.cuda()
+        self.doc_lengths = self.doc_lengths.to(self.device)
 
     @property
     @abstractmethod
-    def num_embeddings(self) -> int:
-        ...
+    def num_embeddings(self) -> int: ...
 
     @abstractmethod
-    def _search(self, query_embeddings: BiEncoderEmbedding) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
-        ...
+    def _search(self, query_embeddings: BiEncoderEmbedding) -> Tuple[torch.Tensor, torch.Tensor, List[int]]: ...
 
     def _filter_and_sort(
         self,

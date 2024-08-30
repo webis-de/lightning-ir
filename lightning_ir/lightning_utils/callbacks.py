@@ -260,16 +260,18 @@ class SearchCallback(RankCallback):
         index_dir: Path | str,
         search_config: SearchConfig,
         save_dir: Path | str | None = None,
+        use_gpu: bool = True,
     ) -> None:
         super().__init__(save_dir)
         self.index_dir = index_dir
         self.search_config = search_config
+        self.use_gpu = use_gpu
         self.searcher: Searcher
 
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
         if stage != "test":
             raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
-        self.searcher = self.search_config.search_class(self.index_dir, self.search_config, pl_module)
+        self.searcher = self.search_config.search_class(self.index_dir, self.search_config, pl_module, self.use_gpu)
         pl_module.searcher = self.searcher
 
     def rank(

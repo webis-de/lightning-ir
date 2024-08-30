@@ -2,7 +2,7 @@ import warnings
 from dataclasses import dataclass
 from functools import wraps
 from string import punctuation
-from typing import Callable, Literal, Sequence
+from typing import Callable, Literal, Sequence, overload
 
 import torch
 from transformers import BatchEncoding
@@ -42,6 +42,26 @@ class MLMHead(torch.nn.Module):
 class BiEncoderEmbedding:
     embeddings: torch.Tensor
     scoring_mask: torch.Tensor
+
+    @overload
+    def to(self, device: torch.device, /) -> "BiEncoderEmbedding": ...
+
+    @overload
+    def to(self, other: "BiEncoderEmbedding", /) -> "BiEncoderEmbedding": ...
+
+    def to(self, device) -> "BiEncoderEmbedding":
+        if isinstance(device, BiEncoderEmbedding):
+            device = device.device
+            self.embeddings.to()
+        self.embeddings = self.embeddings.to(device)
+        self.scoring_mask = self.scoring_mask.to(device)
+        return self
+
+    @property
+    def device(self) -> torch.device:
+        if self.embeddings.device != self.scoring_mask.device:
+            raise ValueError("Embeddings and scoring_mask must be on the same device")
+        return self.embeddings.device
 
 
 @dataclass
