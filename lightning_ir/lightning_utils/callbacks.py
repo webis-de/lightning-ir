@@ -139,9 +139,9 @@ class IndexCallback(Callback, GatherMixin):
 
 
 class RankCallback(BasePredictionWriter, GatherMixin):
-    def __init__(self, save_dir: Path | None = None) -> None:
+    def __init__(self, save_dir: Path | str | None = None) -> None:
         super().__init__()
-        self.save_dir = save_dir
+        self.save_dir = Path(save_dir) if save_dir is not None else None
         self.run_dfs = []
 
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
