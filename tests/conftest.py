@@ -45,13 +45,7 @@ def model_name_or_path() -> str:
 @pytest.fixture()
 def inference_datasets() -> List[RunDataset]:
     inference_datasets = [
-        RunDataset(
-            RUNS_DIR / run_path,
-            depth=10,
-            sample_size=10,
-            sampling_strategy="top",
-            targets="relevance",
-        )
+        RunDataset(RUNS_DIR / run_path, depth=10, sampling_strategy="top", targets="relevance")
         for run_path in ["run.jsonl", "lightning-ir.tsv"]
     ]
     return inference_datasets
