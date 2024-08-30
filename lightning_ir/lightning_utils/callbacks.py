@@ -270,6 +270,7 @@ class SearchCallback(RankCallback):
         if stage != "test":
             raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
         self.searcher = self.search_config.search_class(self.index_dir, self.search_config, pl_module)
+        pl_module.searcher = self.searcher
 
     def rank(
         self, batch: SearchBatch | RankBatch, output: LightningIROutput

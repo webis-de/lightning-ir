@@ -37,11 +37,16 @@ class BiEncoderModule(LightningIRModule):
 
     @property
     def searcher(self) -> Searcher | None:
-        if self._searcher is None:
-            if self.search_config is None or self.index_dir is None:
-                return None
-            self._searcher = self.search_config.search_class(self.index_dir, self.search_config, self)
         return self._searcher
+
+    @searcher.setter
+    def searcher(self, searcher: Searcher):
+        self._searcher = searcher
+
+    def on_test_start(self) -> None:
+        if self.search_config is not None and self.index_dir is not None:
+            self.searcher = self.search_config.search_class(self.index_dir, self.search_config, self)
+        return super().on_test_start()
 
     def forward(self, batch: RankBatch | IndexBatch | SearchBatch) -> BiEncoderOutput:
         queries = getattr(batch, "queries", None)
