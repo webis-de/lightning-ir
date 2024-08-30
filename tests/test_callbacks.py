@@ -6,7 +6,7 @@ import pytest
 from _pytest.fixtures import SubRequest
 
 from lightning_ir import BiEncoderModule, LightningIRDataModule, LightningIRModule, LightningIRTrainer, RunDataset
-from lightning_ir.lightning_utils.callbacks import IndexCallback, RankCallback
+from lightning_ir.lightning_utils.callbacks import IndexCallback, ReRankCallback, SearchCallback
 from lightning_ir.retrieve import (
     FaissFlatIndexConfig,
     FaissSearchConfig,
@@ -48,7 +48,6 @@ def test_index_callback(
 ):
     index_dir = tmp_path / "index"
     index_callback = IndexCallback(index_dir, index_config)
-    index_dir = index_dir / doc_datamodule.inference_datasets[0].docs_dataset_id
 
     trainer = LightningIRTrainer(
         # devices=devices,
@@ -116,10 +115,8 @@ def test_search_callback(
     search_config: SearchConfig,
 ):
     index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)
-    searcher = search_config.search_class(index_dir, search_config, bi_encoder_module)
-    pytest.MonkeyPatch().setattr(bi_encoder_module, "_searcher", searcher)
     save_dir = tmp_path / "runs"
-    search_callback = RankCallback(save_dir)
+    search_callback = SearchCallback(index_dir, search_config, save_dir)
 
     trainer = LightningIRTrainer(
         logger=False,
@@ -145,7 +142,7 @@ def test_search_callback(
 def test_rerank_callback(tmp_path: Path, module: LightningIRModule, inference_datasets: Sequence[RunDataset]):
     datamodule = run_datamodule(module, inference_datasets)
     save_dir = tmp_path / "runs"
-    rerank_callback = RankCallback(save_dir)
+    rerank_callback = ReRankCallback(save_dir)
     trainer = LightningIRTrainer(logger=False, enable_checkpointing=False, callbacks=[rerank_callback])
     trainer.re_rank(module, datamodule)
 
