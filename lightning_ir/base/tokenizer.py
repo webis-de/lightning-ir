@@ -1,4 +1,4 @@
-from typing import Dict, Sequence
+from typing import Dict, Sequence, Type
 
 from transformers import TOKENIZER_MAPPING, BatchEncoding
 
@@ -13,7 +13,7 @@ class LightningIRTokenizer:
     .. _transformers.PreTrainedTokenizer: https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizer
     """
 
-    config_class = LightningIRConfig
+    config_class: Type[LightningIRConfig] = LightningIRConfig
     """Configuration class for the tokenizer."""
 
     def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):

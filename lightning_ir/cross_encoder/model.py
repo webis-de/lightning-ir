@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Type
 
 import torch
 from transformers import BatchEncoding
@@ -13,12 +14,12 @@ class CrossEncoderOutput(LightningIROutput):
 
 
 class CrossEncoderModel(LightningIRModel):
-    config_class = CrossEncoderConfig
+    config_class: Type[CrossEncoderConfig] = CrossEncoderConfig
 
     def __init__(self, config: CrossEncoderConfig, *args, **kwargs):
         super().__init__(config, *args, **kwargs)
         self.config: CrossEncoderConfig
-        self.linear = torch.nn.Linear(config.hidden_size, 1)
+        self.linear = torch.nn.Linear(config.hidden_size, 1, bias=config.linear_bias)
 
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
         embeddings = self.backbone_forward(**encoding).last_hidden_state

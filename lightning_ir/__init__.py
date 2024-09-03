@@ -64,7 +64,17 @@ from .loss import (
     SupervisedMarginMSE,
 )
 from .main import LightningIRTrainer
-from .models import ColConfig, ColModel, SpladeConfig, SpladeModel, XTRConfig, XTRModel
+from .models import (
+    ColConfig,
+    ColModel,
+    SpladeConfig,
+    SpladeModel,
+    T5CrossEncoderConfig,
+    T5CrossEncoderModel,
+    T5CrossEncoderTokenizer,
+    XTRConfig,
+    XTRModel,
+)
 from .retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
@@ -96,6 +106,9 @@ AutoTokenizer.register(ColConfig, BiEncoderTokenizer)
 AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
 AutoModel.register(SpladeConfig, SpladeModel)
 AutoTokenizer.register(SpladeConfig, BiEncoderTokenizer)
+AutoConfig.register(T5CrossEncoderConfig.model_type, T5CrossEncoderConfig)
+AutoModel.register(T5CrossEncoderConfig, T5CrossEncoderModel)
+AutoTokenizer.register(T5CrossEncoderConfig, T5CrossEncoderTokenizer)
 AutoConfig.register(XTRConfig.model_type, XTRConfig)
 AutoModel.register(XTRConfig, XTRModel)
 AutoTokenizer.register(XTRConfig, BiEncoderTokenizer)
@@ -170,6 +183,9 @@ __all__ = [
     "SparseSearchConfig",
     "SparseSearcher",
     "SupervisedMarginMSE",
+    "T5CrossEncoderConfig",
+    "T5CrossEncoderModel",
+    "T5CrossEncoderTokenizer",
     "TrainBatch",
     "TupleDataset",
     "WarmupLRScheduler",
