@@ -81,7 +81,7 @@ class BiEncoderModel(LightningIRModel):
         super().__init__(config, *args, **kwargs)
         self.config: BiEncoderConfig
         self.scoring_function = ScoringFunction(self.config)
-        self.projection = None
+        self.projection: torch.nn.Linear | MLMHead | None = None
         if self.config.projection is not None:
             if "linear" in self.config.projection:
                 self.projection = torch.nn.Linear(
@@ -104,6 +104,27 @@ class BiEncoderModel(LightningIRModel):
         self.doc_mask_scoring_input_ids: torch.Tensor | None = None
         self.add_mask_scoring_input_ids()
 
+    @classmethod
+    def _load_pretrained_model(
+        cls, model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+    ):
+        if model.config.projection == "mlm":
+            has_base_model_prefix = any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
+            prefix = model.base_model_prefix + "." if has_base_model_prefix else ""
+            for key in list(state_dict.keys()):
+                if key.startswith("cls"):
+                    new_key = prefix + key.replace("cls.predictions", "projection").replace(".transform", "")
+                    state_dict[new_key] = state_dict.pop(key)
+                    loaded_keys[loaded_keys.index(key)] = new_key
+        return super()._load_pretrained_model(
+            model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+        )
+
+    def get_output_embeddings(self) -> torch.nn.Module | None:
+        if isinstance(self.projection, MLMHead):
+            return self.projection.decoder
+        return None
+
     def add_mask_scoring_input_ids(self) -> None:
         for sequence in ("query", "doc"):
             mask_scoring_tokens = getattr(self.config, f"{sequence}_mask_scoring_tokens")
@@ -115,8 +136,6 @@ class BiEncoderModel(LightningIRModel):
                 from transformers import AutoTokenizer
 
                 tokenizer = AutoTokenizer.from_pretrained(self.config.name_or_path)
-                # vocab_file_names =
-                # mask_scoring_input_ids =
             except OSError:
                 raise ValueError("Can't use token scoring masking if the checkpoint does not have a tokenizer.")
             mask_scoring_input_ids = []

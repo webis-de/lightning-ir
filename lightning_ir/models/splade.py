@@ -1,6 +1,6 @@
 from typing import Literal
 
-from ...bi_encoder.config import BiEncoderConfig
+from ..bi_encoder import BiEncoderConfig, BiEncoderModel
 
 
 class SpladeConfig(BiEncoderConfig):
@@ -19,7 +19,7 @@ class SpladeConfig(BiEncoderConfig):
         kwargs["attend_to_query_expanded_tokens"] = False
         kwargs["query_mask_scoring_tokens"] = None
         kwargs["doc_expansion"] = False
-        kwargs["attend_to_doc_expanded_tokens"] = (False,)
+        kwargs["attend_to_doc_expanded_tokens"] = False
         kwargs["doc_mask_scoring_tokens"] = None
         kwargs["query_aggregation_function"] = "sum"
         kwargs["normalize"] = False
@@ -32,3 +32,7 @@ class SpladeConfig(BiEncoderConfig):
             sparsification=sparsification,
             **kwargs,
         )
+
+
+class SpladeModel(BiEncoderModel):
+    config_class = SpladeConfig

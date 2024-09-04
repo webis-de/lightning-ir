@@ -75,6 +75,7 @@ from .models import (
     XTRConfig,
     XTRModel,
 )
+from .register_external_models import _register_external_models
 from .retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
@@ -113,6 +114,8 @@ AutoConfig.register(XTRConfig.model_type, XTRConfig)
 AutoModel.register(XTRConfig, XTRModel)
 AutoTokenizer.register(XTRConfig, BiEncoderTokenizer)
 
+_register_external_models()
+
 __version__ = "0.0.1"
 
 __all__ = [
@@ -125,7 +128,6 @@ __all__ = [
     "BiEncoderOutput",
     "BiEncoderTokenizer",
     "ColConfig",
-    "ColModel",
     "ConstantLRSchedulerWithLinearWarmup",
     "ConstantMarginMSE",
     "CrossEncoderConfig",

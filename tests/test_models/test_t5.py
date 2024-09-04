@@ -6,18 +6,13 @@ from lightning_ir import CrossEncoderModule, T5CrossEncoderConfig
 
 
 @pytest.mark.parametrize(
-    "model_name,config",
-    [
-        ("castorini/monot5-base-msmarco-10k", T5CrossEncoderConfig(decoder_strategy="mono")),
-        ("Soyoung97/RankT5-base", T5CrossEncoderConfig(decoder_strategy="rank")),
-    ],
-    ids=["monot5", "rankt5"],
+    "model_name", ["castorini/monot5-base-msmarco-10k", "Soyoung97/RankT5-base"], ids=["monot5", "rankt5"]
 )
-def test_same_as_t5(model_name: str, config: T5CrossEncoderConfig):
+def test_same_as_t5(model_name: str):
     orig_model = T5ForConditionalGeneration.from_pretrained(model_name).eval()
     orig_tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    module = CrossEncoderModule(model_name_or_path=model_name, config=config).eval()
+    module = CrossEncoderModule(model_name_or_path=model_name).eval()
 
     query = "What is the capital of France?"
     docs = [

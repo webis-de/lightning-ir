@@ -1,9 +1,11 @@
+import warnings
 from typing import Dict, Sequence, Type
 
 from transformers import TOKENIZER_MAPPING, BatchEncoding
 
 from .class_factory import LightningIRTokenizerClassFactory
 from .config import LightningIRConfig
+from .external_model_hub import CHECKPOINT_MAPPING
 
 
 class LightningIRTokenizer:
@@ -73,7 +75,13 @@ class LightningIRTokenizer:
             kwargs.update(config.to_tokenizer_dict())
         if all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__) or cls is LightningIRTokenizer:
             # no backbone models found, create derived lightning-ir tokenizer based on backbone model
-            if config is not None:
+            if model_name_or_path in CHECKPOINT_MAPPING:
+                _config = CHECKPOINT_MAPPING[model_name_or_path]
+                Config = _config.__class__
+                if config is not None:
+                    warnings.warn(f"{model_name_or_path} is a registered checkpoint. The provided config is ignored.")
+                kwargs.update(_config.to_tokenizer_dict())
+            elif config is not None:
                 Config = config.__class__
             elif cls is not LightningIRTokenizer and hasattr(cls, "config_class"):
                 Config = cls.config_class

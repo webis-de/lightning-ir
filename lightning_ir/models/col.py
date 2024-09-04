@@ -1,6 +1,6 @@
 from typing import Literal, Sequence
 
-from ...bi_encoder.config import BiEncoderConfig
+from ..bi_encoder import BiEncoderConfig, BiEncoderModel
 
 
 class ColConfig(BiEncoderConfig):
@@ -25,3 +25,7 @@ class ColConfig(BiEncoderConfig):
             projection=projection,
             **kwargs,
         )
+
+
+class ColModel(BiEncoderModel):
+    config_class = ColConfig

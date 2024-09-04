@@ -2,7 +2,7 @@ import pytest
 import torch
 from sentence_transformers import SentenceTransformer, util
 
-from lightning_ir import BiEncoderModel, BiEncoderTokenizer
+from lightning_ir import BiEncoderModule
 
 
 @pytest.mark.parametrize(
@@ -22,16 +22,9 @@ def test_same_as_sentence_transformer(model_name: str):
     orig_doc_embeddings = orig_model.encode(docs)
     orig_scores = util.dot_score(torch.from_numpy(orig_query_embeddings), torch.from_numpy(orig_doc_embeddings))
 
-    model = BiEncoderModel.from_pretrained(
-        model_name,
-        add_marker_tokens=False,
-        projection=None,
-        embedding_dim=orig_query_embeddings.shape[-1],
-    )
-    tokenizer = BiEncoderTokenizer.from_pretrained(model_name, config=model.config)
-    encodings = tokenizer.tokenize(query, docs, return_tensors="pt", padding=True)
+    module = BiEncoderModule(model_name).eval()
     with torch.no_grad():
-        output = model.forward(encodings["query_encoding"], encodings["doc_encoding"])
+        output = module.score(query, docs)
 
     assert torch.allclose(
         output.query_embeddings.embeddings.squeeze(1),

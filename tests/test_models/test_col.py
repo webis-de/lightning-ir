@@ -2,7 +2,7 @@ import torch
 from colbert.modeling.checkpoint import Checkpoint
 from colbert.modeling.colbert import ColBERTConfig, colbert_score
 
-from lightning_ir import BiEncoderTokenizer, ColModel
+from lightning_ir import BiEncoderModule
 
 
 def test_same_as_colbert():
@@ -14,14 +14,11 @@ def test_same_as_colbert():
     ]
 
     model_name = "colbert-ir/colbertv2.0"
-    model = ColModel.from_colbert_checkpoint(model_name).eval()
-    tokenizer = BiEncoderTokenizer.from_pretrained(model_name, **model.config.to_dict())
-    query_encoding = tokenizer.tokenize_query(query, return_tensors="pt")
-    doc_encoding = tokenizer.tokenize_doc(documents, return_tensors="pt", padding=True, truncation=True)
-    with torch.no_grad():
-        query_embedding = model.encode_query(query_encoding.input_ids, query_encoding.attention_mask)
-        doc_embedding = model.encode_doc(doc_encoding.input_ids, doc_encoding.attention_mask)
-    scores = model.score(query_embedding, doc_embedding, None)
+    module = BiEncoderModule(model_name).eval()
+    with torch.inference_mode():
+        output = module.score(query, documents)
+    query_embedding = output.query_embeddings
+    doc_embedding = output.doc_embeddings
 
     colbert_config = ColBERTConfig.from_existing(ColBERTConfig.load_from_checkpoint(model_name))
     orig_model = Checkpoint(model_name, colbert_config)
@@ -32,4 +29,4 @@ def test_same_as_colbert():
 
     assert torch.allclose(query_embedding.embeddings, orig_query, atol=1e-7)
     assert torch.allclose(doc_embedding.embeddings[doc_embedding.scoring_mask], orig_docs[d_mask], atol=1e-7)
-    assert torch.allclose(scores, orig_scores, atol=1e-7)
+    assert torch.allclose(output.scores, orig_scores, atol=1e-7)

@@ -89,7 +89,7 @@ class BiEncoderConfig(LightningIRConfig):
         :param embedding_dim: The output embedding dimension, defaults to 768
         :type embedding_dim: int, optional
         :param projection: Whether and how to project the output emeddings, defaults to "linear"
-        :type projection: Literal['linear', 'linear_no_bias'] | None, optional
+        :type projection: Literal['linear', 'linear_no_bias', 'mlm'] | None, optional
         """
         super().__init__(**kwargs)
         self.similarity_function = similarity_function

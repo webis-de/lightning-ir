@@ -1,5 +1,7 @@
+import warnings
 from dataclasses import dataclass
 from functools import partial
+from pathlib import Path
 from typing import Literal, Type
 
 import torch
@@ -9,6 +11,7 @@ from transformers.modeling_outputs import ModelOutput
 from ..flash import FLASH_ATTENTION_MAP
 from .class_factory import LightningIRModelClassFactory
 from .config import LightningIRConfig
+from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
 
 
 @dataclass
@@ -121,36 +124,56 @@ class LightningIRModel:
         raise ValueError(f"Unknown pooling strategy: {self.pooling_strategy}")
 
     @classmethod
-    def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> "LightningIRModel":
+    def _load_pretrained_model(
+        cls, model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+    ):
+        if pretrained_model_name_or_path in STATE_DICT_KEY_MAPPING:
+            map_keys = STATE_DICT_KEY_MAPPING[pretrained_model_name_or_path]
+            for orig_key, new_key in map_keys:
+                state_dict[new_key] = state_dict.pop(orig_key)
+                loaded_keys[loaded_keys.index(orig_key)] = new_key
+        model, *out = super()._load_pretrained_model(
+            model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+        )
+        if pretrained_model_name_or_path in POST_LOAD_CALLBACKS:
+            model = POST_LOAD_CALLBACKS[pretrained_model_name_or_path](model)
+        return (model, *out)
+
+    @classmethod
+    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> "LightningIRModel":
         """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method and to return a
         derived LightningIRModel. See :class:`LightningIRModelClassFactory` for more details.
 
-        .. _transformers.PreTrainedModel.from_pretrained: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained
+        .. _transformers.PreTrainedModel.from_pretrained: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained # noqa
 
+        :param model_name_or_path: Name or path of the pretrained model
+        :type model_name_or_path: str | Path
+        :raises ValueError: If called on the abstract class :class:`LightningIRModel` and no config is passed
+        :return: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin
+        :rtype: LightningIRModel
+
+        .. ::doctest
         .. highlight:: python
         .. code-block:: python
 
             >>> # Loading using model class and backbone checkpoint
             >>> type(CrossEncoderModel.from_pretrained("bert-base-uncased"))
-            ...
             <class 'lightning_ir.base.class_factory.CrossEncoderBertModel'>
             >>> # Loading using base class and backbone checkpoint
             >>> type(LightningIRModel.from_pretrained("bert-base-uncased", config=CrossEncoderConfig()))
-            ...
             <class 'lightning_ir.base.class_factory.CrossEncoderBertModel'>
-
-
-        :param model_name_or_path: Name or path of the pretrained model
-        :type model_name_or_path: str
-        :raises ValueError: If called on the abstract class :class:`LightningIRModel` and no config is passed
-        :return: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin
-        :rtype: LightningIRModel
         """
         # provides AutoModel.from_pretrained support
         config = kwargs.get("config", None)
         if all(issubclass(base, LightningIRModel) for base in cls.__bases__) or cls is LightningIRModel:
             # no backbone models found, create derived lightning-ir model based on backbone model
-            if config is not None:
+            if model_name_or_path in CHECKPOINT_MAPPING:
+                _config = CHECKPOINT_MAPPING[model_name_or_path]
+                config_class = _config.__class__
+                if config is not None:
+                    warnings.warn(f"{model_name_or_path} is a registered checkpoint. The provided config is ignored.")
+                config = _config
+            elif config is not None:
                 config_class = config.__class__
             elif cls is not LightningIRModel:
                 config_class = cls.config_class

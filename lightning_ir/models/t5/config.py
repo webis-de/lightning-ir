@@ -17,6 +17,6 @@ class T5CrossEncoderConfig(CrossEncoderConfig):
         decoder_strategy: Literal["mono", "rank"] = "mono",
         **kwargs,
     ) -> None:
-        kwargs.pop("pooling_strategy", None)
-        super().__init__(query_length=query_length, doc_length=doc_length, pooling_strategy="first", **kwargs)
+        kwargs["pooling_strategy"] = "first"
+        super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)
         self.decoder_strategy = decoder_strategy

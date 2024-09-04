@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 from transformers import BatchEncoding
 from transformers.modeling_utils import cached_file, load_state_dict
@@ -29,22 +31,8 @@ class T5CrossEncoderModel(CrossEncoderModel):
         else:
             self.linear = ScaleLinear(config.hidden_size, 1, bias=config.linear_bias)
 
-    @classmethod
-    def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> LightningIRModel:
-        instance = super().from_pretrained(model_name_or_path, *args, **kwargs)
-        if instance.config.decoder_strategy == "mono":
-            # [1176, 6136] true, false
-            weights = instance.shared.weight.data[[1176, 6136]]
-        elif instance.config.decoder_strategy == "rank":
-            # 32089 <extra_id_10>
-            weights = instance.shared.weight.data[[32089]]
-        else:
-            raise ValueError("Unknown decoder strategy")
-        instance.linear.weight.data = weights
-        return instance
-
+    # TODO tieing of weights does not work when setting linear to only use slice of lm head for efficiency
     # def get_output_embeddings(self):
-    #     # TODO tieing of weights not working when setting linear to only use slice of lm head
     #     shared = self.shared
     #     if self.config.decoder_strategy == "mono":
     #         self.linear.weight.data = shared.weight.data[[1176, 6136]]
