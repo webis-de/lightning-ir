@@ -4,7 +4,7 @@ from typing import Sequence
 import pytest
 from transformers import AutoModel
 
-from lightning_ir.base import LightningIRModule
+from lightning_ir.base import LightningIRModel, LightningIRModule
 from lightning_ir.cross_encoder import CrossEncoderModule
 from lightning_ir.data import LightningIRDataModule, RunDataset, TupleDataset
 from lightning_ir.loss.loss import InBatchLossFunction
@@ -68,6 +68,7 @@ def test_seralize_deserialize(module: LightningIRModule, tmp_path: Path):
     new_models = [
         model.__class__.from_pretrained(save_dir),
         model.__class__.__bases__[0].from_pretrained(save_dir),
+        LightningIRModel.from_pretrained(save_dir),
         AutoModel.from_pretrained(save_dir),
     ]
     for new_model in new_models:
