@@ -1,0 +1,4 @@
+model:
+  class_path: BiEncoderModule
+  init_args:
+    model_name_or_path: null

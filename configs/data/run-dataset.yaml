@@ -1,0 +1,12 @@
+data:
+  class_path: LightningIRDataModule
+  init_args:
+    num_workers: 1
+    inference_batch_size: 4
+    inference_datasets:
+      - class_path: RunDataset
+        init_args:
+          run_path_or_id: null
+          depth: 100
+          sample_size: 100
+          sampling_strategy: top
