@@ -75,7 +75,7 @@ from .models import (
     XTRConfig,
     XTRModel,
 )
-from .register_external_models import _register_external_models
+from ._register_external_models import _register_external_models
 from .retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
