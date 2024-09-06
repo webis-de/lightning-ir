@@ -7,14 +7,14 @@ from typing import TYPE_CHECKING, Any, Dict, List, Literal, Sequence
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
-from transformers import AutoConfig
 
+from ..base.config import LightningIRConfig
 from ..base.tokenizer import LightningIRTokenizer
 from .data import IndexBatch, RankBatch, SearchBatch, TrainBatch
 from .dataset import DocDataset, DocSample, QueryDataset, QuerySample, RankSample, RunDataset, TupleDataset
 
 if TYPE_CHECKING:
-    from ..base import LightningIRConfig, LightningIRModule
+    from ..base import LightningIRModule
 
 
 class LightningIRDataModule(LightningDataModule):
@@ -36,7 +36,7 @@ class LightningIRDataModule(LightningDataModule):
         elif module is not None:
             self.config = module.config
         elif model_name_or_path is not None:
-            self.config = AutoConfig.from_pretrained(model_name_or_path)
+            self.config = LightningIRConfig.from_pretrained(model_name_or_path)
         else:
             raise ValueError("Either module, config, or model_name_or_path must be provided.")
 

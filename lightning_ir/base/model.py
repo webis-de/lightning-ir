@@ -165,7 +165,7 @@ class LightningIRModel:
         """
         # provides AutoModel.from_pretrained support
         config = kwargs.get("config", None)
-        if all(issubclass(base, LightningIRModel) for base in cls.__bases__) or cls is LightningIRModel:
+        if cls is LightningIRModel or all(issubclass(base, LightningIRModel) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir model based on backbone model
             if model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]

@@ -1,8 +1,10 @@
+from pathlib import Path
 from typing import Any, Dict, Set
 
 from transformers import CONFIG_MAPPING
 
 from .class_factory import LightningIRConfigClassFactory
+from .external_model_hub import CHECKPOINT_MAPPING
 
 
 class LightningIRConfig:
@@ -66,6 +68,27 @@ class LightningIRConfig:
         if self.backbone_model_type is not None:
             output["backbone_model_type"] = self.backbone_model_type
         return output
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path: str | Path, *args, **kwargs) -> "LightningIRConfig":
+        if cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__):
+            config = None
+            if pretrained_model_name_or_path in CHECKPOINT_MAPPING:
+                config = CHECKPOINT_MAPPING[pretrained_model_name_or_path]
+                config_class = config.__class__
+            elif cls is not LightningIRConfig:
+                config_class = cls
+            else:
+                config_class = LightningIRConfigClassFactory.get_lightning_ir_config(pretrained_model_name_or_path)
+                if config_class is None:
+                    raise ValueError("Pass a config to `from_pretrained`.")
+            BackboneConfig = LightningIRConfigClassFactory.get_backbone_config(pretrained_model_name_or_path)
+            cls = LightningIRConfigClassFactory(config_class).from_backbone_class(BackboneConfig)
+            if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
+                derived_config = cls.from_pretrained(pretrained_model_name_or_path, config=config)
+                derived_config.update(config.to_dict())
+            return cls.from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
+        return super(LightningIRConfig, cls).from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any], *args, **kwargs) -> "LightningIRConfig":
