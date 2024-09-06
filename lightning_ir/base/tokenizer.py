@@ -73,7 +73,7 @@ class LightningIRTokenizer:
         config = kwargs.pop("config", None)
         if config is not None:
             kwargs.update(config.to_tokenizer_dict())
-        if all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__) or cls is LightningIRTokenizer:
+        if cls is LightningIRTokenizer or all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir tokenizer based on backbone model
             if model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]
