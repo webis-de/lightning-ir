@@ -1,6 +1,9 @@
 # Lightning IR
 
-Your one-stop shop for fine-tuning and running neural ranking models.
+<p align="center">
+<img src="./docs/lightning-ir-logo.svg" alt="lightning ir logo" width="10%">
+<p align="center">Your one-stop shop for fine-tuning and running neural ranking models.</p>
+</p>
 
 -----------------
 
