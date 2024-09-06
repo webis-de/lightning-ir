@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Literal, Type
 
 import torch
-from transformers import MODEL_MAPPING, BertModel
+from transformers import MODEL_MAPPING, BatchEncoding, BertModel
 from transformers.modeling_outputs import ModelOutput
 
 from ..flash import FLASH_ATTENTION_MAP
@@ -46,6 +46,8 @@ class LightningIRModel:
         super().__init__(config, *args, **kwargs)
         self.config = config
 
+        self._sub_batch_size: int | None = None
+
         if self.config.backbone_model_type is not None:
             flash_attn = FLASH_ATTENTION_MAP.get(self.config.backbone_model_type, None)
             if flash_attn is not None:
@@ -54,12 +56,36 @@ class LightningIRModel:
                     if name.endswith(self_attn_pattern):
                         module.forward = partial(flash_attn_forward, module)
 
-    def backbone_forward(self, *args, **kwargs):
-        """Forward method of the backbone model. Is set by the :func:`LightningIRModelClassFactory`.
-
-        :raises NotImplementedError: LightningIRModelClassFactory must set the backbone forward method
-        """
+    def _backbone_forward(self, *args, **kwargs):
         raise NotImplementedError
+
+    def _batched_backbone_forward(self, encoding: BatchEncoding) -> torch.Tensor:
+        sub_batch_size = self._sub_batch_size or encoding.input_ids.shape[0]
+        outputs = []
+        sub_encoding = encoding
+        remaining_encoding = encoding
+        while True:
+            try:
+                num_batches = -(remaining_encoding.input_ids.shape[0] // -sub_batch_size)
+                for _ in range(num_batches):
+                    sub_encoding = BatchEncoding(
+                        {key: value[: self._sub_batch_size] for key, value in remaining_encoding.items()}
+                    )
+                    outputs.append(self._backbone_forward(**sub_encoding).last_hidden_state)
+                    remaining_encoding = BatchEncoding(
+                        {key: value[self._sub_batch_size :] for key, value in remaining_encoding.items()}
+                    )
+                break
+            except RuntimeError as e:
+                if "CUDA out of memory" in str(e) or "CUDACachingAllocator.cpp" in str(e):
+                    sub_batch_size = self._sub_batch_size = sub_batch_size // 2
+                    if self._sub_batch_size == 0:
+                        raise e
+                else:
+                    raise e
+        output = torch.cat(outputs)
+        assert output.shape[0] == encoding.input_ids.shape[0]
+        return output
 
     def forward(self, *args, **kwargs) -> LightningIROutput:
         """Forward method of the model. Must be implemented by the derived class."""

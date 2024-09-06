@@ -157,40 +157,26 @@ class BiEncoderModel(LightningIRModel):
     ) -> BiEncoderOutput:
         query_embeddings = None
         if query_encoding is not None:
-            query_embeddings = self.encode_query(**query_encoding)
+            query_embeddings = self.encode_query(query_encoding)
         doc_embeddings = None
         if doc_encoding is not None:
-            doc_embeddings = self.encode_doc(**doc_encoding)
+            doc_embeddings = self.encode_doc(doc_encoding)
         scores = None
         if doc_embeddings is not None and query_embeddings is not None:
             scores = self.score(query_embeddings, doc_embeddings, num_docs)
         return BiEncoderOutput(scores=scores, query_embeddings=query_embeddings, doc_embeddings=doc_embeddings)
 
-    def encode_query(
-        self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor | None = None,
-        token_type_ids: torch.Tensor | None = None,
-    ) -> BiEncoderEmbedding:
+    def encode_query(self, encoding: BatchEncoding) -> BiEncoderEmbedding:
         return self._encode(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
+            encoding,
             expansion=self.config.query_expansion,
             pooling_strategy=self.config.query_pooling_strategy,
             mask_scoring_input_ids=self.query_mask_scoring_input_ids,
         )
 
-    def encode_doc(
-        self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor | None = None,
-        token_type_ids: torch.Tensor | None = None,
-    ) -> BiEncoderEmbedding:
+    def encode_doc(self, encoding: BatchEncoding) -> BiEncoderEmbedding:
         return self._encode(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
+            encoding,
             expansion=self.config.doc_expansion,
             pooling_strategy=self.config.doc_pooling_strategy,
             mask_scoring_input_ids=self.doc_mask_scoring_input_ids,
@@ -198,23 +184,21 @@ class BiEncoderModel(LightningIRModel):
 
     def _encode(
         self,
-        input_ids: torch.Tensor,
-        attention_mask: torch.Tensor | None = None,
-        token_type_ids: torch.Tensor | None = None,
+        encoding: BatchEncoding,
         expansion: bool = False,
         pooling_strategy: Literal["first", "mean", "max", "sum"] | None = None,
         mask_scoring_input_ids: torch.Tensor | None = None,
     ) -> BiEncoderEmbedding:
-        embeddings = self.backbone_forward(input_ids, attention_mask, token_type_ids).last_hidden_state
+        embeddings = self._batched_backbone_forward(encoding)
         if self.projection is not None:
             embeddings = self.projection(embeddings)
         embeddings = self._sparsification(embeddings, self.config.sparsification)
-        embeddings = self._pooling(embeddings, attention_mask, pooling_strategy)
+        embeddings = self._pooling(embeddings, encoding["attention_mask"], pooling_strategy)
         if self.config.normalize:
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self._scoring_mask(
-            input_ids,
-            attention_mask,
+            encoding["input_ids"],
+            encoding["attention_mask"],
             expansion,
             pooling_strategy,
             mask_scoring_input_ids,

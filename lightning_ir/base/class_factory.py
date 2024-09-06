@@ -204,7 +204,7 @@ class LightningIRModelClassFactory(LightningIRClassFactory):
         DerivedLightningIRModel = type(
             f"{self.cc_lir_model_type}{BackboneClass.__name__}",
             (LightningIRModelMixin, BackboneClass),
-            {"config_class": DerivedLightningIRConfig, "backbone_forward": BackboneClass.forward},
+            {"config_class": DerivedLightningIRConfig, "_backbone_forward": BackboneClass.forward},
         )
 
         AutoModel.register(DerivedLightningIRConfig, DerivedLightningIRModel, exist_ok=True)
