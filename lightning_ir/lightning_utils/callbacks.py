@@ -139,10 +139,11 @@ class IndexCallback(Callback, GatherMixin):
 
 
 class RankCallback(BasePredictionWriter, GatherMixin):
-    def __init__(self, save_dir: Path | str | None = None) -> None:
+    def __init__(self, save_dir: Path | str | None = None, run_name: str | None = None) -> None:
         super().__init__()
         self.save_dir = Path(save_dir) if save_dir is not None else None
-        self.run_dfs = []
+        self.run_name = run_name
+        self.run_dfs: List[pd.DataFrame] = []
 
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         if stage != "test":
@@ -172,14 +173,16 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         if dataloaders is None:
             raise ValueError("No test_dataloaders found")
         dataset = dataloaders[dataset_idx].dataset
-        if isinstance(dataset, QueryDataset):
-            run_file = dataset.dataset_id.replace("/", "-")
+        if self.run_name is not None:
+            run_file = self.run_name
+        elif isinstance(dataset, QueryDataset):
+            run_file = f"{dataset.dataset_id.replace('/', '-')}.run"
         elif isinstance(dataset, RunDataset):
             if dataset.run_path is None:
-                run_file = dataset.dataset_id.replace("/", "-")
+                run_file = f"{dataset.dataset_id.replace('/', '-')}.run"
             else:
-                run_file = dataset.run_path.name.split(".")[0]
-        run_file_path = self.save_dir / f"{run_file}.run"
+                run_file = f"{dataset.run_path.name.split('.')[0]}.run"
+        run_file_path = self.save_dir / run_file
         return run_file_path
 
     def rank(self, batch: RankBatch, output: LightningIROutput) -> Tuple[torch.Tensor, List[str], List[int]]:
