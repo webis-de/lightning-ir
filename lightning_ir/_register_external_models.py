@@ -49,6 +49,15 @@ def _register_external_models():
     STATE_DICT_KEY_MAPPING.update(
         {
             "colbert-ir/colbertv2.0": [("linear.weight", "bert.projection.weight")],
+            "castorini/monot5-base-msmarco-10k": [(None, "linear.weight")],
+            "castorini/monot5-base-msmarco": [(None, "linear.weight")],
+            "castorini/monot5-large-msmarco-10k": [(None, "linear.weight")],
+            "castorini/monot5-large-msmarco": [(None, "linear.weight")],
+            "castorini/monot5-3b-msmarco-10k": [(None, "linear.weight")],
+            "castorini/monot5-3b-msmarco": [(None, "linear.weight")],
+            "Soyoung97/RankT5-base": [(None, "linear.weight")],
+            "Soyoung97/RankT5-large": [(None, "linear.weight")],
+            "Soyoung97/RankT5-3b": [(None, "linear.weight")],
         }
     )
     POST_LOAD_CALLBACKS.update(

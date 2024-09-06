@@ -130,8 +130,11 @@ class LightningIRModel:
         if pretrained_model_name_or_path in STATE_DICT_KEY_MAPPING:
             map_keys = STATE_DICT_KEY_MAPPING[pretrained_model_name_or_path]
             for orig_key, new_key in map_keys:
-                state_dict[new_key] = state_dict.pop(orig_key)
-                loaded_keys[loaded_keys.index(orig_key)] = new_key
+                if orig_key is not None:
+                    state_dict[new_key] = state_dict.pop(orig_key)
+                    loaded_keys[loaded_keys.index(orig_key)] = new_key
+                else:
+                    loaded_keys.append(new_key)
         model, *out = super()._load_pretrained_model(
             model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
         )

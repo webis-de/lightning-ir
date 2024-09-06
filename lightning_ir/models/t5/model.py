@@ -24,7 +24,7 @@ class T5CrossEncoderModel(CrossEncoderModel):
         super().__init__(config, *args, **kwargs)
         self.config: T5CrossEncoderConfig
         if self.config.decoder_strategy == "mono":
-            self.linear = ScaleLinear(config.hidden_size, 2)
+            self.linear = ScaleLinear(config.hidden_size, 2, bias=config.linear_bias)
         else:
             self.linear = ScaleLinear(config.hidden_size, 1, bias=config.linear_bias)
 

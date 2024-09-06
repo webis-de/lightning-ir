@@ -7,5 +7,5 @@ if TYPE_CHECKING:
     from .model import LightningIRModel
 
 CHECKPOINT_MAPPING: Dict[str, LightningIRConfig] = {}
-STATE_DICT_KEY_MAPPING: Dict[str, List[Tuple[str, str]]] = {}
+STATE_DICT_KEY_MAPPING: Dict[str, List[Tuple[str | None, str]]] = {}
 POST_LOAD_CALLBACKS: Dict[str, Callable[[LightningIRModel], LightningIRModel]] = {}
