@@ -1,10 +1,7 @@
-from pathlib import Path
-
 import torch
 from transformers import BatchEncoding
 from transformers.modeling_utils import cached_file, load_state_dict
 
-from ...base.model import LightningIRModel
 from ...cross_encoder.model import CrossEncoderModel, CrossEncoderOutput
 from .config import T5CrossEncoderConfig
 
