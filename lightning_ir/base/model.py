@@ -1,8 +1,9 @@
 import warnings
+from collections import defaultdict
 from dataclasses import dataclass
-from functools import partial
+from functools import partial, wraps
 from pathlib import Path
-from typing import Literal, Type
+from typing import Any, Callable, Literal, Mapping, Sequence, Type, TypeVar
 
 import torch
 from transformers import MODEL_MAPPING, BatchEncoding, BertModel
@@ -37,6 +38,10 @@ class LightningIRModel:
     config_class: Type[LightningIRConfig] = LightningIRConfig
     """Configuration class for the model."""
 
+    ALLOW_SUB_BATCHING = True
+    """Flag to allow mini batches of documents for a single query. Set to false for listwise models to  ensure 
+    correctness."""
+
     def __init__(self, config: LightningIRConfig, *args, **kwargs) -> None:
         """Initializes the model.
 
@@ -58,34 +63,6 @@ class LightningIRModel:
 
     def _backbone_forward(self, *args, **kwargs):
         raise NotImplementedError
-
-    def _batched_backbone_forward(self, encoding: BatchEncoding) -> torch.Tensor:
-        sub_batch_size = self._sub_batch_size or encoding.input_ids.shape[0]
-        outputs = []
-        sub_encoding = encoding
-        remaining_encoding = encoding
-        while True:
-            try:
-                num_batches = -(remaining_encoding.input_ids.shape[0] // -sub_batch_size)
-                for _ in range(num_batches):
-                    sub_encoding = BatchEncoding(
-                        {key: value[: self._sub_batch_size] for key, value in remaining_encoding.items()}
-                    )
-                    outputs.append(self._backbone_forward(**sub_encoding).last_hidden_state)
-                    remaining_encoding = BatchEncoding(
-                        {key: value[self._sub_batch_size :] for key, value in remaining_encoding.items()}
-                    )
-                break
-            except RuntimeError as e:
-                if "CUDA out of memory" in str(e) or "CUDACachingAllocator.cpp" in str(e):
-                    sub_batch_size = self._sub_batch_size = sub_batch_size // 2
-                    if self._sub_batch_size == 0:
-                        raise e
-                else:
-                    raise e
-        output = torch.cat(outputs)
-        assert output.shape[0] == encoding.input_ids.shape[0]
-        return output
 
     def forward(self, *args, **kwargs) -> LightningIROutput:
         """Forward method of the model. Must be implemented by the derived class."""
@@ -221,3 +198,66 @@ class LightningIRModel:
         if issubclass(cls, BertModel):
             kwargs["add_pooling_layer"] = False
         return super(LightningIRModel, cls).from_pretrained(model_name_or_path, *args, **kwargs)
+
+
+T = TypeVar("T")
+
+
+def _cat_outputs(
+    outputs: Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None], OutputClass: Type[T] | None
+) -> torch.Tensor | T | None:
+    if len(outputs) == 1:
+        return outputs[0]
+    if len(outputs) == 0 or outputs[0] is None or OutputClass is None:
+        return None
+    if isinstance(outputs[0], torch.Tensor):
+        return torch.cat(outputs, dim=0)
+    agg = defaultdict(list)
+    types = {}
+    for output in outputs:
+        for key, value in output.items():
+            agg[key].append(value)
+            types[key] = type(value)
+    return OutputClass(**{key: _cat_outputs(value, types[key]) for key, value in agg.items()})
+
+
+def _batch_encoding(
+    func: Callable[[LightningIRModel, BatchEncoding, ...], Any]
+) -> Callable[[LightningIRModel, BatchEncoding, ...], Any]:
+
+    @wraps(func)
+    def wrapper(self, encoding: BatchEncoding, *args, **kwargs) -> Any:
+        if not self.ALLOW_SUB_BATCHING:
+            return func(self, encoding, *args, **kwargs)
+        sub_batch_size = self._sub_batch_size or encoding.input_ids.shape[0]
+        sub_encoding = encoding
+        remaining_encoding = encoding
+        OutputClass = None
+        outputs = []
+        while True:
+            try:
+                # ceil division
+                num_batches = -(remaining_encoding.input_ids.shape[0] // -sub_batch_size)
+                for _ in range(num_batches):
+                    sub_encoding = BatchEncoding(
+                        {key: value[:sub_batch_size] for key, value in remaining_encoding.items()}
+                    )
+                    output = func(self, sub_encoding, *args, **kwargs)
+                    OutputClass = output.__class__
+                    outputs.append(output)
+                    remaining_encoding = BatchEncoding(
+                        {key: value[sub_batch_size:] for key, value in remaining_encoding.items()}
+                    )
+                break
+            except RuntimeError as e:
+                if "CUDA out of memory" in str(e) or "CUDACachingAllocator.cpp" in str(e):
+                    self._sub_batch_size = sub_batch_size = sub_batch_size // 2
+                    if sub_batch_size == 0:
+                        raise e
+                else:
+                    raise e
+        if OutputClass is None:
+            raise ValueError("No output was generated.")
+        return _cat_outputs(outputs, OutputClass)
+
+    return wrapper

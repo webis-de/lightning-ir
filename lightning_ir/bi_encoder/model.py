@@ -2,13 +2,14 @@ import warnings
 from dataclasses import dataclass
 from functools import wraps
 from string import punctuation
-from typing import Callable, Literal, Sequence, overload
+from typing import Callable, Iterable, Literal, Sequence, Tuple, overload
 
 import torch
 from transformers import BatchEncoding
 from transformers.activations import ACT2FN
 
 from ..base import LightningIRModel, LightningIROutput
+from ..base.model import _batch_encoding
 from . import BiEncoderConfig
 
 
@@ -62,6 +63,10 @@ class BiEncoderEmbedding:
         if self.embeddings.device != self.scoring_mask.device:
             raise ValueError("Embeddings and scoring_mask must be on the same device")
         return self.embeddings.device
+
+    def items(self) -> Iterable[Tuple[str, torch.Tensor]]:
+        for field in self.__dataclass_fields__:
+            yield field, getattr(self, field)
 
 
 @dataclass
@@ -182,6 +187,7 @@ class BiEncoderModel(LightningIRModel):
             mask_scoring_input_ids=self.doc_mask_scoring_input_ids,
         )
 
+    @_batch_encoding
     def _encode(
         self,
         encoding: BatchEncoding,
@@ -189,7 +195,7 @@ class BiEncoderModel(LightningIRModel):
         pooling_strategy: Literal["first", "mean", "max", "sum"] | None = None,
         mask_scoring_input_ids: torch.Tensor | None = None,
     ) -> BiEncoderEmbedding:
-        embeddings = self._batched_backbone_forward(encoding)
+        embeddings = self._backbone_forward(**encoding).last_hidden_state
         if self.projection is not None:
             embeddings = self.projection(embeddings)
         embeddings = self._sparsification(embeddings, self.config.sparsification)
@@ -260,7 +266,7 @@ class BiEncoderModel(LightningIRModel):
         return scores
 
 
-def _batch(
+def _batch_scoring(
     similarity_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
 ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     BATCH_SIZE = 1024
@@ -305,17 +311,17 @@ class ScoringFunction(torch.nn.Module):
         return similarity
 
     @staticmethod
-    @_batch
+    @_batch_scoring
     def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
 
     @staticmethod
-    @_batch
+    @_batch_scoring
     def l2_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return -1 * torch.cdist(x, y).squeeze(-2)
 
     @staticmethod
-    @_batch
+    @_batch_scoring
     def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
