@@ -1,12 +1,16 @@
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
+from ._register_external_models import _register_external_models
 from .base import (
+    LightningIRClassFactory,
     LightningIRConfig,
+    LightningIRConfigClassFactory,
     LightningIRModel,
     LightningIRModelClassFactory,
     LightningIRModule,
     LightningIROutput,
     LightningIRTokenizer,
+    LightningIRTokenizerClassFactory,
 )
 from .bi_encoder import (
     BiEncoderConfig,
@@ -75,7 +79,6 @@ from .models import (
     XTRConfig,
     XTRModel,
 )
-from ._register_external_models import _register_external_models
 from .retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
@@ -157,13 +160,16 @@ __all__ = [
     "KLDivergence",
     "L1Regularization",
     "L2Regularization",
+    "LightningIRClassFactory",
     "LightningIRConfig",
+    "LightningIRConfigClassFactory",
     "LightningIRDataModule",
     "LightningIRModel",
     "LightningIRModelClassFactory",
     "LightningIRModule",
     "LightningIROutput",
     "LightningIRTokenizer",
+    "LightningIRTokenizerClassFactory",
     "LightningIRTrainer",
     "LinearLRSchedulerWithLinearWarmup",
     "LocalizedContrastiveEstimation",
