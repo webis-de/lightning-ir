@@ -1,7 +1,7 @@
 # Lightning IR
 
 <p align="center">
-<img src="./docs/lightning-ir-logo.svg" alt="lightning ir logo" width="10%">
+<img src="./docs/_static/lightning-ir-logo.svg" alt="lightning ir logo" width="10%">
 <p align="center">Your one-stop shop for fine-tuning and running neural ranking models.</p>
 </p>
 
