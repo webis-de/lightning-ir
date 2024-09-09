@@ -49,17 +49,15 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = "sphinxawesome_theme"
-html_title = "lightning-ir"
-# html_logo = "./logo.png"
+html_title = "Lightning IR"
+html_logo = "./_static/lightning-ir-logo.svg"
 language = "en"
 
 html_theme_options: Dict[str, Any] = {
     "navigation_with_keys": True,
     # Sphinx Awesome Configurations:
-    "logo_light": "logo.png",
-    "logo_dark": "logo.png",
     "show_breadcrumbs": True,
-    "show_prev_next": True,
+    # "show_prev_next": False,
     "show_scrolltop": True,
     "extra_header_link_icons": {
         "repository on GitHub": {

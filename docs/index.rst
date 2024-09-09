@@ -1,10 +1,51 @@
+============
+Lightning IR
+============
+
 .. toctree::
-   :maxdepth: 5
-   :caption: For Users
+   :maxdepth: 3
    :hidden:
 
-   users/index
+   quickstart
+   core
+   models
+   api
 
+.. image:: ./_static/lightning-ir-logo.svg
+   :alt: lightning ir logo
+   :width: 10%
+   :align: center
 
-.. include:: ../README.md
-   :parser: myst_parser.sphinx_
+.. centered:: Your one-stop shop for fine-tuning and running neural ranking models.
+
+-----------------
+
+Lightning IR is a library for fine-tuning and running neural ranking models. It is built on top of `PyTorch Lightning <https://lightning.ai/docs/pytorch/stable/>`_ to provide a simple and flexible interface to interact with neural ranking models.
+
+You want to for example:
+
+- fine-tune your own cross- or bi-encoder models?
+- index and search through a collection of documents with ColBERT or SPLADE?
+- re-rank documents with state-of-the-art models?
+
+Lightning IR has you covered!
+
+Installation
+------------
+
+We are working on making Lightning IR available on PyPI. For now, you can install Lightning IR from source:
+
+.. code-block:: bash
+
+   pip install git+https://github.com/webis-de/lightning-ir.git
+
+.. Lightning IR can be installed via pip:
+
+.. .. code-block:: bash
+
+..     pip install lightning-ir
+
+Getting Started
+---------------
+
+See the `Quickstart <quickstart>`_ guide to get started with Lightning IR
