@@ -66,7 +66,7 @@ class LightningIRModule(LightningModule):
                 else:
                     self.loss_functions.append(loss_function)
         self.evaluation_metrics = evaluation_metrics
-        self.tokenizer = LightningIRTokenizer.from_pretrained(self.config.name_or_path, config=config)
+        self.tokenizer = LightningIRTokenizer.from_pretrained(self.config.name_or_path, config=self.config)
 
     def on_fit_start(self) -> None:
         """Called at the very beginning of fit.
