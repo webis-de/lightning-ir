@@ -6,8 +6,7 @@ import torch
 
 class LossFunction(ABC):
     @abstractmethod
-    def compute_loss(self, *args, **kwargs) -> torch.Tensor:
-        ...
+    def compute_loss(self, *args, **kwargs) -> torch.Tensor: ...
 
 
 class ScoringLossFunction(LossFunction):
@@ -16,8 +15,7 @@ class ScoringLossFunction(LossFunction):
         self,
         scores: torch.Tensor,
         targets: torch.Tensor,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
     def process_targets(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         if targets.ndim > scores.ndim:
@@ -31,8 +29,7 @@ class EmbeddingLossFunction(LossFunction):
         self,
         query_embeddings: torch.Tensor,
         doc_embeddings: torch.Tensor,
-    ) -> torch.Tensor:
-        ...
+    ) -> torch.Tensor: ...
 
 
 class PairwiseLossFunction(ScoringLossFunction):
