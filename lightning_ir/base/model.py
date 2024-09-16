@@ -32,14 +32,15 @@ class LightningIRModel:
     """Base class for LightningIR models. Derived classes implement the forward method for handling query
     and document embeddings. It acts as mixin for a transformers.PreTrainedModel_ backbone model.
 
-    .. _transformers.PreTrainedModel: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel
+    .. _transformers.PreTrainedModel: \
+https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel
     """
 
     config_class: Type[LightningIRConfig] = LightningIRConfig
     """Configuration class for the model."""
 
     ALLOW_SUB_BATCHING = True
-    """Flag to allow mini batches of documents for a single query. Set to false for listwise models to  ensure 
+    """Flag to allow mini batches of documents for a single query. Set to false for listwise models to ensure
     correctness."""
 
     def __init__(self, config: LightningIRConfig, *args, **kwargs) -> None:

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Type
+from typing import Type
 
 import torch
 from transformers import BatchEncoding

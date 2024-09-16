@@ -12,7 +12,8 @@ class LightningIRTokenizer:
     """Base class for LightningIR tokenizers. Derived classes implement the tokenize method for handling query
     and document tokenization. It acts as mixin for a transformers.PreTrainedTokenizer_ backbone tokenizer.
 
-    .. _transformers.PreTrainedTokenizer: https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizer
+    .. _transformers.PreTrainedTokenizer: \
+https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreTrainedTokenizer
     """
 
     config_class: Type[LightningIRConfig] = LightningIRConfig
@@ -50,7 +51,8 @@ class LightningIRTokenizer:
         """Loads a pretrained tokenizer. Wraps the transformers.PreTrainedTokenizer.from_pretrained_ method to return a
         derived LightningIRTokenizer class. See :class:`.LightningIRTokenizerClassFactory` for more details.
 
-        .. _transformers.PreTrainedTokenizer.from_pretrained: https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizer.from_pretrained
+        .. _transformers.PreTrainedTokenizer.from_pretrained: \
+https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizer.from_pretrained
 
         .. highlight:: python
         .. code-block:: python

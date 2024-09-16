@@ -11,7 +11,8 @@ class LightningIRConfig:
     """The configuration class to instantiate a LightningIR model. Acts as a mixin for the
     transformers.PretrainedConfig_ class.
 
-    .. _transformers.PretrainedConfig: https://huggingface.co/transformers/main_classes/configuration.html#transformers.PretrainedConfig
+    .. _transformers.PretrainedConfig: \
+https://huggingface.co/transformers/main_classes/configuration.html#transformers.PretrainedConfig
     """
 
     model_type = "lightning-ir"
@@ -56,7 +57,8 @@ class LightningIRConfig:
         """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments and the backbone
         model type.
 
-        .. _transformers.PretrainedConfig.to_dict: https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig.to_dict # noqa
+        .. _transformers.PretrainedConfig.to_dict: \
+https://huggingface.co/docs/transformers/main_classes/configuration.html#transformers.PretrainedConfig.to_dict
 
         :return: Configuration dictionary
         :rtype: Dict[str, Any]
@@ -95,7 +97,8 @@ class LightningIRConfig:
         """Loads the configuration from a dictionary. Wraps the transformers.PretrainedConfig.from_dict_ method to
         return a derived LightningIRConfig class. See :class:`.LightningIRConfigClassFactory` for more details.
 
-        .. _transformers.PretrainedConfig.from_dict: https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig.from_dict
+        .. _transformers.PretrainedConfig.from_dict: \
+https://huggingface.co/docs/transformers/main_classes/configuration.html#transformers.PretrainedConfig.from_dict
 
         :param config_dict: Configuration dictionary
         :type config_dict: Dict[str, Any]

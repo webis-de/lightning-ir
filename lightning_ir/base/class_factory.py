@@ -134,7 +134,8 @@ class LightningIRConfigClassFactory(LightningIRClassFactory):
         """Creates a derived LightningIRConfig from a transformers.PretrainedConfig_ backbone configuration class. If
         the backbone configuration class is already a dervied LightningIRConfig, it is returned as is.
 
-        .. _transformers.PretrainedConfig: https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig
+        .. _transformers.PretrainedConfig: \
+https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig
 
         :param BackboneClass: Backbone configuration class
         :type BackboneClass: Type[PretrainedConfig]
@@ -179,7 +180,8 @@ class LightningIRModelClassFactory(LightningIRClassFactory):
         """Creates a derived LightningIRModel from a transformers.PreTrainedModel_ backbone model. If the backbone model
           is already a LightningIRModel, it is returned as is.
 
-        .. _transformers.PreTrainedModel: https://huggingface.co/transformers/main_classes/model#transformers.PreTrainedModel
+        .. _transformers.PreTrainedModel: \
+https://huggingface.co/transformers/main_classes/model#transformers.PreTrainedModel
 
         :param BackboneClass: Backbone model
         :type BackboneClass: Type[PreTrainedModel]
@@ -306,7 +308,8 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
         """Creates a derived LightningIRTokenizer from a transformers.PreTrainedTokenizerBase_ backbone tokenizer. If
         the backbone tokenizer is already a LightningIRTokenizer, it is returned as is.
 
-        .. _transformers.PreTrainedTokenizerBase: https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizerBase
+        .. _transformers.PreTrainedTokenizerBase: \
+https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizerBase
 
         :param BackboneClass: Backbone tokenizer class
         :type BackboneClass: Type[PreTrainedTokenizerBase]

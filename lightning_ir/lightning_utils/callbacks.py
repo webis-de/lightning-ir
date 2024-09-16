@@ -3,14 +3,12 @@ from __future__ import annotations
 import itertools
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Sequence, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple, TypeVar
 
 import pandas as pd
 import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
-
-from lightning_ir.base import LightningIROutput
 
 from ..data import RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset

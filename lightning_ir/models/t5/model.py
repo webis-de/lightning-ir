@@ -1,6 +1,5 @@
 import torch
 from transformers import BatchEncoding
-from transformers.modeling_utils import cached_file, load_state_dict
 
 from ...cross_encoder.model import CrossEncoderModel, CrossEncoderOutput
 from .config import T5CrossEncoderConfig
@@ -10,7 +9,7 @@ class ScaleLinear(torch.nn.Linear):
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         # Rescale output before projecting on vocab
-        # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586
+        # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586 # noqa
         input = input * (input.shape[-1] ** -0.5)
         return super().forward(input)
 
