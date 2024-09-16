@@ -31,4 +31,6 @@ jobs:
           pip3 install .[test,dev]
       - name: Run tests
         working-directory: ${{github.workspace}}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: pytest tests
