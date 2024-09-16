@@ -2,7 +2,7 @@ import pytest
 import torch
 from transformers import AutoTokenizer, T5ForConditionalGeneration
 
-from lightning_ir import CrossEncoderModule, T5CrossEncoderConfig
+from lightning_ir import CrossEncoderModule
 
 
 @pytest.mark.parametrize(
