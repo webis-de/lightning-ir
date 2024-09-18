@@ -22,7 +22,7 @@ Lightning IR has you covered!
 We're currently setting up the package on PyPI. In the meantime, you can install the package from source:
 
 ```
-git clone git+https://github.com/webis-de/lightning-ir.git
+pip install git+https://github.com/webis-de/lightning-ir.git
 ```
 
 ## Getting Started
