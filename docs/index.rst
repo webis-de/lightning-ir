@@ -33,19 +33,13 @@ Lightning IR has you covered!
 Installation
 ------------
 
-We are working on making Lightning IR available on PyPI. For now, you can install Lightning IR from source:
+Lightning IR can be installed using pip:
 
 .. code-block:: bash
 
-   pip install git+https://github.com/webis-de/lightning-ir.git
-
-.. Lightning IR can be installed via pip:
-
-.. .. code-block:: bash
-
-..     pip install lightning-ir
+   pip install lightning-ir
 
 Getting Started
 ---------------
 
-See the `Quickstart <quickstart>`_ guide to get started with Lightning IR
+See the `Quickstart <quickstart>`_ guide to get started with Lightning IR.
