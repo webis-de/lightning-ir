@@ -1,0 +1,25 @@
+trainer:
+  max_steps: 100_000
+model:
+  class_path: lightning_ir.BiEncoderModule
+  # class_path: lightning_ir.CrossEncoderModule
+  init_args:
+    model_name_or_path: bert-base-uncased
+    config:
+      class_path: lightning_ir.BiEncoderConfig
+      # class_path: lightning_ir.CrossEncoderConfig
+    loss_functions:
+    - lightning_ir.RankNet
+data:
+  class_path: lightning_ir.LightningIRDataModule
+  init_args:
+    train_dataset:
+      class_path: lightning_ir.TupleDataset
+      init_args:
+        tuples_dataset: msmarco-passage/train/triples-small
+    train_batch_size: 32
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 0.001
+

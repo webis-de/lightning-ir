@@ -1,0 +1,10 @@
+data:
+  class_path: LightningIRDataModule
+  init_args:
+    num_workers: 1
+    train_batch_size: 16
+    train_dataset:
+      class_path: TupleDataset
+      init_args:
+        tuples_dataset: msmarco-passage/train/triples-small
+    

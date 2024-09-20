@@ -1,0 +1,22 @@
+trainer:
+  callbacks:
+  - class_path: lightning_ir.ReRankCallback
+    init_args:
+      save_dir: ./re-ranked-runs
+model:
+  class_path: lightning_ir.BiEncoderModule
+  init_args:
+    model_name_or_path: webis/monoelectra-base
+    evaluation_metrics:
+    - nDCG@10
+data:
+  class_path: lightning_ir.LightningIRDataModule
+  init_args:
+    inference_datasets:
+    - class_path: lightning_ir.RunDataset
+      init_args:
+        doc_dataset: ./runs/msmarco-passage-trec-dl-2019-judged.run
+    - class_path: lightning_ir.RunDataset
+      init_args:
+        doc_dataset: ./runs/msmarco-passage-trec-dl-2020-judged.run
+    inference_batch_size: 4

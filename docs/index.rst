@@ -8,7 +8,7 @@ Lightning IR
 
    quickstart
    core
-   models
+   model-zoo
    api
 
 .. image:: ./_static/lightning-ir-logo.svg

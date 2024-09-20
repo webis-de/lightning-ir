@@ -1,7 +1,7 @@
 model:
   class_path: BiEncoderModule
   init_args:
-    model_name_or_path: ./tests/data/test_model
+    model_name_or_path: bert-base-uncased
     config:
       class_path: ColConfig
       init_args:
@@ -13,7 +13,7 @@ model:
         normalize: true
         add_marker_tokens: true
         embedding_dim: 128
-        linear_bias: false
+        projection: linear_no_bias
     loss_functions:
       - class_path: RankNet
         

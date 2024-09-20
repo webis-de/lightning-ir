@@ -1,0 +1,27 @@
+trainer:
+  callbacks:
+  - class_path: lightning_ir.SearchCallback
+    init_args:
+      index_dir: ./msmarco-passage-index
+      index_config:
+        class_path: lightning_ir.FaissSearchConfig
+        init_args:
+          k: 100
+      save_dir: ./runs
+model:
+  class_path: lightning_ir.BiEncoderModule
+  init_args:
+    model_name_or_path: webis/bert-bi-encoder
+    evaluation_metrics:
+    - nDCG@10
+data:
+  class_path: lightning_ir.LightningIRDataModule
+  init_args:
+    inference_datasets:
+    - class_path: lightning_ir.QueryDataset
+      init_args:
+        doc_dataset: msmarco-passage/trec-dl-2019/judged
+    - class_path: lightning_ir.QueryDataset
+      init_args:
+        doc_dataset: msmarco-passage/trec-dl-2020/judged
+    inference_batch_size: 4

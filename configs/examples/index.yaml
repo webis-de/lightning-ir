@@ -1,0 +1,19 @@
+trainer:
+  callbacks:
+  - class_path: lightning_ir.IndexCallback
+    init_args:
+      index_dir: ./msmarco-passage-index
+      index_config:
+        class_path: lightning_ir.FaissFlatIndexConfig
+model:
+  class_path: lightning_ir.BiEncoderModule
+  init_args:
+    model_name_or_path: webis/bert-bi-encoder
+data:
+  class_path: lightning_ir.LightningIRDataModule
+  init_args:
+    inference_datasets:
+    - class_path: lightning_ir.DocDataset
+      init_args:
+        doc_dataset: msmarco-passage
+    inference_batch_size: 256
