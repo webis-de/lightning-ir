@@ -108,6 +108,13 @@ class LightningIRCLI(LightningCLI):
             "re_rank": {"model", "dataloaders", "datamodule"},
         }
 
+    def _add_configure_optimizers_method_to_model(self, subcommand: str | None) -> None:
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return super()._add_configure_optimizers_method_to_model(subcommand)
+
 
 def main():
     """
