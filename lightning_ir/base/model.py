@@ -78,7 +78,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         :type embeddings: torch.Tensor
         :param sparsification_strategy: The sparsification strategy. No sparsification is applied if None,
         defaults to None
-        :type sparsification_strategy: Literal[&quot;relu&quot;, &quot;relu_log&quot;] | None, optional
+        :type sparsification_strategy: Literal['relu', 'relu_log'] | None, optional
         :raises ValueError: If an unknown sparsification strategy is passed
         :return: (Optionally) sparsified embeddings
         :rtype: torch.Tensor
@@ -104,7 +104,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         :param attention_mask: Query or document attention mask
         :type attention_mask: torch.Tensor | None
         :param pooling_strategy: The pooling strategy. No pooling is applied if None.
-        :type pooling_strategy: Literal[&quot;first&quot;, &quot;mean&quot;, &quot;max&quot;, &quot;sum&quot;] | None
+        :type pooling_strategy: Literal['first', 'mean', 'max', 'sum'] | None
         :raises ValueError: If an unknown pooling strategy is passed
         :return: (Optionally) pooled embeddings
         :rtype: torch.Tensor
