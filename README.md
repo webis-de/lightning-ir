@@ -19,13 +19,15 @@ Lightning IR has you covered!
   
 ## Installation
 
-We're currently setting up the package on PyPI. In the meantime, you can install the package from source:
+Lightning IR can be installed using pip:
 
 ```
-pip install git+https://github.com/webis-de/lightning-ir.git
+pip install lightning-ir
 ```
 
 ## Getting Started
+
+See the [Quickstart](https://webis-de.github.io/lightning-ir/quickstart.html) guide for an introduction to Lightning IR. The [Documentation](https://webis-de.github.io/lightning-ir/) provides a detailed overview of the library's functionality.
 
 The easiest way to use Lightning IR is via the CLI. It uses the [PyTorch Lightning CLI](https://lightning.ai/docs/pytorch/stable/cli/lightning_cli.html#lightning-cli) and adds additional options to provide a unified interface for fine-tuning and running neural ranking models.
 
@@ -40,25 +42,6 @@ lightning-ir re_rank \
 ```
 
 For more details, see the [Usage](#usage) section.
-
-## Model Zoo
-
-### Cross-encoders
-
-| Model Name                                                          | TREC DL 19 | TREC DL 20 |
-| ------------------------------------------------------------------- | ---------- | ---------- |
-| [monoelectra-base](https://huggingface.co/webis/monoelectra-base)   | 0.75       | 0.77       |
-| [monoelectra-large](https://huggingface.co/webis/monoelectra-large) | 0.75       | 0.79       |
-| monoT5 (Coming soon)                                                | --         | --         |
-
-### Bi-encoders
-
-| Model Name                    | TREC DL 19/20 nDCG@10 |
-| ----------------------------- | --------------------- |
-| BERT Bi-encoder (Coming soon) | --                    |
-| ColBERT (Coming soon)         | --                    |
-| SPLADE (Coming soon)          | --                    |
-| XTR (Coming soon)             | --                    |
 
 ## Usage
 
