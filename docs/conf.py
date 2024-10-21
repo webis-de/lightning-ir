@@ -34,6 +34,10 @@ extensions = [
 
 # autodoc_mock_imports = ['torch', 'transformers', 'lightning']
 
+doctest_global_setup = """
+from argparse import Namespace
+"""
+
 
 todo_include_todos = True
 python_display_short_literal_types = True
