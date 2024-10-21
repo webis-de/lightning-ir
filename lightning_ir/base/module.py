@@ -55,8 +55,6 @@ class LightningIRModule(LightningModule):
             if model_name_or_path is None:
                 raise ValueError("Either model or model_name_or_path must be provided.")
             model = LightningIRModel.from_pretrained(model_name_or_path, config=config)
-            # NOTE huggingface models are in eval mode by default
-            model = model.train()
 
         self.model: LightningIRModel = model
         self.config = self.model.config
@@ -71,6 +69,12 @@ class LightningIRModule(LightningModule):
         self.evaluation_metrics = evaluation_metrics
         self._optimizer: torch.optim.Optimizer | None = None
         self.tokenizer = LightningIRTokenizer.from_pretrained(self.config.name_or_path, config=self.config)
+
+    def on_train_start(self) -> None:
+        """Called at the beginning of training after sanity check."""
+        super().on_train_start()
+        # NOTE huggingface models are in eval mode by default
+        self.model = self.model.train()
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Configures the optizmizer for fine-tuning. This method is ignored when using the CLI. When using Lightning IR
