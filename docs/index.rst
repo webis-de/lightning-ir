@@ -8,6 +8,7 @@ Lightning IR
 
    quickstart
    core
+   howto
    model-zoo
    api
 
