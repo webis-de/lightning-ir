@@ -1,48 +1,27 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Literal, Sequence
+from typing import Any, Dict, List, Literal, Sequence
 
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
 
-from ..base.config import LightningIRConfig
-from ..base.tokenizer import LightningIRTokenizer
 from .data import IndexBatch, RankBatch, SearchBatch, TrainBatch
 from .dataset import DocDataset, DocSample, QueryDataset, QuerySample, RankSample, RunDataset, TupleDataset
-
-if TYPE_CHECKING:
-    from ..base import LightningIRModule
 
 
 class LightningIRDataModule(LightningDataModule):
     def __init__(
         self,
-        model_name_or_path: str | Path | None = None,
-        config: LightningIRConfig | None = None,
-        module: LightningIRModule | None = None,
-        num_workers: int = 0,
+        train_dataset: RunDataset | TupleDataset | None = None,
         train_batch_size: int | None = None,
         shuffle_train: bool = True,
         inference_batch_size: int | None = None,
-        train_dataset: RunDataset | TupleDataset | None = None,
         inference_datasets: Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None = None,
+        num_workers: int = 0,
     ) -> None:
         super().__init__()
-        if config is not None:
-            self.config = config
-        elif module is not None:
-            self.config = module.config
-        elif model_name_or_path is not None:
-            self.config = LightningIRConfig.from_pretrained(model_name_or_path)
-        else:
-            raise ValueError("Either module, config, or model_name_or_path must be provided.")
-
-        if model_name_or_path is None:
-            model_name_or_path = self.config.name_or_path
-        self.tokenizer = LightningIRTokenizer.from_pretrained(model_name_or_path, config=self.config)
         self.num_workers = num_workers
 
         self.train_batch_size = train_batch_size
