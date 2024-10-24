@@ -15,7 +15,6 @@ DATA_DIR = Path(__file__).parent / "data"
 
 def tuples_datamodule(module: LightningIRModule, inference_datasets: Sequence[RunDataset]) -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
-        module=module,
         num_workers=0,
         train_batch_size=3,
         inference_batch_size=2,

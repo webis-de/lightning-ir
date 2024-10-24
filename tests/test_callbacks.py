@@ -28,12 +28,7 @@ def index_config(request: SubRequest) -> IndexConfig:
 
 
 def run_datamodule(module: LightningIRModule, inference_datasets: Sequence[RunDataset]) -> LightningIRDataModule:
-    datamodule = LightningIRDataModule(
-        module=module,
-        num_workers=0,
-        inference_batch_size=2,
-        inference_datasets=inference_datasets,
-    )
+    datamodule = LightningIRDataModule(num_workers=0, inference_batch_size=2, inference_datasets=inference_datasets)
     datamodule.setup(stage="test")
     return datamodule
 
