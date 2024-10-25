@@ -1,6 +1,8 @@
-==========
-Quickstart
-==========
+.. _quickstart:
+
+================
+Quickstart Guide
+================
 
 Lightning IR can either be used programatically or using the CLI. The CLI is based on `PyTorch Lightning CLI <https://lightning.ai/docs/pytorch/stable/cli/lightning_cli.html#lightning-cli>`_ and adds additional options to provide a unified interface for fine-tuning and running neural ranking models.
 
