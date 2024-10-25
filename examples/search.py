@@ -8,11 +8,13 @@ from lightning_ir import (
 )
 
 # Define the model
-module = BiEncoderModule(model_name_or_path="webis/bert-bi-encoder", evaluation_metrics=["nDCG@10"])
+module = BiEncoderModule(
+    model_name_or_path="webis/bert-bi-encoder",
+    evaluation_metrics=["nDCG@10"],
+)
 
 # Define the data module
 data_module = LightningIRDataModule(
-    config=module.config,
     inference_datasets=[
         QueryDataset("msmarco-passage/trec-dl-2019/judged"),
         QueryDataset("msmarco-passage/trec-dl-2020/judged"),

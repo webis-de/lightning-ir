@@ -27,7 +27,6 @@ module.set_optimizer(AdamW, lr=1e-5)
 
 # Define the data module
 data_module = LightningIRDataModule(
-    config=module.config,
     train_dataset=TupleDataset("msmarco-passage/train/triples-small"),
     train_batch_size=32,
 )

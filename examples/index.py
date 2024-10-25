@@ -14,7 +14,6 @@ module = BiEncoderModule(
 
 # Define the data module
 data_module = LightningIRDataModule(
-    config=module.config,
     inference_datasets=[DocDataset("msmarco-passage")],
     inference_batch_size=256,
 )
