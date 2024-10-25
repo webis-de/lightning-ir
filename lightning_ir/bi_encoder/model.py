@@ -53,7 +53,6 @@ class BiEncoderEmbedding:
     def to(self, device) -> "BiEncoderEmbedding":
         if isinstance(device, BiEncoderEmbedding):
             device = device.device
-            self.embeddings.to()
         self.embeddings = self.embeddings.to(device)
         self.scoring_mask = self.scoring_mask.to(device)
         return self
@@ -300,12 +299,6 @@ class ScoringFunction(torch.nn.Module):
     def compute_similarity(
         self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding
     ) -> torch.Tensor:
-        # if torch.cuda.is_available():
-        #     # bfloat16 similarity yields weird values with gpu, so we use fp16 instead
-        #     # TODO investigate why, all values are a factor of 1/4
-        #     query_tensor = query_tensor.cuda().half()
-        #     doc_tensor = doc_tensor.cuda().half()
-
         # TODO compute similarity only for non-masked values
         similarity = self.similarity_function(query_embeddings.embeddings, doc_embeddings.embeddings)
         return similarity
