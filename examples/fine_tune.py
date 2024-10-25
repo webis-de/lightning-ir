@@ -3,8 +3,6 @@ from torch.optim import AdamW
 from lightning_ir import (
     BiEncoderConfig,
     BiEncoderModule,
-    CrossEncoderConfig,
-    CrossEncoderModule,
     LightningIRDataModule,
     LightningIRTrainer,
     RankNet,
