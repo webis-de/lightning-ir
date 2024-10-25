@@ -262,7 +262,7 @@ class BiEncoderModel(LightningIRModel):
         doc_embeddings: BiEncoderEmbedding,
         num_docs: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
-        scores = self.scoring_function.score(query_embeddings, doc_embeddings, num_docs=num_docs)
+        scores = self.scoring_function(query_embeddings, doc_embeddings, num_docs=num_docs)
         return scores
 
 
@@ -393,7 +393,7 @@ class ScoringFunction(torch.nn.Module):
             )
         raise ValueError(f"Unknown aggregation {query_aggregation_function}")
 
-    def score(
+    def forward(
         self,
         query_embeddings: BiEncoderEmbedding,
         doc_embeddings: BiEncoderEmbedding,
