@@ -63,6 +63,11 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
                         module.forward = partial(flash_attn_forward, module)
 
     def _backbone_forward(self, *args, **kwargs):
+        """Runs the forward method of the backbone model. Is overridden in
+        :class:`~lightning_ir.base.class_factory.LightningIRModelClassFactory`.
+
+        :raises NotImplementedError: If not overridden in the derived class
+        """
         raise NotImplementedError
 
     def forward(self, *args, **kwargs) -> LightningIROutput:

@@ -14,6 +14,7 @@ from .base import (
 )
 from .bi_encoder import (
     BiEncoderConfig,
+    BiEncoderEmbedding,
     BiEncoderModel,
     BiEncoderModule,
     BiEncoderOutput,
@@ -126,6 +127,7 @@ __all__ = [
     "ApproxNDCG",
     "ApproxRankMSE",
     "BiEncoderConfig",
+    "BiEncoderEmbedding",
     "BiEncoderModel",
     "BiEncoderModule",
     "BiEncoderOutput",
