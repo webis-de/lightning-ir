@@ -26,7 +26,7 @@ A :py:class:`~lightning_ir.base.model.LightningIRModel` is backbone agnostic and
 
 
 
-Bi-encoder models compute a relevance score by embedding the query and document separately and measuring the similarity between the two embeddings. A cross-encoder receives both the query and document as input and computes a relevance score based on the joint contextualized embedding. See the :ref:`bi-encoder` and :ref:`cross-encoder` sections for more details.
+Bi-encoder models compute a relevance score by embedding the query and document separately and compute the similarity between the two embeddings. A cross-encoder receives both the query and document as input and computes a relevance score based on the joint contextualized embedding. See the :ref:`bi-encoder` and :ref:`cross-encoder` sections for more details.
 
 The easiest way to use a :py:class:`~lightning_ir.base.model.LightningIRModel` is through it's corresponding :py:class:`~lightning_ir.base.module.LightningIRModule`. The module combines a :py:class:`~lightning_ir.base.model.LightningIRModel` and :py:class:`~lightning_ir.base.tokenizer.LightningIRTokenizer` and handles the forward pass of the model. The following example illustrates how to use a bi-encoder or a cross-encoder model to score the relevance between a query and a document. Note the bi-encoder generates two embedding tensors while the cross-encoder generates a single joint embedding tensor.
 
