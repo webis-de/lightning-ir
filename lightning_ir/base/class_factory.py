@@ -71,6 +71,8 @@ class LightningIRClassFactory(ABC):
         """
         config_dict, _ = PretrainedConfig.get_config_dict(model_name_or_path, *args, **kwargs)
         backbone_model_type = config_dict.get("backbone_model_type", None) or config_dict.get("model_type")
+        if backbone_model_type is None:
+            raise ValueError(f"Unable to load PretrainedConfig from {model_name_or_path}")
         return backbone_model_type
 
     @staticmethod
@@ -240,7 +242,7 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
         """
         try:
             return LightningIRClassFactory.get_backbone_model_type(model_name_or_path, *args, **kwargs)
-        except OSError:
+        except (OSError, ValueError):
             # best guess at model type
             config_dict = get_tokenizer_config(model_name_or_path)
             Tokenizer = tokenizer_class_from_name(config_dict["tokenizer_class"])

@@ -47,8 +47,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         self.attend_to_doc_expanded_tokens = attend_to_doc_expanded_tokens
         self.add_marker_tokens = add_marker_tokens
 
-        self._query_token = query_token
-        self._doc_token = doc_token
+        self.query_token = query_token
+        self.doc_token = doc_token
 
         self.query_post_processor: TemplateProcessing | None = None
         self.doc_post_processor: TemplateProcessing | None = None
@@ -77,14 +77,6 @@ class BiEncoderTokenizer(LightningIRTokenizer):
                     (self.doc_token, self.doc_token_id),
                 ],
             )
-
-    @property
-    def query_token(self) -> str:
-        return self._query_token
-
-    @property
-    def doc_token(self) -> str:
-        return self._doc_token
 
     @property
     def query_token_id(self) -> int | None:
