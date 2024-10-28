@@ -78,6 +78,7 @@ def test_seralize_deserialize(module: LightningIRModule, tmp_path: Path):
                 "_commit_hash",
                 "transformers_version",
                 "model_type",
+                "_attn_implementation_autoset",
             ):
                 continue
             assert getattr(new_model.config, key) == value

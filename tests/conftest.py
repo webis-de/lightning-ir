@@ -160,10 +160,8 @@ def cross_encoder_module(cross_encoder_config: CrossEncoderConfig, model_name_or
 
 
 @pytest.fixture()
-def query_datamodule(model_name_or_path: str) -> LightningIRDataModule:
+def query_datamodule() -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
-        model_name_or_path=model_name_or_path,
-        config=BiEncoderConfig(),
         num_workers=0,
         inference_batch_size=2,
         inference_datasets=[QueryDataset("lightning-ir", num_queries=2)],
@@ -173,10 +171,8 @@ def query_datamodule(model_name_or_path: str) -> LightningIRDataModule:
 
 
 @pytest.fixture()
-def doc_datamodule(model_name_or_path: str) -> LightningIRDataModule:
+def doc_datamodule() -> LightningIRDataModule:
     datamodule = LightningIRDataModule(
-        model_name_or_path=model_name_or_path,
-        config=BiEncoderConfig(),
         num_workers=0,
         inference_batch_size=2,
         inference_datasets=[DocDataset("lightning-ir")],

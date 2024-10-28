@@ -2,10 +2,7 @@ from typing import Sequence
 
 import pytest
 import torch
-from _pytest.fixtures import SubRequest
 
-from lightning_ir.bi_encoder.config import BiEncoderConfig
-from lightning_ir.cross_encoder.model import CrossEncoderConfig
 from lightning_ir.data.data import IndexBatch, SearchBatch, TrainBatch
 from lightning_ir.data.datamodule import LightningIRDataModule
 from lightning_ir.data.dataset import RunDataset, TupleDataset
@@ -13,12 +10,8 @@ from lightning_ir.data.dataset import RunDataset, TupleDataset
 from .conftest import RUNS_DIR
 
 
-@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"])
-def rank_run_datamodule(
-    model_name_or_path: str,
-    inference_datasets: Sequence[RunDataset],
-    request: SubRequest,
-) -> LightningIRDataModule:
+@pytest.fixture()
+def rank_run_datamodule(inference_datasets: Sequence[RunDataset]) -> LightningIRDataModule:
     train_dataset = RunDataset(
         RUNS_DIR / "lightning-ir.tsv",
         depth=5,
@@ -27,8 +20,6 @@ def rank_run_datamodule(
         targets="rank",
     )
     datamodule = LightningIRDataModule(
-        model_name_or_path=model_name_or_path,
-        config=request.param,
         num_workers=0,
         train_batch_size=2,
         inference_batch_size=2,
@@ -39,12 +30,8 @@ def rank_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"])
-def relevance_run_datamodule(
-    model_name_or_path: str,
-    inference_datasets: Sequence[RunDataset],
-    request: SubRequest,
-) -> LightningIRDataModule:
+@pytest.fixture()
+def relevance_run_datamodule(inference_datasets: Sequence[RunDataset]) -> LightningIRDataModule:
     train_dataset = RunDataset(
         RUNS_DIR / "lightning-ir.tsv",
         depth=5,
@@ -53,8 +40,6 @@ def relevance_run_datamodule(
         targets="relevance",
     )
     datamodule = LightningIRDataModule(
-        model_name_or_path=model_name_or_path,
-        config=request.param,
         num_workers=0,
         train_batch_size=2,
         inference_batch_size=2,
@@ -65,12 +50,8 @@ def relevance_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"])
-def single_relevant_run_datamodule(
-    model_name_or_path: str,
-    inference_datasets: Sequence[RunDataset],
-    request: SubRequest,
-) -> LightningIRDataModule:
+@pytest.fixture()
+def single_relevant_run_datamodule(inference_datasets: Sequence[RunDataset]) -> LightningIRDataModule:
     train_dataset = RunDataset(
         RUNS_DIR / "lightning-ir.tsv",
         depth=5,
@@ -79,8 +60,6 @@ def single_relevant_run_datamodule(
         targets="relevance",
     )
     datamodule = LightningIRDataModule(
-        model_name_or_path=model_name_or_path,
-        config=request.param,
         num_workers=0,
         train_batch_size=2,
         inference_batch_size=2,
@@ -91,16 +70,10 @@ def single_relevant_run_datamodule(
     return datamodule
 
 
-@pytest.fixture(params=[BiEncoderConfig(), CrossEncoderConfig()], ids=["BiEncoder", "CrossEncoder"])
-def tuples_datamodule(
-    model_name_or_path: str,
-    inference_datasets: Sequence[RunDataset],
-    request: SubRequest,
-) -> LightningIRDataModule:
+@pytest.fixture()
+def tuples_datamodule(inference_datasets: Sequence[RunDataset]) -> LightningIRDataModule:
     train_dataset = TupleDataset("lightning-ir", targets="order", num_docs=2)
     datamodule = LightningIRDataModule(
-        model_name_or_path=model_name_or_path,
-        config=request.param,
         num_workers=0,
         train_batch_size=2,
         inference_batch_size=2,
