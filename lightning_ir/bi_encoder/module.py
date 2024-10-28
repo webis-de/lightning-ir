@@ -96,7 +96,7 @@ class BiEncoderModule(LightningIRModule):
                 ib_scores = ib_scores.view(num_queries, -1)
                 losses.append(loss_function.compute_loss(ib_scores))
             elif isinstance(loss_function, EmbeddingLossFunction):
-                losses.append(loss_function.compute_loss(query_embeddings.embeddings, doc_embeddings.embeddings))
+                losses.append(loss_function.compute_loss(query_embeddings, doc_embeddings))
             elif isinstance(loss_function, ScoringLossFunction):
                 losses.append(loss_function.compute_loss(scores, targets))
             else:

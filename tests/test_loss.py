@@ -3,6 +3,7 @@ from typing import Type
 import pytest
 import torch
 
+from lightning_ir.bi_encoder.model import BiEncoderEmbedding
 from lightning_ir.loss.loss import (
     ApproxMRR,
     ApproxNDCG,
@@ -103,6 +104,8 @@ def test_regularization_loss_func(
     embeddings: torch.Tensor,
 ):
     loss_func = RegularizationLossFunc()
-    loss = loss_func.compute_loss(embeddings, embeddings)
+    loss = loss_func.compute_loss(
+        BiEncoderEmbedding(embeddings, torch.empty(0)), BiEncoderEmbedding(embeddings, torch.empty(0))
+    )
     assert loss >= 0
     assert loss.requires_grad

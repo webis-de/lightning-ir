@@ -1,7 +1,12 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Literal, Tuple
+from typing import TYPE_CHECKING, Literal, Tuple
 
 import torch
+
+if TYPE_CHECKING:
+    from ..bi_encoder import BiEncoderEmbedding
 
 
 class LossFunction(ABC):
@@ -26,9 +31,7 @@ class ScoringLossFunction(LossFunction):
 class EmbeddingLossFunction(LossFunction):
     @abstractmethod
     def compute_loss(
-        self,
-        query_embeddings: torch.Tensor,
-        doc_embeddings: torch.Tensor,
+        self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding
     ) -> torch.Tensor: ...
 
 
@@ -320,37 +323,25 @@ class RegularizationLossFunction(EmbeddingLossFunction):
 
 
 class L2Regularization(RegularizationLossFunction):
-    def compute_loss(
-        self,
-        query_embeddings: torch.Tensor,
-        doc_embeddings: torch.Tensor,
-    ) -> torch.Tensor:
-        query_loss = self.query_weight * query_embeddings.norm(dim=-1).mean()
-        doc_loss = self.doc_weight * doc_embeddings.norm(dim=-1).mean()
+    def compute_loss(self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding) -> torch.Tensor:
+        query_loss = self.query_weight * query_embeddings.embeddings.norm(dim=-1).mean()
+        doc_loss = self.doc_weight * doc_embeddings.embeddings.norm(dim=-1).mean()
         loss = query_loss + doc_loss
         return loss
 
 
 class L1Regularization(RegularizationLossFunction):
-    def compute_loss(
-        self,
-        query_embeddings: torch.Tensor,
-        doc_embeddings: torch.Tensor,
-    ) -> torch.Tensor:
-        query_loss = self.query_weight * query_embeddings.norm(p=1, dim=-1).mean()
-        doc_loss = self.doc_weight * doc_embeddings.norm(p=1, dim=-1).mean()
+    def compute_loss(self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding) -> torch.Tensor:
+        query_loss = self.query_weight * query_embeddings.embeddings.norm(p=1, dim=-1).mean()
+        doc_loss = self.doc_weight * doc_embeddings.embeddings.norm(p=1, dim=-1).mean()
         loss = query_loss + doc_loss
         return loss
 
 
 class FLOPSRegularization(RegularizationLossFunction):
-    def compute_loss(
-        self,
-        query_embeddings: torch.Tensor,
-        doc_embeddings: torch.Tensor,
-    ) -> torch.Tensor:
-        query_loss = torch.sum(torch.mean(torch.abs(query_embeddings), dim=0) ** 2)
-        doc_loss = torch.sum(torch.mean(torch.abs(doc_embeddings), dim=0) ** 2)
-        anti_zero = 1 / (torch.sum(query_embeddings) ** 2) + 1 / (torch.sum(doc_embeddings) ** 2)
+    def compute_loss(self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding) -> torch.Tensor:
+        query_loss = torch.sum(torch.mean(torch.abs(query_embeddings.embeddings), dim=0) ** 2)
+        doc_loss = torch.sum(torch.mean(torch.abs(doc_embeddings.embeddings), dim=0) ** 2)
+        anti_zero = 1 / (torch.sum(query_embeddings.embeddings) ** 2) + 1 / (torch.sum(doc_embeddings.embeddings) ** 2)
         loss = self.query_weight * query_loss + self.doc_weight * doc_loss + anti_zero
         return loss
