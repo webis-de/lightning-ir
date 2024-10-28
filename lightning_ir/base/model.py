@@ -179,14 +179,13 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         config = kwargs.get("config", None)
         if cls is LightningIRModel or all(issubclass(base, LightningIRModel) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir model based on backbone model
-            if model_name_or_path in CHECKPOINT_MAPPING:
+            if config is not None:
+                config_class = config.__class__
+            elif model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]
                 config_class = _config.__class__
-                if config is not None:
-                    warnings.warn(f"{model_name_or_path} is a registered checkpoint. The provided config is ignored.")
-                config = _config
-            elif config is not None:
-                config_class = config.__class__
+                if config is None:
+                    config = _config
             elif cls is not LightningIRModel:
                 config_class = cls.config_class
             else:

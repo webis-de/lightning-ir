@@ -77,14 +77,12 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
             kwargs.update(config.to_tokenizer_dict())
         if cls is LightningIRTokenizer or all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir tokenizer based on backbone model
-            if model_name_or_path in CHECKPOINT_MAPPING:
+            if config is not None:
+                Config = config.__class__
+            elif model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]
                 Config = _config.__class__
-                if config is not None:
-                    warnings.warn(f"{model_name_or_path} is a registered checkpoint. The provided config is ignored.")
                 kwargs.update(_config.to_tokenizer_dict())
-            elif config is not None:
-                Config = config.__class__
             elif cls is not LightningIRTokenizer and hasattr(cls, "config_class"):
                 Config = cls.config_class
             else:
