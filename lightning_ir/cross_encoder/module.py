@@ -34,7 +34,7 @@ class CrossEncoderModule(LightningIRModule):
         output = self.model.forward(encoding["encoding"])
         return output
 
-    def compute_losses(self, batch: TrainBatch) -> List[torch.Tensor]:
+    def compute_losses(self, batch: TrainBatch, output: CrossEncoderOutput) -> List[torch.Tensor]:
         if self.loss_functions is None:
             raise ValueError("loss_functions must be set in the module")
         output = self.forward(batch)

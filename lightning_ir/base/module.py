@@ -156,7 +156,7 @@ class LightningIRModule(LightningModule):
             encodings[key] = encodings[key].to(self.device)
         return encodings
 
-    def compute_losses(self, batch: TrainBatch) -> List[torch.Tensor]:
+    def compute_losses(self, batch: TrainBatch, output: LightningIROutput) -> List[torch.Tensor]:
         """Computes the losses for the batch.
 
         :param batch: Batch of training data
@@ -180,7 +180,8 @@ class LightningIRModule(LightningModule):
         """
         if self.loss_functions is None:
             raise ValueError("Loss functions are not set")
-        losses = self.compute_losses(batch)
+        output = self.forward(batch)
+        losses = self.compute_losses(batch, output)
         total_loss = torch.tensor(0)
         assert len(losses) == len(self.loss_functions)
         for (loss_function, loss_weight), loss in zip(self.loss_functions, losses):

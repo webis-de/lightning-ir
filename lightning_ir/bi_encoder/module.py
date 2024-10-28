@@ -72,10 +72,9 @@ class BiEncoderModule(LightningIRModule):
     def score(self, queries: Sequence[str] | str, docs: Sequence[Sequence[str]] | Sequence[str]) -> BiEncoderOutput:
         return super().score(queries, docs)
 
-    def compute_losses(self, batch: TrainBatch) -> List[torch.Tensor]:
+    def compute_losses(self, batch: TrainBatch, output: BiEncoderOutput) -> List[torch.Tensor]:
         if self.loss_functions is None:
             raise ValueError("Loss function is not set")
-        output = self.forward(batch)
 
         scores = output.scores
         query_embeddings = output.query_embeddings
