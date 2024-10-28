@@ -1,5 +1,4 @@
 import warnings
-from abc import abstractmethod
 from pathlib import Path
 
 import torch
@@ -38,14 +37,14 @@ class FaissIndexer(Indexer):
         if torch.cuda.is_available():
             self.to_gpu()
 
-    @abstractmethod
-    def to_gpu(self) -> None: ...
+    def to_gpu(self) -> None:
+        pass
 
-    @abstractmethod
-    def to_cpu(self) -> None: ...
+    def to_cpu(self) -> None:
+        pass
 
-    @abstractmethod
-    def set_verbosity(self, verbose: bool | None = None) -> None: ...
+    def set_verbosity(self, verbose: bool | None = None) -> None:
+        self.index.verbose = self.verbose if verbose is None else verbose
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
         return embeddings
@@ -98,9 +97,6 @@ class FaissFlatIndexer(FaissIndexer):
 
     def to_cpu(self) -> None:
         pass
-
-    def set_verbosity(self, verbose: bool | None = None) -> None:
-        self.index.verbose = self.verbose if verbose is None else verbose
 
 
 class FaissIVFIndexer(FaissIndexer):
