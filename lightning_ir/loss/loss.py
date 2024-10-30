@@ -6,21 +6,23 @@ from typing import TYPE_CHECKING, Literal, Tuple
 import torch
 
 if TYPE_CHECKING:
-    from ..bi_encoder import BiEncoderEmbedding
+    from ..base import LightningIROutput
+    from ..bi_encoder import BiEncoderOutput
 
 
 class LossFunction(ABC):
     @abstractmethod
-    def compute_loss(self, *args, **kwargs) -> torch.Tensor: ...
+    def compute_loss(self, output: LightningIROutput, *args, **kwargs) -> torch.Tensor: ...
+
+    def process_scores(self, output: LightningIROutput) -> torch.Tensor:
+        if output.scores is None:
+            raise ValueError("Expected scores in LightningIROutput")
+        return output.scores
 
 
 class ScoringLossFunction(LossFunction):
     @abstractmethod
-    def compute_loss(
-        self,
-        scores: torch.Tensor,
-        targets: torch.Tensor,
-    ) -> torch.Tensor: ...
+    def compute_loss(self, output: LightningIROutput, targets: torch.Tensor) -> torch.Tensor: ...
 
     def process_targets(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         if targets.ndim > scores.ndim:
@@ -30,9 +32,7 @@ class ScoringLossFunction(LossFunction):
 
 class EmbeddingLossFunction(LossFunction):
     @abstractmethod
-    def compute_loss(
-        self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding
-    ) -> torch.Tensor: ...
+    def compute_loss(self, output: BiEncoderOutput) -> torch.Tensor: ...
 
 
 class PairwiseLossFunction(ScoringLossFunction):
@@ -49,7 +49,8 @@ class MarginMSE(PairwiseLossFunction):
     def __init__(self, margin: float | Literal["scores"] = 1.0):
         self.margin = margin
 
-    def compute_loss(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, targets: torch.Tensor) -> torch.Tensor:
+        scores = self.process_scores(output)
         targets = self.process_targets(scores, targets)
         query_idcs, pos_idcs, neg_idcs = self.get_pairwise_idcs(targets)
         pos = scores[query_idcs, pos_idcs]
@@ -76,7 +77,8 @@ class SupervisedMarginMSE(MarginMSE):
 
 
 class RankNet(PairwiseLossFunction):
-    def compute_loss(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, targets: torch.Tensor) -> torch.Tensor:
+        scores = self.process_scores(output)
         targets = self.process_targets(scores, targets)
         query_idcs, pos_idcs, neg_idcs = self.get_pairwise_idcs(targets)
         pos = scores[query_idcs, pos_idcs]
@@ -87,7 +89,8 @@ class RankNet(PairwiseLossFunction):
 
 
 class KLDivergence(ListwiseLossFunction):
-    def compute_loss(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, targets: torch.Tensor) -> torch.Tensor:
+        scores = self.process_scores(output)
         targets = self.process_targets(scores, targets)
         scores = torch.nn.functional.log_softmax(scores, dim=-1)
         targets = torch.nn.functional.log_softmax(targets.to(scores), dim=-1)
@@ -96,7 +99,8 @@ class KLDivergence(ListwiseLossFunction):
 
 
 class LocalizedContrastiveEstimation(ListwiseLossFunction):
-    def compute_loss(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, targets: torch.Tensor) -> torch.Tensor:
+        scores = self.process_scores(output)
         targets = self.process_targets(scores, targets)
         targets = targets.argmax(dim=1)
         loss = torch.nn.functional.cross_entropy(scores, targets)
@@ -159,7 +163,9 @@ class ApproxNDCG(ApproxLossFunction):
         ndcg = dcg / (idcg.clamp(min=1e-12))
         return ndcg
 
-    def compute_loss(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, targets: torch.Tensor) -> torch.Tensor:
+        scores = self.process_scores(output)
+        scores = self.process_scores(output)
         targets = self.process_targets(scores, targets)
         approx_ranks = self.get_approx_ranks(scores, self.temperature)
         ndcg = self.get_ndcg(approx_ranks, targets, k=None, scale_gains=self.scale_gains)
@@ -181,7 +187,8 @@ class ApproxMRR(ApproxLossFunction):
         mrr = mrr.max(dim=-1)[0]
         return mrr
 
-    def compute_loss(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, targets: torch.Tensor) -> torch.Tensor:
+        scores = self.process_scores(output)
         targets = self.process_targets(scores, targets)
         approx_ranks = self.get_approx_ranks(scores, self.temperature)
         mrr = self.get_mrr(approx_ranks, targets, k=None)
@@ -198,7 +205,8 @@ class ApproxRankMSE(ApproxLossFunction):
         super().__init__(temperature)
         self.discount = discount
 
-    def compute_loss(self, scores: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, targets: torch.Tensor) -> torch.Tensor:
+        scores = self.process_scores(output)
         targets = self.process_targets(scores, targets)
         approx_ranks = self.get_approx_ranks(scores, self.temperature)
         ranks = torch.argsort(torch.argsort(targets, descending=True)) + 1
@@ -262,7 +270,7 @@ class NeuralLossFunction(ListwiseLossFunction):
         return pred_sorted_targets
 
 
-class InBatchLossFunction(ScoringLossFunction):
+class InBatchLossFunction(LossFunction):
     def __init__(
         self,
         pos_sampling_technique: Literal["all", "first"] = "all",
@@ -305,12 +313,13 @@ class InBatchLossFunction(ScoringLossFunction):
             neg_idcs = neg_idcs.reshape(-1)
         return pos_idcs, neg_idcs
 
-    def compute_loss(self, scores: torch.Tensor) -> torch.Tensor:
-        raise NotImplementedError("InBatchLossFunction.compute_loss must be implemented by subclasses")
+    def compute_loss(self, output: LightningIROutput) -> torch.Tensor:
+        return super().compute_loss(output)
 
 
 class InBatchCrossEntropy(InBatchLossFunction):
-    def compute_loss(self, scores: torch.Tensor) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput) -> torch.Tensor:
+        scores = self.process_scores(output)
         targets = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
         loss = torch.nn.functional.cross_entropy(scores, targets)
         return loss
@@ -321,27 +330,39 @@ class RegularizationLossFunction(EmbeddingLossFunction):
         self.query_weight = query_weight
         self.doc_weight = doc_weight
 
+    def process_embeddings(self, output: BiEncoderOutput) -> Tuple[torch.Tensor, torch.Tensor]:
+        query_embeddings = output.query_embeddings
+        doc_embeddings = output.doc_embeddings
+        if query_embeddings is None:
+            raise ValueError("Expected query_embeddings in BiEncoderOutput")
+        if doc_embeddings is None:
+            raise ValueError("Expected doc_embeddings in BiEncoderOutput")
+        return query_embeddings.embeddings, doc_embeddings.embeddings
+
 
 class L2Regularization(RegularizationLossFunction):
-    def compute_loss(self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding) -> torch.Tensor:
-        query_loss = self.query_weight * query_embeddings.embeddings.norm(dim=-1).mean()
-        doc_loss = self.doc_weight * doc_embeddings.embeddings.norm(dim=-1).mean()
+    def compute_loss(self, output: BiEncoderOutput) -> torch.Tensor:
+        query_embeddings, doc_embeddings = self.process_embeddings(output)
+        query_loss = self.query_weight * query_embeddings.norm(dim=-1).mean()
+        doc_loss = self.doc_weight * doc_embeddings.norm(dim=-1).mean()
         loss = query_loss + doc_loss
         return loss
 
 
 class L1Regularization(RegularizationLossFunction):
-    def compute_loss(self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding) -> torch.Tensor:
-        query_loss = self.query_weight * query_embeddings.embeddings.norm(p=1, dim=-1).mean()
-        doc_loss = self.doc_weight * doc_embeddings.embeddings.norm(p=1, dim=-1).mean()
+    def compute_loss(self, output: BiEncoderOutput) -> torch.Tensor:
+        query_embeddings, doc_embeddings = self.process_embeddings(output)
+        query_loss = self.query_weight * query_embeddings.norm(p=1, dim=-1).mean()
+        doc_loss = self.doc_weight * doc_embeddings.norm(p=1, dim=-1).mean()
         loss = query_loss + doc_loss
         return loss
 
 
 class FLOPSRegularization(RegularizationLossFunction):
-    def compute_loss(self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding) -> torch.Tensor:
-        query_loss = torch.sum(torch.mean(torch.abs(query_embeddings.embeddings), dim=0) ** 2)
-        doc_loss = torch.sum(torch.mean(torch.abs(doc_embeddings.embeddings), dim=0) ** 2)
-        anti_zero = 1 / (torch.sum(query_embeddings.embeddings) ** 2) + 1 / (torch.sum(doc_embeddings.embeddings) ** 2)
+    def compute_loss(self, output: BiEncoderOutput) -> torch.Tensor:
+        query_embeddings, doc_embeddings = self.process_embeddings(output)
+        query_loss = torch.sum(torch.mean(torch.abs(query_embeddings), dim=0) ** 2)
+        doc_loss = torch.sum(torch.mean(torch.abs(doc_embeddings), dim=0) ** 2)
+        anti_zero = 1 / (torch.sum(query_embeddings) ** 2) + 1 / (torch.sum(doc_embeddings) ** 2)
         loss = self.query_weight * query_loss + self.doc_weight * doc_loss + anti_zero
         return loss

@@ -4,7 +4,7 @@ import torch
 
 from ..base.module import LightningIRModule
 from ..data import RankBatch, SearchBatch, TrainBatch
-from ..loss.loss import InBatchLossFunction, LossFunction
+from ..loss.loss import LossFunction, ScoringLossFunction
 from .config import CrossEncoderConfig
 from .model import CrossEncoderModel, CrossEncoderOutput
 from .tokenizer import CrossEncoderTokenizer
@@ -38,16 +38,15 @@ class CrossEncoderModule(LightningIRModule):
         if self.loss_functions is None:
             raise ValueError("loss_functions must be set in the module")
         output = self.forward(batch)
-        scores = output.scores
-        if scores is None or batch.targets is None:
+        if output.scores is None or batch.targets is None:
             raise ValueError("scores and targets must be set in the output and batch")
 
-        scores = scores.view(len(batch.query_ids), -1)
-        targets = batch.targets.view(*scores.shape, -1)
+        output.scores = output.scores.view(len(batch.query_ids), -1)
+        targets = batch.targets.view(*output.scores.shape, -1)
 
         losses = []
         for loss_function, _ in self.loss_functions:
-            if isinstance(loss_function, InBatchLossFunction):
-                raise NotImplementedError("InBatchLossFunction not implemented for cross-encoders")
-            losses.append(loss_function.compute_loss(scores, targets))
+            if not isinstance(loss_function, ScoringLossFunction):
+                raise RuntimeError(f"Loss function {loss_function} is not a scoring loss function")
+            losses.append(loss_function.compute_loss(output, targets))
         return losses

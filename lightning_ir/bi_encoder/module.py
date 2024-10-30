@@ -3,7 +3,7 @@ from typing import List, Sequence, Tuple
 
 import torch
 
-from ..base import LightningIRModule
+from ..base import LightningIRModule, LightningIROutput
 from ..data import IndexBatch, RankBatch, SearchBatch, TrainBatch
 from ..loss.loss import EmbeddingLossFunction, InBatchLossFunction, LossFunction, ScoringLossFunction
 from ..retrieve import SearchConfig, Searcher
@@ -79,36 +79,40 @@ class BiEncoderModule(LightningIRModule):
         if self.loss_functions is None:
             raise ValueError("Loss function is not set")
 
-        scores = output.scores
-        query_embeddings = output.query_embeddings
-        doc_embeddings = output.doc_embeddings
-        if batch.targets is None or query_embeddings is None or doc_embeddings is None or scores is None:
+        if (
+            batch.targets is None
+            or output.query_embeddings is None
+            or output.doc_embeddings is None
+            or output.scores is None
+        ):
             raise ValueError(
                 "targets, scores, query_embeddings, and doc_embeddings must be set in " "the output and batch"
             )
 
         num_queries = len(batch.queries)
-        scores = scores.view(num_queries, -1)
-        targets = batch.targets.view(*scores.shape, -1)
+        output.scores = output.scores.view(num_queries, -1)
+        targets = batch.targets.view(*output.scores.shape, -1)
         losses = []
         for loss_function, _ in self.loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
-                pos_idcs, neg_idcs = loss_function.get_ib_idcs(*scores.shape)
-                ib_doc_embeddings = self.get_ib_doc_embeddings(doc_embeddings, pos_idcs, neg_idcs, num_queries)
-                ib_scores = self.model.score(query_embeddings, ib_doc_embeddings)
+                pos_idcs, neg_idcs = loss_function.get_ib_idcs(*output.scores.shape)
+                ib_doc_embeddings = self.get_ib_doc_embeddings(output.doc_embeddings, pos_idcs, neg_idcs, num_queries)
+                ib_scores = self.model.score(output.query_embeddings, ib_doc_embeddings)
                 ib_scores = ib_scores.view(num_queries, -1)
-                losses.append(loss_function.compute_loss(ib_scores))
+                losses.append(loss_function.compute_loss(LightningIROutput(ib_scores)))
             elif isinstance(loss_function, EmbeddingLossFunction):
-                losses.append(loss_function.compute_loss(query_embeddings, doc_embeddings))
+                losses.append(loss_function.compute_loss(output))
             elif isinstance(loss_function, ScoringLossFunction):
-                losses.append(loss_function.compute_loss(scores, targets))
+                losses.append(loss_function.compute_loss(output, targets))
             else:
                 raise ValueError(f"Unknown loss function type {loss_function.__class__.__name__}")
         if self.config.sparsification is not None:
             query_num_nonzero = (
-                torch.nonzero(query_embeddings.embeddings).shape[0] / query_embeddings.embeddings.shape[0]
+                torch.nonzero(output.query_embeddings.embeddings).shape[0] / output.query_embeddings.embeddings.shape[0]
             )
-            doc_num_nonzero = torch.nonzero(doc_embeddings.embeddings).shape[0] / doc_embeddings.embeddings.shape[0]
+            doc_num_nonzero = (
+                torch.nonzero(output.doc_embeddings.embeddings).shape[0] / output.doc_embeddings.embeddings.shape[0]
+            )
             self.log("query_num_nonzero", query_num_nonzero)
             self.log("doc_num_nonzero", doc_num_nonzero)
         return losses

@@ -211,7 +211,7 @@ class LightningIRModule(LightningModule):
 
         dataset_id = self.get_dataset_id(dataloader_idx)
         metrics = self.validate(
-            scores=output.scores,
+            output=output,
             query_ids=batch.query_ids,
             doc_ids=batch.doc_ids,
             qrels=batch.qrels,
@@ -262,7 +262,7 @@ class LightningIRModule(LightningModule):
 
     def validate(
         self,
-        scores: torch.Tensor | None = None,
+        output: LightningIROutput,
         query_ids: Sequence[str] | None = None,
         doc_ids: Sequence[Sequence[str]] | None = None,
         qrels: Sequence[Dict[str, int]] | None = None,
@@ -271,8 +271,8 @@ class LightningIRModule(LightningModule):
     ) -> Dict[str, float]:
         """Validates the model output with the evaluation metrics and loss functions.
 
-        :param scores: Model output scores, defaults to None
-        :type scores: torch.Tensor | None, optional
+        :param output: Model output
+        :type output: LightningIROutput
         :param query_ids: ids of the queries, defaults to None
         :type query_ids: Sequence[str] | None, optional
         :param doc_ids: ids of the documents, defaults to None
@@ -289,7 +289,7 @@ class LightningIRModule(LightningModule):
         :rtype: Dict[str, float]
         """
         metrics: Dict[str, float] = {}
-        if self.evaluation_metrics is None or scores is None:
+        if self.evaluation_metrics is None or output.scores is None:
             return metrics
         if query_ids is None:
             if num_docs is None:
@@ -299,21 +299,21 @@ class LightningIRModule(LightningModule):
             if num_docs is None:
                 raise ValueError("num_docs must be set if doc_ids is not set")
             doc_ids = tuple(tuple(f"{i}-{j}" for j in range(docs)) for i, docs in enumerate(num_docs))
-        metrics.update(self.validate_metrics(scores, query_ids, doc_ids, qrels))
-        metrics.update(self.validate_loss(scores, query_ids, targets))
+        metrics.update(self.validate_metrics(output, query_ids, doc_ids, qrels))
+        metrics.update(self.validate_loss(output, query_ids, targets))
         return metrics
 
     def validate_metrics(
         self,
-        scores: torch.Tensor,
+        output: LightningIROutput,
         query_ids: Sequence[str],
         doc_ids: Sequence[Sequence[str]],
         qrels: Sequence[Dict[str, int]] | None,
     ) -> Dict[str, float]:
         """Validates the model output with the evaluation metrics.
 
-        :param scores: Model output scores
-        :type scores: torch.Tensor
+        :param output: Model output
+        :type output: LightningIROutput
         :param query_ids: ids of the queries
         :type query_ids: Sequence[str]
         :param doc_ids: ids of the documents
@@ -328,18 +328,18 @@ class LightningIRModule(LightningModule):
             return metrics
         evaluation_metrics = [metric for metric in self.evaluation_metrics if metric != "loss"]
         ir_measures_qrels = create_qrels_from_dicts(qrels)
-        if evaluation_metrics and qrels is not None:
-            run = create_run_from_scores(query_ids, doc_ids, scores)
+        if evaluation_metrics and qrels is not None and output.scores is not None:
+            run = create_run_from_scores(query_ids, doc_ids, output.scores)
             metrics.update(evaluate_run(run, ir_measures_qrels, evaluation_metrics))
         return metrics
 
     def validate_loss(
-        self, scores: torch.Tensor, query_ids: Sequence[str], targets: torch.Tensor | None
+        self, output: LightningIROutput, query_ids: Sequence[str], targets: torch.Tensor | None
     ) -> Dict[str, float]:
         """Validates the model output with the loss functions.
 
-        :param scores: Model output scores
-        :type scores: torch.Tensor
+        :param output: Model output
+        :type output: LightningIROutput
         :param query_ids: ids of the queries
         :type query_ids: Sequence[str]
         :param targets: Target tensor used during fine-tuning
@@ -353,15 +353,16 @@ class LightningIRModule(LightningModule):
             or "loss" not in self.evaluation_metrics
             or targets is None
             or self.loss_functions is None
+            or output.scores is None
         ):
             return metrics
-        scores = scores.view(len(query_ids), -1)
+        output.scores = output.scores.view(len(query_ids), -1)
         for loss_function, _ in self.loss_functions:
             # NOTE skip in-batch losses because they can use a lot of memory
             if isinstance(loss_function, InBatchLossFunction):
                 continue
             metrics[f"validation-{loss_function.__class__.__name__}"] = loss_function.compute_loss(
-                scores, targets
+                output, targets
             ).item()
         return metrics
 
