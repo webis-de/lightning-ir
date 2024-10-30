@@ -61,7 +61,7 @@ class MarginMSE(PairwiseLossFunction):
             target_margin = targets[query_idcs, pos_idcs] - targets[query_idcs, neg_idcs]
         else:
             raise ValueError("invalid margin type")
-        loss = torch.nn.functional.mse_loss(margin, target_margin.clamp(min=0))
+        loss = torch.nn.functional.mse_loss(margin, target_margin)
         return loss
 
 
