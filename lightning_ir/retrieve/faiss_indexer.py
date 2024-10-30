@@ -55,7 +55,7 @@ class FaissIndexer(Indexer):
 
         if self.num_embeddings != self.index.ntotal:
             raise ValueError("number of embeddings does not match index.ntotal")
-        if torch.cuda.is_available():
+        if torch.cuda.is_available() and hasattr(faiss, "index_gpu_to_cpu"):
             self.index = faiss.index_gpu_to_cpu(self.index)
 
         faiss.write_index(self.index, str(self.index_dir / "index.faiss"))
@@ -152,14 +152,15 @@ class FaissIVFIndexer(FaissIndexer):
     def to_cpu(self) -> None:
         import faiss
 
-        self.index = faiss.index_gpu_to_cpu(self.index)
+        if torch.cuda.is_available() and hasattr(faiss, "index_gpu_to_cpu") and hasattr(faiss, "index_cpu_to_gpu"):
+            self.index = faiss.index_gpu_to_cpu(self.index)
 
-        # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
-        # move index to cpu but leave quantizer on gpu
-        index_ivf = faiss.extract_index_ivf(self.index)
-        quantizer = index_ivf.quantizer
-        gpu_quantizer = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, quantizer)
-        index_ivf.quantizer = gpu_quantizer
+            # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
+            # move index to cpu but leave quantizer on gpu
+            index_ivf = faiss.extract_index_ivf(self.index)
+            quantizer = index_ivf.quantizer
+            gpu_quantizer = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, quantizer)
+            index_ivf.quantizer = gpu_quantizer
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
         embeddings = self._grab_train_embeddings(embeddings)
