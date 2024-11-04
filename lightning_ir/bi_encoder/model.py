@@ -8,7 +8,7 @@ import warnings
 from dataclasses import dataclass
 from functools import wraps
 from string import punctuation
-from typing import Callable, Iterable, Literal, Sequence, Tuple, overload
+from typing import Callable, Iterable, Literal, Sequence, Tuple, Type, overload
 
 import torch
 from transformers import BatchEncoding
@@ -124,7 +124,7 @@ class BiEncoderModel(LightningIRModel):
     _tied_weights_keys = ["projection.decoder.bias", "projection.decoder.weight", "encoder.embed_tokens.weight"]
     _keys_to_ignore_on_load_unexpected = [r"decoder"]
 
-    config_class = BiEncoderConfig
+    config_class: Type[BiEncoderConfig] = BiEncoderConfig
     """Configuration class for the bi-encoder model."""
 
     def __init__(self, config: BiEncoderConfig, *args, **kwargs) -> None:

@@ -5,7 +5,7 @@ This module contains the tokenizer class bi-encoder models.
 """
 
 import warnings
-from typing import Dict, Sequence
+from typing import Dict, Sequence, Type
 
 from tokenizers.processors import TemplateProcessing
 from transformers import BatchEncoding, BertTokenizer, BertTokenizerFast
@@ -16,7 +16,7 @@ from .config import BiEncoderConfig
 
 class BiEncoderTokenizer(LightningIRTokenizer):
 
-    config_class = BiEncoderConfig
+    config_class: Type[BiEncoderConfig] = BiEncoderConfig
     """Configuration class for the tokenizer."""
 
     QUERY_TOKEN: str = "[QUE]"

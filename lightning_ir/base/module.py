@@ -269,7 +269,7 @@ class LightningIRModule(LightningModule):
         doc_ids: Sequence[Sequence[str]] | None = None,
         qrels: Sequence[Dict[str, int]] | None = None,
         targets: torch.Tensor | None = None,
-        num_docs: Sequence[int] | None = None,
+        num_docs: Sequence[int] | int | None = None,
     ) -> Dict[str, float]:
         """Validates the model output with the evaluation metrics and loss functions.
 
@@ -283,8 +283,11 @@ class LightningIRModule(LightningModule):
         :type qrels: Sequence[Dict[str, int]] | None, optional
         :param targets: Target tensor used during fine-tuning, defaults to None
         :type targets: torch.Tensor | None, optional
-        :param num_docs: Number of documents per query, defaults to None
-        :type num_docs: Sequence[int] | None, optional
+        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
+            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
+            sequence contains one value per query specifying the number of documents for that query. If an integer,
+            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
+            the number of documents by the number of queries, defaults to None
         :raises ValueError: If num_docs can not be parsed and query_ids are not set
         :raises ValueError: If num_docs can not be parsed and doc_ids are not set
         :return: _description_

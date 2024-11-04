@@ -13,9 +13,8 @@ from ..base import LightningIRConfig
 
 
 class BiEncoderConfig(LightningIRConfig):
-    """The configuration class to instantiate a Bi-Encoder model."""
-
-    model_type = "bi-encoder"
+    model_type: str = "bi-encoder"
+    """Model type for bi-encoder models."""
 
     TOKENIZER_ARGS = LightningIRConfig.TOKENIZER_ARGS.union(
         {
@@ -26,6 +25,7 @@ class BiEncoderConfig(LightningIRConfig):
             "add_marker_tokens",
         }
     )
+    """Arguments for the tokenizer."""
 
     ADDED_ARGS = LightningIRConfig.ADDED_ARGS.union(
         {
@@ -41,9 +41,12 @@ class BiEncoderConfig(LightningIRConfig):
             "projection",
         }
     ).union(TOKENIZER_ARGS)
+    """Arguments added to the configuration."""
 
     def __init__(
         self,
+        query_length: int = 32,
+        doc_length: int = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         query_expansion: bool = False,
         attend_to_query_expanded_tokens: bool = False,
@@ -61,8 +64,12 @@ class BiEncoderConfig(LightningIRConfig):
         projection: Literal["linear", "linear_no_bias", "mlm"] | None = "linear",
         **kwargs,
     ):
-        """Initializes a bi-encoder configuration.
+        """Configuration class for a bi-encoder model.
 
+        :param query_length: Maximum query length, defaults to 32
+        :type query_length: int, optional
+        :param doc_length: Maximum document length, defaults to 512
+        :type doc_length: int, optional
         :param similarity_function: Similarity function to compute scores between query and document embeddings,
             defaults to "dot"
         :type similarity_function: Literal['cosine', 'dot'], optional
@@ -97,7 +104,7 @@ class BiEncoderConfig(LightningIRConfig):
         :param projection: Whether and how to project the output emeddings, defaults to "linear"
         :type projection: Literal['linear', 'linear_no_bias', 'mlm'] | None, optional
         """
-        super().__init__(**kwargs)
+        super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)
         self.similarity_function = similarity_function
         self.query_expansion = query_expansion
         self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
