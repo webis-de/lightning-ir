@@ -8,7 +8,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial, wraps
 from pathlib import Path
-from typing import Any, Callable, Literal, Mapping, Sequence, Type, TypeVar
+from typing import Any, Callable, Literal, Mapping, Protocol, Sequence, Type, TypeVar
 
 import torch
 from transformers import MODEL_MAPPING, BatchEncoding, BertModel
@@ -232,10 +232,21 @@ def _cat_outputs(
     return OutputClass(**{key: _cat_outputs(value, types[key]) for key, value in agg.items()})
 
 
-def _batch_encoding(
-    func: Callable[[LightningIRModel, BatchEncoding, ...], Any]
-) -> Callable[[LightningIRModel, BatchEncoding, ...], Any]:
-    """Decorator to enable sub-batching for models that support it."""
+class BatchEncodingWrapper(Protocol):
+    def __call__(self, encoding: BatchEncoding, *args, **kwargs) -> Any: ...
+
+
+def batch_encoding_wrapper(func: BatchEncodingWrapper) -> BatchEncodingWrapper:
+    """Decorator to enable sub-batching for models that support it. Lowers the batch size of the input batch encoding
+    if the model runs out of memory.
+
+    :param func: Function to wrap that takes a batch encoding
+    :type func: BatchEncodingWrapper
+    :raises e: If CUDA runs out of memory even after lowering the batch size to 1
+    :raises ValueError: If no output was generated
+    :return: Wrapped function
+    :rtype: BatchEncodingWrapper
+    """
 
     @wraps(func)
     def wrapper(self, encoding: BatchEncoding, *args, **kwargs) -> Any:

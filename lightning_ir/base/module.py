@@ -165,15 +165,8 @@ class LightningIRModule(LightningModule):
             encodings[key] = encodings[key].to(self.device)
         return encodings
 
-    def compute_losses(self, batch: TrainBatch, output: LightningIROutput) -> List[torch.Tensor]:
-        """Computes the losses for the batch.
-
-        :param batch: Batch of training data
-        :type batch: TrainBatch
-        :raises NotImplementedError: Must be implemented by derived class
-        :return: List of losses, one for each loss function
-        :rtype: List[torch.Tensor]
-        """
+    def _compute_losses(self, batch: TrainBatch, output: LightningIROutput) -> List[torch.Tensor]:
+        """Computes the losses for a training batch."""
         raise NotImplementedError
 
     def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
@@ -190,7 +183,7 @@ class LightningIRModule(LightningModule):
         if self.loss_functions is None:
             raise ValueError("Loss functions are not set")
         output = self.forward(batch)
-        losses = self.compute_losses(batch, output)
+        losses = self._compute_losses(batch, output)
         total_loss = torch.tensor(0)
         assert len(losses) == len(self.loss_functions)
         for (loss_function, loss_weight), loss in zip(self.loss_functions, losses):
@@ -205,7 +198,7 @@ class LightningIRModule(LightningModule):
         """Handles the validation step for the model.
 
         :param batch: Batch of validation or testing data
-        :type batch: TrainBatch | RankBatch
+        :type batch: TrainBatch | RankBatch | SearchBatch
         :param batch_idx: Index of the batch
         :type batch_idx: int
         :param dataloader_idx: Index of the dataloader, defaults to 0

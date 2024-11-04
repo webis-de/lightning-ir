@@ -36,7 +36,7 @@ class CustomBiEncoderModel(BiEncoderModel):
         if config.additional_linear_layer:
             self.additional_linear_layer = torch.nn.Linear(config.hidden_size, config.hidden_size)
 
-    def _encode(
+    def encode(
         self,
         encoding: BatchEncoding,
         expansion: bool = False,
@@ -52,7 +52,7 @@ class CustomBiEncoderModel(BiEncoderModel):
         embeddings = self._pooling(embeddings, encoding["attention_mask"], pooling_strategy)
         if self.config.normalize:
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
-        scoring_mask = self._scoring_mask(
+        scoring_mask = self.scoring_mask(
             encoding["input_ids"],
             encoding["attention_mask"],
             expansion,

@@ -1,3 +1,9 @@
+"""
+Configuration module for bi-encoder models.
+
+This module defines the configuration class used to instantiate bi-encoder models.
+"""
+
 import json
 import os
 from os import PathLike
@@ -109,6 +115,16 @@ class BiEncoderConfig(LightningIRConfig):
         self.projection = projection
 
     def to_dict(self) -> Dict[str, Any]:
+        """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments, the backbone
+        model type, and remove the mask scoring tokens.
+
+        .. _transformers.PretrainedConfig.to_dict: \
+https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.to_dict
+
+        :return: Configuration dictionary
+        :rtype: Dict[str, Any]
+        """
+
         output = super().to_dict()
         if "query_mask_scoring_tokens" in output:
             output.pop("query_mask_scoring_tokens")
@@ -116,15 +132,35 @@ class BiEncoderConfig(LightningIRConfig):
             output.pop("doc_mask_scoring_tokens")
         return output
 
-    def save_pretrained(self, save_directory: str | PathLike, push_to_hub: bool = False, **kwargs):
+    def save_pretrained(self, save_directory: str | PathLike, **kwargs) -> None:
+        """Overrides the transformers.PretrainedConfig.save_pretrained_ method to addtionally save the tokens which
+        should be maksed during scoring.
+
+        .. _transformers.PretrainedConfig.save_pretrained: \
+https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.save_pretrained
+
+        :param save_directory: Directory to save the configuration
+        :type save_directory: str | PathLike
+        """
         with open(os.path.join(save_directory, "mask_scoring_tokens.json"), "w") as f:
             json.dump({"query": self.query_mask_scoring_tokens, "doc": self.doc_mask_scoring_tokens}, f)
-        return super().save_pretrained(save_directory, push_to_hub, **kwargs)
+        return super().save_pretrained(save_directory, **kwargs)
 
     @classmethod
     def get_config_dict(
         cls, pretrained_model_name_or_path: str | PathLike, **kwargs
     ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """Overrides the transformers.PretrainedConfig.get_config_dict_ method to load the tokens that should be masked
+        during scoring.
+
+        .. _transformers.PretrainedConfig.get_config_dict: \
+https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.get_config_dict
+
+        :param pretrained_model_name_or_path: Name or path of the pretrained model
+        :type pretrained_model_name_or_path: str | PathLike
+        :return: Configuration dictionary and additional keyword arguments
+        :rtype: Tuple[Dict[str, Any], Dict[str, Any]]
+        """
         config_dict, kwargs = super().get_config_dict(pretrained_model_name_or_path, **kwargs)
         mask_scoring_tokens = None
         mask_scoring_tokens_path = os.path.join(pretrained_model_name_or_path, "mask_scoring_tokens.json")

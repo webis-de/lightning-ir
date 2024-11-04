@@ -24,7 +24,7 @@ Say we wanted to build a custom bi-encoder model that adds an additional linear 
             super().__init__(**kwargs)
             self.additional_linear_layer = additional_linear_layer
 
-Next, we need to subclass the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel` and override the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel._encode` method to include the additional linear layer. We also need to ensure that our new config class is registered with our new model as the :py:meth:`~lightning_ir.bi_encoder.model.BiEncoderModel.config_class` attribute. In the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel._encode` method, the :py:meth:`~lightning_ir.bi_encoder.model.BiEncoderModel._backbone_forward` method runs the backbone model and returns the contextualized embeddings of the input sequence. We then apply our additional linear layer to the pooled embeddings. Afterwards, the various steps of the processing pipeline for bi-encoders are applied (see :ref:`concepts-model` for more details). For example:
+Next, we need to subclass the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel` and override the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel.encode` method to include the additional linear layer. We also need to ensure that our new config class is registered with our new model as the :py:meth:`~lightning_ir.bi_encoder.model.BiEncoderModel.config_class` attribute. In the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel.encode` method, the :py:meth:`~lightning_ir.bi_encoder.model.BiEncoderModel._backbone_forward` method runs the backbone model and returns the contextualized embeddings of the input sequence. We then apply our additional linear layer to the pooled embeddings. Afterwards, the various steps of the processing pipeline for bi-encoders are applied (see :ref:`concepts-model` for more details). For example:
 
 .. code-block:: python
     
@@ -46,7 +46,7 @@ Next, we need to subclass the :py:class:`lightning_ir.bi_encoder.model.BiEncoder
                     config.hidden_size, config.hidden_size
                 )
 
-        def _encode(
+        def encode(
             self,
             encoding: BatchEncoding,
             expansion: bool = False,
@@ -62,7 +62,7 @@ Next, we need to subclass the :py:class:`lightning_ir.bi_encoder.model.BiEncoder
             embeddings = self._pooling(embeddings, encoding["attention_mask"], pooling_strategy)
             if self.config.normalize:
                 embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
-            scoring_mask = self._scoring_mask(
+            scoring_mask = self.scoring_mask(
                 encoding["input_ids"],
                 encoding["attention_mask"],
                 expansion,

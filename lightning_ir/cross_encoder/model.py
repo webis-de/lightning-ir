@@ -5,7 +5,7 @@ import torch
 from transformers import BatchEncoding
 
 from ..base import LightningIRModel, LightningIROutput
-from ..base.model import _batch_encoding
+from ..base.model import batch_encoding_wrapper
 from . import CrossEncoderConfig
 
 
@@ -22,7 +22,7 @@ class CrossEncoderModel(LightningIRModel):
         self.config: CrossEncoderConfig
         self.linear = torch.nn.Linear(config.hidden_size, 1, bias=config.linear_bias)
 
-    @_batch_encoding
+    @batch_encoding_wrapper
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
         embeddings = self._backbone_forward(**encoding).last_hidden_state
         embeddings = self._pooling(
