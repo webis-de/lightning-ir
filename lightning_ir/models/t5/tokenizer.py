@@ -30,7 +30,7 @@ class T5CrossEncoderTokenizer(CrossEncoderTokenizer):
         num_docs: Sequence[int] | None = None,
         **kwargs,
     ) -> Dict[str, BatchEncoding]:
-        expanded_queries, docs = self.preprocess(queries, docs, num_docs)
+        expanded_queries, docs = self._preprocess(queries, docs, num_docs)
         if self.decoder_strategy == "mono":
             pattern = "Query: {query} Document: {doc} Relevant:"
         elif self.decoder_strategy == "rank":
