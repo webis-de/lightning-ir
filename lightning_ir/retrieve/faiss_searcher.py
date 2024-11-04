@@ -113,7 +113,7 @@ class FaissSearcher(Searcher):
         query_lengths: torch.Tensor,
     ) -> Tuple[torch.Tensor, torch.Tensor, List[int]]:
         max_query_length = int(query_lengths.max().item())
-        is_query_single_vector = max_query_length == 1
+        query_is_single_vector = max_query_length == 1
 
         if self.doc_is_single_vector:
             scores = candidate_scores.view(-1)
@@ -151,7 +151,7 @@ class FaissSearcher(Searcher):
                 include_self=False,
             ).view(shape)
 
-        if is_query_single_vector:
+        if query_is_single_vector:
             scores = scores.squeeze(-1)
         else:
             # impute missing values
