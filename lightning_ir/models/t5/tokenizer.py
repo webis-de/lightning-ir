@@ -27,7 +27,7 @@ class T5CrossEncoderTokenizer(CrossEncoderTokenizer):
         self,
         queries: str | Sequence[str] | None = None,
         docs: str | Sequence[str] | None = None,
-        num_docs: Sequence[int] | None = None,
+        num_docs: Sequence[int] | int | None = None,
         **kwargs,
     ) -> Dict[str, BatchEncoding]:
         expanded_queries, docs = self._preprocess(queries, docs, num_docs)
