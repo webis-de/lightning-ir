@@ -1,3 +1,11 @@
+"""
+Base configuration class for Lightning IR models.
+
+This module defines the configuration class `LightningIRConfig` which is used to instantiate
+a Lightning IR model. The configuration class acts as a mixin for the `transformers.PretrainedConfig`
+class from the Hugging Face Transformers library.
+"""
+
 from pathlib import Path
 from typing import Any, Dict, Set
 
@@ -8,7 +16,7 @@ from .external_model_hub import CHECKPOINT_MAPPING
 
 
 class LightningIRConfig:
-    """The configuration class to instantiate a LightningIR model. Acts as a mixin for the
+    """The configuration class to instantiate a Lightning IR model. Acts as a mixin for the
     transformers.PretrainedConfig_ class.
 
     .. _transformers.PretrainedConfig: \
@@ -58,7 +66,7 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         model type.
 
         .. _transformers.PretrainedConfig.to_dict: \
-https://huggingface.co/docs/transformers/main_classes/configuration.html#transformers.PretrainedConfig.to_dict
+https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.to_dict
 
         :return: Configuration dictionary
         :rtype: Dict[str, Any]
@@ -73,6 +81,18 @@ https://huggingface.co/docs/transformers/main_classes/configuration.html#transfo
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: str | Path, *args, **kwargs) -> "LightningIRConfig":
+        """Loads the configuration from a pretrained model. Wraps the transformers.PretrainedConfig.from_pretrained_
+
+        .. _transformers.PretrainedConfig.from_pretrained: \
+https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.from_pretrained
+
+        :param pretrained_model_name_or_path: Pretrained model name or path
+        :type pretrained_model_name_or_path: str | Path
+        :raises ValueError: If `pre_trained_model_name_or_path` is not a Lightning IR model and no
+            :py:class:`LightningIRConfig` is passed
+        :return: Derived LightningIRConfig class
+        :rtype: LightningIRConfig
+        """
         if cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__):
             config = None
             if pretrained_model_name_or_path in CHECKPOINT_MAPPING:

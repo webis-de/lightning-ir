@@ -1,3 +1,10 @@
+"""
+Lightning IR base module.
+
+This module provides the main classes and functions for the Lightning IR library, including
+factories, configurations, models, modules, and tokenizers.
+"""
+
 from .class_factory import (
     LightningIRClassFactory,
     LightningIRConfigClassFactory,

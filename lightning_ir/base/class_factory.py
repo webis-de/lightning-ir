@@ -1,3 +1,10 @@
+"""
+Class factory module for Lightning IR.
+
+This module provides factory classes for creating various components of the Lightning IR library
+by extending Hugging Face Transformers classes.
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -22,7 +29,7 @@ if TYPE_CHECKING:
 
 
 class LightningIRClassFactory(ABC):
-    """Base class for creating derived LightningIR classes from HuggingFace classes."""
+    """Base class for creating derived Lightning IR classes from HuggingFace classes."""
 
     def __init__(self, MixinConfig: Type[LightningIRConfig]) -> None:
         """Creates a new LightningIRClassFactory.
@@ -48,7 +55,7 @@ class LightningIRClassFactory(ABC):
 
     @staticmethod
     def get_lightning_ir_config(model_name_or_path: str | Path) -> Type[LightningIRConfig] | None:
-        """Grabs the LightningIR configuration class from a checkpoint of a pretrained Lightning IR model.
+        """Grabs the Lightning IR configuration class from a checkpoint of a pretrained Lightning IR model.
 
         :param model_name_or_path: Path to the model or its name
         :type model_name_or_path: str | Path
@@ -91,27 +98,27 @@ class LightningIRClassFactory(ABC):
 
     @property
     def cc_lir_model_type(self) -> str:
-        """Camel case model type of the LightningIR model."""
+        """Camel case model type of the Lightning IR model."""
         return "".join(s.title() for s in self.MixinConfig.model_type.split("-"))
 
     @abstractmethod
     def from_pretrained(self, model_name_or_path: str | Path, *args, **kwargs) -> Any:
-        """Loads a derived LightningIR class from a pretrained HuggingFace model. Must be implemented by subclasses.
+        """Loads a derived Lightning IR class from a pretrained HuggingFace model. Must be implemented by subclasses.
 
         :param model_name_or_path: Path to the model or its name
         :type model_name_or_path: str | Path
-        :return: Derived LightningIR class
+        :return: Derived Lightning IR class
         :rtype: Any
         """
         ...
 
     @abstractmethod
     def from_backbone_class(self, BackboneClass: Type) -> Type:
-        """Creates a derived LightningIR class from a backbone HuggingFace class. Must be implemented by subclasses.
+        """Creates a derived Lightning IR class from a backbone HuggingFace class. Must be implemented by subclasses.
 
         :param BackboneClass: Backbone class
         :type BackboneClass: Type
-        :return: Derived LightningIR class
+        :return: Derived Lightning IR class
         :rtype: Type
         """
         ...

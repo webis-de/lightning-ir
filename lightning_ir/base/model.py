@@ -1,4 +1,9 @@
-import warnings
+"""
+Model module for Lightning IR.
+
+This module contains the main model class and output class for the Lightning IR library.
+"""
+
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial, wraps
@@ -17,7 +22,7 @@ from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_D
 
 @dataclass
 class LightningIROutput(ModelOutput):
-    """Base class for the output of the LightningIR model. It is a subclass of transformers.ModelOutput_.
+    """Base class for the output of the Lightning IR model. It is a subclass of transformers.ModelOutput_.
 
     .. _transformers.ModelOutput: https://huggingface.co/transformers/main_classes/output.html#transformers.ModelOutput
 
@@ -29,7 +34,7 @@ class LightningIROutput(ModelOutput):
 
 
 class LightningIRModel:
-    """Base class for LightningIR models. Derived classes implement the forward method for handling query
+    """Base class for Lightning IR models. Derived classes implement the forward method for handling query
     and document embeddings. It acts as mixin for a transformers.PreTrainedModel_ backbone model.
 
     .. _transformers.PreTrainedModel: \
@@ -211,6 +216,7 @@ T = TypeVar("T")
 def _cat_outputs(
     outputs: Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None], OutputClass: Type[T] | None
 ) -> torch.Tensor | T | None:
+    """Helper method to concatenate outputs of the model."""
     if len(outputs) == 1:
         return outputs[0]
     if len(outputs) == 0 or outputs[0] is None or OutputClass is None:
@@ -229,6 +235,7 @@ def _cat_outputs(
 def _batch_encoding(
     func: Callable[[LightningIRModel, BatchEncoding, ...], Any]
 ) -> Callable[[LightningIRModel, BatchEncoding, ...], Any]:
+    """Decorator to enable sub-batching for models that support it."""
 
     @wraps(func)
     def wrapper(self, encoding: BatchEncoding, *args, **kwargs) -> Any:

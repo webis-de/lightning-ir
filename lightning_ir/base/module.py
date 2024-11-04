@@ -1,3 +1,10 @@
+"""LightningModule for Lightning IR.
+
+This module contains the main module class deriving from a LightningModule_.
+
+.. _LightningModule: https://lightning.ai/docs/pytorch/stable/common/lightning_module.html
+"""
+
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple, Type
@@ -15,9 +22,11 @@ from .validation_utils import create_qrels_from_dicts, create_run_from_scores, e
 
 
 class LightningIRModule(LightningModule):
-    """LightningIRModule base class. LightningIRModules contain a LightningIRModel and a LightningIRTokenizer and
-    implements the training, validation, and testing steps for the model. Derived classes must implement the forward
-    method for the model.
+    """LightningIRModule base class. It dervies from a LightningModule_. LightningIRModules contain a
+    LightningIRModel and a LightningIRTokenizer and implements the training, validation, and testing steps for the
+    model. Derived classes must implement the forward method for the model.
+
+    .. _LightningModule: https://lightning.ai/docs/pytorch/stable/common/lightning_module.html
     """
 
     def __init__(
@@ -32,11 +41,11 @@ class LightningIRModule(LightningModule):
 
         .. _ir-measures: https://ir-measur.es/en/latest/index.html
 
-        :param model_name_or_path: Name or path of backbone model or fine-tuned LightningIR model, defaults to None
+        :param model_name_or_path: Name or path of backbone model or fine-tuned Lightning IR model, defaults to None
         :type model_name_or_path: str | None, optional
         :param config: LightningIRConfig to apply when loading from backbone model, defaults to None
         :type config: LightningIRConfig | None, optional
-        :param model: Already instantiated LightningIR model, defaults to None
+        :param model: Already instantiated Lightning IR model, defaults to None
         :type model: LightningIRModel | None, optional
         :param loss_functions: Loss functions to apply during fine-tuning, optional loss weights can be provided per
             loss function, defaults to None

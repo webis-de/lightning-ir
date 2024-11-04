@@ -1,4 +1,9 @@
-import warnings
+"""
+Tokenizer module for Lightning IR.
+
+This module contains the main tokenizer class for the Lightning IR library.
+"""
+
 from typing import Dict, Sequence, Type
 
 from transformers import TOKENIZER_MAPPING, BatchEncoding
@@ -9,7 +14,7 @@ from .external_model_hub import CHECKPOINT_MAPPING
 
 
 class LightningIRTokenizer:
-    """Base class for LightningIR tokenizers. Derived classes implement the tokenize method for handling query
+    """Base class for Lightning IR tokenizers. Derived classes implement the tokenize method for handling query
     and document tokenization. It acts as mixin for a transformers.PreTrainedTokenizer_ backbone tokenizer.
 
     .. _transformers.PreTrainedTokenizer: \

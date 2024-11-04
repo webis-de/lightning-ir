@@ -1,3 +1,7 @@
+"""Validation utilities module for Lightning IR.
+
+This module contains utility functions for validation and evaluation of Lightning IR models."""
+
 from typing import Dict, Sequence
 
 import ir_measures
