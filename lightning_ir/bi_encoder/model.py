@@ -305,13 +305,7 @@ class BiEncoderModel(LightningIRModel):
         embeddings = self._pooling(embeddings, encoding["attention_mask"], pooling_strategy)
         if self.config.normalize:
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
-        scoring_mask = self.scoring_mask(
-            encoding["input_ids"],
-            encoding["attention_mask"],
-            expansion,
-            pooling_strategy,
-            mask_scoring_input_ids,
-        )
+        scoring_mask = self.scoring_mask(encoding, expansion, pooling_strategy, mask_scoring_input_ids)
         return BiEncoderEmbedding(embeddings, scoring_mask)
 
     def scoring_mask(
@@ -335,7 +329,7 @@ class BiEncoderModel(LightningIRModel):
         :return: Scoring mask
         :rtype: torch.Tensor
         """
-        device = encoding.device
+        device = encoding["input_ids"].device
         input_ids: torch.Tensor = encoding["input_ids"]
         attention_mask: torch.Tensor = encoding["attention_mask"]
         shape = input_ids.shape
