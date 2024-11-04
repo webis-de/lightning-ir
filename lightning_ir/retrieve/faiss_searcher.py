@@ -172,7 +172,7 @@ class FaissSearcher(Searcher):
             mask = (
                 torch.arange(max_query_length, device=query_lengths.device) < query_lengths[:, None]
             ).repeat_interleave(num_docs, dim=0)
-            scores = self.module.scoring_function.aggregate(
+            scores = self.module.scoring_function._aggregate(
                 scores, mask, self.module.config.query_aggregation_function, dim=1
             ).squeeze(-1)
         return scores, doc_idcs, num_docs.tolist()
