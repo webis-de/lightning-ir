@@ -5,6 +5,8 @@ from .faiss_indexer import (
     FaissIVFIndexer,
     FaissIVFPQIndexConfig,
     FaissIVFPQIndexer,
+    FaissPQIndexConfig,
+    FaissPQIndexer,
 )
 from .faiss_searcher import FaissSearchConfig, FaissSearcher
 from .indexer import IndexConfig, Indexer
@@ -19,6 +21,8 @@ __all__ = [
     "FaissIVFIndexer",
     "FaissIVFPQIndexConfig",
     "FaissIVFPQIndexer",
+    "FaissPQIndexConfig",
+    "FaissPQIndexer",
     "FaissSearchConfig",
     "FaissSearcher",
     "IndexConfig",

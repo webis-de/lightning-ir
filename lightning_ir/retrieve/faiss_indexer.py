@@ -99,33 +99,21 @@ class FaissFlatIndexer(FaissIndexer):
         pass
 
 
-class FaissIVFIndexer(FaissIndexer):
-    INDEX_FACTORY = "IVF{num_centroids},Flat"
+class _FaissTrainIndexer(FaissIndexer):
+
+    INDEX_FACTORY = ""  # class only acts as mixin
 
     def __init__(
         self,
         index_dir: Path,
-        index_config: "FaissIVFIndexConfig",
+        index_config: "_FaissTrainIndexConfig",
         bi_encoder_config: BiEncoderConfig,
         verbose: bool = False,
     ) -> None:
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
-
-        import faiss
-
-        ivf_index = faiss.extract_index_ivf(self.index)
-        if hasattr(ivf_index, "quantizer"):
-            quantizer = ivf_index.quantizer
-            if hasattr(faiss.downcast_index(quantizer), "hnsw"):
-                downcasted_quantizer = faiss.downcast_index(quantizer)
-                downcasted_quantizer.hnsw.efConstruction = index_config.ef_construction
-
-        # default faiss values
-        # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
-        max_points_per_centroid = 256
-        self.num_train_embeddings = (
-            index_config.num_train_embeddings or index_config.num_centroids * max_points_per_centroid
-        )
+        if index_config.num_train_embeddings is None:
+            raise ValueError("num_train_embeddings must be set")
+        self.num_train_embeddings = index_config.num_train_embeddings
 
         self._train_embeddings = torch.full(
             (
@@ -135,32 +123,6 @@ class FaissIVFIndexer(FaissIndexer):
             torch.nan,
             dtype=torch.float32,
         )
-
-    def to_gpu(self) -> None:
-        import faiss
-
-        # clustering_index overrides the index used during clustering but leaves
-        # the quantizer on the gpu
-        # https://faiss.ai/cpp_api/namespace/namespacefaiss_1_1gpu.html
-        clustering_index = faiss.index_cpu_to_all_gpus(
-            faiss.IndexFlat(self.bi_encoder_config.embedding_dim, self.metric_type)
-        )
-        clustering_index.verbose = self.verbose
-        index_ivf = faiss.extract_index_ivf(self.index)
-        index_ivf.clustering_index = clustering_index
-
-    def to_cpu(self) -> None:
-        import faiss
-
-        if torch.cuda.is_available() and hasattr(faiss, "index_gpu_to_cpu") and hasattr(faiss, "index_cpu_to_gpu"):
-            self.index = faiss.index_gpu_to_cpu(self.index)
-
-            # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
-            # move index to cpu but leave quantizer on gpu
-            index_ivf = faiss.extract_index_ivf(self.index)
-            quantizer = index_ivf.quantizer
-            gpu_quantizer = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, quantizer)
-            index_ivf.quantizer = gpu_quantizer
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
         embeddings = self._grab_train_embeddings(embeddings)
@@ -200,6 +162,60 @@ class FaissIVFIndexer(FaissIndexer):
             self._train(force=True)
         return super().save()
 
+
+class FaissIVFIndexer(_FaissTrainIndexer):
+    INDEX_FACTORY = "IVF{num_centroids},Flat"
+
+    def __init__(
+        self,
+        index_dir: Path,
+        index_config: "FaissIVFIndexConfig",
+        bi_encoder_config: BiEncoderConfig,
+        verbose: bool = False,
+    ) -> None:
+        # default faiss values
+        # https://github.com/facebookresearch/faiss/blob/dafdff110489db7587b169a0afee8470f220d295/faiss/Clustering.h#L43
+        max_points_per_centroid = 256
+        index_config.num_train_embeddings = (
+            index_config.num_train_embeddings or index_config.num_centroids * max_points_per_centroid
+        )
+        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+
+        import faiss
+
+        ivf_index = faiss.extract_index_ivf(self.index)
+        if hasattr(ivf_index, "quantizer"):
+            quantizer = ivf_index.quantizer
+            if hasattr(faiss.downcast_index(quantizer), "hnsw"):
+                downcasted_quantizer = faiss.downcast_index(quantizer)
+                downcasted_quantizer.hnsw.efConstruction = index_config.ef_construction
+
+    def to_gpu(self) -> None:
+        import faiss
+
+        # clustering_index overrides the index used during clustering but leaves
+        # the quantizer on the gpu
+        # https://faiss.ai/cpp_api/namespace/namespacefaiss_1_1gpu.html
+        clustering_index = faiss.index_cpu_to_all_gpus(
+            faiss.IndexFlat(self.bi_encoder_config.embedding_dim, self.metric_type)
+        )
+        clustering_index.verbose = self.verbose
+        index_ivf = faiss.extract_index_ivf(self.index)
+        index_ivf.clustering_index = clustering_index
+
+    def to_cpu(self) -> None:
+        import faiss
+
+        if torch.cuda.is_available() and hasattr(faiss, "index_gpu_to_cpu") and hasattr(faiss, "index_cpu_to_gpu"):
+            self.index = faiss.index_gpu_to_cpu(self.index)
+
+            # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
+            # move index to cpu but leave quantizer on gpu
+            index_ivf = faiss.extract_index_ivf(self.index)
+            quantizer = index_ivf.quantizer
+            gpu_quantizer = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, quantizer)
+            index_ivf.quantizer = gpu_quantizer
+
     def set_verbosity(self, verbose: bool | None = None) -> None:
         import faiss
 
@@ -207,6 +223,27 @@ class FaissIVFIndexer(FaissIndexer):
         index = faiss.extract_index_ivf(self.index)
         for elem in (index, index.quantizer):
             setattr(elem, "verbose", verbose)
+
+
+class FaissPQIndexer(_FaissTrainIndexer):
+
+    INDEX_FACTORY = "OPQ{num_subquantizers},PQ{num_subquantizers}x{n_bits}"
+
+    def __init__(
+        self,
+        index_dir: Path,
+        index_config: "FaissPQIndexConfig",
+        bi_encoder_config: BiEncoderConfig,
+        verbose: bool = False,
+    ) -> None:
+        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        self.index_config: FaissPQIndexConfig
+
+    def to_gpu(self) -> None:
+        pass
+
+    def to_cpu(self) -> None:
+        pass
 
 
 class FaissIVFPQIndexer(FaissIVFIndexer):
@@ -251,7 +288,16 @@ class FaissFlatIndexConfig(FaissIndexConfig):
     indexer_class = FaissFlatIndexer
 
 
-class FaissIVFIndexConfig(FaissIndexConfig):
+class _FaissTrainIndexConfig(FaissIndexConfig):
+
+    indexer_class = _FaissTrainIndexer
+
+    def __init__(self, num_train_embeddings: int | None = None) -> None:
+        super().__init__()
+        self.num_train_embeddings = num_train_embeddings
+
+
+class FaissIVFIndexConfig(_FaissTrainIndexConfig):
     indexer_class = FaissIVFIndexer
 
     def __init__(
@@ -260,10 +306,18 @@ class FaissIVFIndexConfig(FaissIndexConfig):
         num_centroids: int = 262144,
         ef_construction: int = 40,
     ) -> None:
-        super().__init__()
-        self.num_train_embeddings = num_train_embeddings
+        super().__init__(num_train_embeddings)
         self.num_centroids = num_centroids
         self.ef_construction = ef_construction
+
+
+class FaissPQIndexConfig(_FaissTrainIndexConfig):
+    indexer_class = FaissPQIndexer
+
+    def __init__(self, num_train_embeddings: int | None = None, num_subquantizers: int = 16, n_bits: int = 8) -> None:
+        super().__init__(num_train_embeddings)
+        self.num_subquantizers = num_subquantizers
+        self.n_bits = n_bits
 
 
 class FaissIVFPQIndexConfig(FaissIVFIndexConfig):

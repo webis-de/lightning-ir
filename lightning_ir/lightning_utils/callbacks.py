@@ -49,8 +49,8 @@ class GatherMixin:
 class IndexCallback(Callback, GatherMixin):
     def __init__(
         self,
-        index_dir: Path | str | None,
         index_config: IndexConfig,
+        index_dir: Path | str | None = None,
         verbose: bool = False,
     ) -> None:
         super().__init__()
