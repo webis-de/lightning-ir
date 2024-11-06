@@ -51,11 +51,13 @@ class IndexCallback(Callback, GatherMixin):
         self,
         index_config: IndexConfig,
         index_dir: Path | str | None = None,
+        overwrite: bool = False,
         verbose: bool = False,
     ) -> None:
         super().__init__()
         self.index_config = index_config
         self.index_dir = index_dir
+        self.overwrite = overwrite
         self.verbose = verbose
         self.indexer: Indexer
 
@@ -70,6 +72,14 @@ class IndexCallback(Callback, GatherMixin):
         datasets = [dataloader.dataset for dataloader in dataloaders]
         if not all(isinstance(dataset, DocDataset) for dataset in datasets):
             raise ValueError("Expected DocDatasets for indexing")
+        if not self.overwrite:
+            for dataset in datasets:
+                index_dir = self.get_index_dir(pl_module, dataset)
+                if index_dir.exists():
+                    trainer.datamodule.inference_datasets.remove(dataset)
+                    trainer.print(
+                        f"Index dir {index_dir} already exists. Skipping this dataset. Set overwrite=True to overwrite"
+                    )
 
     def get_index_dir(self, pl_module: BiEncoderModule, dataset: DocDataset) -> Path:
         index_dir = self.index_dir
