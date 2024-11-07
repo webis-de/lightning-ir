@@ -30,7 +30,9 @@ class DocSample:
     doc: str
 
     @classmethod
-    def from_ir_dataset_sample(cls, sample):
+    def from_ir_dataset_sample(cls, sample, text_fields: Sequence[str] | None = None):
+        if text_fields is not None:
+            return cls(sample[0], " ".join(getattr(sample, field) for field in text_fields))
         return cls(sample[0], sample.default_text())
 
 
