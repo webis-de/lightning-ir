@@ -64,6 +64,15 @@ class IndexCallback(Callback, GatherMixin):
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
         if stage != "test":
             raise ValueError("IndexCallback can only be used in test stage")
+        if not self.overwrite:
+            datasets = list(trainer.datamodule.inference_datasets)
+            for dataset in datasets:
+                index_dir = self.get_index_dir(pl_module, dataset)
+                if index_dir.exists():
+                    trainer.datamodule.inference_datasets.remove(dataset)
+                    trainer.print(
+                        f"Index dir {index_dir} already exists. Skipping this dataset. Set overwrite=True to overwrite"
+                    )
 
     def on_test_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
         dataloaders = trainer.test_dataloaders
@@ -72,14 +81,6 @@ class IndexCallback(Callback, GatherMixin):
         datasets = [dataloader.dataset for dataloader in dataloaders]
         if not all(isinstance(dataset, DocDataset) for dataset in datasets):
             raise ValueError("Expected DocDatasets for indexing")
-        if not self.overwrite:
-            for dataset in datasets:
-                index_dir = self.get_index_dir(pl_module, dataset)
-                if index_dir.exists():
-                    trainer.datamodule.inference_datasets.remove(dataset)
-                    trainer.print(
-                        f"Index dir {index_dir} already exists. Skipping this dataset. Set overwrite=True to overwrite"
-                    )
 
     def get_index_dir(self, pl_module: BiEncoderModule, dataset: DocDataset) -> Path:
         index_dir = self.index_dir
@@ -112,6 +113,13 @@ class IndexCallback(Callback, GatherMixin):
         if pg is not None:
             pg.set_postfix(info)
 
+    def on_test_batch_start(
+        self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, dataloader_idx: int = 0
+    ) -> None:
+        if batch_idx == 0:
+            self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
+        super().on_test_batch_start(trainer, pl_module, batch, batch_idx, dataloader_idx)
+
     def on_test_batch_end(
         self,
         trainer: Trainer,
@@ -121,11 +129,6 @@ class IndexCallback(Callback, GatherMixin):
         batch_idx: int,
         dataloader_idx: int = 0,
     ) -> None:
-        if batch_idx == 0:
-            if hasattr(self, "indexer"):
-                self.indexer.save()
-            self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
-
         batch = self.gather(pl_module, batch)
         outputs = self.gather(pl_module, outputs)
 
@@ -140,6 +143,9 @@ class IndexCallback(Callback, GatherMixin):
             },
             trainer,
         )
+        if batch_idx == trainer.num_test_batches[dataloader_idx] - 1:
+            assert hasattr(self, "indexer")
+            self.indexer.save()
         return super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def on_test_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
