@@ -1,7 +1,7 @@
 import warnings
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal, Tuple
+from typing import Any, Dict, Iterator, Literal, Sequence, Tuple
 
 import ir_datasets
 import numpy as np
@@ -133,21 +133,25 @@ class QueryDataset(IRDataset, DataParallelIterableDataset):
 
 
 class DocDataset(IRDataset, DataParallelIterableDataset):
-    def __init__(self, doc_dataset: str, num_docs: int | None = None) -> None:
+    def __init__(self, doc_dataset: str, num_docs: int | None = None, text_fields: Sequence[str] | None = None) -> None:
         super().__init__(doc_dataset)
         super(IRDataset, self).__init__()
         self.num_docs = num_docs
+        self.text_fields = text_fields
 
     def __len__(self) -> int:
         # TODO fix len for multi-gpu and multi-worker inference
-        return self.num_docs or self.ir_dataset.docs_count()
+        num_docs = self.num_docs or self.ir_dataset.docs_count()
+        if num_docs is None:
+            raise ValueError("Unable to determine number of documents.")
+        return num_docs
 
     def __iter__(self) -> Iterator[DocSample]:
         start = self.rank
         stop = self.num_docs
         step = self.num_replicas
         for sample in islice(self.ir_dataset.docs_iter(), start, stop, step):
-            yield DocSample.from_ir_dataset_sample(sample)
+            yield DocSample.from_ir_dataset_sample(sample, self.text_fields)
 
 
 class Sampler:
