@@ -63,7 +63,7 @@ subcommands:
     re_rank             Re-rank a set of retrieved documents.
 ```
 
-Configurations files need to be provided to specifiy model, data, and fine-tuning/inference parameters. See the [configs](configs) directory for examples. Four types of configurations exists:
+Configurations files need to be provided to specify model, data, and fine-tuning/inference parameters. See the [configs](configs) directory for examples. Four types of configurations exists:
 
 - `trainer`: Specifies the fine-tuning/inference parameters and callbacks.
 - `model`: Specifies the model to use and its parameters.
