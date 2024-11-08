@@ -11,4 +11,4 @@ How To
     howto/model
     howto/dataset
 
-WIP
+This section contains a collection of how-to guides that demonstrate how to extend Lightning IR to your needs.
