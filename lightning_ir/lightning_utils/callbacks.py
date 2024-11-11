@@ -37,7 +37,7 @@ def format_large_number(number: float) -> str:
     return formatted_number
 
 
-class GatherMixin:
+class _GatherMixin:
     def gather(self, pl_module: LightningIRModule, dataclass: T) -> T:
         if is_dataclass(dataclass):
             return dataclass.__class__(
@@ -46,7 +46,22 @@ class GatherMixin:
         return pl_module.all_gather(dataclass)
 
 
-class IndexCallback(Callback, GatherMixin):
+class _IndexDirMixin:
+    index_dir: Path | str | None
+
+    def get_index_dir(self, pl_module: BiEncoderModule, dataset: DocDataset) -> Path:
+        index_dir = self.index_dir
+        if index_dir is None:
+            default_index_dir = Path(pl_module.config.name_or_path)
+            if default_index_dir.exists():
+                index_dir = default_index_dir / "indexes"
+            else:
+                raise ValueError("No index_dir provided and model_name_or_path is not a path")
+            index_dir = index_dir / dataset.docs_dataset_id
+        return Path(index_dir)
+
+
+class IndexCallback(Callback, _GatherMixin, _IndexDirMixin):
     def __init__(
         self,
         index_config: IndexConfig,
@@ -81,17 +96,6 @@ class IndexCallback(Callback, GatherMixin):
         datasets = [dataloader.dataset for dataloader in dataloaders]
         if not all(isinstance(dataset, DocDataset) for dataset in datasets):
             raise ValueError("Expected DocDatasets for indexing")
-
-    def get_index_dir(self, pl_module: BiEncoderModule, dataset: DocDataset) -> Path:
-        index_dir = self.index_dir
-        if index_dir is None:
-            default_index_dir = Path(pl_module.config.name_or_path)
-            if default_index_dir.exists():
-                index_dir = default_index_dir / "indexes"
-            else:
-                raise ValueError("No index_dir provided and model_name_or_path is not a path")
-            index_dir = index_dir / dataset.docs_dataset_id
-        return Path(index_dir)
 
     def get_indexer(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Indexer:
         dataloaders = trainer.test_dataloaders
@@ -152,7 +156,7 @@ class IndexCallback(Callback, GatherMixin):
         self.indexer.save()
 
 
-class RankCallback(BasePredictionWriter, GatherMixin):
+class RankCallback(BasePredictionWriter, _GatherMixin):
     def __init__(self, save_dir: Path | str | None = None, run_name: str | None = None) -> None:
         super().__init__()
         self.save_dir = Path(save_dir) if save_dir is not None else None
@@ -162,17 +166,17 @@ class RankCallback(BasePredictionWriter, GatherMixin):
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         if stage != "test":
             raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
-
-    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
-        super().on_test_epoch_start(trainer, pl_module)
-        self.run_dfs = []
         if self.save_dir is None:
             default_save_dir = Path(pl_module.config.name_or_path)
             if default_save_dir.exists():
                 self.save_dir = default_save_dir / "runs"
-                print(f"Using default save_dir {self.save_dir}")
+                print(f"Using default save_dir `{self.save_dir}` to save runs")
             else:
                 raise ValueError("No save_dir provided and model_name_or_path is not a path")
+
+    def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        super().on_test_epoch_start(trainer, pl_module)
+        self.run_dfs = []
 
     def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
         super().on_test_epoch_end(trainer, pl_module)
@@ -181,12 +185,12 @@ class RankCallback(BasePredictionWriter, GatherMixin):
             self.run_dfs = []
 
     def get_run_path(self, trainer: Trainer, dataset_idx: int) -> Path:
-        dataloaders = trainer.test_dataloaders
+        datamodule = getattr(trainer, "datamodule", None)
+        if datamodule is None:
+            raise ValueError("No datamodule found")
         if self.save_dir is None:
             raise ValueError("No save_dir found; call setup before using this method")
-        if dataloaders is None:
-            raise ValueError("No test_dataloaders found")
-        dataset = dataloaders[dataset_idx].dataset
+        dataset = datamodule.inference_datasets[dataset_idx]
         if self.run_name is not None:
             run_file = self.run_name
         elif isinstance(dataset, QueryDataset):
@@ -271,36 +275,73 @@ class RankCallback(BasePredictionWriter, GatherMixin):
         self.run_dfs.append(run_df)
 
 
-class SearchCallback(RankCallback):
+class SearchCallback(RankCallback, _IndexDirMixin):
     def __init__(
         self,
-        index_dir: Path | str,
         search_config: SearchConfig,
+        index_dir: Path | str | None = None,
         save_dir: Path | str | None = None,
+        overwrite: bool = False,
         use_gpu: bool = True,
     ) -> None:
         super().__init__(save_dir)
-        self.index_dir = index_dir
         self.search_config = search_config
+        self.index_dir = index_dir
+        self.overwrite = overwrite
         self.use_gpu = use_gpu
         self.searcher: Searcher
 
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
+        super().setup(trainer, pl_module, stage)
         if stage != "test":
             raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
-        self.searcher = self.search_config.search_class(self.index_dir, self.search_config, pl_module, self.use_gpu)
-        pl_module.searcher = self.searcher
+        if not self.overwrite:
+            datasets = list(trainer.datamodule.inference_datasets)
+            remove_datasets = []
+            for dataset_idx, dataset in enumerate(datasets):
+                run_path = self.get_run_path(trainer, dataset_idx)
+                if run_path.exists():
+                    remove_datasets.append(dataset)
+                    trainer.print(
+                        f"Run path {run_path} already exists. Skipping this dataset. Set overwrite=True to overwrite"
+                    )
+            for dataset in remove_datasets:
+                trainer.datamodule.inference_datasets.remove(dataset)
+
+    def on_test_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
+        dataloaders = trainer.test_dataloaders
+        if dataloaders is None:
+            raise ValueError("No test_dataloaders found")
+        datasets = [dataloader.dataset for dataloader in dataloaders]
+        if not all(isinstance(dataset, QueryDataset) for dataset in datasets):
+            raise ValueError("Expected QueryDatasets for indexing")
+
+    def get_searcher(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Searcher:
+        dataloaders = trainer.test_dataloaders
+        if dataloaders is None:
+            raise ValueError("No test_dataloaders found")
+        dataset = dataloaders[dataset_idx].dataset
+
+        index_dir = self.get_index_dir(pl_module, dataset)
+
+        searcher = self.search_config.search_class(index_dir, self.search_config, pl_module, self.use_gpu)
+        return searcher
+
+    def on_test_batch_start(
+        self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, dataloader_idx: int = 0
+    ) -> None:
+        if batch_idx == 0:
+            self.searcher = self.get_searcher(trainer, pl_module, dataloader_idx)
+            pl_module.searcher = self.searcher
+        return super().on_test_batch_start(trainer, pl_module, batch, batch_idx, dataloader_idx)
 
     def rank(
         self, batch: SearchBatch | RankBatch, output: LightningIROutput
     ) -> Tuple[torch.Tensor | List[str] | List[int]]:
-        if isinstance(batch, SearchBatch):
-            doc_scores, flat_doc_ids, num_docs = self.searcher.search(output)
-            cum_num_docs = [0] + [sum(num_docs[: i + 1]) for i in range(len(num_docs))]
-            doc_ids = tuple(tuple(flat_doc_ids[cum_num_docs[i] : cum_num_docs[i + 1]]) for i in range(len(num_docs)))
-            output.scores = doc_scores
-            dummy_docs = [[""] * num for num in num_docs]
-            batch = RankBatch(batch.queries, dummy_docs, batch.query_ids, doc_ids, batch.qrels)
+        if batch.doc_ids is None:
+            raise ValueError("BiEncoderModule did not return doc_ids when searching")
+        dummy_docs = [[""] * len(ids) for ids in batch.doc_ids]
+        batch = RankBatch(batch.queries, dummy_docs, batch.query_ids, batch.doc_ids, batch.qrels)
         return super().rank(batch, output)
 
 
