@@ -271,6 +271,7 @@ class RunDataset(IRDataset, Dataset):
             names=RUN_HEADER,
             usecols=[0, 2, 3, 4],
             dtype={"query_id": str, "doc_id": str},
+            quoting=3,
         )
 
     @staticmethod
