@@ -3,7 +3,7 @@ from __future__ import annotations
 import itertools
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Sequence, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Sequence, Tuple, TypeVar
 
 import pandas as pd
 import torch
@@ -61,7 +61,26 @@ class _IndexDirMixin:
         return Path(index_dir)
 
 
-class IndexCallback(Callback, _GatherMixin, _IndexDirMixin):
+class _OverwriteMixin:
+    overwrite: bool
+    get_save_path: Callable[[Trainer, LightningModule, int], Path]
+
+    def _remove_overwrite_datasets(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
+        if not self.overwrite:
+            datasets = list(trainer.datamodule.inference_datasets)
+            remove_datasets = []
+            for dataset_idx in range(len(datasets)):
+                save_path = self.get_save_path(trainer, pl_module, dataset_idx)
+                if save_path.exists():
+                    remove_datasets.append(dataset_idx)
+                    trainer.print(
+                        f"`{save_path}` already exists. Skipping this dataset. Set overwrite=True to overwrite"
+                    )
+            for dataset_idx in remove_datasets[::-1]:
+                del trainer.datamodule.inference_datasets[dataset_idx]
+
+
+class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
     def __init__(
         self,
         index_config: IndexConfig,
@@ -78,16 +97,11 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin):
 
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
         if stage != "test":
-            raise ValueError("IndexCallback can only be used in test stage")
-        if not self.overwrite:
-            datasets = list(trainer.datamodule.inference_datasets)
-            for dataset in datasets:
-                index_dir = self.get_index_dir(pl_module, dataset)
-                if index_dir.exists():
-                    trainer.datamodule.inference_datasets.remove(dataset)
-                    trainer.print(
-                        f"Index dir {index_dir} already exists. Skipping this dataset. Set overwrite=True to overwrite"
-                    )
+            raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
+        self._remove_overwrite_datasets(trainer, pl_module, stage)
+
+    def get_save_path(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Path:
+        return self.get_index_dir(pl_module, dataset_idx)
 
     def on_test_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
         dataloaders = trainer.test_dataloaders
@@ -153,11 +167,14 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin):
         return super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
 
-class RankCallback(BasePredictionWriter, _GatherMixin):
-    def __init__(self, save_dir: Path | str | None = None, run_name: str | None = None) -> None:
+class RankCallback(BasePredictionWriter, _GatherMixin, _OverwriteMixin):
+    def __init__(
+        self, save_dir: Path | str | None = None, run_name: str | None = None, overwrite: bool = False
+    ) -> None:
         super().__init__()
         self.save_dir = Path(save_dir) if save_dir is not None else None
         self.run_name = run_name
+        self.overwrite = overwrite
         self.run_dfs: List[pd.DataFrame] = []
 
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
@@ -170,6 +187,7 @@ class RankCallback(BasePredictionWriter, _GatherMixin):
                 print(f"Using default save_dir `{self.save_dir}` to save runs")
             else:
                 raise ValueError("No save_dir provided and model_name_or_path is not a path")
+        self._remove_overwrite_datasets(trainer, pl_module, stage)
 
     def on_test_epoch_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         super().on_test_epoch_start(trainer, pl_module)
@@ -181,7 +199,7 @@ class RankCallback(BasePredictionWriter, _GatherMixin):
             self.write_run_dfs(trainer, -1)
             self.run_dfs = []
 
-    def get_run_path(self, trainer: Trainer, dataset_idx: int) -> Path:
+    def get_save_path(self, trainer: Trainer, pl_module: LightningModule, dataset_idx: int) -> Path:
         datamodule = getattr(trainer, "datamodule", None)
         if datamodule is None:
             raise ValueError("No datamodule found")
@@ -217,7 +235,7 @@ class RankCallback(BasePredictionWriter, _GatherMixin):
     def write_run_dfs(self, trainer: Trainer, dataloader_idx: int):
         if not trainer.is_global_zero or not self.run_dfs:
             return
-        run_file_path = self.get_run_path(trainer, dataloader_idx)
+        run_file_path = self.get_save_path(trainer, dataloader_idx)
         run_file_path.parent.mkdir(parents=True, exist_ok=True)
         run_df = pd.concat(self.run_dfs, ignore_index=True)
         run_df.to_csv(run_file_path, header=False, index=False, sep="\t")
@@ -279,32 +297,16 @@ class SearchCallback(RankCallback, _IndexDirMixin):
         search_config: SearchConfig,
         index_dir: Path | str | None = None,
         save_dir: Path | str | None = None,
+        run_name: str | None = None,
         overwrite: bool = False,
         use_gpu: bool = True,
     ) -> None:
-        super().__init__(save_dir)
+        super().__init__(save_dir=save_dir, run_name=run_name, overwrite=overwrite)
         self.search_config = search_config
         self.index_dir = index_dir
         self.overwrite = overwrite
         self.use_gpu = use_gpu
         self.searcher: Searcher
-
-    def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
-        super().setup(trainer, pl_module, stage)
-        if stage != "test":
-            raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
-        if not self.overwrite:
-            datasets = list(trainer.datamodule.inference_datasets)
-            remove_datasets = []
-            for dataset_idx, dataset in enumerate(datasets):
-                run_path = self.get_run_path(trainer, dataset_idx)
-                if run_path.exists():
-                    remove_datasets.append(dataset)
-                    trainer.print(
-                        f"Run path {run_path} already exists. Skipping this dataset. Set overwrite=True to overwrite"
-                    )
-            for dataset in remove_datasets:
-                trainer.datamodule.inference_datasets.remove(dataset)
 
     def on_test_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
         dataloaders = trainer.test_dataloaders
