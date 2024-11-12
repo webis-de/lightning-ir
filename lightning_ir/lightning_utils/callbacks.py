@@ -65,7 +65,7 @@ class _OverwriteMixin:
     overwrite: bool
     get_save_path: Callable[[Trainer, LightningModule, int], Path]
 
-    def _remove_overwrite_datasets(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
+    def _remove_overwrite_datasets(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         if not self.overwrite:
             datasets = list(trainer.datamodule.inference_datasets)
             remove_datasets = []
@@ -132,7 +132,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
             pg.set_postfix(info)
 
     def on_test_batch_start(
-        self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, dataloader_idx: int = 0
+        self, trainer: Trainer, pl_module: LightningIRModule, batch: Any, batch_idx: int, dataloader_idx: int = 0
     ) -> None:
         if batch_idx == 0:
             self.indexer = self.get_indexer(trainer, pl_module, dataloader_idx)
@@ -193,13 +193,13 @@ class RankCallback(BasePredictionWriter, _GatherMixin, _OverwriteMixin):
         super().on_test_epoch_start(trainer, pl_module)
         self.run_dfs = []
 
-    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         super().on_test_epoch_end(trainer, pl_module)
         if trainer.is_global_zero:
-            self.write_run_dfs(trainer, -1)
+            self.write_run_dfs(trainer, pl_module, -1)
             self.run_dfs = []
 
-    def get_save_path(self, trainer: Trainer, pl_module: LightningModule, dataset_idx: int) -> Path:
+    def get_save_path(self, trainer: Trainer, pl_module: LightningIRModule, dataset_idx: int) -> Path:
         datamodule = getattr(trainer, "datamodule", None)
         if datamodule is None:
             raise ValueError("No datamodule found")
@@ -232,10 +232,10 @@ class RankCallback(BasePredictionWriter, _GatherMixin, _OverwriteMixin):
             raise ValueError("scores and doc_ids must have the same length")
         return scores, doc_ids, num_docs
 
-    def write_run_dfs(self, trainer: Trainer, dataloader_idx: int):
+    def write_run_dfs(self, trainer: Trainer, pl_module: LightningIRModule, dataloader_idx: int):
         if not trainer.is_global_zero or not self.run_dfs:
             return
-        run_file_path = self.get_save_path(trainer, dataloader_idx)
+        run_file_path = self.get_save_path(trainer, pl_module, dataloader_idx)
         run_file_path.parent.mkdir(parents=True, exist_ok=True)
         run_df = pd.concat(self.run_dfs, ignore_index=True)
         run_df.to_csv(run_file_path, header=False, index=False, sep="\t")
@@ -285,7 +285,7 @@ class RankCallback(BasePredictionWriter, _GatherMixin, _OverwriteMixin):
         run_df = run_df[RUN_HEADER]
 
         if batch_idx == trainer.num_test_batches[dataloader_idx] - 1:
-            self.write_run_dfs(trainer, dataloader_idx)
+            self.write_run_dfs(trainer, pl_module, dataloader_idx)
             self.run_dfs = []
 
         self.run_dfs.append(run_df)
@@ -328,7 +328,7 @@ class SearchCallback(RankCallback, _IndexDirMixin):
         return searcher
 
     def on_test_batch_start(
-        self, trainer: Trainer, pl_module: LightningModule, batch: Any, batch_idx: int, dataloader_idx: int = 0
+        self, trainer: Trainer, pl_module: LightningIRModule, batch: Any, batch_idx: int, dataloader_idx: int = 0
     ) -> None:
         if batch_idx == 0:
             self.searcher = self.get_searcher(trainer, pl_module, dataloader_idx)
