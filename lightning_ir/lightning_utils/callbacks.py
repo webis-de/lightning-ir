@@ -152,9 +152,6 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin):
             self.indexer.save()
         return super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
-    def on_test_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        self.indexer.save()
-
 
 class RankCallback(BasePredictionWriter, _GatherMixin):
     def __init__(self, save_dir: Path | str | None = None, run_name: str | None = None) -> None:
@@ -269,9 +266,10 @@ class RankCallback(BasePredictionWriter, _GatherMixin):
         run_df["system"] = pl_module.model.__class__.__name__
         run_df = run_df[RUN_HEADER]
 
-        if batch_idx == 0:
-            self.write_run_dfs(trainer, dataloader_idx - 1)
+        if batch_idx == trainer.num_test_batches[dataloader_idx] - 1:
+            self.write_run_dfs(trainer, dataloader_idx)
             self.run_dfs = []
+
         self.run_dfs.append(run_df)
 
 
