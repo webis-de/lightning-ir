@@ -12,6 +12,7 @@ from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProg
 
 from ..data import RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
+from ..data.ir_datasets_utils import _register_local_dataset
 from ..retrieve import IndexConfig, Indexer, SearchConfig, Searcher
 
 if TYPE_CHECKING:
@@ -284,11 +285,11 @@ class RankCallback(BasePredictionWriter, _GatherMixin, _OverwriteMixin):
         run_df["system"] = pl_module.model.__class__.__name__
         run_df = run_df[RUN_HEADER]
 
+        self.run_dfs.append(run_df)
+
         if batch_idx == trainer.num_test_batches[dataloader_idx] - 1:
             self.write_run_dfs(trainer, pl_module, dataloader_idx)
             self.run_dfs = []
-
-        self.run_dfs.append(run_df)
 
 
 class SearchCallback(RankCallback, _IndexDirMixin):
@@ -347,3 +348,55 @@ class SearchCallback(RankCallback, _IndexDirMixin):
 
 class ReRankCallback(RankCallback):
     pass
+
+
+class RegisterLocalDatasetCallback(Callback):
+
+    def __init__(
+        self,
+        dataset_id: str,
+        docs: str | None = None,
+        queries: str | None = None,
+        qrels: str | None = None,
+        docpairs: str | None = None,
+        scoreddocs: str | None = None,
+        qrels_defs: Dict[int, str] | None = None,
+    ):
+        """Registers a local dataset with ``ir_datasets``. After registering the dataset, it can be loaded using
+        ``ir_datasets.load(dataset_id)``. Currently, the following (optionally gzipped) file types are supported:
+
+        - ``.tsv``, ``.json``, or ``.jsonl`` for documents and queries
+        - ``.tsv`` or ``.qrels`` for qrels
+        - ``.tsv`` for training n-tuples
+        - ``.tsv`` or ``.run`` for scored documents / run files
+
+        :param dataset_id: Dataset id
+        :type dataset_id: str
+        :param docs: Path to documents file or valid ir_datasets id from which documents should be taken, defaults to None
+        :type docs: str | None, optional
+        :param queries: Path to queries file or valid ir_datastes id from which queries should be taken, defaults to None
+        :type queries: str | None, optional
+        :param qrels: Path to qrels file or valid ir_datasets id from which qrels will be taken, defaults to None
+        :type qrels: str | None, optional
+        :param docpairs: Path to training n-tuple file or valid ir_datasets id from which training tuples will be taken,
+            defaults to None
+        :type docpairs: str | None, optional
+        :param scoreddocs: Path to run file or valid ir_datasets id from which scored documents will be taken,
+            defaults to None
+        :type scoreddocs: str | None, optional
+        :param qrels_defs: Optional dictionary describing the relevance levels of the qrels, defaults to None
+        :type qrels_defs: Dict[int, str] | None, optional
+        """
+        super().__init__()
+        self.dataset_id = dataset_id
+        self.docs = docs
+        self.queries = queries
+        self.qrels = qrels
+        self.docpairs = docpairs
+        self.scoreddocs = scoreddocs
+        self.qrels_defs = qrels_defs
+
+    def setup(self, trainer: Trainer, pl_module: LightningModule, stage: Literal["fit", "validate", "test"]) -> None:
+        _register_local_dataset(
+            self.dataset_id, self.docs, self.queries, self.qrels, self.docpairs, self.scoreddocs, self.qrels_defs
+        )

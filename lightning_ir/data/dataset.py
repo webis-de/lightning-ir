@@ -20,16 +20,21 @@ RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 class IRDataset:
     def __init__(self, dataset: str) -> None:
         super().__init__()
-        if dataset in self.DASHED_DATASET_MAP:
-            dataset = self.DASHED_DATASET_MAP[dataset]
-        self.dataset = dataset
-        try:
-            self.ir_dataset = ir_datasets.load(dataset)
-        except KeyError:
-            self.ir_dataset = None
+        self._dataset = dataset
         self._queries = None
         self._docs = None
         self._qrels = None
+
+    @property
+    def dataset(self) -> str:
+        return self.DASHED_DATASET_MAP.get(self._dataset, self._dataset)
+
+    @property
+    def ir_dataset(self) -> ir_datasets.Dataset | None:
+        try:
+            return ir_datasets.load(self.dataset)
+        except KeyError:
+            return None
 
     @property
     def DASHED_DATASET_MAP(self) -> Dict[str, str]:
@@ -224,6 +229,7 @@ class RunDataset(IRDataset, Dataset):
         self.sampling_strategy = sampling_strategy
         self.targets = targets
         self.normalize_targets = normalize_targets
+        self.add_non_retrieved_docs = add_non_retrieved_docs
 
         if self.sampling_strategy == "top" and self.sample_size > self.depth:
             warnings.warn(
@@ -232,6 +238,11 @@ class RunDataset(IRDataset, Dataset):
                 "in the run file, but that are present in the qrels."
             )
 
+        self.run: pd.DataFrame | None = None
+
+    def _setup(self):
+        if self.run is not None:
+            return
         self.run = self.load_run()
         self.run = self.run.drop_duplicates(["query_id", "doc_id"])
 
@@ -243,7 +254,7 @@ class RunDataset(IRDataset, Dataset):
                 self.run = self.run[self.run["query_id"].isin(query_ids)]
             # outer join if docs are from ir_datasets else only keep docs in run
             how = "left"
-            if self._docs is None and add_non_retrieved_docs:
+            if self._docs is None and self.add_non_retrieved_docs:
                 how = "outer"
             self.run = self.run.merge(
                 self.qrels.loc[pd.IndexSlice[query_ids, :]].add_prefix("relevance_", axis=1),
@@ -372,7 +383,7 @@ class RunDataset(IRDataset, Dataset):
     def qrels(self) -> pd.DataFrame | None:
         if self._qrels is not None:
             return self._qrels
-        if "relevance" in self.run:
+        if self.run is not None and "relevance" in self.run:
             qrels = self.run[["query_id", "doc_id", "relevance"]].copy()
             if "iteration" in self.run:
                 qrels["iteration"] = self.run["iteration"]
@@ -387,9 +398,11 @@ class RunDataset(IRDataset, Dataset):
         return super().qrels
 
     def __len__(self) -> int:
+        self._setup()
         return len(self.query_ids)
 
     def __getitem__(self, idx: int) -> RankSample:
+        self._setup()
         query_id = str(self.query_ids[idx])
         group = self.run_groups.get_group(query_id).copy()
         query = self.queries[query_id]

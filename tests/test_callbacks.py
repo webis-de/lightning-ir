@@ -1,12 +1,18 @@
 from pathlib import Path
 from typing import Sequence
 
+import ir_datasets
 import pandas as pd
 import pytest
 from _pytest.fixtures import SubRequest
 
 from lightning_ir import BiEncoderModule, LightningIRDataModule, LightningIRModule, LightningIRTrainer, RunDataset
-from lightning_ir.lightning_utils.callbacks import IndexCallback, ReRankCallback, SearchCallback
+from lightning_ir.lightning_utils.callbacks import (
+    IndexCallback,
+    RegisterLocalDatasetCallback,
+    ReRankCallback,
+    SearchCallback,
+)
 from lightning_ir.retrieve import (
     FaissFlatIndexConfig,
     FaissSearchConfig,
@@ -16,7 +22,7 @@ from lightning_ir.retrieve import (
 )
 from lightning_ir.retrieve.indexer import IndexConfig
 
-from .conftest import DATA_DIR
+from .conftest import CORPUS_DIR, DATA_DIR
 
 
 @pytest.fixture(
@@ -42,7 +48,7 @@ def test_index_callback(
     # devices: int,
 ):
     index_dir = tmp_path / "index"
-    index_callback = IndexCallback(index_dir, index_config)
+    index_callback = IndexCallback(index_config=index_config, index_dir=index_dir)
 
     trainer = LightningIRTrainer(
         # devices=devices,
@@ -82,7 +88,7 @@ def get_index(
     if index_dir.exists():
         return index_dir / "lightning-ir"
 
-    index_callback = IndexCallback(index_dir, index_config)
+    index_callback = IndexCallback(index_config=index_config, index_dir=index_dir)
 
     trainer = LightningIRTrainer(
         logger=False,
@@ -111,7 +117,7 @@ def test_search_callback(
 ):
     index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)
     save_dir = tmp_path / "runs"
-    search_callback = SearchCallback(index_dir, search_config, save_dir)
+    search_callback = SearchCallback(search_config=search_config, index_dir=index_dir, save_dir=save_dir)
 
     trainer = LightningIRTrainer(
         logger=False,
@@ -152,3 +158,20 @@ def test_rerank_callback(tmp_path: Path, module: LightningIRModule, inference_da
             names=["query_id", "Q0", "doc_id", "rank", "score", "system"],
         )
         assert run_df["query_id"].nunique() == len(dataset)
+
+
+def test_register_local_dataset_callback(module: LightningIRModule):
+    callback = RegisterLocalDatasetCallback(
+        dataset_id="test",
+        docs=str(CORPUS_DIR / "docs.tsv"),
+        queries=str(CORPUS_DIR / "queries.tsv"),
+        qrels=str(CORPUS_DIR / "qrels.tsv"),
+        docpairs=str(CORPUS_DIR / "docpairs.tsv"),
+    )
+    datamodule = LightningIRDataModule(train_dataset=RunDataset("test"))
+
+    trainer = LightningIRTrainer(logger=False, enable_checkpointing=False, callbacks=[callback])
+
+    trainer.test(module, datamodule)
+
+    assert ir_datasets.registry._registered.get("test") is not None

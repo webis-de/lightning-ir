@@ -25,8 +25,8 @@ CONSTITUENT_TYPE_MAP: Dict[str, Dict[str, Type]] = {
 }
 
 
-def load_constituent(
-    constituent: str | None,
+def _load_constituent(
+    constituent: Path | str | None,
     constituent_type: Literal["docs", "queries", "qrels", "scoreddocs", "docpairs"],
     **kwargs,
 ) -> Any:
@@ -45,23 +45,23 @@ def load_constituent(
     return ConstituentType(Cache(None, constituent_path), **kwargs)
 
 
-def register_local(
+def _register_local_dataset(
     dataset_id: str,
-    docs: str | None = None,
-    queries: str | None = None,
-    qrels: str | None = None,
-    docpairs: str | None = None,
-    scoreddocs: str | None = None,
+    docs: Path | str | None = None,
+    queries: Path | str | None = None,
+    qrels: Path | str | None = None,
+    docpairs: Path | str | None = None,
+    scoreddocs: Path | str | None = None,
     qrels_defs: Dict[int, str] | None = None,
 ):
     if dataset_id in ir_datasets.registry._registered:
         return
 
-    docs = load_constituent(docs, "docs")
-    queries = load_constituent(queries, "queries")
-    qrels = load_constituent(qrels, "qrels", qrels_defs=qrels_defs if qrels_defs is not None else {})
-    docpairs = load_constituent(docpairs, "docpairs")
-    scoreddocs = load_constituent(scoreddocs, "scoreddocs")
+    docs = _load_constituent(docs, "docs")
+    queries = _load_constituent(queries, "queries")
+    qrels = _load_constituent(qrels, "qrels", qrels_defs=qrels_defs if qrels_defs is not None else {})
+    docpairs = _load_constituent(docpairs, "docpairs")
+    scoreddocs = _load_constituent(scoreddocs, "scoreddocs")
 
     ir_datasets.registry.register(dataset_id, Dataset(docs, queries, qrels, docpairs, scoreddocs))
 
@@ -107,7 +107,7 @@ class ScoredDocTuples(BaseDocPairs):
         return ScoredDocTuple
 
 
-def register_kd_docpairs():
+def _register_kd_docpairs():
     base_id = "msmarco-passage"
     split_id = "train"
     file_id = "kd-docpairs"
@@ -124,7 +124,7 @@ def register_kd_docpairs():
     register_msmarco(base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples)
 
 
-def register_colbert_docpairs():
+def _register_colbert_docpairs():
     base_id = "msmarco-passage"
     split_id = "train"
     file_id = "colbert-docpairs"
@@ -140,7 +140,7 @@ def register_colbert_docpairs():
     register_msmarco(base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples)
 
 
-def register_rank_distillm():
+def _register_rank_distillm():
     base_id = "msmarco-passage"
     split_id = "train"
     file_id = "rank-distillm/rankzephyr"
@@ -215,6 +215,6 @@ def register_msmarco(
     ir_datasets.registry.register(dataset_id, Dataset(dataset))
 
 
-register_kd_docpairs()
-register_colbert_docpairs()
-register_rank_distillm()
+_register_kd_docpairs()
+_register_colbert_docpairs()
+_register_rank_distillm()
