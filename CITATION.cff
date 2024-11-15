@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite as below."
+message: "If you use Lightning IR in your research, please cite as below."
 authors:
   - family-names: "Schlatt"
     given-names: "Ferdinand"
@@ -14,6 +14,7 @@ title: "Lightning IR: Straightforward Fine-tuning and Inference of Transformer-b
 version: 0.0.2
 preferred-citation:
   type: conference-paper
+  authors:
   - family-names: "Schlatt"
     given-names: "Ferdinand"
     orcid: "0000-0002-6032-909X"
