@@ -1,36 +1,25 @@
 cff-version: 1.2.0
 message: "If you use Lightning IR in your research, please cite as below."
-authors:
-  - family-names: "Schlatt"
-    given-names: "Ferdinand"
-    orcid: "0000-0002-6032-909X"
-  - family-names: "Fröbe"
-    given-names: "Maik"
-    orcid: "0000-0002-1003-981X"
-  - family-names: "Hagen"
-    given-names: "Matthias"
-    orcid: "0000-0002-9733-2890"
-title: "Lightning IR: Straightforward Fine-tuning and Inference of Transformer-based Language Models for Information Retrieval"
-version: 0.0.2
-preferred-citation:
-  type: conference-paper
-  authors:
-  - family-names: "Schlatt"
-    given-names: "Ferdinand"
-    orcid: "0000-0002-6032-909X"
-  - family-names: "Fröbe"
-    given-names: "Maik"
-    orcid: "0000-0002-1003-981X"
-  - family-names: "Hagen"
-    given-names: "Matthias"
-    orcid: "0000-0002-9733-2890"
-  doi: "10.1145/3701551.3704118"
-  year: 2025
-  collection-title: Proceedings of the Eighteenth ACM International Conference on Web Search and Data Mining (WSDM '25)
-  conference:
-    - name: Eighteenth ACM International Conference on Web Search and Data Mining
-      city: Hannover
-      country: Germany
-      date-start: 2025-03-10
-      date-end: 2025-03-14
+references:
+  - type: conference-paper
+    authors:
+    - family-names: "Schlatt"
+      given-names: "Ferdinand"
+      orcid: "0000-0002-6032-909X"
+    - family-names: "Fröbe"
+      given-names: "Maik"
+      orcid: "0000-0002-1003-981X"
+    - family-names: "Hagen"
+      given-names: "Matthias"
+      orcid: "0000-0002-9733-2890"
+    title: "Lightning IR: Straightforward Fine-tuning and Inference of Transformer-based Language Models for Information Retrieval"
+    year: 2025
+    collection-title: Proceedings of the Eighteenth ACM International Conference on Web Search and Data Mining (WSDM '25)
+    doi: "10.1145/3701551.3704118"
+    conference:
+      - name: Eighteenth ACM International Conference on Web Search and Data Mining
+        city: Hannover
+        country: Germany
+        date-start: 2025-03-10
+        date-end: 2025-03-14
 
