@@ -18,6 +18,7 @@ The following command and configuration can be used to reproduce the results:
 
         trainer:
           logger: false
+          enable_checkpointing: false
         model:
           class_path: CrossEncoderModule # for cross-encoders
           # class_path: BiEncoderModule # for bi-encoders
