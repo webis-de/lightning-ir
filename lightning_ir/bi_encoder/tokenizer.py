@@ -53,7 +53,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         :param attend_to_doc_expanded_tokens: Whether to let non-expanded document tokens be able to attend to
             mask expanded document tokens, defaults to False
         :type attend_to_doc_expanded_tokens: bool, optional
-        :param add_marker_tokens: Whether to add marker tokens to the query and document input sequences, defaults to True
+        :param add_marker_tokens: Whether to add marker tokens to the query and document input sequences,
+            defaults to True
         :type add_marker_tokens: bool, optional
         :raises ValueError: If add_marker_tokens is True and a non-supported tokenizer is used
         """
@@ -127,7 +128,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         return None
 
     def __call__(self, *args, warn: bool = True, **kwargs) -> BatchEncoding:
-        """Overrides the PretrainedTokenizer.__call___ method to warn the user to use :meth:`.tokenize_query` and 
+        """Overrides the PretrainedTokenizer.__call___ method to warn the user to use :meth:`.tokenize_query` and
         :meth:`.tokenize_doc` methods instead.
 
         .. PretrainedTokenizer.__call__: \

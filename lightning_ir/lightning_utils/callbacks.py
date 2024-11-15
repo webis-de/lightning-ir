@@ -3,7 +3,7 @@ from __future__ import annotations
 import itertools
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Sequence, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Sequence, Tuple, TypeVar
 
 import pandas as pd
 import torch
@@ -372,9 +372,11 @@ class RegisterLocalDatasetCallback(Callback):
 
         :param dataset_id: Dataset id
         :type dataset_id: str
-        :param docs: Path to documents file or valid ir_datasets id from which documents should be taken, defaults to None
+        :param docs: Path to documents file or valid ir_datasets id from which documents should be taken,
+            defaults to None
         :type docs: str | None, optional
-        :param queries: Path to queries file or valid ir_datastes id from which queries should be taken, defaults to None
+        :param queries: Path to queries file or valid ir_datastes id from which queries should be taken,
+            defaults to None
         :type queries: str | None, optional
         :param qrels: Path to qrels file or valid ir_datasets id from which qrels will be taken, defaults to None
         :type qrels: str | None, optional

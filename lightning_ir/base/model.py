@@ -8,7 +8,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial, wraps
 from pathlib import Path
-from typing import Any, Callable, Literal, Mapping, Protocol, Sequence, Type, TypeVar
+from typing import Any, Literal, Mapping, Protocol, Sequence, Type, TypeVar
 
 import torch
 from transformers import MODEL_MAPPING, BatchEncoding, BertModel
