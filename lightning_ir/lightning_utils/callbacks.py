@@ -102,7 +102,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         self._remove_overwrite_datasets(trainer, pl_module, stage)
 
     def get_save_path(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Path:
-        return self.get_index_dir(pl_module, dataset_idx)
+        return self.get_index_dir(pl_module, trainer.datamodule.inference_datasets[dataset_idx])
 
     def on_test_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
         dataloaders = trainer.test_dataloaders
