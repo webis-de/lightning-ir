@@ -21,9 +21,10 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         """:class:`.LightningIRTokenizer` for cross-encoder models. Encodes queries and documents jointly and ensures
         that the input sequences are of the correct length.
 
-        :param query_length: _description_, defaults to 32
+        :param query_length: Maximum number of tokens per query, defaults to 32
         :type query_length: int, optional
-        :param doc_length: _description_, defaults to 512
+        :param doc_length: Maximum number of tokens per document, defaults to 512
+        :type doc_length: int, optional
         :type doc_length: int, optional
         """
         super().__init__(*args, query_length=query_length, doc_length=doc_length, **kwargs)
