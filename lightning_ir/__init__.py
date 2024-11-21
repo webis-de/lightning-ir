@@ -42,7 +42,6 @@ from .data import (
     TupleDataset,
 )
 from .lightning_utils import (
-    LR_SCHEDULERS,
     ConstantLRSchedulerWithLinearWarmup,
     GenericConstantSchedulerWithLinearWarmup,
     GenericConstantSchedulerWithQuadraticWarmup,
@@ -180,7 +179,6 @@ __all__ = [
     "LightningIRWandbLogger",
     "LinearLRSchedulerWithLinearWarmup",
     "LocalizedContrastiveEstimation",
-    "LR_SCHEDULERS",
     "QueryDataset",
     "QuerySample",
     "RankCallback",
