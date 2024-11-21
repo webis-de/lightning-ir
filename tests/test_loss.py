@@ -108,7 +108,7 @@ def test_loss_func(output: LightningIROutput, labels: torch.Tensor, loss_func: S
     [
         InBatchCrossEntropy(),
         InBatchCrossEntropy("first", "all_and_non_first"),
-        ScoreBasedInBatchCrossEntropy(2, "first", "all_and_non_first"),
+        ScoreBasedInBatchCrossEntropy(2),
     ],
     ids=["InBatchCrossEntropy(default)", "InBatchCrossEntropy(all_and_non_first)", "ScoreBasedInBatchCrossEntropy"],
 )
