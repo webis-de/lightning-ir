@@ -33,4 +33,9 @@ class ConstantLRSchedulerWithLinearWarmup(WarmupLRScheduler, ConstantSchedulerWi
     pass
 
 
-LR_SCHEDULERS = [LinearLRSchedulerWithLinearWarmup, ConstantLRSchedulerWithLinearWarmup]
+LR_SCHEDULERS = (
+    LinearLRSchedulerWithLinearWarmup,
+    ConstantLRSchedulerWithLinearWarmup,
+    WarmupLRScheduler,
+    torch.optim.lr_scheduler.LRScheduler,
+)
