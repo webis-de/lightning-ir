@@ -10,6 +10,8 @@ from .loss import (
     L2Regularization,
     LocalizedContrastiveEstimation,
     RankNet,
+    ScoreBasedInBatchCrossEntropy,
+    ScoreBasedInBatchLossFunction,
     SupervisedMarginMSE,
 )
 
@@ -25,5 +27,7 @@ __all__ = [
     "L2Regularization",
     "LocalizedContrastiveEstimation",
     "RankNet",
+    "ScoreBasedInBatchCrossEntropy",
+    "ScoreBasedInBatchLossFunction",
     "SupervisedMarginMSE",
 ]

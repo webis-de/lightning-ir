@@ -65,6 +65,8 @@ from .loss import (
     L2Regularization,
     LocalizedContrastiveEstimation,
     RankNet,
+    ScoreBasedInBatchCrossEntropy,
+    ScoreBasedInBatchLossFunction,
     SupervisedMarginMSE,
 )
 from .main import LightningIRTrainer, LightningIRWandbLogger
@@ -186,6 +188,8 @@ __all__ = [
     "RankSample",
     "ReRankCallback",
     "RunDataset",
+    "ScoreBasedInBatchCrossEntropy",
+    "ScoreBasedInBatchLossFunction",
     "ScoringFunction",
     "SearchBatch",
     "SearchCallback",

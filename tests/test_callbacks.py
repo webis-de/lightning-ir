@@ -168,7 +168,7 @@ def test_register_local_dataset_callback(module: LightningIRModule):
         qrels=str(CORPUS_DIR / "qrels.tsv"),
         docpairs=str(CORPUS_DIR / "docpairs.tsv"),
     )
-    datamodule = LightningIRDataModule(train_dataset=RunDataset("test"))
+    datamodule = LightningIRDataModule(train_dataset=RunDataset("test"), train_batch_size=2)
 
     trainer = LightningIRTrainer(logger=False, enable_checkpointing=False, callbacks=[callback])
 

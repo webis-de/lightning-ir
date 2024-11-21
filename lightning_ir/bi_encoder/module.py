@@ -149,7 +149,7 @@ class BiEncoderModule(LightningIRModule):
         losses = []
         for loss_function, _ in self.loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
-                pos_idcs, neg_idcs = loss_function.get_ib_idcs(*output.scores.shape)
+                pos_idcs, neg_idcs = loss_function.get_ib_idcs(output, batch)
                 ib_doc_embeddings = self._get_ib_doc_embeddings(output.doc_embeddings, pos_idcs, neg_idcs, num_queries)
                 ib_scores = self.model.score(output.query_embeddings, ib_doc_embeddings)
                 ib_scores = ib_scores.view(num_queries, -1)

@@ -5,6 +5,7 @@ import torch
 
 from lightning_ir.base.model import LightningIROutput
 from lightning_ir.bi_encoder.model import BiEncoderEmbedding, BiEncoderOutput
+from lightning_ir.data.data import TrainBatch
 from lightning_ir.loss.loss import (
     ApproxMRR,
     ApproxNDCG,
@@ -19,6 +20,7 @@ from lightning_ir.loss.loss import (
     LocalizedContrastiveEstimation,
     RankNet,
     RegularizationLossFunction,
+    ScoreBasedInBatchCrossEntropy,
     ScoringLossFunction,
     SupervisedMarginMSE,
 )
@@ -63,37 +65,66 @@ def embeddings(batch_size: int, sequence_length: int, embedding_dim: int) -> tor
     return tensor
 
 
+@pytest.fixture(scope="module")
+def batch(batch_size: int, depth: int) -> TrainBatch:
+    return TrainBatch(
+        queries=["query"] * batch_size,
+        docs=[[f"doc{i}" for i in range(depth)]] * batch_size,
+        targets=torch.randint(0, 5, (batch_size, depth)),
+    )
+
+
 @pytest.mark.parametrize(
-    "LossFunc",
+    "loss_func",
     [
-        ApproxMRR,
-        ApproxNDCG,
-        ApproxRankMSE,
-        ConstantMarginMSE,
-        KLDivergence,
-        LocalizedContrastiveEstimation,
-        RankNet,
-        SupervisedMarginMSE,
+        ApproxMRR(),
+        ApproxNDCG(),
+        ApproxRankMSE(),
+        ConstantMarginMSE(),
+        KLDivergence(),
+        LocalizedContrastiveEstimation(),
+        RankNet(),
+        SupervisedMarginMSE(),
+    ],
+    ids=[
+        "ApproxMRR",
+        "ApproxNDCG",
+        "ApproxRankMSE",
+        "ConstantMarginMSE",
+        "KLDivergence",
+        "LocalizedContrastiveEstimation",
+        "RankNet",
+        "SupervisedMarginMSE",
     ],
 )
-def test_loss_func(output: LightningIROutput, labels: torch.Tensor, LossFunc: Type[ScoringLossFunction]):
-    loss_func = LossFunc()
+def test_loss_func(output: LightningIROutput, labels: torch.Tensor, loss_func: ScoringLossFunction):
     loss = loss_func.compute_loss(output, labels)
     assert loss >= 0
     assert loss.requires_grad
 
 
-@pytest.mark.parametrize("InBatchLossFunc", [InBatchCrossEntropy])
-def test_in_batch_loss_func(InBatchLossFunc: Type[InBatchLossFunction], output: LightningIROutput):
-    loss_func = InBatchLossFunc()
+@pytest.mark.parametrize(
+    "loss_func",
+    [
+        InBatchCrossEntropy(),
+        InBatchCrossEntropy("first", "all_and_non_first"),
+        ScoreBasedInBatchCrossEntropy(2, "first", "all_and_non_first"),
+    ],
+    ids=["InBatchCrossEntropy(default)", "InBatchCrossEntropy(all_and_non_first)", "ScoreBasedInBatchCrossEntropy"],
+)
+def test_in_batch_loss_func(loss_func: InBatchLossFunction, output: LightningIROutput, batch: TrainBatch):
+    pos_idcs, neg_idcs = loss_func.get_ib_idcs(output, batch)
+    assert pos_idcs is not None
+    assert neg_idcs is not None
     loss = loss_func.compute_loss(output)
     assert loss >= 0
     assert loss.requires_grad
 
 
-@pytest.mark.parametrize("RegularizationLossFunc", [L1Regularization, L2Regularization, FLOPSRegularization])
-def test_regularization_loss_func(RegularizationLossFunc: Type[RegularizationLossFunction], embeddings: torch.Tensor):
-    loss_func = RegularizationLossFunc()
+@pytest.mark.parametrize(
+    "loss_func", [L1Regularization(), L2Regularization(), FLOPSRegularization()], ids=["L1", "L2", "FLOPS"]
+)
+def test_regularization_loss_func(loss_func: RegularizationLossFunction, embeddings: torch.Tensor):
     loss = loss_func.compute_loss(
         BiEncoderOutput(
             None, BiEncoderEmbedding(embeddings, torch.empty(0)), BiEncoderEmbedding(embeddings, torch.empty(0))

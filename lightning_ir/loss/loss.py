@@ -5,9 +5,12 @@ from typing import TYPE_CHECKING, Literal, Tuple
 
 import torch
 
+from lightning_ir.data import TrainBatch
+
 if TYPE_CHECKING:
     from ..base import LightningIROutput
     from ..bi_encoder import BiEncoderOutput
+    from ..data import TrainBatch
 
 
 class LossFunction(ABC):
@@ -274,17 +277,19 @@ class InBatchLossFunction(LossFunction):
     def __init__(
         self,
         pos_sampling_technique: Literal["all", "first"] = "all",
-        neg_sampling_technique: Literal["all", "first"] = "all",
+        neg_sampling_technique: Literal["all", "first", "all_and_non_first"] = "all",
         max_num_neg_samples: int | None = None,
     ):
         super().__init__()
         self.pos_sampling_technique = pos_sampling_technique
         self.neg_sampling_technique = neg_sampling_technique
         self.max_num_neg_samples = max_num_neg_samples
+        if self.neg_sampling_technique == "all_and_non_first" and self.pos_sampling_technique != "first":
+            raise ValueError("all_and_non_first is only valid with pos_sampling_technique first")
 
-    def get_ib_idcs(self, num_queries: int, num_docs: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        min_idx = torch.arange(num_queries)[:, None] * num_docs
-        max_idx = min_idx + num_docs
+    def _get_pos_mask(
+        self, num_queries: int, num_docs: int, max_idx: torch.Tensor, min_idx: torch.Tensor, batch: TrainBatch
+    ) -> torch.Tensor:
         if self.pos_sampling_technique == "all":
             pos_mask = torch.arange(num_queries * num_docs)[None].greater_equal(min_idx) & torch.arange(
                 num_queries * num_docs
@@ -293,8 +298,14 @@ class InBatchLossFunction(LossFunction):
             pos_mask = torch.arange(num_queries * num_docs)[None].eq(min_idx)
         else:
             raise ValueError("invalid pos sampling technique")
-        pos_idcs = pos_mask.nonzero(as_tuple=True)[1]
-        if self.neg_sampling_technique == "all":
+        return pos_mask
+
+    def _get_neg_mask(
+        self, num_queries: int, num_docs: int, max_idx: torch.Tensor, min_idx: torch.Tensor, batch: TrainBatch
+    ) -> torch.Tensor:
+        if self.neg_sampling_technique == "all_and_non_first":
+            neg_mask = torch.arange(num_queries * num_docs)[None].not_equal(min_idx)
+        elif self.neg_sampling_technique == "all":
             neg_mask = torch.arange(num_queries * num_docs)[None].less(min_idx) | torch.arange(num_queries * num_docs)[
                 None
             ].greater_equal(max_idx)
@@ -304,6 +315,17 @@ class InBatchLossFunction(LossFunction):
             )[None].ne(min_idx)
         else:
             raise ValueError("invalid neg sampling technique")
+        return neg_mask
+
+    def get_ib_idcs(self, output: LightningIROutput, batch: TrainBatch) -> Tuple[torch.Tensor, torch.Tensor]:
+        if output.scores is None:
+            raise ValueError("Expected scores in LightningIROutput")
+        num_queries, num_docs = output.scores.shape
+        min_idx = torch.arange(num_queries)[:, None] * num_docs
+        max_idx = min_idx + num_docs
+        pos_mask = self._get_pos_mask(num_queries, num_docs, max_idx, min_idx, batch)
+        neg_mask = self._get_neg_mask(num_queries, num_docs, max_idx, min_idx, batch)
+        pos_idcs = pos_mask.nonzero(as_tuple=True)[1]
         neg_idcs = neg_mask.nonzero(as_tuple=True)[1]
         if self.max_num_neg_samples is not None:
             neg_idcs = neg_idcs.view(num_queries, -1)
@@ -313,11 +335,66 @@ class InBatchLossFunction(LossFunction):
             neg_idcs = neg_idcs.reshape(-1)
         return pos_idcs, neg_idcs
 
-    def compute_loss(self, output: LightningIROutput) -> torch.Tensor:
-        return super().compute_loss(output)
+
+class ScoreBasedInBatchLossFunction(InBatchLossFunction):
+
+    def __init__(
+        self,
+        min_target_diff: float,
+        pos_sampling_technique: Literal["first"] = "first",
+        neg_sampling_technique: Literal["all_and_non_first"] = "all_and_non_first",
+        max_num_neg_samples: int | None = None,
+    ):
+        super().__init__(pos_sampling_technique, neg_sampling_technique, max_num_neg_samples)
+        self.min_target_diff = min_target_diff
+
+    def _sort_mask(self, mask: torch.Tensor, num_queries: int, num_docs: int, batch: TrainBatch) -> torch.Tensor:
+        assert batch.targets is not None
+        idcs = batch.targets.argsort(descending=True).argsort()
+        idcs = idcs + torch.arange(num_queries)[:, None] * num_docs
+        block_idcs = torch.arange(num_docs)[None] + torch.arange(num_queries)[:, None] * num_docs
+        return mask.scatter(1, block_idcs, mask.gather(1, idcs))
+
+    def _get_pos_mask(
+        self, num_queries: int, num_docs: int, max_idx: torch.Tensor, min_idx: torch.Tensor, batch: TrainBatch
+    ) -> torch.Tensor:
+        pos_mask = super()._get_pos_mask(num_queries, num_docs, max_idx, min_idx, batch)
+        pos_mask = self._sort_mask(pos_mask, num_queries, num_docs, batch)
+        return pos_mask
+
+    def _get_neg_mask(
+        self, num_queries: int, num_docs: int, max_idx: torch.Tensor, min_idx: torch.Tensor, batch: TrainBatch
+    ) -> torch.Tensor:
+        neg_mask = super()._get_neg_mask(num_queries, num_docs, max_idx, min_idx, batch)
+        neg_mask = self._sort_mask(neg_mask, num_queries, num_docs, batch)
+        assert batch.targets is not None
+        max_score, _ = batch.targets.max(dim=-1, keepdim=True)
+        score_diff = max_score - batch.targets
+        score_mask = score_diff.ge(self.min_target_diff)
+        block_idcs = torch.arange(num_docs)[None] + torch.arange(num_queries)[:, None] * num_docs
+        neg_mask = neg_mask.scatter(1, block_idcs, score_mask)
+        # num_neg_samples might be different between queries
+        num_neg_samples = neg_mask.sum(dim=1)
+        min_num_neg_samples = num_neg_samples.min()
+        additional_neg_samples = num_neg_samples - min_num_neg_samples
+        for query_idx, neg_samples in enumerate(additional_neg_samples):
+            neg_idcs = neg_mask[query_idx].nonzero().squeeze(1)
+            additional_neg_idcs = torch.randperm(neg_idcs.shape[0])[:neg_samples]
+            neg_mask[query_idx, additional_neg_idcs] = False
+        assert neg_mask.sum(dim=1).eq(min_num_neg_samples).all()
+        return neg_mask
 
 
 class InBatchCrossEntropy(InBatchLossFunction):
+    def compute_loss(self, output: LightningIROutput) -> torch.Tensor:
+        scores = self.process_scores(output)
+        targets = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
+        loss = torch.nn.functional.cross_entropy(scores, targets)
+        return loss
+
+
+class ScoreBasedInBatchCrossEntropy(ScoreBasedInBatchLossFunction):
+
     def compute_loss(self, output: LightningIROutput) -> torch.Tensor:
         scores = self.process_scores(output)
         targets = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
