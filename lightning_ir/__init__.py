@@ -68,7 +68,7 @@ from .loss import (
     RankNet,
     SupervisedMarginMSE,
 )
-from .main import LightningIRTrainer
+from .main import LightningIRTrainer, LightningIRWandbLogger
 from .models import (
     ColConfig,
     ColModel,
@@ -177,6 +177,7 @@ __all__ = [
     "LightningIRTokenizer",
     "LightningIRTokenizerClassFactory",
     "LightningIRTrainer",
+    "LightningIRWandbLogger",
     "LinearLRSchedulerWithLinearWarmup",
     "LocalizedContrastiveEstimation",
     "LR_SCHEDULERS",
