@@ -338,14 +338,12 @@ class InBatchLossFunction(LossFunction):
 
 class ScoreBasedInBatchLossFunction(InBatchLossFunction):
 
-    def __init__(
-        self,
-        min_target_diff: float,
-        pos_sampling_technique: Literal["first"] = "first",
-        neg_sampling_technique: Literal["all_and_non_first"] = "all_and_non_first",
-        max_num_neg_samples: int | None = None,
-    ):
-        super().__init__(pos_sampling_technique, neg_sampling_technique, max_num_neg_samples)
+    def __init__(self, min_target_diff: float, max_num_neg_samples: int | None = None):
+        super().__init__(
+            pos_sampling_technique="first",
+            neg_sampling_technique="all_and_non_first",
+            max_num_neg_samples=max_num_neg_samples,
+        )
         self.min_target_diff = min_target_diff
 
     def _sort_mask(self, mask: torch.Tensor, num_queries: int, num_docs: int, batch: TrainBatch) -> torch.Tensor:
