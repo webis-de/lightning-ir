@@ -145,7 +145,7 @@ class BiEncoderModule(LightningIRModule):
 
         num_queries = len(batch.queries)
         output.scores = output.scores.view(num_queries, -1)
-        targets = batch.targets.view(*output.scores.shape, -1)
+        batch.targets = batch.targets.view(*output.scores.shape, -1)
         losses = []
         for loss_function, _ in self.loss_functions:
             if isinstance(loss_function, InBatchLossFunction):
@@ -157,7 +157,7 @@ class BiEncoderModule(LightningIRModule):
             elif isinstance(loss_function, EmbeddingLossFunction):
                 losses.append(loss_function.compute_loss(output))
             elif isinstance(loss_function, ScoringLossFunction):
-                losses.append(loss_function.compute_loss(output, targets))
+                losses.append(loss_function.compute_loss(output, batch))
             else:
                 raise ValueError(f"Unknown loss function type {loss_function.__class__.__name__}")
         if self.config.sparsification is not None:
