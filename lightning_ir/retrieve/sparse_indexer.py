@@ -1,6 +1,7 @@
 import array
 from pathlib import Path
 
+import numpy as np
 import torch
 
 from ..bi_encoder import BiEncoderConfig, BiEncoderOutput
@@ -52,9 +53,9 @@ class SparseIndexer(Indexer):
     def save(self) -> None:
         super().save()
         index = torch.sparse_csr_tensor(
-            torch.tensor(self.crow_indices),
-            torch.tensor(self.col_idcs),
-            torch.tensor(self.values),
+            torch.frombuffer(self.crow_indices, dtype=torch.int64),
+            torch.frombuffer(self.col_idcs, dtype=torch.int32),
+            torch.frombuffer(self.values, dtype=torch.float32),
             torch.Size([self.num_embeddings, self.bi_encoder_config.embedding_dim]),
         )
         torch.save(index, self.index_dir / "index.pt")
