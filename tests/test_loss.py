@@ -54,7 +54,7 @@ def output(batch_size: int, depth: int) -> LightningIROutput:
 
 
 @pytest.fixture(scope="module")
-def labels(batch_size: int, depth: int) -> torch.Tensor:
+def targets(batch_size: int, depth: int) -> torch.Tensor:
     tensor = torch.randint(0, 5, (batch_size, depth))
     return tensor
 
@@ -66,11 +66,11 @@ def embeddings(batch_size: int, sequence_length: int, embedding_dim: int) -> tor
 
 
 @pytest.fixture(scope="module")
-def batch(batch_size: int, depth: int) -> TrainBatch:
+def batch(batch_size: int, depth: int, targets: torch.Tensor) -> TrainBatch:
     return TrainBatch(
         queries=["query"] * batch_size,
         docs=[[f"doc{i}" for i in range(depth)]] * batch_size,
-        targets=torch.randint(0, 5, (batch_size, depth)),
+        targets=targets,
     )
 
 
@@ -97,8 +97,8 @@ def batch(batch_size: int, depth: int) -> TrainBatch:
         "SupervisedMarginMSE",
     ],
 )
-def test_loss_func(output: LightningIROutput, labels: torch.Tensor, loss_func: ScoringLossFunction):
-    loss = loss_func.compute_loss(output, labels)
+def test_loss_func(output: LightningIROutput, batch: TrainBatch, loss_func: ScoringLossFunction):
+    loss = loss_func.compute_loss(output, batch)
     assert loss >= 0
     assert loss.requires_grad
 
