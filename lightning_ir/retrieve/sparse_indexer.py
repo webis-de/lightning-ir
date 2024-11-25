@@ -1,7 +1,6 @@
 import array
 from pathlib import Path
 
-import numpy as np
 import torch
 
 from ..bi_encoder import BiEncoderConfig, BiEncoderOutput
@@ -20,7 +19,7 @@ class SparseIndexer(Indexer):
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
         self.crow_indices = array.array("L")
         self.crow_indices.append(0)
-        self.col_idcs = array.array("I")
+        self.col_indices = array.array("L")
         self.values = array.array("f")
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
@@ -37,7 +36,7 @@ class SparseIndexer(Indexer):
         crow_indices = token_idcs.bincount().cumsum(0) + self.crow_indices[-1]
         values = embeddings[token_idcs, dim_idcs]
         self.crow_indices.extend(crow_indices.cpu().tolist())
-        self.col_idcs.extend(dim_idcs.cpu().tolist())
+        self.col_indices.extend(dim_idcs.cpu().tolist())
         self.values.extend(values.cpu().tolist())
 
         self.doc_lengths.extend(doc_lengths.cpu().tolist())
@@ -54,7 +53,7 @@ class SparseIndexer(Indexer):
         super().save()
         index = torch.sparse_csr_tensor(
             torch.frombuffer(self.crow_indices, dtype=torch.int64),
-            torch.frombuffer(self.col_idcs, dtype=torch.int32),
+            torch.frombuffer(self.col_indices, dtype=torch.int64),
             torch.frombuffer(self.values, dtype=torch.float32),
             torch.Size([self.num_embeddings, self.bi_encoder_config.embedding_dim]),
         )
