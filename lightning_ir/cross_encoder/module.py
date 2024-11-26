@@ -73,11 +73,11 @@ class CrossEncoderModule(LightningIRModule):
             raise ValueError("scores and targets must be set in the output and batch")
 
         output.scores = output.scores.view(len(batch.query_ids), -1)
-        targets = batch.targets.view(*output.scores.shape, -1)
+        batch.targets = batch.targets.view(*output.scores.shape, -1)
 
         losses = []
         for loss_function, _ in self.loss_functions:
             if not isinstance(loss_function, ScoringLossFunction):
                 raise RuntimeError(f"Loss function {loss_function} is not a scoring loss function")
-            losses.append(loss_function.compute_loss(output, targets))
+            losses.append(loss_function.compute_loss(output, batch))
         return losses
