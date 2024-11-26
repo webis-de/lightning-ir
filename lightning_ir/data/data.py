@@ -138,7 +138,7 @@ class TrainBatch(RankBatch):
 
 @dataclass
 class IndexBatch:
-    """A batch of index that combines multiple :py:class`.DocSample` instances
+    """A batch of index that combines multiple :py:class:`.DocSample` instances
 
     :param doc_ids: List of document ids
     :type doc_ids: Sequence[str]
