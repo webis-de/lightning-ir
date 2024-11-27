@@ -77,7 +77,6 @@ def test_seralize_deserialize(module: LightningIRModule, tmp_path: Path):
                 "_name_or_path",
                 "_commit_hash",
                 "transformers_version",
-                "model_type",
                 "_attn_implementation_autoset",
             ):
                 continue

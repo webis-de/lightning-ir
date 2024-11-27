@@ -161,7 +161,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method and to return a
         derived LightningIRModel. See :class:`LightningIRModelClassFactory` for more details.
 
-        .. _transformers.PreTrainedModel.from_pretrained: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained # noqa
+.. _transformers.PreTrainedModel.from_pretrained: \
+    https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained
 
         :param model_name_or_path: Name or path of the pretrained model
         :type model_name_or_path: str | Path

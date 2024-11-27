@@ -4,16 +4,18 @@ Tokenizer module for Lightning IR.
 This module contains the main tokenizer class for the Lightning IR library.
 """
 
-from typing import Dict, Sequence, Type
+import json
+from os import PathLike
+from typing import Dict, Sequence, Tuple, Type
 
-from transformers import TOKENIZER_MAPPING, BatchEncoding
+from transformers import TOKENIZER_MAPPING, BatchEncoding, PreTrainedTokenizerBase
 
 from .class_factory import LightningIRTokenizerClassFactory
 from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING
 
 
-class LightningIRTokenizer:
+class LightningIRTokenizer(PreTrainedTokenizerBase):
     """Base class for Lightning IR tokenizers. Derived classes implement the tokenize method for handling query
     and document tokenization. It acts as mixin for a transformers.PreTrainedTokenizer_ backbone tokenizer.
 
@@ -77,6 +79,7 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
         :return: A derived LightningIRTokenizer consisting of a backbone tokenizer and a LightningIRTokenizer mixin
         :rtype: LightningIRTokenizer
         """
+        # provides AutoTokenizer.from_pretrained support
         config = kwargs.pop("config", None)
         if config is not None:
             kwargs.update(config.to_tokenizer_dict())
@@ -94,6 +97,7 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
                 Config = LightningIRTokenizerClassFactory.get_lightning_ir_config(model_name_or_path)
                 if Config is None:
                     raise ValueError("Pass a config to `from_pretrained`.")
+            Config = getattr(Config, "mixin_config", Config)
             BackboneConfig = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
             BackboneTokenizers = TOKENIZER_MAPPING[BackboneConfig]
             if kwargs.get("use_fast", True):
@@ -103,3 +107,36 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
             cls = LightningIRTokenizerClassFactory(Config).from_backbone_class(BackboneTokenizer)
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         return super(LightningIRTokenizer, cls).from_pretrained(model_name_or_path, *args, **kwargs)
+
+    def _save_pretrained(
+        self,
+        save_directory: str | PathLike,
+        file_names: Tuple[str],
+        legacy_format: bool | None = None,
+        filename_prefix: str | None = None,
+    ) -> Tuple[str]:
+        # bit of a hack to change the tokenizer class in the stored tokenizer config to only contain the
+        # lightning_ir tokenizer class (removing the backbone tokenizer class)
+        save_files = super()._save_pretrained(save_directory, file_names, legacy_format, filename_prefix)
+        config_file = save_files[0]
+        with open(config_file, "r") as file:
+            tokenizer_config = json.load(file)
+
+        tokenizer_class = None
+        backbone_tokenizer_class = None
+        for base in self.__class__.__bases__:
+            if issubclass(base, LightningIRTokenizer):
+                if tokenizer_class is not None:
+                    raise ValueError("Multiple Lightning IR tokenizer classes found.")
+                tokenizer_class = base.__name__
+                continue
+            if issubclass(base, PreTrainedTokenizerBase):
+                backbone_tokenizer_class = base.__name__
+
+        tokenizer_config["tokenizer_class"] = tokenizer_class
+        tokenizer_config["backbone_tokenizer_class"] = backbone_tokenizer_class
+
+        with open(config_file, "w") as file:
+            out_str = json.dumps(tokenizer_config, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+            file.write(out_str)
+        return save_files

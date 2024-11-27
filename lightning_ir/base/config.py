@@ -9,13 +9,13 @@ class from the Hugging Face Transformers library.
 from pathlib import Path
 from typing import Any, Dict, Set
 
-from transformers import CONFIG_MAPPING
+from transformers import PretrainedConfig
 
 from .class_factory import LightningIRConfigClassFactory
 from .external_model_hub import CHECKPOINT_MAPPING
 
 
-class LightningIRConfig:
+class LightningIRConfig(PretrainedConfig):
     """The configuration class to instantiate a Lightning IR model. Acts as a mixin for the
     transformers.PretrainedConfig_ class.
 
@@ -71,10 +71,7 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         :return: Configuration dictionary
         :rtype: Dict[str, Any]
         """
-        if hasattr(super(), "to_dict"):
-            output = getattr(super(), "to_dict")()
-        else:
-            output = self.to_added_args_dict()
+        output = getattr(super(), "to_dict")()
         if self.backbone_model_type is not None:
             output["backbone_model_type"] = self.backbone_model_type
         return output
@@ -93,7 +90,9 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         :return: Derived LightningIRConfig class
         :rtype: LightningIRConfig
         """
+        # provides AutoConfig.from_pretrained support
         if cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__):
+            # no backbone config found, create dervied lightning-ir config based on backbone config
             config = None
             if pretrained_model_name_or_path in CHECKPOINT_MAPPING:
                 config = CHECKPOINT_MAPPING[pretrained_model_name_or_path]
@@ -111,34 +110,3 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
                 derived_config.update(config.to_dict())
             return cls.from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
         return super(LightningIRConfig, cls).from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
-
-    @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any], *args, **kwargs) -> "LightningIRConfig":
-        """Loads the configuration from a dictionary. Wraps the transformers.PretrainedConfig.from_dict_ method to
-        return a derived LightningIRConfig class. See :class:`.LightningIRConfigClassFactory` for more details.
-
-        .. _transformers.PretrainedConfig.from_dict: \
-https://huggingface.co/docs/transformers/main_classes/configuration.html#transformers.PretrainedConfig.from_dict
-
-        :param config_dict: Configuration dictionary
-        :type config_dict: Dict[str, Any]
-        :raises ValueError: If the model type does not match the configuration model type
-        :return: Derived LightningIRConfig class
-        :rtype: LightningIRConfig
-        """
-        if all(issubclass(base, LightningIRConfig) for base in cls.__bases__) or cls is LightningIRConfig:
-            if "backbone_model_type" in config_dict:
-                backbone_model_type = config_dict["backbone_model_type"]
-                model_type = config_dict["model_type"]
-                if cls is not LightningIRConfig and model_type != cls.model_type:
-                    raise ValueError(
-                        f"Model type {model_type} does not match configuration model type {cls.model_type}"
-                    )
-            else:
-                backbone_model_type = config_dict["model_type"]
-                model_type = cls.model_type
-            MixinConfig = CONFIG_MAPPING[model_type]
-            BackboneConfig = CONFIG_MAPPING[backbone_model_type]
-            cls = LightningIRConfigClassFactory(MixinConfig).from_backbone_class(BackboneConfig)
-            return cls.from_dict(config_dict, *args, **kwargs)
-        return super(LightningIRConfig, cls).from_dict(config_dict, *args, **kwargs)

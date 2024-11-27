@@ -149,9 +149,9 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         :param save_directory: Directory to save the configuration
         :type save_directory: str | PathLike
         """
+        super().save_pretrained(save_directory, **kwargs)
         with open(os.path.join(save_directory, "mask_scoring_tokens.json"), "w") as f:
             json.dump({"query": self.query_mask_scoring_tokens, "doc": self.doc_mask_scoring_tokens}, f)
-        return super().save_pretrained(save_directory, **kwargs)
 
     @classmethod
     def get_config_dict(
