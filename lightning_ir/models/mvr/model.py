@@ -8,7 +8,7 @@ from transformers import BatchEncoding, AutoConfig, AutoModel, AutoTokenizer
 from lightning_ir import BiEncoderModel, BiEncoderOutput
 
 class MVRModel(BiEncoderModel):
-    config_class = MVRConfig
+    config = MVRConfig
 
     def __init__(self, config, *args, **kwargs):
         super().__init__(config, *args, **kwargs)
