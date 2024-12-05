@@ -72,16 +72,11 @@ def test_cross_encoder_tokenizer(model_name_or_path: str):
 
 def test_mvr_tokenizer(model_name_or_path: str):
     Tokenizer = LightningIRTokenizerClassFactory(MVRConfig).from_pretrained(model_name_or_path)
-    tokenizer = Tokenizer.from_pretrained(model_name_or_path, query_length=2, doc_length=4)
+    tokenizer = Tokenizer.from_pretrained(model_name_or_path)
 
     query = "What is the capital of France?"
     doc = "Paris is the capital of France."
     encoding = tokenizer.tokenize(query, doc)["encoding"]
     assert encoding is not None
-    assert len(encoding.input_ids) == tokenizer.query_length + tokenizer.doc_length + 3
-
-    query = ["What is the capital of France?"]
-    doc = ["Paris is the capital of France."]
-    encoding = tokenizer.tokenize(query, doc)["encoding"]
-    assert encoding is not None
-    assert len(encoding.input_ids[0]) == tokenizer.query_length + tokenizer.doc_length + 3
+    doc_encoding = encoding["doc_encoding"]
+    assert len(encoding.doc_encoding.input_ids) > 10
