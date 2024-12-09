@@ -125,7 +125,9 @@ def test_in_batch_loss_func(loss_func: InBatchLossFunction, output: LightningIRO
 def test_regularization_loss_func(loss_func: RegularizationLossFunction, embeddings: torch.Tensor):
     loss = loss_func.compute_loss(
         BiEncoderOutput(
-            None, BiEncoderEmbedding(embeddings, torch.empty(0)), BiEncoderEmbedding(embeddings, torch.empty(0))
+            None,
+            BiEncoderEmbedding(embeddings, torch.empty(0), None),
+            BiEncoderEmbedding(embeddings, torch.empty(0), None),
         )
     )
     assert loss >= 0
