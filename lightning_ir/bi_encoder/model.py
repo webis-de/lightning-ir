@@ -66,6 +66,8 @@ class BiEncoderEmbedding:
     length varies depending on the pooling strategy and the hidden size varies depending on the projection settings."""
     scoring_mask: torch.Tensor
     """Mask tensor designating which vectors should be ignored during scoring."""
+    encoding: BatchEncoding | None
+    """Tokenizer encodings used to generate the embeddings."""
 
     @overload
     def to(self, device: torch.device, /) -> "BiEncoderEmbedding": ...
@@ -85,6 +87,7 @@ class BiEncoderEmbedding:
             device = device.device
         self.embeddings = self.embeddings.to(device)
         self.scoring_mask = self.scoring_mask.to(device)
+        self.encoding = self.encoding.to(device)
         return self
 
     @property
@@ -306,7 +309,7 @@ class BiEncoderModel(LightningIRModel):
         if self.config.normalize:
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self.scoring_mask(encoding, expansion, pooling_strategy, mask_scoring_input_ids)
-        return BiEncoderEmbedding(embeddings, scoring_mask)
+        return BiEncoderEmbedding(embeddings, scoring_mask, encoding)
 
     def scoring_mask(
         self,
@@ -456,11 +459,14 @@ class ScoringFunction(torch.nn.Module):
         return BiEncoderEmbedding(
             embeddings.embeddings.repeat_interleave(num_docs, dim=0).unsqueeze(2),
             embeddings.scoring_mask.repeat_interleave(num_docs, dim=0).unsqueeze(2),
+            embeddings.encoding,
         )
 
     def _expand_doc_embeddings(self, embeddings: BiEncoderEmbedding, num_docs: torch.Tensor) -> BiEncoderEmbedding:
         """Helper function to expand document embeddings to match the number documents per query."""
-        return BiEncoderEmbedding(embeddings.embeddings.unsqueeze(1), embeddings.scoring_mask.unsqueeze(1))
+        return BiEncoderEmbedding(
+            embeddings.embeddings.unsqueeze(1), embeddings.scoring_mask.unsqueeze(1), embeddings.encoding
+        )
 
     def _aggregate(
         self,

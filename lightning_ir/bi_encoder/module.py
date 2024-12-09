@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import List, Sequence, Tuple
 
 import torch
+from transformers import BatchEncoding
 
 from ..base import LightningIRModule, LightningIROutput
 from ..data import IndexBatch, RankBatch, SearchBatch, TrainBatch
@@ -179,22 +180,29 @@ class BiEncoderModule(LightningIRModule):
         num_queries: int,
     ) -> BiEncoderEmbedding:
         """Gets the in-batch document embeddings for a training batch."""
-        _, seq_len, emb_dim = embeddings.embeddings.shape
+        _, num_embs, emb_dim = embeddings.embeddings.shape
         ib_embeddings = torch.cat(
             [
-                embeddings.embeddings[pos_idcs].view(num_queries, -1, seq_len, emb_dim),
-                embeddings.embeddings[neg_idcs].view(num_queries, -1, seq_len, emb_dim),
+                embeddings.embeddings[pos_idcs].view(num_queries, -1, num_embs, emb_dim),
+                embeddings.embeddings[neg_idcs].view(num_queries, -1, num_embs, emb_dim),
             ],
             dim=1,
-        ).view(-1, seq_len, emb_dim)
+        ).view(-1, num_embs, emb_dim)
         ib_scoring_mask = torch.cat(
             [
-                embeddings.scoring_mask[pos_idcs].view(num_queries, -1, seq_len),
-                embeddings.scoring_mask[neg_idcs].view(num_queries, -1, seq_len),
+                embeddings.scoring_mask[pos_idcs].view(num_queries, -1, num_embs),
+                embeddings.scoring_mask[neg_idcs].view(num_queries, -1, num_embs),
             ],
             dim=1,
-        ).view(-1, seq_len)
-        return BiEncoderEmbedding(ib_embeddings, ib_scoring_mask)
+        ).view(-1, num_embs)
+        ib_encoding = {}
+        for key, value in embeddings.encoding.items():
+            seq_len = value.shape[-1]
+            ib_encoding[key] = torch.cat(
+                [value[pos_idcs].view(num_queries, -1, seq_len), value[neg_idcs].view(num_queries, -1, seq_len)],
+                dim=1,
+            ).view(-1, seq_len)
+        return BiEncoderEmbedding(ib_embeddings, ib_scoring_mask, BatchEncoding(ib_encoding))
 
     def validation_step(
         self,

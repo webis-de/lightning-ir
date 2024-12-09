@@ -103,7 +103,7 @@ class FaissSearcher(Searcher):
         # mask out padding
         doc_lengths = doc_lengths[inverse_idcs]
         scoring_mask = torch.arange(embeddings.shape[1], device=embeddings.device) < doc_lengths[:, None]
-        doc_embeddings = BiEncoderEmbedding(embeddings=embeddings, scoring_mask=scoring_mask)
+        doc_embeddings = BiEncoderEmbedding(embeddings=embeddings, scoring_mask=scoring_mask, encoding=None)
         return doc_embeddings, doc_idcs, num_docs
 
     def intra_ranking_imputation(
