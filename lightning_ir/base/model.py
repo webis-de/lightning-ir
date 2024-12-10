@@ -230,7 +230,10 @@ def _cat_outputs(
         for key, value in output.items():
             agg[key].append(value)
             types[key] = type(value)
-    return OutputClass(**{key: _cat_outputs(value, types[key]) for key, value in agg.items()})
+    kwargs = {key: _cat_outputs(value, types[key]) for key, value in agg.items()}
+    if OutputClass is BatchEncoding:
+        return OutputClass(kwargs)
+    return OutputClass(**kwargs)
 
 
 class BatchEncodingWrapper(Protocol):
