@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING, Literal, Tuple
 
 import torch
 
-from .searcher import SearchConfig, Searcher
+from ..base import SearchConfig, Searcher
 from .sparse_indexer import SparseIndexConfig
 
 if TYPE_CHECKING:
-    from ..bi_encoder import BiEncoderEmbedding, BiEncoderModule
+    from ...bi_encoder import BiEncoderEmbedding, BiEncoderModule
 
 
 class SparseIndex:

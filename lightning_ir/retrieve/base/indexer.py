@@ -4,13 +4,13 @@ import array
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 import torch
 
 if TYPE_CHECKING:
-    from ..bi_encoder import BiEncoderConfig, BiEncoderOutput
-    from ..data import IndexBatch
+    from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+    from ...data import IndexBatch
 
 
 class Indexer(ABC):
@@ -24,7 +24,7 @@ class Indexer(ABC):
         self.index_dir = index_dir
         self.index_config = index_config
         self.bi_encoder_config = bi_encoder_config
-        self.doc_ids = []
+        self.doc_ids: List[str] = []
         self.doc_lengths = array.array("I")
         self.num_embeddings = 0
         self.num_docs = 0

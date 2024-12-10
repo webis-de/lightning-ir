@@ -1,5 +1,4 @@
-from .base import IndexConfig, Indexer, SearchConfig, Searcher
-from .faiss import (
+from .faiss_indexer import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
     FaissIVFIndexConfig,
@@ -8,10 +7,8 @@ from .faiss import (
     FaissIVFPQIndexer,
     FaissPQIndexConfig,
     FaissPQIndexer,
-    FaissSearchConfig,
-    FaissSearcher,
 )
-from .sparse import SparseIndexConfig, SparseIndexer, SparseSearchConfig, SparseSearcher
+from .faiss_searcher import FaissSearchConfig, FaissSearcher
 
 __all__ = [
     "FaissFlatIndexConfig",
@@ -24,12 +21,4 @@ __all__ = [
     "FaissPQIndexer",
     "FaissSearchConfig",
     "FaissSearcher",
-    "IndexConfig",
-    "Indexer",
-    "SearchConfig",
-    "Searcher",
-    "SparseIndexConfig",
-    "SparseIndexer",
-    "SparseSearcher",
-    "SparseSearchConfig",
 ]

@@ -6,10 +6,10 @@ from typing import TYPE_CHECKING, List, Sequence, Tuple, Type
 
 import torch
 
-from ..bi_encoder.model import BiEncoderEmbedding
+from ...bi_encoder.model import BiEncoderEmbedding
 
 if TYPE_CHECKING:
-    from ..bi_encoder import BiEncoderModule, BiEncoderOutput
+    from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 
 
 class Searcher(ABC):

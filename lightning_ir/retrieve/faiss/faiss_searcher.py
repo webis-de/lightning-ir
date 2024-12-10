@@ -5,11 +5,11 @@ from typing import TYPE_CHECKING, List, Literal, Tuple
 
 import torch
 
-from ..bi_encoder.model import BiEncoderEmbedding
-from .searcher import SearchConfig, Searcher
+from ...bi_encoder.model import BiEncoderEmbedding
+from ..base import SearchConfig, Searcher
 
 if TYPE_CHECKING:
-    from ..bi_encoder import BiEncoderModule
+    from ...bi_encoder import BiEncoderModule
 
 
 class FaissSearcher(Searcher):

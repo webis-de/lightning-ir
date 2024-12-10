@@ -3,9 +3,9 @@ from pathlib import Path
 
 import torch
 
-from ..bi_encoder import BiEncoderConfig, BiEncoderOutput
-from ..data import IndexBatch
-from .indexer import IndexConfig, Indexer
+from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+from ...data import IndexBatch
+from ..base import IndexConfig, Indexer
 
 
 class FaissIndexer(Indexer):

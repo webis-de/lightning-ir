@@ -16,11 +16,11 @@ from lightning_ir.lightning_utils.callbacks import (
 from lightning_ir.retrieve import (
     FaissFlatIndexConfig,
     FaissSearchConfig,
+    IndexConfig,
     SearchConfig,
     SparseIndexConfig,
     SparseSearchConfig,
 )
-from lightning_ir.retrieve.indexer import IndexConfig
 
 from .conftest import CORPUS_DIR, DATA_DIR
 
