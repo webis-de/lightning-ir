@@ -15,6 +15,7 @@ from lightning_ir.lightning_utils.callbacks import (
 )
 from lightning_ir.retrieve import (
     FaissFlatIndexConfig,
+    FaissIVFIndexConfig,
     FaissSearchConfig,
     IndexConfig,
     SearchConfig,
@@ -26,8 +27,8 @@ from .conftest import CORPUS_DIR, DATA_DIR
 
 
 @pytest.fixture(
-    params=[FaissFlatIndexConfig(), SparseIndexConfig()],
-    ids=["Faiss", "Sparse"],
+    params=[FaissFlatIndexConfig(), FaissIVFIndexConfig(num_centroids=16), SparseIndexConfig()],
+    ids=["Faiss", "FaissIVF", "Sparse"],
 )
 def index_config(request: SubRequest) -> IndexConfig:
     return request.param
