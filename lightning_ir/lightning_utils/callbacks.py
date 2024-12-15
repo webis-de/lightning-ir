@@ -58,8 +58,9 @@ class _IndexDirMixin:
                 index_dir = default_index_dir / "indexes"
             else:
                 raise ValueError("No index_dir provided and model_name_or_path is not a path")
-            index_dir = index_dir / dataset.docs_dataset_id
-        return Path(index_dir)
+        index_dir = Path(index_dir)
+        index_dir = index_dir / dataset.docs_dataset_id
+        return index_dir
 
 
 class _OverwriteMixin:
@@ -116,9 +117,8 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         dataloaders = trainer.test_dataloaders
         if dataloaders is None:
             raise ValueError("No test_dataloaders found")
-        dataset = dataloaders[dataset_idx].dataset
 
-        index_dir = self.get_index_dir(pl_module, dataset)
+        index_dir = self.get_save_path(trainer, pl_module, dataset_idx)
 
         indexer = self.index_config.indexer_class(index_dir, self.index_config, pl_module.config, self.verbose)
         return indexer
