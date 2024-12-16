@@ -14,7 +14,7 @@ import torch
 from transformers import MODEL_MAPPING, BatchEncoding, BertModel
 from transformers.modeling_outputs import ModelOutput
 
-from ..flash import FLASH_ATTENTION_MAP
+from .._flash import FLASH_ATTENTION_MAP
 from .class_factory import LightningIRModelClassFactory
 from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
