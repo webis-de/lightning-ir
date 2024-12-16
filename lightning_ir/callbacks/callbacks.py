@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Literal, Sequence, 
 import pandas as pd
 import torch
 from lightning import LightningModule, Trainer
-from lightning.pytorch.callbacks import BasePredictionWriter, Callback, TQDMProgressBar
+from lightning.pytorch.callbacks import Callback, TQDMProgressBar
 
 from ..data import RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
