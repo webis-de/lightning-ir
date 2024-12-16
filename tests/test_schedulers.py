@@ -5,12 +5,12 @@ import torch
 from lightning import LightningDataModule, LightningModule, Trainer
 from torch.utils.data import DataLoader, Dataset
 
-from lightning_ir.lightning_utils.lr_schedulers import (
+from lightning_ir.schedulers.lr_schedulers import (
     ConstantLRSchedulerWithLinearWarmup,
     LinearLRSchedulerWithLinearWarmup,
     WarmupLRScheduler,
 )
-from lightning_ir.lightning_utils.schedulers import (
+from lightning_ir.schedulers.schedulers import (
     GenericConstantSchedulerWithLinearWarmup,
     GenericConstantSchedulerWithQuadraticWarmup,
     GenericLinearSchedulerWithLinearWarmup,
