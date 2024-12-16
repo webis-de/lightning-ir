@@ -413,7 +413,7 @@ class SearchCallback(RankCallback, _IndexDirMixin):
         dataset = dataloaders[dataset_idx].dataset
 
         index_dir = self._get_index_dir(pl_module, dataset)
-        if self.searcher is not None and self.searcher.index_dir == index_dir:
+        if getattr(self, "searcher", None) is not None and self.searcher.index_dir == index_dir:
             return self.searcher
 
         searcher = self.search_config.search_class(index_dir, self.search_config, pl_module, self.use_gpu)
