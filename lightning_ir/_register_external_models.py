@@ -34,6 +34,7 @@ def _register_external_models():
             ),
             "naver/splade-v3": SpladeConfig(),
             "sentence-transformers/msmarco-bert-base-dot-v5": BiEncoderConfig(projection=None, embedding_dim=768),
+            "sentence-transformers/msmarco-distilbert-dot-v5": BiEncoderConfig(projection=None, embedding_dim=768),
             "sentence-transformers/msmarco-MiniLM-L-6-v3": BiEncoderConfig(projection=None, embedding_dim=384),
             "castorini/monot5-base-msmarco-10k": T5CrossEncoderConfig(decoder_strategy="mono"),
             "castorini/monot5-base-msmarco": T5CrossEncoderConfig(decoder_strategy="mono"),
