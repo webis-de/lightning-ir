@@ -1,8 +1,9 @@
 from ...bi_encoder import BiEncoderModule
 
+
 class MVRModule(BiEncoderModule):
     def __init__(
-            self,   
+        self,
     ):
         super().__init__()
         if self.config.add_viewer_tokens and len(self.tokenizer) > self.config.vocab_size:

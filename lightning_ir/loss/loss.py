@@ -420,6 +420,10 @@ class InBatchCrossEntropy(InBatchLossFunction):
         loss = torch.nn.functional.cross_entropy(scores, targets)
         return loss
 
+class LocalMVRLoss(EmbeddingLossFunction):
+    def compute_loss(self, output):
+        doc_embeddings = output.doc_embeddings.embeddings
+        return super().compute_loss(output)
 
 class ScoreBasedInBatchCrossEntropy(ScoreBasedInBatchLossFunction):
 
@@ -471,7 +475,7 @@ class FLOPSRegularization(RegularizationLossFunction):
         anti_zero = 1 / (torch.sum(query_embeddings) ** 2) + 1 / (torch.sum(doc_embeddings) ** 2)
         loss = self.query_weight * query_loss + self.doc_weight * doc_loss + anti_zero
         return loss
-    
+
 
 class MVRLocalLoss(InBatchLossFunction):
     def compute_loss(self, output: LightningIROutput) -> torch.Tensor:

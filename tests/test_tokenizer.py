@@ -5,6 +5,8 @@ from lightning_ir.base.tokenizer import LightningIRTokenizerClassFactory
 from lightning_ir.bi_encoder.config import BiEncoderConfig
 from lightning_ir.cross_encoder.config import CrossEncoderConfig
 from lightning_ir.models.mvr.config import MVRConfig
+from lightning_ir.models.mvr.tokenizer import MVRTokenizer
+
 
 @pytest.mark.parametrize(
     "config",
@@ -69,6 +71,7 @@ def test_cross_encoder_tokenizer(model_name_or_path: str):
     encoding = tokenizer.tokenize(query, doc)["encoding"]
     assert encoding is not None
     assert len(encoding.input_ids[0]) == tokenizer.query_length + tokenizer.doc_length + 3
+
 
 def test_mvr_tokenizer(model_name_or_path: str):
     Tokenizer = LightningIRTokenizerClassFactory(MVRConfig).from_pretrained(model_name_or_path)

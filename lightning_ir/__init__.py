@@ -126,7 +126,7 @@ AutoModel.register(XTRConfig, XTRModel)
 AutoTokenizer.register(XTRConfig, BiEncoderTokenizer)
 AutoConfig.register(MVRConfig.model_type, MVRConfig)
 AutoModel.register(MVRConfig, MVRModel)
-AutoTokenizer.register(MVRConfig, BiEncoderTokenizer)
+AutoTokenizer.register(MVRConfig, MVRTokenizer)
 
 _register_external_models()
 
