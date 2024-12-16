@@ -21,6 +21,7 @@ from .bi_encoder import (
     BiEncoderTokenizer,
     ScoringFunction,
 )
+from .callbacks import IndexCallback, RankCallback, RegisterLocalDatasetCallback, ReRankCallback, SearchCallback
 from .cross_encoder import (
     CrossEncoderConfig,
     CrossEncoderModel,
@@ -41,18 +42,6 @@ from .data import (
     SearchBatch,
     TrainBatch,
     TupleDataset,
-)
-from .lightning_utils import (
-    ConstantLRSchedulerWithLinearWarmup,
-    GenericConstantSchedulerWithLinearWarmup,
-    GenericConstantSchedulerWithQuadraticWarmup,
-    GenericLinearSchedulerWithLinearWarmup,
-    IndexCallback,
-    LinearLRSchedulerWithLinearWarmup,
-    RankCallback,
-    ReRankCallback,
-    SearchCallback,
-    WarmupLRScheduler,
 )
 from .loss import (
     ApproxMRR,
@@ -101,6 +90,14 @@ from .retrieve import (
     SparseIndexer,
     SparseSearchConfig,
     SparseSearcher,
+)
+from .schedulers import (
+    ConstantLRSchedulerWithLinearWarmup,
+    GenericConstantSchedulerWithLinearWarmup,
+    GenericConstantSchedulerWithQuadraticWarmup,
+    GenericLinearSchedulerWithLinearWarmup,
+    LinearLRSchedulerWithLinearWarmup,
+    WarmupLRScheduler,
 )
 
 AutoConfig.register(BiEncoderConfig.model_type, BiEncoderConfig)
@@ -188,6 +185,7 @@ __all__ = [
     "RankBatch",
     "RankNet",
     "RankSample",
+    "RegisterLocalDatasetCallback",
     "ReRankCallback",
     "RunDataset",
     "ScoreBasedInBatchCrossEntropy",
