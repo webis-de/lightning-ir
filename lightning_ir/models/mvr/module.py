@@ -1,3 +1,5 @@
+from ...bi_encoder import BiEncoderModule
+
 class MVRModule(BiEncoderModule):
     def __init__(
             self,   

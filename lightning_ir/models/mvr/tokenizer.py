@@ -1,4 +1,5 @@
 from tokenizers.processors import TemplateProcessing
+from ...bi_encoder import BiEncoderTokenizer
 
 class MVRTokenizer(BiEncoderTokenizer):
     def __init__(

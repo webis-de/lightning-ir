@@ -4,7 +4,7 @@ from transformers import AutoTokenizer
 from lightning_ir.base.tokenizer import LightningIRTokenizerClassFactory
 from lightning_ir.bi_encoder.config import BiEncoderConfig
 from lightning_ir.cross_encoder.config import CrossEncoderConfig
-from lightning_ir.models.mvr import MVRConfig
+from lightning_ir.models.mvr.config import MVRConfig
 
 @pytest.mark.parametrize(
     "config",
@@ -76,7 +76,7 @@ def test_mvr_tokenizer(model_name_or_path: str):
 
     query = "What is the capital of France?"
     doc = "Paris is the capital of France."
-    encoding = tokenizer.tokenize(query, doc)["encoding"]
+    encoding = tokenizer.tokenize(query, doc)
     assert encoding is not None
     doc_encoding = encoding["doc_encoding"]
-    assert len(encoding.doc_encoding.input_ids) > 10
+    assert len(doc_encoding["input_ids"]) > 10

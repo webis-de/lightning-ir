@@ -471,3 +471,11 @@ class FLOPSRegularization(RegularizationLossFunction):
         anti_zero = 1 / (torch.sum(query_embeddings) ** 2) + 1 / (torch.sum(doc_embeddings) ** 2)
         loss = self.query_weight * query_loss + self.doc_weight * doc_loss + anti_zero
         return loss
+    
+
+class MVRLocalLoss(InBatchLossFunction):
+    def compute_loss(self, output: LightningIROutput) -> torch.Tensor:
+        scores = self.process_scores(output)
+        targets = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
+        loss = torch.nn.functional.cross_entropy(scores, targets)
+        return loss

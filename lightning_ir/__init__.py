@@ -80,6 +80,10 @@ from .models import (
     T5CrossEncoderTokenizer,
     XTRConfig,
     XTRModel,
+    MVRConfig,
+    MVRModel,
+    MVRTokenizer,
+    MVRModule,
 )
 from .retrieve import (
     FaissFlatIndexConfig,
@@ -120,6 +124,9 @@ AutoTokenizer.register(T5CrossEncoderConfig, T5CrossEncoderTokenizer)
 AutoConfig.register(XTRConfig.model_type, XTRConfig)
 AutoModel.register(XTRConfig, XTRModel)
 AutoTokenizer.register(XTRConfig, BiEncoderTokenizer)
+AutoConfig.register(MVRConfig.model_type, MVRConfig)
+AutoModel.register(MVRConfig, MVRModel)
+AutoTokenizer.register(MVRConfig, BiEncoderTokenizer)
 
 _register_external_models()
 
@@ -208,4 +215,8 @@ __all__ = [
     "WarmupLRScheduler",
     "XTRConfig",
     "XTRModel",
+    "MVRConfig",
+    "MVRTokenizer",
+    "MVRModel",
+    "MVRModule",
 ]
