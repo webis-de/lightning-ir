@@ -19,13 +19,12 @@ class FaissSearcher(Searcher):
         search_config: FaissSearchConfig,
         module: BiEncoderModule,
         use_gpu: bool = False,
-        use_gpu_index: bool = False,
     ) -> None:
         import faiss
 
         self.search_config: FaissSearchConfig
         self.index = faiss.read_index(str(Path(index_dir) / "index.faiss"))
-        if use_gpu and use_gpu_index and hasattr(faiss, "index_cpu_to_all_gpus"):
+        if use_gpu and hasattr(faiss, "index_cpu_to_all_gpus"):
             self.index = faiss.index_cpu_to_all_gpus(self.index)
         ivf_index = None
         try:
