@@ -5,9 +5,12 @@ from typing import TYPE_CHECKING, Literal, Tuple
 
 import torch
 
+# from lightning_ir.models.mvr.model import MVROutput
+
 if TYPE_CHECKING:
     from ..base import LightningIROutput
     from ..bi_encoder import BiEncoderOutput
+    from ..base import MVROutput 
     from ..data import TrainBatch
 
 
@@ -478,8 +481,10 @@ class FLOPSRegularization(RegularizationLossFunction):
 
 
 class MVRLocalLoss(InBatchLossFunction):
-    def compute_loss(self, output: LightningIROutput) -> torch.Tensor:
-        scores = self.process_scores(output)
+    def compute_loss(self, output: MVROutput) -> torch.Tensor:
+        if output.viewer_token_scores is None:
+            raise ValueError("Expected viewer_token_scores in MVROutput")
+        scores = output.viewer_token_scores
         targets = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
         loss = torch.nn.functional.cross_entropy(scores, targets)
         return loss

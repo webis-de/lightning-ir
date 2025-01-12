@@ -33,7 +33,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         doc_expansion: bool = False,
         doc_length: int = 512,
         attend_to_doc_expanded_tokens: bool = False,
-        add_marker_tokens: bool = True,
+        add_marker_tokens: bool = False,
         **kwargs,
     ):
         """:class:`.LightningIRTokenizer` for bi-encoder models. Encodes queries and documents separately. Optionally

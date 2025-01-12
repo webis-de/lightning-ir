@@ -523,4 +523,4 @@ class ScoringFunction(torch.nn.Module):
         similarity = self._compute_similarity(query_embeddings, doc_embeddings)
         scores = self._aggregate(similarity, doc_embeddings.scoring_mask, "max", -1)
         scores = self._aggregate(scores, query_embeddings.scoring_mask, self.query_aggregation_function, -2)
-        return scores[..., 0, 0]
+        return scores[..., 0, 0], similarity[...,0,0]

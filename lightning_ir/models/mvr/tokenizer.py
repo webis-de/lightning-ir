@@ -10,7 +10,6 @@ class MVRTokenizer(BiEncoderTokenizer):
     def __init__(self, *args, num_viewer_tokens: int = 8, **kwargs):
         super().__init__(
             *args,
-            add_marker_tokens=False,
             **kwargs,
         )
         if num_viewer_tokens is not None:
