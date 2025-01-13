@@ -10,7 +10,7 @@ import torch
 if TYPE_CHECKING:
     from ..base import LightningIROutput
     from ..bi_encoder import BiEncoderOutput
-    from ..base import MVROutput 
+    from ..models.mvr.model import MVROutput 
     from ..data import TrainBatch
 
 
