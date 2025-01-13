@@ -485,6 +485,7 @@ class MVRLocalLoss(InBatchLossFunction):
         if output.viewer_token_scores is None:
             raise ValueError("Expected viewer_token_scores in MVROutput")
         scores = output.viewer_token_scores
+        # TODO find best score amongst viewer token scores
         targets = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
         loss = torch.nn.functional.cross_entropy(scores, targets)
         return loss

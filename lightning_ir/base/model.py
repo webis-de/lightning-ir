@@ -121,6 +121,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         """
         if pooling_strategy is None:
             return embeddings
+        if pooling_strategy == "first_n":
+            return embeddings[:, :8]
         if pooling_strategy == "first":
             return embeddings[:, [0]]
         if pooling_strategy in ("sum", "mean"):

@@ -2,6 +2,7 @@ import torch
 import pytest
 
 from lightning_ir.models.mvr.config import MVRConfig
+from lightning_ir.models.mvr.model import MVRModel
 from lightning_ir.models.mvr.module import MVRModule
 
 
@@ -18,5 +19,5 @@ def test_mvr():
 
     print("Similarity scores:")
     print(output.scores)
-    # print("Query embeddings shape:", outputquery_embeddings.embeddings.shape)
-    # print("Docs embeddings shape:", output.doc_embeddings.embeddings.shape)
+    print("Token scores:")
+    print(output.viewer_token_scores)
