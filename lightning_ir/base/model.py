@@ -135,7 +135,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             if attention_mask is not None:
                 embeddings = embeddings.masked_fill(~attention_mask.bool().unsqueeze(-1), -1e9)
             return embeddings.max(dim=1, keepdim=True).values
-        raise ValueError(f"Unknown pooling strategy: {self.pooling_strategy}")
+        raise ValueError(f"Unknown pooling strategy: {pooling_strategy}")
 
     @classmethod
     def _load_pretrained_model(
