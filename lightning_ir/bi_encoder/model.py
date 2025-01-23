@@ -422,16 +422,19 @@ class ScoringFunction(torch.nn.Module):
 
     @staticmethod
     @_batch_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def _cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
 
     @staticmethod
     @_batch_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def _l2_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return -1 * torch.cdist(x, y).squeeze(-2)
 
     @staticmethod
     @_batch_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def _dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
