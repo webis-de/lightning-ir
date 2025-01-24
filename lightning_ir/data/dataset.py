@@ -4,6 +4,7 @@ Datasets for Lightning IR that data loading and sampling.
 This module defines several datasets that handle loading and sampling data for training and inference.
 """
 
+import csv
 import warnings
 from itertools import islice
 from pathlib import Path
@@ -450,7 +451,7 @@ class RunDataset(_IRDataset, Dataset):
             names=RUN_HEADER,
             usecols=[0, 2, 3, 4],
             dtype={"query_id": str, "doc_id": str},
-            quoting=1,
+            quoting=csv.QUOTE_NONE,
         )
 
     @staticmethod
