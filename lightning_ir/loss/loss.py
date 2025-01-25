@@ -484,8 +484,9 @@ class MVRLocalLoss(InBatchLossFunction):
     def compute_loss(self, output: MVROutput) -> torch.Tensor:
         if output.viewer_token_scores is None:
             raise ValueError("Expected viewer_token_scores in MVROutput")
-        scores = output.viewer_token_scores
-        # TODO find best score amongst viewer token scores
-        targets = torch.zeros(scores.shape[0], dtype=torch.long, device=scores.device)
+        if output.viewer_token_scores.shape[1] != 1:
+            raise ValueError("Query pooling wrong")
+        scores = output.viewer_token_scores.squeeze(1)
+        targets = scores.argmax(-1)
         loss = torch.nn.functional.cross_entropy(scores, targets)
         return loss
