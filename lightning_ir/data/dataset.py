@@ -452,6 +452,7 @@ class RunDataset(_IRDataset, Dataset):
             usecols=[0, 2, 3, 4],
             dtype={"query_id": str, "doc_id": str},
             quoting=csv.QUOTE_NONE,
+            na_filter=False,
         )
 
     @staticmethod
