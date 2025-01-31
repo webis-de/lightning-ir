@@ -13,6 +13,7 @@ from .loss import (
     ScoreBasedInBatchCrossEntropy,
     ScoreBasedInBatchLossFunction,
     SupervisedMarginMSE,
+    MVRLocalLoss,
 )
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "ScoreBasedInBatchCrossEntropy",
     "ScoreBasedInBatchLossFunction",
     "SupervisedMarginMSE",
+    "MVRLocalLoss",
 ]

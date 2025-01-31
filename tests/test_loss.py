@@ -21,7 +21,7 @@ from lightning_ir.loss.loss import (
     ScoreBasedInBatchCrossEntropy,
     ScoringLossFunction,
     SupervisedMarginMSE,
-    MVRLocalLoss
+    MVRLocalLoss,
 )
 from lightning_ir.models.mvr.model import MVROutput
 
@@ -134,13 +134,14 @@ def test_regularization_loss_func(loss_func: RegularizationLossFunction, embeddi
     assert loss.requires_grad
 
 
-@pytest.mark.parametrize(
-    "loss_func", [MVRLocalLoss()], ids=["MVRLocalLoss"]
-)
+@pytest.mark.parametrize("loss_func", [MVRLocalLoss()], ids=["MVRLocalLoss"])
 def test_MVRLocalLoss(loss_func: MVRLocalLoss, embeddings: torch.Tensor):
     loss = loss_func.compute_loss(
         MVROutput(
-            None, BiEncoderEmbedding(embeddings, torch.empty(0)), BiEncoderEmbedding(embeddings, torch.empty(0)), embeddings
+            None,
+            BiEncoderEmbedding(embeddings, torch.empty(0)),
+            BiEncoderEmbedding(embeddings, torch.empty(0)),
+            embeddings,
         )
     )
     assert loss >= 0
