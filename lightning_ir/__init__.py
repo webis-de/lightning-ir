@@ -68,6 +68,7 @@ from .loss import (
     ScoreBasedInBatchCrossEntropy,
     ScoreBasedInBatchLossFunction,
     SupervisedMarginMSE,
+    MVRLocalLoss,
 )
 from .main import LightningIRTrainer, LightningIRWandbLogger
 from .models import (
@@ -188,6 +189,7 @@ __all__ = [
     "LightningIRWandbLogger",
     "LinearLRSchedulerWithLinearWarmup",
     "LocalizedContrastiveEstimation",
+    "MVRLocalLoss",
     "QueryDataset",
     "QuerySample",
     "RankCallback",
