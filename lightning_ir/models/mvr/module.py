@@ -1,4 +1,6 @@
+from typing import Sequence, Tuple
 from lightning_ir.data.data import IndexBatch, RankBatch, SearchBatch
+from lightning_ir.loss.loss import LossFunction
 from ...bi_encoder import BiEncoderModule
 from lightning_ir.models.mvr.config import MVRConfig
 from lightning_ir.models.mvr.model import MVRModel, MVROutput
@@ -10,8 +12,9 @@ class MVRModule(BiEncoderModule):
         model_name_or_path: str | None = None,
         config: MVRConfig | None = None,
         model: MVRModel | None = None,
+        loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
     ):
-        super().__init__(model_name_or_path=model_name_or_path, config=config, model=model, loss_functions=None, evaluation_metrics=None, index_dir=None, search_config=None)
+        super().__init__(model_name_or_path=model_name_or_path, config=config, model=model, loss_functions=loss_functions, evaluation_metrics=None, index_dir=None, search_config=None)
         if config.num_viewer_tokens and len(self.tokenizer) > self.config.vocab_size:
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
 
