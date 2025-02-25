@@ -117,7 +117,7 @@ def test_scheduler(
         callbacks = []
     elif issubclass(Scheduler, GenericScheduler):
         module = DummyModule()
-        callbacks = [Scheduler(["dummy_object.value"], **kwargs)]
+        callbacks = [Scheduler(keys=["dummy_object.value"], **kwargs)]
         callbacks[0].on_train_end = lambda x, y: None
     else:
         raise ValueError("Invalid scheduler")
@@ -144,7 +144,7 @@ def test_scheduler(
         callbacks = []
     elif issubclass(Scheduler, GenericScheduler):
         module = DummyModule()
-        callbacks = [Scheduler(["dummy_object.value"], **kwargs)]
+        callbacks = [Scheduler(keys=["dummy_object.value"], **kwargs)]
         callbacks[0].on_train_end = lambda x, y: None
     else:
         raise ValueError("Invalid scheduler")
