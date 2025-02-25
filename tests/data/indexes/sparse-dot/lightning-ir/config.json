@@ -1,4 +1,1 @@
-{
-    "index_dir": "/home/fschlatt/Code/uni/lightning-ir/tests/data/indexes/sparse-dot/lightning-ir",
-    "index_type": "SparseIndexConfig"
-}
+{"index_dir": "/home/fschlatt/Code/uni/lightning-ir/tests/data/indexes/sparse-dot/lightning-ir", "index_type": "SparseIndexConfig"}

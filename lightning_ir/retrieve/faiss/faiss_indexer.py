@@ -115,13 +115,8 @@ class _FaissTrainIndexer(FaissIndexer):
             raise ValueError("num_train_embeddings must be set")
         self.num_train_embeddings = index_config.num_train_embeddings
 
-        self._train_embeddings = torch.full(
-            (
-                self.num_train_embeddings,
-                self.bi_encoder_config.embedding_dim,
-            ),
-            torch.nan,
-            dtype=torch.float32,
+        self._train_embeddings: torch.Tensor | None = torch.full(
+            (self.num_train_embeddings, self.bi_encoder_config.embedding_dim), torch.nan, dtype=torch.float32
         )
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
@@ -135,8 +130,7 @@ class _FaissTrainIndexer(FaissIndexer):
             # if num_train_embeddings overflows, save the remaining embeddings
             start = self.num_embeddings
             end = start + embeddings.shape[0]
-            if end > self.num_train_embeddings:
-                end = self.num_train_embeddings
+            end = min(self.num_train_embeddings, start + embeddings.shape[0])
             length = end - start
             self._train_embeddings[start:end] = embeddings[:length]
             self.num_embeddings += length
@@ -144,18 +138,19 @@ class _FaissTrainIndexer(FaissIndexer):
         return embeddings
 
     def _train(self, force: bool = False):
-        if self._train_embeddings is not None and (force or self.num_embeddings >= self.num_train_embeddings):
-            if torch.isnan(self._train_embeddings).any():
-                warnings.warn(
-                    "Corpus contains less tokens/documents than num_train_embeddings. " "Removing NaN embeddings."
-                )
-                self._train_embeddings = self._train_embeddings[~torch.isnan(self._train_embeddings).any(dim=1)]
-            self.index.train(self._train_embeddings)
-            if torch.cuda.is_available():
-                self.to_cpu()
-            self.index.add(self._train_embeddings)
-            self._train_embeddings = None
-            self.set_verbosity(False)
+        if self._train_embeddings is None:
+            return
+        if not force and self.num_embeddings < self.num_train_embeddings:
+            return
+        if torch.isnan(self._train_embeddings).any():
+            warnings.warn("Corpus contains less tokens/documents than num_train_embeddings. Removing NaN embeddings.")
+            self._train_embeddings = self._train_embeddings[~torch.isnan(self._train_embeddings).any(dim=1)]
+        self.index.train(self._train_embeddings)
+        if torch.cuda.is_available():
+            self.to_cpu()
+        self.index.add(self._train_embeddings)
+        self._train_embeddings = None
+        self.set_verbosity(False)
 
     def save(self) -> None:
         if not self.index.is_trained:
@@ -193,8 +188,7 @@ class FaissIVFIndexer(_FaissTrainIndexer):
     def to_gpu(self) -> None:
         import faiss
 
-        # clustering_index overrides the index used during clustering but leaves
-        # the quantizer on the gpu
+        # clustering_index overrides the index used during clustering but leaves the quantizer on the gpu
         # https://faiss.ai/cpp_api/namespace/namespacefaiss_1_1gpu.html
         clustering_index = faiss.index_cpu_to_all_gpus(
             faiss.IndexFlat(self.bi_encoder_config.embedding_dim, self.metric_type)
@@ -279,9 +273,6 @@ class FaissIVFPQIndexer(FaissIVFIndexer):
 
 class FaissIndexConfig(IndexConfig):
     indexer_class = FaissIndexer
-
-    def to_dict(self) -> dict:
-        return self.__dict__.copy()
 
 
 class FaissFlatIndexConfig(FaissIndexConfig):

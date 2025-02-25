@@ -13,6 +13,8 @@ from lightning_ir.retrieve import (
     FaissIVFIndexConfig,
     FaissSearchConfig,
     IndexConfig,
+    PlaidIndexConfig,
+    PlaidSearchConfig,
     SearchConfig,
     SparseIndexConfig,
     SparseSearchConfig,
@@ -22,8 +24,13 @@ from .conftest import CORPUS_DIR, DATA_DIR
 
 
 @pytest.fixture(
-    params=[FaissFlatIndexConfig(), FaissIVFIndexConfig(num_centroids=16), SparseIndexConfig()],
-    ids=["Faiss", "FaissIVF", "Sparse"],
+    params=[
+        FaissFlatIndexConfig(),
+        FaissIVFIndexConfig(num_centroids=16),
+        SparseIndexConfig(),
+        PlaidIndexConfig(num_centroids=16, num_train_embeddings=1_024),
+    ],
+    ids=["Faiss", "FaissIVF", "Sparse", "Plaid"],
 )
 def index_config(request: SubRequest) -> IndexConfig:
     return request.param
@@ -60,7 +67,11 @@ def test_index_callback(
 
     dataset_id = doc_datamodule.inference_datasets[0].dataset_id
     index_dir = index_dir / dataset_id
-    assert (index_dir / "index.faiss").exists() or (index_dir / "index.pt").exists()
+    assert (
+        (index_dir / "index.faiss").exists()  # faiss
+        or (index_dir / "index.pt").exists()  # sparse
+        or (index_dir / "centroids.pt").exists()  # plaid
+    )
     assert (index_dir / "doc_ids.txt").exists()
     doc_ids_path = index_dir / "doc_ids.txt"
     doc_ids = doc_ids_path.read_text().split()
@@ -74,12 +85,16 @@ def get_index(
     doc_datamodule: LightningIRDataModule,
     search_config: SearchConfig,
 ) -> Path:
+    index_config: IndexConfig
     if isinstance(search_config, FaissSearchConfig):
         index_type = "faiss"
         index_config = FaissFlatIndexConfig()
     elif isinstance(search_config, SparseSearchConfig):
         index_type = "sparse"
         index_config = SparseIndexConfig()
+    elif isinstance(search_config, PlaidSearchConfig):
+        index_type = "plaid"
+        index_config = PlaidIndexConfig(num_centroids=16, num_train_embeddings=1_024)
     else:
         raise ValueError("Unknown search_config type")
     index_dir = DATA_DIR / "indexes" / f"{index_type}-{bi_encoder_module.config.similarity_function}"
@@ -102,9 +117,10 @@ def get_index(
     (
         FaissSearchConfig(k=5, imputation_strategy="min", candidate_k=10),
         FaissSearchConfig(k=5, imputation_strategy="gather", candidate_k=10),
+        PlaidSearchConfig(k=5, centroid_score_threshold=0),
         SparseSearchConfig(k=5),
     ),
-    ids=["FaissMin", "FaissGather", "Sparse"],
+    ids=["FaissMin", "FaissGather", "Plaid", "Sparse"],
 )
 def test_search_callback(
     tmp_path: Path,
@@ -115,7 +131,7 @@ def test_search_callback(
 ):
     index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)
     save_dir = tmp_path / "runs"
-    search_callback = SearchCallback(search_config=search_config, index_dir=index_dir, save_dir=save_dir)
+    search_callback = SearchCallback(search_config=search_config, index_dir=index_dir, save_dir=save_dir, use_gpu=False)
 
     trainer = LightningIRTrainer(
         logger=False,

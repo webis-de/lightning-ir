@@ -11,6 +11,7 @@ from .faiss import (
     FaissSearchConfig,
     FaissSearcher,
 )
+from .plaid import PlaidIndexConfig, PlaidIndexer, PlaidSearchConfig, PlaidSearcher
 from .sparse import SparseIndexConfig, SparseIndexer, SparseSearchConfig, SparseSearcher
 
 __all__ = [
@@ -26,6 +27,10 @@ __all__ = [
     "FaissSearcher",
     "IndexConfig",
     "Indexer",
+    "PlaidIndexConfig",
+    "PlaidIndexer",
+    "PlaidSearchConfig",
+    "PlaidSearcher",
     "SearchConfig",
     "Searcher",
     "SparseIndexConfig",

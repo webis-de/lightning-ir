@@ -84,7 +84,7 @@ class SparseSearcher(Searcher):
             scores = torch.scatter_reduce(
                 torch.zeros(scores.shape[0], self.num_docs, device=scores.device),
                 1,
-                self.doc_token_idcs[None].expand_as(scores),
+                self.doc_token_idcs[None].long().expand_as(scores),
                 scores,
                 "amax",
             )
