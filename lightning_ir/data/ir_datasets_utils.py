@@ -120,7 +120,7 @@ def _register_kd_docpairs():
         "expected_md5": "4d99696386f96a7f1631076bcc53ac3c",
         "cache_path": cache_path,
     }
-    file_name = f"{split_id}/{file_id}.tsv"
+    file_name = f"{file_id}.tsv"
     register_msmarco(base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples)
 
 
@@ -130,13 +130,11 @@ def _register_colbert_docpairs():
     file_id = "colbert-docpairs"
     cache_path = "colbert_64way.json"
     dlc_contents = {
-        "url": (
-            "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/" "resolve/main/examples.json?download=true"
-        ),
+        "url": "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/resolve/main/examples.json?download=true",
         "expected_md5": "8be0c71e330ac54dcd77fba058d291c7",
         "cache_path": cache_path,
     }
-    file_name = f"{split_id}/{file_id}.json"
+    file_name = f"{file_id}.json"
     register_msmarco(base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples)
 
 
@@ -153,7 +151,7 @@ def _register_rank_distillm():
         "expected_md5": "49f8dbf2c1ee7a2ca1fe517eda528af6",
         "cache_path": cache_path,
     }
-    file_name = f"{split_id}/{file_id}.run"
+    file_name = f"{file_id}.run"
     register_msmarco(
         base_id,
         split_id,
@@ -174,7 +172,7 @@ def _register_rank_distillm():
         "expected_md5": "1f069d0daa9842a54a858cc660149e1a",
         "cache_path": cache_path,
     }
-    file_name = f"{split_id}/{file_id}.run"
+    file_name = f"{file_id}.run"
     register_msmarco(
         base_id,
         split_id,
