@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from torch.utils.cpp_extension import load
 
-from .packed_tensor import PackedTensor
+from ..base.packed_tensor import PackedTensor
 
 if TYPE_CHECKING:
     from .plaid_indexer import PlaidIndexConfig
@@ -207,15 +207,11 @@ class ResidualCodec:
         return residuals_packed
 
     def decompress(self, codes: PackedTensor, compressed_residuals: PackedTensor) -> PackedTensor:
-
-        centroids = self.centroids[codes.packed_tensor]
-        residuals = self.reversed_bit_map[compressed_residuals.packed_tensor.long().view(-1)].view_as(
-            compressed_residuals.packed_tensor
-        )
+        centroids = self.centroids[codes]
+        residuals = self.reversed_bit_map[compressed_residuals.long().view(-1)].view_as(compressed_residuals)
         residuals = self.decompression_lookup_table[residuals.long()]
         residuals = residuals.view(residuals.shape[0], -1)
         residuals = self.bucket_weights[residuals.long()]
         embeddings = centroids + residuals
         embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=-1)
-
-        return PackedTensor(embeddings, codes.lengths)
+        return PackedTensor(embeddings, lengths=codes.lengths)

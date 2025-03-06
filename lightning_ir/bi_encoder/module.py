@@ -110,10 +110,8 @@ class BiEncoderModule(LightningIRModule):
             encodings.get("query_encoding", None), encodings.get("doc_encoding", None), num_docs
         )
         if isinstance(batch, SearchBatch) and self.searcher is not None:
-            scores, doc_ids, num_docs = self.searcher.search(output)
+            scores, doc_ids = self.searcher.search(output)
             output.scores = scores
-            cum_num_docs = [0] + [sum(num_docs[: i + 1]) for i in range(len(num_docs))]
-            doc_ids = tuple(tuple(doc_ids[cum_num_docs[i] : cum_num_docs[i + 1]]) for i in range(len(num_docs)))
             batch.doc_ids = doc_ids
         return output
 
