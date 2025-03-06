@@ -18,8 +18,10 @@ from lightning_ir.retrieve import (
     SearchConfig,
     SeismicIndexConfig,
     SeismicSearchConfig,
-    SparseSearchConfig,
+    TorchDenseIndexConfig,
+    TorchDenseSearchConfig,
     TorchSparseIndexConfig,
+    TorchSparseSearchConfig,
 )
 
 from .conftest import CORPUS_DIR, DATA_DIR
@@ -30,10 +32,11 @@ from .conftest import CORPUS_DIR, DATA_DIR
         FaissFlatIndexConfig(),
         FaissIVFIndexConfig(num_centroids=16),
         TorchSparseIndexConfig(),
+        TorchDenseIndexConfig(),
         PlaidIndexConfig(num_centroids=16, num_train_embeddings=1_024),
         SeismicIndexConfig(num_postings=32),
     ],
-    ids=["Faiss", "FaissIVF", "Sparse", "Plaid", "Seismic"],
+    ids=["Faiss", "FaissIVF", "Sparse", "Dense", "Plaid", "Seismic"],
 )
 def index_config(request: SubRequest) -> IndexConfig:
     return request.param
@@ -94,9 +97,12 @@ def get_index(
     if isinstance(search_config, FaissSearchConfig):
         index_type = "faiss"
         index_config = FaissFlatIndexConfig()
-    elif isinstance(search_config, SparseSearchConfig):
+    elif isinstance(search_config, TorchSparseSearchConfig):
         index_type = "sparse"
         index_config = TorchSparseIndexConfig()
+    elif isinstance(search_config, TorchDenseSearchConfig):
+        index_type = "dense"
+        index_config = TorchDenseIndexConfig()
     elif isinstance(search_config, PlaidSearchConfig):
         index_type = "plaid"
         index_config = PlaidIndexConfig(num_centroids=16, num_train_embeddings=1_024)
@@ -126,10 +132,11 @@ def get_index(
         FaissSearchConfig(k=3, imputation_strategy="min", candidate_k=3),
         FaissSearchConfig(k=3, imputation_strategy="gather", candidate_k=3),
         PlaidSearchConfig(k=3, centroid_score_threshold=0),
-        SparseSearchConfig(k=3),
+        TorchSparseSearchConfig(k=3),
+        TorchDenseSearchConfig(k=3),
         SeismicSearchConfig(k=3),
     ),
-    ids=["FaissMin", "FaissGather", "Plaid", "Sparse", "Seismic"],
+    ids=["FaissMin", "FaissGather", "Plaid", "Sparse", "Dense", "Seismic"],
 )
 def test_search_callback(
     tmp_path: Path,

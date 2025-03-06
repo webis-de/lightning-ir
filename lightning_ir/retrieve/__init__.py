@@ -12,7 +12,16 @@ from .faiss import (
     FaissSearcher,
 )
 from .plaid import PlaidIndexConfig, PlaidIndexer, PlaidSearchConfig, PlaidSearcher
-from .pytorch import SparseSearchConfig, TorchSparseIndexConfig, TorchSparseSearcher, TorchTorchSparseIndexer
+from .pytorch import (
+    TorchDenseIndexConfig,
+    TorchDenseIndexer,
+    TorchDenseSearchConfig,
+    TorchDenseSearcher,
+    TorchSparseIndexConfig,
+    TorchSparseIndexer,
+    TorchSparseSearchConfig,
+    TorchSparseSearcher,
+)
 from .seismic import SeismicIndexConfig, SeismicIndexer, SeismicSearchConfig, SeismicSearcher
 
 __all__ = [
@@ -38,8 +47,12 @@ __all__ = [
     "SeismicIndexer",
     "SeismicSearchConfig",
     "SeismicSearcher",
+    "TorchDenseIndexConfig",
+    "TorchDenseIndexer",
+    "TorchDenseSearchConfig",
+    "TorchDenseSearcher",
     "TorchSparseIndexConfig",
-    "TorchTorchSparseIndexer",
-    "SparseSearchConfig",
+    "TorchSparseIndexer",
+    "TorchSparseSearchConfig",
     "TorchSparseSearcher",
 ]
