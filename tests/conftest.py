@@ -18,7 +18,7 @@ from lightning_ir import (
     RankNet,
     RunDataset,
 )
-from lightning_ir.data.ir_datasets_utils import _register_local_dataset
+from lightning_ir.data.external_datasets.ir_datasets_utils import register_local_dataset
 
 DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
@@ -26,7 +26,7 @@ RUNS_DIR = DATA_DIR / "runs"
 
 CONFIGS = Union[BiEncoderConfig, CrossEncoderConfig]
 
-_register_local_dataset(
+register_local_dataset(
     dataset_id="lightning-ir",
     docs=str(CORPUS_DIR / "docs.tsv"),
     queries=str(CORPUS_DIR / "queries.tsv"),
