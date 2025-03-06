@@ -43,6 +43,7 @@ from .data import (
     TrainBatch,
     TupleDataset,
 )
+from .data.external_datasets import _register_external_datasets
 from .loss import (
     ApproxMRR,
     ApproxNDCG,
@@ -124,6 +125,7 @@ AutoModel.register(XTRConfig, XTRModel)
 AutoTokenizer.register(XTRConfig, BiEncoderTokenizer)
 
 _register_external_models()
+_register_external_datasets()
 
 __version__ = "0.0.2"
 
