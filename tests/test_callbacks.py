@@ -33,7 +33,7 @@ from .conftest import CORPUS_DIR, DATA_DIR
         FaissIVFIndexConfig(num_centroids=16),
         TorchSparseIndexConfig(),
         TorchDenseIndexConfig(),
-        PlaidIndexConfig(num_centroids=16, num_train_embeddings=1_024),
+        PlaidIndexConfig(num_centroids=8, num_train_embeddings=1_024),
         SeismicIndexConfig(num_postings=32),
     ],
     ids=["Faiss", "FaissIVF", "Sparse", "Dense", "Plaid", "Seismic"],
@@ -105,7 +105,7 @@ def get_index(
         index_config = TorchDenseIndexConfig()
     elif isinstance(search_config, PlaidSearchConfig):
         index_type = "plaid"
-        index_config = PlaidIndexConfig(num_centroids=16, num_train_embeddings=1_024)
+        index_config = PlaidIndexConfig(num_centroids=8, num_train_embeddings=1_024)
     elif isinstance(search_config, SeismicSearchConfig):
         index_type = "seismic"
         index_config = SeismicIndexConfig(num_postings=32)
