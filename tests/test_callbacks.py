@@ -16,8 +16,10 @@ from lightning_ir.retrieve import (
     PlaidIndexConfig,
     PlaidSearchConfig,
     SearchConfig,
-    SparseIndexConfig,
+    SeismicIndexConfig,
+    SeismicSearchConfig,
     SparseSearchConfig,
+    TorchSparseIndexConfig,
 )
 
 from .conftest import CORPUS_DIR, DATA_DIR
@@ -27,10 +29,11 @@ from .conftest import CORPUS_DIR, DATA_DIR
     params=[
         FaissFlatIndexConfig(),
         FaissIVFIndexConfig(num_centroids=16),
-        SparseIndexConfig(),
+        TorchSparseIndexConfig(),
         PlaidIndexConfig(num_centroids=16, num_train_embeddings=1_024),
+        SeismicIndexConfig(num_postings=32),
     ],
-    ids=["Faiss", "FaissIVF", "Sparse", "Plaid"],
+    ids=["Faiss", "FaissIVF", "Sparse", "Plaid", "Seismic"],
 )
 def index_config(request: SubRequest) -> IndexConfig:
     return request.param
@@ -71,6 +74,7 @@ def test_index_callback(
         (index_dir / "index.faiss").exists()  # faiss
         or (index_dir / "index.pt").exists()  # sparse
         or (index_dir / "centroids.pt").exists()  # plaid
+        or (index_dir / ".index.seismic").exists()  # seismic
     )
     assert (index_dir / "doc_ids.txt").exists()
     doc_ids_path = index_dir / "doc_ids.txt"
@@ -86,18 +90,22 @@ def get_index(
     search_config: SearchConfig,
 ) -> Path:
     index_config: IndexConfig
+    num_vecs = "multi" if bi_encoder_module.config.query_pooling_strategy is None else "single"
     if isinstance(search_config, FaissSearchConfig):
         index_type = "faiss"
         index_config = FaissFlatIndexConfig()
     elif isinstance(search_config, SparseSearchConfig):
         index_type = "sparse"
-        index_config = SparseIndexConfig()
+        index_config = TorchSparseIndexConfig()
     elif isinstance(search_config, PlaidSearchConfig):
         index_type = "plaid"
         index_config = PlaidIndexConfig(num_centroids=16, num_train_embeddings=1_024)
+    elif isinstance(search_config, SeismicSearchConfig):
+        index_type = "seismic"
+        index_config = SeismicIndexConfig(num_postings=32)
     else:
         raise ValueError("Unknown search_config type")
-    index_dir = DATA_DIR / "indexes" / f"{index_type}-{bi_encoder_module.config.similarity_function}"
+    index_dir = DATA_DIR / "indexes" / f"{index_type}-{num_vecs}-vector-{bi_encoder_module.config.similarity_function}"
     if index_dir.exists():
         return index_dir
 
@@ -115,12 +123,13 @@ def get_index(
 @pytest.mark.parametrize(
     "search_config",
     (
-        FaissSearchConfig(k=5, imputation_strategy="min", candidate_k=10),
-        FaissSearchConfig(k=5, imputation_strategy="gather", candidate_k=10),
-        PlaidSearchConfig(k=5, centroid_score_threshold=0),
-        SparseSearchConfig(k=5),
+        FaissSearchConfig(k=3, imputation_strategy="min", candidate_k=3),
+        FaissSearchConfig(k=3, imputation_strategy="gather", candidate_k=3),
+        PlaidSearchConfig(k=3, centroid_score_threshold=0),
+        SparseSearchConfig(k=3),
+        SeismicSearchConfig(k=3),
     ),
-    ids=["FaissMin", "FaissGather", "Plaid", "Sparse"],
+    ids=["FaissMin", "FaissGather", "Plaid", "Sparse", "Seismic"],
 )
 def test_search_callback(
     tmp_path: Path,
