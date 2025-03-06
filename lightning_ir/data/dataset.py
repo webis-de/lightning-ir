@@ -19,7 +19,7 @@ from torch.distributed import get_rank, get_world_size
 from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
 from .data import DocSample, QuerySample, RankSample
-from .ir_datasets_utils import ScoredDocTuple
+from .external_datasets.ir_datasets_utils import ScoredDocTuple
 
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 

@@ -45,7 +45,7 @@ def _load_constituent(
     return ConstituentType(Cache(None, constituent_path), **kwargs)
 
 
-def _register_local_dataset(
+def register_local_dataset(
     dataset_id: str,
     docs: Path | str | None = None,
     queries: Path | str | None = None,
@@ -107,84 +107,6 @@ class ScoredDocTuples(BaseDocPairs):
         return ScoredDocTuple
 
 
-def _register_kd_docpairs():
-    base_id = "msmarco-passage"
-    split_id = "train"
-    file_id = "kd-docpairs"
-    cache_path = "bert_cat_ensemble_msmarcopassage_train_scores_ids.tsv"
-    dlc_contents = {
-        "url": (
-            "https://zenodo.org/record/4068216/files/bert_cat_ensemble_"
-            "msmarcopassage_train_scores_ids.tsv?download=1"
-        ),
-        "expected_md5": "4d99696386f96a7f1631076bcc53ac3c",
-        "cache_path": cache_path,
-    }
-    file_name = f"{file_id}.tsv"
-    register_msmarco(base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples)
-
-
-def _register_colbert_docpairs():
-    base_id = "msmarco-passage"
-    split_id = "train"
-    file_id = "colbert-docpairs"
-    cache_path = "colbert_64way.json"
-    dlc_contents = {
-        "url": "https://huggingface.co/colbert-ir/colbertv2.0_msmarco_64way/resolve/main/examples.json?download=true",
-        "expected_md5": "8be0c71e330ac54dcd77fba058d291c7",
-        "cache_path": cache_path,
-    }
-    file_name = f"{file_id}.json"
-    register_msmarco(base_id, split_id, file_id, cache_path, dlc_contents, file_name, ScoredDocTuples)
-
-
-def _register_rank_distillm():
-    base_id = "msmarco-passage"
-    split_id = "train"
-    file_id = "rank-distillm/rankzephyr"
-    cache_path = "rank-distillm-rankzephyr.run"
-    dlc_contents = {
-        "url": (
-            "https://zenodo.org/records/12528410/files/__rankzephyr-colbert-10000-"
-            "sampled-100__msmarco-passage-train-judged.run?download=1"
-        ),
-        "expected_md5": "49f8dbf2c1ee7a2ca1fe517eda528af6",
-        "cache_path": cache_path,
-    }
-    file_name = f"{file_id}.run"
-    register_msmarco(
-        base_id,
-        split_id,
-        file_id,
-        cache_path,
-        dlc_contents,
-        file_name,
-        trec.TrecScoredDocs,
-    )
-
-    file_id = "rank-distillm/set-encoder"
-    cache_path = "rank-distillm-set-encoder.run.gz"
-    dlc_contents = {
-        "url": (
-            "https://zenodo.org/records/12528410/files/__set-encoder-colbert__"
-            "msmarco-passage-train-judged.run.gz?download=1"
-        ),
-        "expected_md5": "1f069d0daa9842a54a858cc660149e1a",
-        "cache_path": cache_path,
-    }
-    file_name = f"{file_id}.run"
-    register_msmarco(
-        base_id,
-        split_id,
-        file_id,
-        cache_path,
-        dlc_contents,
-        file_name,
-        trec.TrecScoredDocs,
-        extract=True,
-    )
-
-
 def register_msmarco(
     base_id: str,
     split_id: str,
@@ -211,8 +133,3 @@ def register_msmarco(
     constituent = ConstituentType(Cache(_dlc, base_path / split_id / file_name))
     dataset = Dataset(collection, queries, qrels, constituent)
     ir_datasets.registry.register(dataset_id, Dataset(dataset))
-
-
-_register_kd_docpairs()
-_register_colbert_docpairs()
-_register_rank_distillm()
