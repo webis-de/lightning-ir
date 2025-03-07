@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class TorchSparseIndex:
     def __init__(self, index_dir: Path, similarity_function: Literal["dot", "cosine"], use_gpu: bool = False) -> None:
-        self.index = torch.load(index_dir / "index.pt")
+        self.index = torch.load(index_dir / "index.pt", weights_only=True)
         self.config = TorchSparseIndexConfig.from_pretrained(index_dir)
         if similarity_function == "dot":
             self.similarity_function = self.dot_similarity

@@ -31,7 +31,7 @@ class Searcher(ABC):
         self.device = torch.device("cuda") if use_gpu and torch.cuda.is_available() else torch.device("cpu")
 
         self.doc_ids = (self.index_dir / "doc_ids.txt").read_text().split()
-        self.doc_lengths = torch.load(self.index_dir / "doc_lengths.pt")
+        self.doc_lengths = torch.load(self.index_dir / "doc_lengths.pt", weights_only=True)
 
         self.to_gpu()
 
