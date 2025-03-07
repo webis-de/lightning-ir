@@ -373,7 +373,7 @@ class BiEncoderModel(LightningIRModel):
 
 
 def _batch_scoring(
-    similarity_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor]
+    similarity_function: Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
 ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     """Helper function to batch similarity functions to avoid memory issues with large batch sizes or high numbers
     of documents per query."""
@@ -421,7 +421,7 @@ class ScoringFunction(torch.nn.Module):
         """Computes the similarity score between all query and document embedding vector pairs."""
         # TODO compute similarity only for non-masked values
         num_docs_t = self._parse_num_docs(
-            query_embeddings.embeddings.shape[0], doc_embeddings.embeddings.shape[0], num_docs
+            query_embeddings.embeddings.shape[0], doc_embeddings.embeddings.shape[0], num_docs, query_embeddings.device
         )
         query_emb = query_embeddings.embeddings.repeat_interleave(num_docs_t, dim=0).unsqueeze(2)
         doc_emb = doc_embeddings.embeddings.unsqueeze(1)
@@ -446,7 +446,9 @@ class ScoringFunction(torch.nn.Module):
     def _dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
-    def _parse_num_docs(self, query_shape: int, doc_shape: int, num_docs: int | Sequence[int] | None) -> torch.Tensor:
+    def _parse_num_docs(
+        self, query_shape: int, doc_shape: int, num_docs: int | Sequence[int] | None, device: torch.device | None = None
+    ) -> torch.Tensor:
         """Helper function to parse the number of documents per query."""
         if isinstance(num_docs, int):
             num_docs = [num_docs] * query_shape
@@ -457,7 +459,7 @@ class ScoringFunction(torch.nn.Module):
             if doc_shape % query_shape != 0:
                 raise ValueError("Docs are not evenly distributed in _batch, but no num_docs provided")
             num_docs = [doc_shape // query_shape] * query_shape
-        return torch.tensor(num_docs)
+        return torch.tensor(num_docs, device=device)
 
     def _expand_mask(self, shape: torch.Size, mask: torch.Tensor, dim: int) -> torch.Tensor:
         if mask.ndim == len(shape):
@@ -523,7 +525,9 @@ class ScoringFunction(torch.nn.Module):
         :return: Aggregated similarity scores
         :rtype: torch.Tensor
         """
-        num_docs_t = self._parse_num_docs(query_scoring_mask.shape[0], doc_scoring_mask.shape[0], num_docs)
+        num_docs_t = self._parse_num_docs(
+            query_scoring_mask.shape[0], doc_scoring_mask.shape[0], num_docs, similarity.device
+        )
         scores = self._aggregate(similarity, doc_scoring_mask, "max", -1)
         scores = self._aggregate(
             scores, query_scoring_mask.repeat_interleave(num_docs_t, dim=0), self.query_aggregation_function, -2

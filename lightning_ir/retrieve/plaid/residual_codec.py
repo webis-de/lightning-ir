@@ -32,12 +32,14 @@ class ResidualCodec:
         self.bucket_cutoffs = bucket_cutoffs
         self.bucket_weights = bucket_weights
 
-        self.arange_bits = torch.arange(0, self.index_config.n_bits, dtype=torch.uint8)
+        self.arange_bits = torch.arange(0, self.index_config.n_bits, dtype=torch.uint8, device=self.centroids.device)
         self.reversed_bit_map = self._compute_reverse_bit_map()
         keys_per_byte = 8 // self.index_config.n_bits
         self.decompression_lookup_table = torch.tensor(
-            list(product(list(range(len(self.bucket_weights))), repeat=keys_per_byte))
-        ).to(torch.uint8)
+            list(product(list(range(len(self.bucket_weights))), repeat=keys_per_byte)),
+            device=self.centroids.device,
+            dtype=torch.uint8,
+        )
 
         self.residual_dim = max(1, centroids.shape[-1] // 8 * index_config.n_bits)
 
@@ -136,7 +138,7 @@ class ResidualCodec:
                 if j > self.index_config.n_bits:
                     z <<= self.index_config.n_bits
             reversed_bit_map.append(z)
-        return torch.tensor(reversed_bit_map).to(torch.uint8)
+        return torch.tensor(reversed_bit_map, dtype=torch.uint8, device=self.centroids.device)
 
     @classmethod
     def try_load_torch_extensions(cls, use_gpu):
@@ -155,12 +157,18 @@ class ResidualCodec:
         cls.loaded_extensions = True
 
     @classmethod
-    def from_pretrained(cls, index_config: PlaidIndexConfig, index_dir: Path) -> "ResidualCodec":
+    def from_pretrained(
+        cls, index_config: PlaidIndexConfig, index_dir: Path, device: torch.device | None = None
+    ) -> "ResidualCodec":
         centroids_path = index_dir / "centroids.pt"
         buckets_path = index_dir / "buckets.pt"
 
-        centroids = torch.load(centroids_path, map_location="cpu")
-        bucket_cutoffs, bucket_weights = torch.load(buckets_path, map_location="cpu")
+        centroids = torch.load(
+            centroids_path, map_location=str(device) if device is not None else "cpu", weights_only=True
+        )
+        bucket_cutoffs, bucket_weights = torch.load(
+            buckets_path, map_location=str(device) if device is not None else "cpu", weights_only=True
+        )
 
         return cls(
             index_config=index_config,
@@ -190,6 +198,7 @@ class ResidualCodec:
         return self._compress_into_codes(self.centroids, embeddings)
 
     def compress(self, embeddings: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        embeddings = embeddings.to(self.centroids.device)
         codes = self.compress_into_codes(embeddings)
         centroids = self.centroids[codes]
         residuals = self.binarize(embeddings - centroids)
