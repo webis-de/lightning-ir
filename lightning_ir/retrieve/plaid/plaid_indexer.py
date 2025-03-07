@@ -110,11 +110,17 @@ class PlaidIndexConfig(IndexConfig):
     indexer_class = PlaidIndexer
 
     def __init__(
-        self, num_centroids: int, num_train_embeddings: int, k_means_iters: int = 4, n_bits: int = 2, seed: int = 42
+        self,
+        num_centroids: int,
+        num_train_embeddings: int | None = None,
+        k_means_iters: int = 4,
+        n_bits: int = 2,
+        seed: int = 42,
     ) -> None:
         super().__init__()
+        max_points_per_centroid = 256
         self.num_centroids = num_centroids
-        self.num_train_embeddings = num_train_embeddings
+        self.num_train_embeddings = num_train_embeddings or num_centroids * max_points_per_centroid
         self.k_means_iters = k_means_iters
         self.n_bits = n_bits
         self.seed = seed
