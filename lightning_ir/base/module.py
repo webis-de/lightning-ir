@@ -9,6 +9,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple, Type
 
+import pandas as pd
 import torch
 from lightning import LightningModule
 from transformers import BatchEncoding
@@ -18,7 +19,11 @@ from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
 from .tokenizer import LightningIRTokenizer
-from .validation_utils import create_qrels_from_dicts, create_run_from_scores, evaluate_run
+from .validation_utils import (
+    create_qrels_from_dicts,
+    create_run_from_scores,
+    evaluate_run,
+)
 
 
 class LightningIRModule(LightningModule):
@@ -84,6 +89,38 @@ class LightningIRModule(LightningModule):
         super().on_train_start()
         # NOTE huggingface models are in eval mode by default
         self.model = self.model.train()
+
+    @staticmethod
+    def _print_results(results: list[Dict[str, torch.Tensor]], stage: str) -> None:
+        data = []
+        datasets = []
+        for result in results:
+            for key, value in result.items():
+                *dataset_parts, metric, _ = key.split("/")
+                dataset = "/".join(dataset_parts)
+                datasets.append(dataset)
+                data.append({"dataset": dataset, "metric": metric, "value": value.item()})
+        datasets = list(dict.fromkeys(datasets))
+        df = pd.DataFrame(data)
+        df = df.pivot(index="dataset", columns="metric", values="value")
+        df.columns.name = None
+        print(df)
+
+    def on_validation_start(self) -> None:
+        """Called at the beginning of validation."""
+        # NOTE monkey patch result printing of the trainer
+        try:
+            trainer = self.trainer
+        except RuntimeError:
+            trainer = None
+        if trainer is None:
+            return
+
+        trainer._evaluation_loop._print_results = self._print_results
+
+    def on_test_start(self) -> None:
+        """Called at the beginning of testing."""
+        self.on_validation_start()
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Configures the optizmizer for fine-tuning. This method is ignored when using the CLI. When using Lightning IR
