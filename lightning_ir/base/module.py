@@ -100,6 +100,8 @@ class LightningIRModule(LightningModule):
                 dataset = "/".join(dataset_parts)
                 datasets.append(dataset)
                 data.append({"dataset": dataset, "metric": metric, "value": value.item()})
+        if not data:
+            return
         datasets = list(dict.fromkeys(datasets))
         df = pd.DataFrame(data)
         df = df.pivot(index="dataset", columns="metric", values="value")
