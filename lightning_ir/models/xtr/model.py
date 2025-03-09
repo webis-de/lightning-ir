@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Sequence
 
 import torch
 from huggingface_hub import hf_hub_download
@@ -16,9 +17,12 @@ class XTRScoringFunction(ScoringFunction):
         self.config: XTRConfig
 
     def compute_similarity(
-        self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding
+        self,
+        query_embeddings: BiEncoderEmbedding,
+        doc_embeddings: BiEncoderEmbedding,
+        num_docs: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
-        similarity = super().compute_similarity(query_embeddings, doc_embeddings)
+        similarity = super().compute_similarity(query_embeddings, doc_embeddings, num_docs)
 
         if self.training and self.xtr_token_retrieval_k is not None:
             pass

@@ -4,7 +4,7 @@ import array
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Type
 
 import torch
 
@@ -36,15 +36,16 @@ class Indexer(ABC):
     def save(self) -> None:
         self.index_config.save(self.index_dir)
         (self.index_dir / "doc_ids.txt").write_text("\n".join(self.doc_ids))
-        doc_lengths = torch.tensor(self.doc_lengths)
+        doc_lengths = torch.frombuffer(self.doc_lengths, dtype=torch.int32)
         torch.save(doc_lengths, self.index_dir / "doc_lengths.pt")
 
 
 class IndexConfig:
-    indexer_class = Indexer
+    indexer_class: Type[Indexer] = Indexer
 
     @classmethod
-    def from_pretrained(cls, index_dir: Path) -> "IndexConfig":
+    def from_pretrained(cls, index_dir: Path | str) -> "IndexConfig":
+        index_dir = Path(index_dir)
         with open(index_dir / "config.json", "r") as f:
             data = json.load(f)
             if data["index_type"] != cls.__name__:
@@ -60,3 +61,6 @@ class IndexConfig:
             data["index_dir"] = str(index_dir)
             data["index_type"] = self.__class__.__name__
             json.dump(data, f)
+
+    def to_dict(self) -> dict:
+        return self.__dict__.copy()

@@ -4,6 +4,7 @@ Datasets for Lightning IR that data loading and sampling.
 This module defines several datasets that handle loading and sampling data for training and inference.
 """
 
+import csv
 import warnings
 from itertools import islice
 from pathlib import Path
@@ -18,7 +19,7 @@ from torch.distributed import get_rank, get_world_size
 from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
 from .data import DocSample, QuerySample, RankSample
-from .ir_datasets_utils import ScoredDocTuple
+from .external_datasets.ir_datasets_utils import ScoredDocTuple
 
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 
@@ -450,7 +451,8 @@ class RunDataset(_IRDataset, Dataset):
             names=RUN_HEADER,
             usecols=[0, 2, 3, 4],
             dtype={"query_id": str, "doc_id": str},
-            quoting=3,
+            quoting=csv.QUOTE_NONE,
+            na_filter=False,
         )
 
     @staticmethod

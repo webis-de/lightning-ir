@@ -412,70 +412,72 @@ class ScoringFunction(torch.nn.Module):
             raise ValueError(f"Unknown similarity function {self.config.similarity_function}")
         self.query_aggregation_function = self.config.query_aggregation_function
 
-    def _compute_similarity(
-        self, query_embeddings: BiEncoderEmbedding, doc_embeddings: BiEncoderEmbedding
+    def compute_similarity(
+        self,
+        query_embeddings: BiEncoderEmbedding,
+        doc_embeddings: BiEncoderEmbedding,
+        num_docs: Sequence[int] | int | None = None,
     ) -> torch.Tensor:
         """Computes the similarity score between all query and document embedding vector pairs."""
         # TODO compute similarity only for non-masked values
-        similarity = self.similarity_function(query_embeddings.embeddings, doc_embeddings.embeddings)
+        num_docs_t = self._parse_num_docs(
+            query_embeddings.embeddings.shape[0], doc_embeddings.embeddings.shape[0], num_docs
+        )
+        query_emb = query_embeddings.embeddings.repeat_interleave(num_docs_t, dim=0).unsqueeze(2)
+        doc_emb = doc_embeddings.embeddings.unsqueeze(1)
+        similarity = self.similarity_function(query_emb, doc_emb)
         return similarity
 
     @staticmethod
     @_batch_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def _cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x, y, dim=-1)
 
     @staticmethod
     @_batch_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def _l2_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return -1 * torch.cdist(x, y).squeeze(-2)
 
     @staticmethod
     @_batch_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def _dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.transpose(-1, -2)).squeeze(-2)
 
-    def _parse_num_docs(
-        self,
-        query_embeddings: BiEncoderEmbedding,
-        doc_embeddings: BiEncoderEmbedding,
-        num_docs: int | Sequence[int] | None,
-    ) -> torch.Tensor:
+    def _parse_num_docs(self, query_shape: int, doc_shape: int, num_docs: int | Sequence[int] | None) -> torch.Tensor:
         """Helper function to parse the number of documents per query."""
-        batch_size = query_embeddings.embeddings.shape[0]
         if isinstance(num_docs, int):
-            num_docs = [num_docs] * batch_size
+            num_docs = [num_docs] * query_shape
         if isinstance(num_docs, list):
-            if sum(num_docs) != doc_embeddings.embeddings.shape[0] or len(num_docs) != batch_size:
+            if sum(num_docs) != doc_shape or len(num_docs) != query_shape:
                 raise ValueError("Num docs does not match doc embeddings")
         if num_docs is None:
-            if doc_embeddings.embeddings.shape[0] % batch_size != 0:
+            if doc_shape % query_shape != 0:
                 raise ValueError("Docs are not evenly distributed in _batch, but no num_docs provided")
-            num_docs = [doc_embeddings.embeddings.shape[0] // batch_size] * batch_size
-        return torch.tensor(num_docs, device=query_embeddings.embeddings.device)
+            num_docs = [doc_shape // query_shape] * query_shape
+        return torch.tensor(num_docs)
 
-    def _expand_query_embeddings(self, embeddings: BiEncoderEmbedding, num_docs: torch.Tensor) -> BiEncoderEmbedding:
-        """Helper function to expand query embeddings to match the number of documents per query."""
-        return BiEncoderEmbedding(
-            embeddings.embeddings.repeat_interleave(num_docs, dim=0).unsqueeze(2),
-            embeddings.scoring_mask.repeat_interleave(num_docs, dim=0).unsqueeze(2),
-            embeddings.encoding,
-        )
-
-    def _expand_doc_embeddings(self, embeddings: BiEncoderEmbedding, num_docs: torch.Tensor) -> BiEncoderEmbedding:
-        """Helper function to expand document embeddings to match the number documents per query."""
-        return BiEncoderEmbedding(
-            embeddings.embeddings.unsqueeze(1), embeddings.scoring_mask.unsqueeze(1), embeddings.encoding
-        )
+    def _expand_mask(self, shape: torch.Size, mask: torch.Tensor, dim: int) -> torch.Tensor:
+        if mask.ndim == len(shape):
+            return mask
+        if mask.ndim > len(shape):
+            raise ValueError("Mask has too many dimensions")
+        fill_values = len(shape) - mask.ndim + 1
+        new_shape = [*mask.shape[:-1]] + [1] * fill_values
+        new_shape[dim] = mask.shape[-1]
+        return mask.view(*new_shape)
 
     def _aggregate(
         self,
         scores: torch.Tensor,
-        mask: torch.Tensor | None,
+        mask: torch.Tensor,
         query_aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"] | None,
         dim: int,
     ) -> torch.Tensor:
         """Helper function to aggregate similarity scores over query and document embeddings."""
+        mask = self._expand_mask(scores.shape, mask, dim)
         if query_aggregation_function is None:
             return scores
         if query_aggregation_function == "max":
@@ -502,6 +504,32 @@ class ScoringFunction(torch.nn.Module):
             )
         raise ValueError(f"Unknown aggregation {query_aggregation_function}")
 
+    def aggregate_similarity(
+        self,
+        similarity: torch.Tensor,
+        query_scoring_mask: torch.Tensor,
+        doc_scoring_mask: torch.Tensor,
+        num_docs: int | Sequence[int] | None = None,
+    ) -> torch.Tensor:
+        """Aggregates the matrix of query-document similarities into a single score based on the configured aggregation
+        strategy.
+
+        :param similarity: Query-document similarity matrix
+        :type similarity: torch.Tensor
+        :param query_scoring_mask: Which query vectors should be masked out during scoring
+        :type query_scoring_mask: torch.Tensor
+        :param doc_scoring_mask: Which doucment vectors should be masked out during scoring
+        :type doc_scoring_mask: torch.Tensor
+        :return: Aggregated similarity scores
+        :rtype: torch.Tensor
+        """
+        num_docs_t = self._parse_num_docs(query_scoring_mask.shape[0], doc_scoring_mask.shape[0], num_docs)
+        scores = self._aggregate(similarity, doc_scoring_mask, "max", -1)
+        scores = self._aggregate(
+            scores, query_scoring_mask.repeat_interleave(num_docs_t, dim=0), self.query_aggregation_function, -2
+        )
+        return scores[..., 0, 0]
+
     def forward(
         self,
         query_embeddings: BiEncoderEmbedding,
@@ -523,10 +551,5 @@ class ScoringFunction(torch.nn.Module):
         :return: Relevance scores
         :rtype: torch.Tensor
         """
-        num_docs_t = self._parse_num_docs(query_embeddings, doc_embeddings, num_docs)
-        query_embeddings = self._expand_query_embeddings(query_embeddings, num_docs_t)
-        doc_embeddings = self._expand_doc_embeddings(doc_embeddings, num_docs_t)
-        similarity = self._compute_similarity(query_embeddings, doc_embeddings)
-        scores = self._aggregate(similarity, doc_embeddings.scoring_mask, "max", -1)
-        scores = self._aggregate(scores, query_embeddings.scoring_mask, self.query_aggregation_function, -2)
-        return scores[..., 0, 0]
+        similarity = self.compute_similarity(query_embeddings, doc_embeddings, num_docs)
+        return self.aggregate_similarity(similarity, query_embeddings.scoring_mask, doc_embeddings.scoring_mask)

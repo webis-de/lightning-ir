@@ -43,6 +43,7 @@ from .data import (
     TrainBatch,
     TupleDataset,
 )
+from .data.external_datasets import _register_external_datasets
 from .loss import (
     ApproxMRR,
     ApproxNDCG,
@@ -50,10 +51,10 @@ from .loss import (
     ConstantMarginMSE,
     FLOPSRegularization,
     InBatchCrossEntropy,
+    InfoNCE,
     KLDivergence,
     L1Regularization,
     L2Regularization,
-    LocalizedContrastiveEstimation,
     RankNet,
     ScoreBasedInBatchCrossEntropy,
     ScoreBasedInBatchLossFunction,
@@ -86,10 +87,18 @@ from .retrieve import (
     Indexer,
     SearchConfig,
     Searcher,
-    SparseIndexConfig,
-    SparseIndexer,
-    SparseSearchConfig,
-    SparseSearcher,
+    SeismicIndexConfig,
+    SeismicIndexer,
+    SeismicSearchConfig,
+    SeismicSearcher,
+    TorchDenseIndexConfig,
+    TorchDenseIndexer,
+    TorchDenseSearchConfig,
+    TorchDenseSearcher,
+    TorchSparseIndexConfig,
+    TorchSparseIndexer,
+    TorchSparseSearchConfig,
+    TorchSparseSearcher,
 )
 from .schedulers import (
     ConstantLRSchedulerWithLinearWarmup,
@@ -120,6 +129,7 @@ AutoModel.register(XTRConfig, XTRModel)
 AutoTokenizer.register(XTRConfig, BiEncoderTokenizer)
 
 _register_external_models()
+_register_external_datasets()
 
 __version__ = "0.0.2"
 
@@ -178,7 +188,7 @@ __all__ = [
     "LightningIRTrainer",
     "LightningIRWandbLogger",
     "LinearLRSchedulerWithLinearWarmup",
-    "LocalizedContrastiveEstimation",
+    "InfoNCE",
     "QueryDataset",
     "QuerySample",
     "RankCallback",
@@ -195,10 +205,18 @@ __all__ = [
     "SearchCallback",
     "SearchConfig",
     "Searcher",
-    "SparseIndexConfig",
-    "SparseIndexer",
-    "SparseSearchConfig",
-    "SparseSearcher",
+    "SeismicIndexConfig",
+    "SeismicIndexer",
+    "SeismicSearchConfig",
+    "SeismicSearcher",
+    "TorchDenseIndexConfig",
+    "TorchDenseIndexer",
+    "TorchDenseSearchConfig",
+    "TorchDenseSearcher",
+    "TorchSparseIndexConfig",
+    "TorchSparseIndexer",
+    "TorchSparseSearchConfig",
+    "TorchSparseSearcher",
     "SupervisedMarginMSE",
     "T5CrossEncoderConfig",
     "T5CrossEncoderModel",

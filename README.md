@@ -214,7 +214,7 @@ trainer:
   callbacks:
   - class_path: RankCallback
 model:
-  class_path: BiEncoderModule
+  class_path: CrossEncoderModule
   init_args:
     model_name_or_path: models/cross-encoder
     evaluation_metrics:

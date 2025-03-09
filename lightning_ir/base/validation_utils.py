@@ -25,13 +25,12 @@ def create_run_from_scores(
     :rtype: pd.DataFrame
     """
     num_docs = [len(ids) for ids in doc_ids]
-    scores = scores.float().cpu().detach().numpy().reshape(-1)
     df = pd.DataFrame(
         {
             "query_id": np.array(query_ids).repeat(num_docs),
             "q0": 0,
-            "doc_id": np.array(sum(map(lambda x: list(x), doc_ids), [])),
-            "score": scores,
+            "doc_id": sum(map(lambda x: list(x), doc_ids), []),
+            "score": scores.float().numpy(force=True).reshape(-1),
             "system": "lightning_ir",
         }
     )

@@ -102,7 +102,7 @@ class KLDivergence(ListwiseLossFunction):
         return loss
 
 
-class LocalizedContrastiveEstimation(ListwiseLossFunction):
+class InfoNCE(ListwiseLossFunction):
     def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
         scores = self.process_scores(output)
         targets = self.process_targets(scores, batch)
