@@ -489,7 +489,7 @@ class RunDataset(_IRDataset, Dataset):
         run_path = self.run_path
         if run_path is None:
             if self.ir_dataset is None or not self.ir_dataset.has_scoreddocs():
-                raise ValueError("Run file or dataset with scoreddocs required.")
+                raise ValueError(f"Run file or dataset with scoreddocs required. Got {self._dataset}")
             try:
                 run_path = self.ir_dataset.scoreddocs_handler().scoreddocs_path()
             except NotImplementedError:
