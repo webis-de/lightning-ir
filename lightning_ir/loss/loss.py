@@ -407,9 +407,9 @@ class ScoreBasedInBatchLossFunction(InBatchLossFunction):
         for query_idx, neg_samples in enumerate(additional_neg_samples):
             neg_idcs = neg_mask[query_idx].nonzero().squeeze(1)
             additional_neg_idcs = neg_idcs[torch.randperm(neg_idcs.shape[0])][:neg_samples]
-            assert neg_mask[query_idx, additional_neg_idcs].all().item()
+            assert neg_mask[query_idx, additional_neg_idcs].all()
             neg_mask[query_idx, additional_neg_idcs] = False
-            assert neg_mask[query_idx].sum().eq(min_num_neg_samples).item()
+            assert neg_mask[query_idx].sum().eq(min_num_neg_samples)
         return neg_mask
 
 

@@ -19,11 +19,7 @@ from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
 from .tokenizer import LightningIRTokenizer
-from .validation_utils import (
-    create_qrels_from_dicts,
-    create_run_from_scores,
-    evaluate_run,
-)
+from .validation_utils import create_qrels_from_dicts, create_run_from_scores, evaluate_run
 
 
 class LightningIRModule(LightningModule):
@@ -378,7 +374,7 @@ class LightningIRModule(LightningModule):
             # NOTE skip in-batch losses because they can use a lot of memory
             if isinstance(loss_function, InBatchLossFunction):
                 continue
-            metrics[f"validation-{loss_function.__class__.__name__}"] = loss_function.compute_loss(output, batch).item()
+            metrics[f"validation-{loss_function.__class__.__name__}"] = loss_function.compute_loss(output, batch)
         return metrics
 
     def on_validation_epoch_end(self) -> None:
