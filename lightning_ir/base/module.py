@@ -19,7 +19,11 @@ from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
 from .tokenizer import LightningIRTokenizer
-from .validation_utils import create_qrels_from_dicts, create_run_from_scores, evaluate_run
+from .validation_utils import (
+    create_qrels_from_dicts,
+    create_run_from_scores,
+    evaluate_run,
+)
 
 
 class LightningIRModule(LightningModule):
@@ -92,7 +96,9 @@ class LightningIRModule(LightningModule):
         datasets = []
         for result in results:
             for key, value in result.items():
-                *dataset_parts, metric, _ = key.split("/")
+                if "dataloader_idx" in key:
+                    key = "/".join(key.split("/")[:-1])
+                *dataset_parts, metric = key.split("/")
                 dataset = "/".join(dataset_parts)
                 datasets.append(dataset)
                 data.append({"dataset": dataset, "metric": metric, "value": value.item()})
