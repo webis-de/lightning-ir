@@ -12,49 +12,16 @@ from typing import Callable, Iterable, Literal, Sequence, Tuple, Type, overload
 
 import torch
 from transformers import BatchEncoding
-from transformers.activations import ACT2FN
 
 from ..base import LightningIRModel, LightningIROutput
 from ..base.model import batch_encoding_wrapper
+from ..modeling_utils.mlm_head import (
+    MODEL_TYPE_TO_HEAD_NAME,
+    MODEL_TYPE_TO_LM_HEAD,
+    MODEL_TYPE_TO_OUTPUT_EMBEDDINGS,
+    MODEL_TYPE_TO_TIED_WEIGHTS_KEYS,
+)
 from . import BiEncoderConfig
-
-
-class MLMHead(torch.nn.Module):
-    def __init__(self, config: BiEncoderConfig) -> None:
-        """Masked language model head. Projects the hidden states to the vocabulary size for MLM training.
-
-        :param config: Configuration for the bi-encoder model
-        :type config: BiEncoderConfig
-        """
-        super().__init__()
-        self.config = config
-        self.dense = torch.nn.Linear(config.hidden_size, config.hidden_size)
-        if isinstance(config.hidden_act, str):
-            self.transform_act_fn = ACT2FN[config.hidden_act]
-        else:
-            self.transform_act_fn = config.hidden_act
-        self.LayerNorm = torch.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.decoder = torch.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.bias = torch.nn.Parameter(torch.zeros(config.vocab_size))
-
-        self.decoder.bias = self.bias
-
-    def _tie_weights(self):
-        self.decoder.bias = self.bias
-
-    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        """Head forward pass.
-
-        :param hidden_states: Hidden states from the backbone model
-        :type hidden_states: torch.Tensor
-        :return: Projected hidden states to the vocabulary size
-        :rtype: torch.Tensor
-        """
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states)
-        hidden_states = self.decoder(hidden_states)
-        return hidden_states
 
 
 @dataclass
@@ -124,9 +91,6 @@ class BiEncoderOutput(LightningIROutput):
 
 class BiEncoderModel(LightningIRModel):
 
-    _tied_weights_keys = ["projection.decoder.bias", "projection.decoder.weight", "encoder.embed_tokens.weight"]
-    _keys_to_ignore_on_load_unexpected = [r"decoder"]
-
     config_class: Type[BiEncoderConfig] = BiEncoderConfig
     """Configuration class for the bi-encoder model."""
 
@@ -142,7 +106,7 @@ class BiEncoderModel(LightningIRModel):
         super().__init__(config, *args, **kwargs)
         self.config: BiEncoderConfig
         self.scoring_function = ScoringFunction(self.config)
-        self.projection: torch.nn.Linear | MLMHead | None = None
+        self.projection: torch.nn.Linear | torch.nn.Module | None = None
         if self.config.projection is not None:
             if "linear" in self.config.projection:
                 self.projection = torch.nn.Linear(
@@ -151,7 +115,14 @@ class BiEncoderModel(LightningIRModel):
                     bias="no_bias" not in self.config.projection,
                 )
             elif self.config.projection == "mlm":
-                self.projection = MLMHead(config)
+                layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
+                self.projection = layer_cls(config)
+                if hasattr(self, "_tied_weights_keys"):
+                    old_keys = getattr(self, "_tied_weights_keys") or []
+                    new_keys = (
+                        old_keys + MODEL_TYPE_TO_TIED_WEIGHTS_KEYS[config.backbone_model_type or config.model_type]
+                    )
+                    setattr(self, "_tied_weights_keys", new_keys)
             else:
                 raise ValueError(f"Unknown projection {self.config.projection}")
         else:
@@ -169,16 +140,21 @@ class BiEncoderModel(LightningIRModel):
     def _load_pretrained_model(
         cls, model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
     ):
+        has_base_model_prefix = any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
+        prefix = model.base_model_prefix + "." if has_base_model_prefix else ""
+        head_name = MODEL_TYPE_TO_HEAD_NAME[model.config.backbone_model_type or model.config.model_type]
         if model.config.projection == "mlm":
-            has_base_model_prefix = any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
-            prefix = model.base_model_prefix + "." if has_base_model_prefix else ""
-            for key in list(state_dict.keys()):
-                if key.startswith("cls"):
-                    new_key = prefix + key.replace("cls.predictions", "projection").replace(".transform", "")
-                    state_dict[new_key] = state_dict.pop(key)
-                    loaded_keys[loaded_keys.index(key)] = new_key
+            new_loaded_keys = []
+            for loaded_key in loaded_keys:
+                if loaded_key.startswith(prefix):
+                    new_key = loaded_key[len(prefix) :]
+                else:
+                    new_key = loaded_key
+                new_key = new_key.replace(head_name, "projection")
+                new_loaded_keys.append(new_key)
+                state_dict[new_key] = state_dict.pop(loaded_key)
         return super()._load_pretrained_model(
-            model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+            model, state_dict, new_loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
         )
 
     def get_output_embeddings(self) -> torch.nn.Module | None:
@@ -188,9 +164,22 @@ class BiEncoderModel(LightningIRModel):
         :return: Output embeddings of the model
         :rtype: torch.nn.Module | None
         """
-        if isinstance(self.projection, MLMHead):
-            return self.projection.decoder
+        if self.config.projection == "mlm":
+            module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[self.config.backbone_model_type or self.config.model_type]
+            module = self
+            for module_name in module_names.split("."):
+                module = getattr(module, module_name)
+            return module
         return None
+
+    def set_output_embeddings(self, new_embeddings: torch.nn.Module) -> None:
+        if self.config.projection == "mlm":
+            module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[self.config.backbone_model_type or self.config.model_type]
+            module = self
+            for module_name in module_names.split(".")[:-1]:
+                module = getattr(module, module_name)
+            setattr(module, module_names.split(".")[-1], new_embeddings)
+            setattr(module, "bias", new_embeddings.bias)
 
     def _add_mask_scoring_input_ids(self) -> None:
         """Adds the mask scoring input ids to the model if they are specified in the configuration."""
