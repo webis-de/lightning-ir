@@ -15,7 +15,6 @@ class PackedTensor(torch.Tensor):
             raise ValueError("lengths must be provided")
         if sum(lengths) != len(self):
             raise ValueError("Sum of lengths must equal the length of the tensor")
-        # super().__init__(*args, **kwargs)
         self.lengths = list(lengths)
         self._segmented_tensor: Tuple[torch.Tensor, ...] | None = None
 
