@@ -20,10 +20,6 @@ class PlaidIndexer(Indexer):
         verbose: bool = False,
     ) -> None:
         super().__init__(index_dir, index_config, bi_encoder_config, verbose)
-        try:
-            import faiss
-        except ImportError:
-            raise ImportError("faiss is required for PlaidIndexer")
 
         self.index_config: PlaidIndexConfig
 

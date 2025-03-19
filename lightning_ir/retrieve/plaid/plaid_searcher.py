@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Literal, Tuple, Type
+from typing import TYPE_CHECKING, List, Tuple, Type
 
 import torch
 
