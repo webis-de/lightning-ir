@@ -34,9 +34,9 @@ extensions = [
 
 # autodoc_mock_imports = ["torch", "transformers", "lightning"]
 
-doctest_global_setup = """
-from argparse import Namespace
-"""
+# doctest_global_setup = """
+# from argparse import Namespace
+# """
 
 
 todo_include_todos = True
