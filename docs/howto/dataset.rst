@@ -1,6 +1,6 @@
-.. _howto-dataset:
-
 .. _ir_datasets: https://ir-datasets.com/
+
+.. _howto-dataset:
 
 ====================
 Use a Custom Dataset
