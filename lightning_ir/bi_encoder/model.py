@@ -159,6 +159,7 @@ class BiEncoderModel(LightningIRModel):
         has_base_model_prefix = any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
         prefix = model.base_model_prefix + "." if has_base_model_prefix else ""
         head_name = MODEL_TYPE_TO_HEAD_NAME[model.config.backbone_model_type or model.config.model_type]
+        new_loaded_keys = loaded_keys
         if model.config.projection == "mlm":
             new_loaded_keys = []
             for loaded_key in loaded_keys:
