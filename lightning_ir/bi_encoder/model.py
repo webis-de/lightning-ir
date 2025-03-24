@@ -119,10 +119,13 @@ class BiEncoderModel(LightningIRModel):
                 layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
                 projection = layer_cls(config)
                 tied_weight_keys = getattr(self, "_tied_weights_keys", []) or []
+                projection_layers = (
+                    ("projection",) if self.config.tie_projection else ("query_projection", "doc_projection")
+                )
                 tied_weight_keys = tied_weight_keys + [
-                    f"{input_type}.{key}"
+                    f"{projection_layer}.{key}"
                     for key in MODEL_TYPE_TO_TIED_WEIGHTS_KEYS[config.backbone_model_type or config.model_type]
-                    for input_type in ("query_projection", "doc_projection")
+                    for projection_layer in projection_layers
                 ]
                 setattr(self, "_tied_weights_keys", tied_weight_keys)
             else:
@@ -135,15 +138,7 @@ class BiEncoderModel(LightningIRModel):
                 )
 
         if config.tie_projection:
-            self.query_projection = projection
-            self.doc_projection = projection
-            tied_weight_keys = getattr(self, "_tied_weights_keys", []) or []
-            for name, _ in projection.named_parameters():
-                for input_type in ("query", "doc"):
-                    new_key = f"{input_type}_projection.{name}"
-                    if new_key not in tied_weight_keys:
-                        tied_weight_keys.append(new_key)
-            setattr(self, "_tied_weights_keys", tied_weight_keys)
+            self.projection = projection
         else:
             self.query_projection = deepcopy(projection)
             self.doc_projection = deepcopy(projection)
@@ -156,25 +151,20 @@ class BiEncoderModel(LightningIRModel):
     def _load_pretrained_model(
         cls, model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
     ):
-        has_base_model_prefix = any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
-        prefix = model.base_model_prefix + "." if has_base_model_prefix else ""
-        head_name = MODEL_TYPE_TO_HEAD_NAME[model.config.backbone_model_type or model.config.model_type]
-        new_loaded_keys = loaded_keys
         if model.config.projection == "mlm":
-            new_loaded_keys = []
-            for loaded_key in loaded_keys:
-                if loaded_key.startswith(prefix):
-                    new_key = loaded_key[len(prefix) :]
-                else:
-                    new_key = loaded_key
-                query_key = new_key.replace(head_name, "query_projection")
-                doc_key = new_key.replace(head_name, "doc_projection")
-                new_loaded_keys.extend([query_key, doc_key])
-                state_dict[query_key] = state_dict[loaded_key].clone()
-                state_dict[doc_key] = state_dict[loaded_key].clone()
-                del state_dict[loaded_key]
+            head_name = MODEL_TYPE_TO_HEAD_NAME[model.config.backbone_model_type or model.config.model_type]
+            projection_layers = (
+                ("projection",) if model.config.tie_projection else ("query_projection", "doc_projection")
+            )
+            for loaded_key in list(loaded_keys):
+                if loaded_key.startswith(head_name):
+                    for projection_layer in projection_layers:
+                        new_key = loaded_key.replace(head_name, projection_layer)
+                        loaded_keys.append(new_key)
+                        state_dict[new_key] = state_dict[loaded_key].clone()
+
         return super()._load_pretrained_model(
-            model, state_dict, new_loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+            model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
         )
 
     def get_output_embeddings(self) -> torch.nn.Module | None:
@@ -202,14 +192,19 @@ class BiEncoderModel(LightningIRModel):
                 super().__setattr__(name, value)
 
         if self.config.projection == "mlm":
-            module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[self.config.backbone_model_type or self.config.model_type]
-            query_output = self.query_projection
-            doc_output = self.doc_projection
-            for module_name in module_names.split("."):
-                query_output = getattr(query_output, module_name)
-                doc_output = getattr(doc_output, module_name)
-            container = _TiedOutputEmbeddingsContainer([query_output, doc_output])
-            return container
+            if self.config.tie_projection:
+                return self.projection
+            else:
+                module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[
+                    self.config.backbone_model_type or self.config.model_type
+                ]
+                query_output = self.query_projection
+                doc_output = self.doc_projection
+                for module_name in module_names.split("."):
+                    query_output = getattr(query_output, module_name)
+                    doc_output = getattr(doc_output, module_name)
+                container = _TiedOutputEmbeddingsContainer([query_output, doc_output])
+                return container
         return None
 
     def set_output_embeddings(self, new_embeddings: torch.nn.Module) -> None:
@@ -312,7 +307,7 @@ class BiEncoderModel(LightningIRModel):
         """
         expansion = getattr(self.config, f"{input_type}_expansion")
         pooling_strategy = getattr(self.config, f"{input_type}_pooling_strategy")
-        projection = getattr(self, f"{input_type}_projection")
+        projection = self.projection if self.config.tie_projection else getattr(self, f"{input_type}_projection")
         mask_scoring_input_ids = getattr(self, f"{input_type}_mask_scoring_input_ids")
 
         embeddings = self._backbone_forward(**encoding).last_hidden_state

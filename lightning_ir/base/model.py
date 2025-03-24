@@ -141,6 +141,16 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
     def _load_pretrained_model(
         cls, model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
     ):
+        # remove prefix
+        has_base_model_prefix = any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
+        prefix = model.base_model_prefix + "." if has_base_model_prefix else ""
+        if prefix:
+            for key_idx, loaded_key in enumerate(loaded_keys):
+                if loaded_key.startswith(prefix):
+                    new_key = loaded_key[len(prefix) :]
+                    state_dict[new_key] = state_dict.pop(loaded_key)
+                    loaded_keys[key_idx] = new_key
+
         if pretrained_model_name_or_path in STATE_DICT_KEY_MAPPING:
             map_keys = STATE_DICT_KEY_MAPPING[pretrained_model_name_or_path]
             for orig_key, new_key in map_keys:
