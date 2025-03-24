@@ -107,7 +107,7 @@ class BiEncoderModel(LightningIRModel):
         super().__init__(config, *args, **kwargs)
         self.config: BiEncoderConfig
         self.scoring_function = ScoringFunction(self.config)
-        projection = torch.nn.Identity()
+        projection: torch.nn.Module = torch.nn.Identity()
         if self.config.projection is not None:
             if "linear" in self.config.projection:
                 projection = torch.nn.Linear(
@@ -118,12 +118,13 @@ class BiEncoderModel(LightningIRModel):
             elif self.config.projection == "mlm":
                 layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
                 projection = layer_cls(config)
-                if hasattr(self, "_tied_weights_keys"):
-                    old_keys = getattr(self, "_tied_weights_keys") or []
-                    new_keys = (
-                        old_keys + MODEL_TYPE_TO_TIED_WEIGHTS_KEYS[config.backbone_model_type or config.model_type]
-                    )
-                    setattr(self, "_tied_weights_keys", new_keys)
+                tied_weight_keys = getattr(self, "_tied_weights_keys", []) or []
+                tied_weight_keys = tied_weight_keys + [
+                    f"{input_type}.{key}"
+                    for key in MODEL_TYPE_TO_TIED_WEIGHTS_KEYS[config.backbone_model_type or config.model_type]
+                    for input_type in ("query_projection", "doc_projection")
+                ]
+                setattr(self, "_tied_weights_keys", tied_weight_keys)
             else:
                 raise ValueError(f"Unknown projection {self.config.projection}")
         else:
@@ -136,6 +137,13 @@ class BiEncoderModel(LightningIRModel):
         if config.tie_projection:
             self.query_projection = projection
             self.doc_projection = projection
+            tied_weight_keys = getattr(self, "_tied_weights_keys", []) or []
+            for name, _ in projection.named_parameters():
+                for input_type in ("query", "doc"):
+                    new_key = f"{input_type}_projection.{name}"
+                    if new_key not in tied_weight_keys:
+                        tied_weight_keys.append(new_key)
+            setattr(self, "_tied_weights_keys", tied_weight_keys)
         else:
             self.query_projection = deepcopy(projection)
             self.doc_projection = deepcopy(projection)
@@ -161,8 +169,8 @@ class BiEncoderModel(LightningIRModel):
                 query_key = new_key.replace(head_name, "query_projection")
                 doc_key = new_key.replace(head_name, "doc_projection")
                 new_loaded_keys.extend([query_key, doc_key])
-                state_dict[query_key] = state_dict[loaded_key]
-                state_dict[doc_key] = state_dict[loaded_key]
+                state_dict[query_key] = state_dict[loaded_key].clone()
+                state_dict[doc_key] = state_dict[loaded_key].clone()
                 del state_dict[loaded_key]
         return super()._load_pretrained_model(
             model, state_dict, new_loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
