@@ -12,9 +12,9 @@ MODEL_TYPE_TO_HEAD_NAME = {
 # projection key
 
 MODEL_TYPE_TO_OUTPUT_EMBEDDINGS = {
-    "bert": "projection.predictions.decoder",
+    "bert": "predictions.decoder",
 }
 
 MODEL_TYPE_TO_TIED_WEIGHTS_KEYS = {
-    "bert": ["projection.predictions.decoder.bias", "projection.predictions.decoder.weight"],
+    "bert": ["predictions.decoder.bias", "predictions.decoder.weight"],
 }

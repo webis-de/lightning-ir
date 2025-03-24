@@ -39,6 +39,7 @@ class BiEncoderConfig(LightningIRConfig):
             "sparsification",
             "embedding_dim",
             "projection",
+            "tie_projection",
         }
     ).union(TOKENIZER_ARGS)
     """Arguments added to the configuration."""
@@ -62,6 +63,7 @@ class BiEncoderConfig(LightningIRConfig):
         add_marker_tokens: bool = False,
         embedding_dim: int = 768,
         projection: Literal["linear", "linear_no_bias", "mlm"] | None = "linear",
+        tie_projection: bool = True,
         **kwargs,
     ):
         """Configuration class for a bi-encoder model.
@@ -103,6 +105,8 @@ class BiEncoderConfig(LightningIRConfig):
         :type embedding_dim: int, optional
         :param projection: Whether and how to project the output emeddings, defaults to "linear"
         :type projection: Literal['linear', 'linear_no_bias', 'mlm'] | None, optional
+        :param tie_projection: Whether to tie the projection weights for queries and documents, defaults to True
+        :type tie_projection: bool, optional
         """
         super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)
         self.similarity_function = similarity_function
@@ -120,6 +124,7 @@ class BiEncoderConfig(LightningIRConfig):
         self.add_marker_tokens = add_marker_tokens
         self.embedding_dim = embedding_dim
         self.projection = projection
+        self.tie_projection = tie_projection
 
     def to_dict(self) -> Dict[str, Any]:
         """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments, the backbone

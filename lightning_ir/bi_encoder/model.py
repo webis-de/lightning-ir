@@ -5,6 +5,7 @@ This module defines the model class used to implement bi-encoder models.
 """
 
 import warnings
+from copy import deepcopy
 from dataclasses import dataclass
 from functools import wraps
 from string import punctuation
@@ -106,17 +107,17 @@ class BiEncoderModel(LightningIRModel):
         super().__init__(config, *args, **kwargs)
         self.config: BiEncoderConfig
         self.scoring_function = ScoringFunction(self.config)
-        self.projection: torch.nn.Linear | torch.nn.Module | None = None
+        projection = torch.nn.Identity()
         if self.config.projection is not None:
             if "linear" in self.config.projection:
-                self.projection = torch.nn.Linear(
+                projection = torch.nn.Linear(
                     self.config.hidden_size,
                     self.config.embedding_dim,
                     bias="no_bias" not in self.config.projection,
                 )
             elif self.config.projection == "mlm":
                 layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
-                self.projection = layer_cls(config)
+                projection = layer_cls(config)
                 if hasattr(self, "_tied_weights_keys"):
                     old_keys = getattr(self, "_tied_weights_keys") or []
                     new_keys = (
@@ -131,6 +132,13 @@ class BiEncoderModel(LightningIRModel):
                     "No projection is used but embedding_dim != hidden_size. "
                     "The output embeddings will not have embedding_size dimensions."
                 )
+
+        if config.tie_projection:
+            self.query_projection = projection
+            self.doc_projection = projection
+        else:
+            self.query_projection = deepcopy(projection)
+            self.doc_projection = deepcopy(projection)
 
         self.query_mask_scoring_input_ids: torch.Tensor | None = None
         self.doc_mask_scoring_input_ids: torch.Tensor | None = None
@@ -150,9 +158,12 @@ class BiEncoderModel(LightningIRModel):
                     new_key = loaded_key[len(prefix) :]
                 else:
                     new_key = loaded_key
-                new_key = new_key.replace(head_name, "projection")
-                new_loaded_keys.append(new_key)
-                state_dict[new_key] = state_dict.pop(loaded_key)
+                query_key = new_key.replace(head_name, "query_projection")
+                doc_key = new_key.replace(head_name, "doc_projection")
+                new_loaded_keys.extend([query_key, doc_key])
+                state_dict[query_key] = state_dict[loaded_key]
+                state_dict[doc_key] = state_dict[loaded_key]
+                del state_dict[loaded_key]
         return super()._load_pretrained_model(
             model, state_dict, new_loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
         )
@@ -164,16 +175,37 @@ class BiEncoderModel(LightningIRModel):
         :return: Output embeddings of the model
         :rtype: torch.nn.Module | None
         """
+
+        class _TiedOutputEmbeddingsContainer(torch.nn.Module):
+            """This is a hack to tie the output embeddings of multiple layers. HF only supports tieing the output of a
+            single layer at the moment. This hack will lead to errors if the input embedding dimensionality is changed,
+            e.g., a new token is added to the vocabulary."""
+
+            def __init__(self, output_embeddings: Sequence[torch.nn.Linear]):
+                super().__init__()
+                self.output_embeddings = output_embeddings
+                self.weight = output_embeddings[0].weight
+
+            def __setattr__(self, name: str, value: torch.Tensor | torch.nn.Module) -> None:
+                if name == "weight":
+                    for output_embedding in self.output_embeddings:
+                        output_embedding.weight = value
+                super().__setattr__(name, value)
+
         if self.config.projection == "mlm":
             module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[self.config.backbone_model_type or self.config.model_type]
-            module = self
+            query_output = self.query_projection
+            doc_output = self.doc_projection
             for module_name in module_names.split("."):
-                module = getattr(module, module_name)
-            return module
+                query_output = getattr(query_output, module_name)
+                doc_output = getattr(doc_output, module_name)
+            container = _TiedOutputEmbeddingsContainer([query_output, doc_output])
+            return container
         return None
 
     def set_output_embeddings(self, new_embeddings: torch.nn.Module) -> None:
         if self.config.projection == "mlm":
+            raise NotImplementedError("Setting output embeddings is not supported for models with MLM projection.")
             module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[self.config.backbone_model_type or self.config.model_type]
             module = self
             for module_name in module_names.split(".")[:-1]:
@@ -246,12 +278,7 @@ class BiEncoderModel(LightningIRModel):
         :return: Query embeddings and scoring mask
         :rtype: BiEncoderEmbedding
         """
-        return self.encode(
-            encoding=encoding,
-            expansion=self.config.query_expansion,
-            pooling_strategy=self.config.query_pooling_strategy,
-            mask_scoring_input_ids=self.query_mask_scoring_input_ids,
-        )
+        return self.encode(encoding=encoding, input_type="query")
 
     def encode_doc(self, encoding: BatchEncoding) -> BiEncoderEmbedding:
         """Encodes tokenized documents.
@@ -261,38 +288,26 @@ class BiEncoderModel(LightningIRModel):
         :return: Query embeddings and scoring mask
         :rtype: BiEncoderEmbedding
         """
-        return self.encode(
-            encoding=encoding,
-            expansion=self.config.doc_expansion,
-            pooling_strategy=self.config.doc_pooling_strategy,
-            mask_scoring_input_ids=self.doc_mask_scoring_input_ids,
-        )
+        return self.encode(encoding=encoding, input_type="doc")
 
     @batch_encoding_wrapper
-    def encode(
-        self,
-        encoding: BatchEncoding,
-        expansion: bool = False,
-        pooling_strategy: Literal["first", "mean", "max", "sum"] | None = None,
-        mask_scoring_input_ids: torch.Tensor | None = None,
-    ) -> BiEncoderEmbedding:
-        """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
+    def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
+        """Encodes a batched tokenized text sequences and returns the embeddings ad scoring mask.
 
         :param encoding: Tokenizer encodings for the text sequence
         :type encoding: BatchEncoding
-        :param expansion: Whether mask expansion was applied to the text sequence, defaults to False
-        :type expansion: bool, optional
-        :param pooling_strategy: Strategy to pool token embeddings into a single embedding. If None no pooling is
-            applied, defaults to None
-        :type pooling_strategy: Literal['first', 'mean', 'max', 'sum'] | None, optional
-        :param mask_scoring_input_ids: Which token_ids to mask out during scoring, defaults to None
-        :type mask_scoring_input_ids: torch.Tensor | None, optional
+        :param input_type: Type of input, either "query" or "doc"
+        :type input_type: Literal["query", "doc"]
         :return: Embeddings and scoring mask
         :rtype: BiEncoderEmbedding
         """
+        expansion = getattr(self.config, f"{input_type}_expansion")
+        pooling_strategy = getattr(self.config, f"{input_type}_pooling_strategy")
+        projection = getattr(self, f"{input_type}_projection")
+        mask_scoring_input_ids = getattr(self, f"{input_type}_mask_scoring_input_ids")
+
         embeddings = self._backbone_forward(**encoding).last_hidden_state
-        if self.projection is not None:
-            embeddings = self.projection(embeddings)
+        embeddings = projection(embeddings)
         embeddings = self._sparsification(embeddings, self.config.sparsification)
         embeddings = self._pooling(embeddings, encoding["attention_mask"], pooling_strategy)
         if self.config.normalize:
