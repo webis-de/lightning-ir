@@ -69,7 +69,7 @@ class DocSample:
     :param doc_id: Id of the document
     :type doc_id: str
     :param doc: Document text
-    :type doc
+    :type doc: str
     """
 
     doc_id: str
