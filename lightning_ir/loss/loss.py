@@ -25,7 +25,7 @@ class LossFunction(ABC):
         if targets is None:
             raise ValueError("Expected targets in TrainBatch")
         if targets.ndim > scores.ndim:
-            return targets.max(-1).values
+            return targets.amax(-1)
         return targets
 
 
