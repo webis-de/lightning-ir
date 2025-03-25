@@ -491,10 +491,10 @@ class ScoringFunction(torch.nn.Module):
         if query_aggregation_function is None:
             return scores
         if query_aggregation_function == "max":
-            scores.masked_fill_(~mask, float("-inf"))
+            scores = scores.masked_fill_(~mask, float("-inf"))
             return scores.amax(dim, keepdim=True)
         if query_aggregation_function == "sum":
-            scores.masked_fill_(~mask, 0)
+            scores = scores.masked_fill_(~mask, 0)
             return scores.sum(dim, keepdim=True)
         num_non_masked = mask.sum(dim, keepdim=True)
         if query_aggregation_function == "mean":
