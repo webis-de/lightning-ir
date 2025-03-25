@@ -49,7 +49,7 @@ def _register_external_models():
     )
     STATE_DICT_KEY_MAPPING.update(
         {
-            "colbert-ir/colbertv2.0": [("linear.weight", "bert.projection.weight")],
+            "colbert-ir/colbertv2.0": [("linear.weight", "projection.weight")],
             "castorini/monot5-base-msmarco-10k": [(None, "linear.weight")],
             "castorini/monot5-base-msmarco": [(None, "linear.weight")],
             "castorini/monot5-large-msmarco-10k": [(None, "linear.weight")],
