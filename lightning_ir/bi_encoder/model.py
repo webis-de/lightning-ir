@@ -385,7 +385,7 @@ def _batch_scoring(
 ) -> Callable[[torch.Tensor, torch.Tensor], torch.Tensor]:
     """Helper function to batch similarity functions to avoid memory issues with large batch sizes or high numbers
     of documents per query."""
-    BATCH_SIZE = 1024
+    BATCH_SIZE = 16384
 
     @wraps(similarity_function)
     def batch_similarity_function(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -491,19 +491,12 @@ class ScoringFunction(torch.nn.Module):
         if query_aggregation_function is None:
             return scores
         if query_aggregation_function == "max":
-            if mask is not None:
-                scores = scores.masked_fill(~mask, float("-inf"))
-            return scores.max(dim, keepdim=True).values
+            scores.masked_fill_(~mask, float("-inf"))
+            return scores.amax(dim, keepdim=True)
         if query_aggregation_function == "sum":
-            if mask is not None:
-                scores = scores.masked_fill(~mask, 0)
+            scores.masked_fill_(~mask, 0)
             return scores.sum(dim, keepdim=True)
-        if mask is None:
-            shape = list(scores.shape)
-            shape[dim] = 1
-            num_non_masked = torch.full(shape, scores.shape[dim], device=scores.device)
-        else:
-            num_non_masked = mask.sum(dim, keepdim=True)
+        num_non_masked = mask.sum(dim, keepdim=True)
         if query_aggregation_function == "mean":
             return torch.where(num_non_masked == 0, 0, scores.sum(dim, keepdim=True) / num_non_masked)
         if query_aggregation_function == "harmonic_mean":
@@ -540,7 +533,7 @@ class ScoringFunction(torch.nn.Module):
         scores = self._aggregate(
             scores, query_scoring_mask.repeat_interleave(num_docs_t, dim=0), self.query_aggregation_function, -2
         )
-        return scores[..., 0, 0]
+        return scores.view(scores.shape[0])
 
     def forward(
         self,
