@@ -102,6 +102,17 @@ class KLDivergence(ListwiseLossFunction):
         return loss
 
 
+class PearsonCorrelation(ListwiseLossFunction):
+    def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
+        scores = self.process_scores(output)
+        targets = self.process_targets(scores, batch).to(scores)
+        centered_scores = scores - scores.mean(dim=-1, keepdim=True)
+        centered_targets = targets - targets.mean(dim=-1, keepdim=True)
+        pearson = torch.nn.functional.cosine_similarity(centered_scores, centered_targets, dim=-1)
+        loss = (1 - pearson).mean()
+        return loss
+
+
 class InfoNCE(ListwiseLossFunction):
     def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
         scores = self.process_scores(output)
