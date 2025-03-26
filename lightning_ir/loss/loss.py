@@ -479,6 +479,5 @@ class FLOPSRegularization(RegularizationLossFunction):
         query_embeddings, doc_embeddings = self.process_embeddings(output)
         query_loss = torch.mean(torch.mean(torch.abs(query_embeddings), dim=0) ** 2)
         doc_loss = torch.mean(torch.mean(torch.abs(doc_embeddings), dim=0) ** 2)
-        anti_zero = 1 / (torch.mean(query_embeddings) ** 2) + 1 / (torch.mean(doc_embeddings) ** 2)
-        loss = self.query_weight * query_loss + self.doc_weight * doc_loss + anti_zero
+        loss = self.query_weight * query_loss + self.doc_weight * doc_loss
         return loss
