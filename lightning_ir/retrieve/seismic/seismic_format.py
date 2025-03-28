@@ -15,6 +15,6 @@ class SeismicFormatConverter:
         out = b""
         for t, v in zip(term_idcs.split(lengths), values.split(lengths)):
             out += (len(t)).to_bytes(4, byteorder="little", signed=False)
-            out += t.numpy().astype(np.int32).tobytes()
-            out += v.numpy().astype(np.float32).tobytes()
+            out += t.numpy(force=True).astype(np.int32).tobytes()
+            out += v.numpy(force=True).astype(np.float32).tobytes()
         return out
