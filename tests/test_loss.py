@@ -16,6 +16,7 @@ from lightning_ir.loss.loss import (
     KLDivergence,
     L1Regularization,
     L2Regularization,
+    PearsonCorrelation,
     RankNet,
     RegularizationLossFunction,
     ScoreBasedInBatchCrossEntropy,
@@ -83,6 +84,7 @@ def batch(batch_size: int, depth: int, targets: torch.Tensor) -> TrainBatch:
         InfoNCE(),
         RankNet(),
         SupervisedMarginMSE(),
+        PearsonCorrelation(),
     ],
     ids=[
         "ApproxMRR",
@@ -93,6 +95,7 @@ def batch(batch_size: int, depth: int, targets: torch.Tensor) -> TrainBatch:
         "InfoNCE",
         "RankNet",
         "SupervisedMarginMSE",
+        "PearsonCorrelation",
     ],
 )
 def test_loss_func(output: LightningIROutput, batch: TrainBatch, loss_func: ScoringLossFunction):
