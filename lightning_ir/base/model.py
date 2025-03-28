@@ -8,10 +8,10 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial, wraps
 from pathlib import Path
-from typing import Any, Literal, Mapping, Protocol, Sequence, Type, TypeVar
+from typing import Any, Dict, Literal, Mapping, Protocol, Sequence, Type, TypeVar
 
 import torch
-from transformers import MODEL_MAPPING, BatchEncoding, BertModel
+from transformers import MODEL_MAPPING, BatchEncoding, BertModel, PreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 
 from .._flash import FLASH_ATTENTION_MAP
@@ -139,28 +139,32 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
     @classmethod
     def _load_pretrained_model(
-        cls, model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+        cls,
+        model: PreTrainedModel,
+        state_dict: Dict | None,
+        checkpoint_files: Sequence[str] | None,
+        pretrained_model_name_or_path: str | None,
+        *args,
+        **kwargs,
     ):
         # remove prefix
-        has_base_model_prefix = any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
+        has_base_model_prefix = (
+            False if state_dict is None else any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
+        )
         prefix = model.base_model_prefix + "." if has_base_model_prefix else ""
-        if prefix:
-            for key_idx, loaded_key in enumerate(loaded_keys):
-                if loaded_key.startswith(prefix):
-                    new_key = loaded_key[len(prefix) :]
-                    state_dict[new_key] = state_dict.pop(loaded_key)
-                    loaded_keys[key_idx] = new_key
+        if prefix and state_dict is not None:
+            for key in list(state_dict.keys()):
+                if key.startswith(prefix):
+                    new_key = key[len(prefix) :]
+                    state_dict[new_key] = state_dict.pop(key)
 
-        if pretrained_model_name_or_path in STATE_DICT_KEY_MAPPING:
+        if pretrained_model_name_or_path in STATE_DICT_KEY_MAPPING and state_dict is not None:
             map_keys = STATE_DICT_KEY_MAPPING[pretrained_model_name_or_path]
             for orig_key, new_key in map_keys:
                 if orig_key is not None:
                     state_dict[new_key] = state_dict.pop(orig_key)
-                    loaded_keys[loaded_keys.index(orig_key)] = new_key
-                else:
-                    loaded_keys.append(new_key)
         model, *out = super()._load_pretrained_model(
-            model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+            model, state_dict, checkpoint_files, pretrained_model_name_or_path, *args, **kwargs
         )
         if pretrained_model_name_or_path in POST_LOAD_CALLBACKS:
             model = POST_LOAD_CALLBACKS[pretrained_model_name_or_path](model)

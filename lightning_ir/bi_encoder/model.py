@@ -9,10 +9,10 @@ from copy import deepcopy
 from dataclasses import dataclass
 from functools import wraps
 from string import punctuation
-from typing import Callable, Iterable, Literal, Sequence, Tuple, Type, overload
+from typing import Callable, Dict, Iterable, Literal, Sequence, Tuple, Type, overload
 
 import torch
-from transformers import BatchEncoding
+from transformers import BatchEncoding, PreTrainedModel
 
 from ..base import LightningIRModel, LightningIROutput
 from ..base.model import batch_encoding_wrapper
@@ -149,22 +149,26 @@ class BiEncoderModel(LightningIRModel):
 
     @classmethod
     def _load_pretrained_model(
-        cls, model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+        cls,
+        model: PreTrainedModel,
+        state_dict: Dict | None,
+        checkpoint_files: Sequence[str] | None,
+        pretrained_model_name_or_path: str | None,
+        **kwargs,
     ):
         if model.config.projection == "mlm":
             head_name = MODEL_TYPE_TO_HEAD_NAME[model.config.backbone_model_type or model.config.model_type]
             projection_layers = (
                 ("projection",) if model.config.tie_projection else ("query_projection", "doc_projection")
             )
-            for loaded_key in list(loaded_keys):
-                if loaded_key.startswith(head_name):
+            for key in list(state_dict.keys()):
+                if key.startswith(head_name):
                     for projection_layer in projection_layers:
-                        new_key = loaded_key.replace(head_name, projection_layer)
-                        loaded_keys.append(new_key)
-                        state_dict[new_key] = state_dict[loaded_key].clone()
+                        new_key = key.replace(head_name, projection_layer)
+                        state_dict[new_key] = state_dict[key].clone()
 
         return super()._load_pretrained_model(
-            model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
+            model, state_dict, checkpoint_files, pretrained_model_name_or_path, **kwargs
         )
 
     def get_output_embeddings(self) -> torch.nn.Module | None:
