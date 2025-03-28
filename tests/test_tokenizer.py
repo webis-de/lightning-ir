@@ -69,3 +69,14 @@ def test_cross_encoder_tokenizer(model_name_or_path: str):
     encoding = tokenizer.tokenize(query, doc)["encoding"]
     assert encoding is not None
     assert len(encoding.input_ids[0]) == tokenizer.query_length + tokenizer.doc_length + 3
+
+    query = "What is the capital of France?"
+    doc = ["Paris is the capital of France."]
+    encoding = tokenizer.tokenize(query, doc)["encoding"]
+    assert encoding is not None
+    assert len(encoding.input_ids[0]) == tokenizer.query_length + tokenizer.doc_length + 3
+
+    query = ["What is the capital of France?"]
+    doc = "Paris is the capital of France."
+    with pytest.raises(ValueError):
+        encoding = tokenizer.tokenize(query, doc)["encoding"]

@@ -48,36 +48,29 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
 
     def _preprocess(
         self,
-        queries: str | Sequence[str] | None,
-        docs: str | Sequence[str] | None,
-        num_docs: Sequence[int] | int | None,
+        queries: Sequence[str],
+        docs: Sequence[str],
+        num_docs: Sequence[int],
     ) -> Tuple[str | Sequence[str], str | Sequence[str]]:
         """Preprocesses queries and documents to ensure that they are truncated their respective maximum lengths."""
-        if queries is None or docs is None:
-            raise ValueError("Both queries and docs must be provided.")
-        queries_is_string = isinstance(queries, str)
-        docs_is_string = isinstance(docs, str)
-        if queries_is_string != docs_is_string:
-            raise ValueError("Queries and docs must be both lists or both strings.")
-        if queries_is_string and docs_is_string:
-            queries = [queries]
-            docs = [docs]
-        truncated_queries = self._truncate(queries, self.query_length)
+        truncated_queries = self._repeat_queries(self._truncate(queries, self.query_length), num_docs)
         truncated_docs = self._truncate(docs, self.doc_length)
-        if not queries_is_string:
-            if num_docs is None:
-                if isinstance(num_docs, int):
-                    num_docs = [num_docs] * len(queries)
-                else:
-                    if len(docs) % len(queries) != 0:
-                        raise ValueError("Number of documents must be divisible by the number of queries.")
-                    num_docs = [len(docs) // len(queries) for _ in range(len(queries))]
-            repeated_queries = self._repeat_queries(truncated_queries, num_docs)
-            docs = truncated_docs
-        else:
-            repeated_queries = truncated_queries[0]
-            docs = truncated_docs[0]
-        return repeated_queries, docs
+        return truncated_queries, truncated_docs
+
+    def _process_num_docs(
+        self,
+        queries: str | Sequence[str],
+        docs: str | Sequence[str],
+        num_docs: Sequence[int] | int | None,
+    ) -> List[int]:
+        if num_docs is None:
+            if isinstance(num_docs, int):
+                num_docs = [num_docs] * len(queries)
+            else:
+                if len(docs) % len(queries) != 0:
+                    raise ValueError("Number of documents must be divisible by the number of queries.")
+                num_docs = [len(docs) // len(queries) for _ in range(len(queries))]
+        return num_docs
 
     def tokenize(
         self,
@@ -101,8 +94,26 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         :return: Tokenized query-document sequence
         :rtype: Dict[str, BatchEncoding]
         """
-        repeated_queries, docs = self._preprocess(queries, docs, num_docs)
+        if queries is None or docs is None:
+            raise ValueError("Both queries and docs must be provided.")
+        if isinstance(docs, str) and not isinstance(queries, str):
+            raise ValueError("Queries and docs must be both lists or both strings.")
+        is_string_queries = False
+        is_string_docs = False
+        if isinstance(queries, str):
+            queries = [queries]
+            is_string_queries = True
+        if isinstance(docs, str):
+            docs = [docs]
+            is_string_docs = True
+        is_string_both = is_string_queries and is_string_docs
+        num_docs = self._process_num_docs(queries, docs, num_docs)
+        queries, docs = self._preprocess(queries, docs, num_docs)
         return_tensors = kwargs.get("return_tensors", None)
         if return_tensors is not None:
             kwargs["pad_to_multiple_of"] = 8
-        return {"encoding": self(repeated_queries, docs, **kwargs)}
+        if is_string_both:
+            encoding = self(queries[0], docs[0], **kwargs)
+        else:
+            encoding = self(queries, docs, **kwargs)
+        return {"encoding": encoding}
