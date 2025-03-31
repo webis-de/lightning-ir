@@ -8,7 +8,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from functools import partial, wraps
 from pathlib import Path
-from typing import Any, Dict, Literal, Mapping, Protocol, Sequence, Type, TypeVar
+from typing import Any, Literal, Mapping, Protocol, Self, Sequence, Type, TypeVar
 
 import torch
 from transformers import MODEL_MAPPING, BatchEncoding, BertModel, PreTrainedModel
@@ -33,7 +33,7 @@ class LightningIROutput(ModelOutput):
     scores: torch.Tensor | None = None
 
 
-class LightningIRModel:
+class LightningIRModel(PreTrainedModel):
     """Base class for Lightning IR models. Derived classes implement the forward method for handling query
     and document embeddings. It acts as mixin for a transformers.PreTrainedModel_ backbone model.
 
@@ -138,40 +138,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         raise ValueError(f"Unknown pooling strategy: {pooling_strategy}")
 
     @classmethod
-    def _load_pretrained_model(
-        cls,
-        model: PreTrainedModel,
-        state_dict: Dict | None,
-        checkpoint_files: Sequence[str] | None,
-        pretrained_model_name_or_path: str | None,
-        *args,
-        **kwargs,
-    ):
-        # remove prefix
-        has_base_model_prefix = (
-            False if state_dict is None else any(s.startswith(model.base_model_prefix) for s in state_dict.keys())
-        )
-        prefix = model.base_model_prefix + "." if has_base_model_prefix else ""
-        if prefix and state_dict is not None:
-            for key in list(state_dict.keys()):
-                if key.startswith(prefix):
-                    new_key = key[len(prefix) :]
-                    state_dict[new_key] = state_dict.pop(key)
-
-        if pretrained_model_name_or_path in STATE_DICT_KEY_MAPPING and state_dict is not None:
-            map_keys = STATE_DICT_KEY_MAPPING[pretrained_model_name_or_path]
-            for orig_key, new_key in map_keys:
-                if orig_key is not None:
-                    state_dict[new_key] = state_dict.pop(orig_key)
-        model, *out = super()._load_pretrained_model(
-            model, state_dict, checkpoint_files, pretrained_model_name_or_path, *args, **kwargs
-        )
-        if pretrained_model_name_or_path in POST_LOAD_CALLBACKS:
-            model = POST_LOAD_CALLBACKS[pretrained_model_name_or_path](model)
-        return (model, *out)
-
-    @classmethod
-    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> "LightningIRModel":
+    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> Self:
         """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method and to return a
         derived LightningIRModel. See :class:`LightningIRModelClassFactory` for more details.
 
@@ -222,7 +189,13 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         if issubclass(cls, BertModel):
             kwargs["add_pooling_layer"] = False
-        return super(LightningIRModel, cls).from_pretrained(model_name_or_path, *args, **kwargs)
+        key_mapping = kwargs.pop("key_mapping", {})
+        if model_name_or_path in STATE_DICT_KEY_MAPPING:
+            key_mapping.update(STATE_DICT_KEY_MAPPING[str(model_name_or_path)])
+        model = super().from_pretrained(model_name_or_path, *args, key_mapping=key_mapping, **kwargs)
+        if model_name_or_path in POST_LOAD_CALLBACKS:
+            model = POST_LOAD_CALLBACKS[str(model_name_or_path)](model)
+        return model
 
 
 T = TypeVar("T")

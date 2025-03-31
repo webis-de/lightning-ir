@@ -8,16 +8,17 @@ import warnings
 from copy import deepcopy
 from dataclasses import dataclass
 from functools import wraps
+from pathlib import Path
 from string import punctuation
-from typing import Callable, Dict, Iterable, Literal, Sequence, Tuple, Type, overload
+from typing import Callable, Iterable, Literal, Self, Sequence, Tuple, Type, overload
 
 import torch
-from transformers import BatchEncoding, PreTrainedModel
+from transformers import BatchEncoding
 
 from ..base import LightningIRModel, LightningIROutput
 from ..base.model import batch_encoding_wrapper
 from ..modeling_utils.mlm_head import (
-    MODEL_TYPE_TO_HEAD_NAME,
+    MODEL_TYPE_TO_KEY_MAPPING,
     MODEL_TYPE_TO_LM_HEAD,
     MODEL_TYPE_TO_OUTPUT_EMBEDDINGS,
     MODEL_TYPE_TO_TIED_WEIGHTS_KEYS,
@@ -148,28 +149,20 @@ class BiEncoderModel(LightningIRModel):
         self._add_mask_scoring_input_ids()
 
     @classmethod
-    def _load_pretrained_model(
-        cls,
-        model: PreTrainedModel,
-        state_dict: Dict | None,
-        checkpoint_files: Sequence[str] | None,
-        pretrained_model_name_or_path: str | None,
-        **kwargs,
-    ):
-        if model.config.projection == "mlm":
-            head_name = MODEL_TYPE_TO_HEAD_NAME[model.config.backbone_model_type or model.config.model_type]
-            projection_layers = (
-                ("projection",) if model.config.tie_projection else ("query_projection", "doc_projection")
+    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> Self:
+        key_mapping = kwargs.pop("key_mapping", {})
+        config = cls.config_class
+        # map mlm projection keys
+        model_type = config.backbone_model_type or config.model_type
+        if model_type in MODEL_TYPE_TO_KEY_MAPPING:
+            key_mapping.update(MODEL_TYPE_TO_KEY_MAPPING[model_type])
+        model = super().from_pretrained(model_name_or_path, *args, key_mapping=key_mapping, **kwargs)
+        if model.config.projection == "mlm" and not key_mapping:
+            warnings.warn(
+                f"No key mappings for model_type {model_type} were provided. The pre-trained mlm weight will not be "
+                "loaded correctly."
             )
-            for key in list(state_dict.keys()):
-                if key.startswith(head_name):
-                    for projection_layer in projection_layers:
-                        new_key = key.replace(head_name, projection_layer)
-                        state_dict[new_key] = state_dict[key].clone()
-
-        return super()._load_pretrained_model(
-            model, state_dict, checkpoint_files, pretrained_model_name_or_path, **kwargs
-        )
+        return model
 
     def get_output_embeddings(self) -> torch.nn.Module | None:
         """Returns the output embeddings of the model for tieing the input and output embeddings. Returns None if no

@@ -4,8 +4,8 @@ MODEL_TYPE_TO_LM_HEAD = {
     "bert": BertOnlyMLMHead,
 }
 
-MODEL_TYPE_TO_HEAD_NAME = {
-    "bert": "cls",
+MODEL_TYPE_TO_KEY_MAPPING = {
+    "bert": {"cls": "bert.projection"},
 }
 
 # NOTE: In the output embeddings and tied weight keys the cls key has already been unified and replaced by the
