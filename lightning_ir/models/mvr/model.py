@@ -42,3 +42,34 @@ class MVRModel(BiEncoderModel):
         return MVROutput(scores=scores[0], query_embeddings=query_embeddings, doc_embeddings=doc_embeddings, 
                          viewer_token_scores=scores[1])
 
+
+    def scoring_mask(
+        self,
+        encoding: BatchEncoding,
+        expansion: bool = False,
+        pooling_strategy: Literal["first", "mean", "max", "sum"] | None = None,
+        mask_scoring_input_ids: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Computes a scoring for batched tokenized text sequences which is used in the scoring function to mask out
+        vectors during scoring.
+
+        :param encoding: Tokenizer encodings for the text sequence
+        :type encoding: BatchEncoding
+        :param expansion: Whether or not mask expansion was applied to the tokenized sequence, defaults to False
+        :type expansion: bool, optional
+        :param pooling_strategy: Which pooling strategy is pool the embeddings, defaults to None
+        :type pooling_strategy: Literal['first', 'mean', 'max', 'sum'] | None, optional
+        :param mask_scoring_input_ids: Sequence of token_ids which should be masked during scoring, defaults to None
+        :type mask_scoring_input_ids: torch.Tensor | None, optional
+        :return: Scoring mask
+        :rtype: torch.Tensor
+        """
+        device = encoding["input_ids"].device
+        input_ids: torch.Tensor = encoding["input_ids"]
+        attention_mask: torch.Tensor = encoding["attention_mask"]
+        shape = input_ids.shape
+        if pooling_strategy is not None:
+            if self.config.num_viewer_tokens is not None:
+                return torch.ones((shape[0], (self.config.num_viewer_tokens)), dtype=torch.bool, device=device)
+            return torch.ones((shape[0], 1), dtype=torch.bool, device=device)
+        return super().scoring_mask
