@@ -1,3 +1,5 @@
+import warnings
+
 from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
 from .bi_encoder import BiEncoderConfig
 from .models import ColConfig, SpladeConfig, T5CrossEncoderConfig
@@ -16,12 +18,20 @@ def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
 
 def _map_mono_t5_weights(model: LightningIRModel) -> LightningIRModel:
     # [1176, 6136] true, false
+    warnings.warn(
+        "The above warning, that the linear layer is not initialized, is expected and can be ignored."
+        "The weights are initialized separately."
+    )
     model.linear.weight.data = model.shared.weight.data[[1176, 6136]]
     return model
 
 
 def _map_rank_t5_weights(model: LightningIRModel) -> LightningIRModel:
     # 32089 <extra_id_10>
+    warnings.warn(
+        "The above warning, that the linear layer is not initialized, is expected and can be ignored."
+        "The weights are initialized separately."
+    )
     model.linear.weight.data = model.shared.weight.data[[32089]]
     return model
 
@@ -50,15 +60,6 @@ def _register_external_models():
     STATE_DICT_KEY_MAPPING.update(
         {
             "colbert-ir/colbertv2.0": [("linear.weight", "bert.projection.weight")],
-            # "castorini/monot5-base-msmarco-10k": [(None, "linear.weight")],
-            # "castorini/monot5-base-msmarco": [(None, "linear.weight")],
-            # "castorini/monot5-large-msmarco-10k": [(None, "linear.weight")],
-            # "castorini/monot5-large-msmarco": [(None, "linear.weight")],
-            # "castorini/monot5-3b-msmarco-10k": [(None, "linear.weight")],
-            # "castorini/monot5-3b-msmarco": [(None, "linear.weight")],
-            # "Soyoung97/RankT5-base": [(None, "linear.weight")],
-            # "Soyoung97/RankT5-large": [(None, "linear.weight")],
-            # "Soyoung97/RankT5-3b": [(None, "linear.weight")],
         }
     )
     POST_LOAD_CALLBACKS.update(
