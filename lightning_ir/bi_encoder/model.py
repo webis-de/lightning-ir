@@ -159,8 +159,8 @@ class BiEncoderModel(LightningIRModel):
         model = super().from_pretrained(model_name_or_path, *args, key_mapping=key_mapping, **kwargs)
         if model.config.projection == "mlm" and not key_mapping:
             warnings.warn(
-                f"No key mappings for model_type {model_type} were provided. The pre-trained mlm weight will not be "
-                "loaded correctly."
+                f"No mlm key mappings for model_type {model_type} were provided. "
+                "The pre-trained mlm weights will not be loaded correctly."
             )
         return model
 
