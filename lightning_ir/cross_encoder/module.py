@@ -68,9 +68,6 @@ class CrossEncoderModule(LightningIRModule):
         """Computes the losses for a training batch."""
         if self.loss_functions is None:
             raise ValueError("loss_functions must be set in the module")
-        output = self.forward(batch)
-        if output.scores is None or batch.targets is None:
-            raise ValueError("scores and targets must be set in the output and batch")
 
         output.scores = output.scores.view(len(batch.query_ids), -1)
         batch.targets = batch.targets.view(*output.scores.shape, -1)
