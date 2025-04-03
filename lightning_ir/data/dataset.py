@@ -449,7 +449,7 @@ class RunDataset(_IRDataset, Dataset):
             sep=r"\s+",
             header=None,
             names=RUN_HEADER,
-            usecols=[0, 2, 3, 4],
+            usecols=[0, 1, 2, 3, 4],
             dtype={"query_id": str, "doc_id": str},
             quoting=csv.QUOTE_NONE,
             na_filter=False,
@@ -498,7 +498,7 @@ class RunDataset(_IRDataset, Dataset):
 
     def _clean_run(self, run: pd.DataFrame) -> pd.DataFrame:
         run = run.rename(
-            {"qid": "query_id", "docid": "doc_id", "docno": "doc_id"},
+            {"qid": "query_id", "docid": "doc_id", "docno": "doc_id", "Q0": "iteration", "q0": "iteration"},
             axis=1,
         )
         if "query" in run.columns:
