@@ -12,6 +12,8 @@ class SetEncoderModel(CrossEncoderModel):
     config_class = SetEncoderConfig
     self_attention_pattern = "self"
 
+    ALLOW_SUB_BATCHING = False  # listwise model
+
     def __init__(self, config: SetEncoderConfig, *args, **kwargs):
         super().__init__(config, *args, **kwargs)
         self.config: SetEncoderConfig
