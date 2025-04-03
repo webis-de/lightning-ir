@@ -14,7 +14,7 @@ from lightning.pytorch.callbacks import Callback, TQDMProgressBar
 
 from ..data import RankBatch, SearchBatch
 from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
-from ..data.external_datasets.ir_datasets_utils import register_local_dataset
+from ..data.external_datasets.ir_datasets_utils import register_new_dataset
 from ..retrieve import IndexConfig, Indexer, SearchConfig, Searcher
 
 if TYPE_CHECKING:
@@ -529,6 +529,12 @@ class RegisterLocalDatasetCallback(Callback):
         :param stage: Stage of the trainer
         :type stage: str
         """
-        register_local_dataset(
-            self.dataset_id, self.docs, self.queries, self.qrels, self.docpairs, self.scoreddocs, self.qrels_defs
+        register_new_dataset(
+            self.dataset_id,
+            docs=self.docs,
+            queries=self.queries,
+            qrels=self.qrels,
+            docpairs=self.docpairs,
+            scoreddocs=self.scoreddocs,
+            qrels_defs=self.qrels_defs,
         )
