@@ -283,14 +283,18 @@ class LightningIRModule(LightningModule):
 
         :param dataloader_idx: Index of the dataloader
         :type dataloader_idx: int
-        :return: ir-datasets_ dataset id or dataloader index
+        :return: path to run file, ir-datasets_ dataset id, or dataloader index
         :rtype: str
         """
         dataset_id = str(dataloader_idx)
         datamodule = None
         try:
             datamodule = getattr(self.trainer, "datamodule", None)
-            dataset_id = datamodule.inference_datasets[dataloader_idx].dataset_id
+            dataset = datamodule.inference_datasets[dataloader_idx]
+            if dataset.run_path is not None:
+                dataset_id = dataset.run_path.name
+            else:
+                dataset_id = dataset.dataset_id
         except Exception:
             pass
         return dataset_id
