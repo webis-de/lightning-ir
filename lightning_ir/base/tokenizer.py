@@ -86,25 +86,25 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
         if cls is LightningIRTokenizer or all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir tokenizer based on backbone model
             if config is not None:
-                Config = config.__class__
+                ConfigClass = config.__class__
             elif model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]
-                Config = _config.__class__
+                ConfigClass = _config.__class__
                 kwargs.update(_config.to_tokenizer_dict())
             elif cls is not LightningIRTokenizer and hasattr(cls, "config_class"):
-                Config = cls.config_class
+                ConfigClass = cls.config_class
             else:
-                Config = LightningIRTokenizerClassFactory.get_lightning_ir_config(model_name_or_path)
-                if Config is None:
+                ConfigClass = LightningIRTokenizerClassFactory.get_lightning_ir_config(model_name_or_path)
+                if ConfigClass is None:
                     raise ValueError("Pass a config to `from_pretrained`.")
-            Config = getattr(Config, "mixin_config", Config)
-            BackboneConfig = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
-            BackboneTokenizers = TOKENIZER_MAPPING[BackboneConfig]
+            ConfigClass = getattr(ConfigClass, "mixin_config", ConfigClass)
+            backbone_config = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
+            BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
             if kwargs.get("use_fast", True):
                 BackboneTokenizer = BackboneTokenizers[1]
             else:
                 BackboneTokenizer = BackboneTokenizers[0]
-            cls = LightningIRTokenizerClassFactory(Config).from_backbone_class(BackboneTokenizer)
+            cls = LightningIRTokenizerClassFactory(ConfigClass).from_backbone_class(BackboneTokenizer)
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         return super(LightningIRTokenizer, cls).from_pretrained(model_name_or_path, *args, **kwargs)
 
