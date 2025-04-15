@@ -92,19 +92,19 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         """
         # provides AutoConfig.from_pretrained support
         if cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__):
-            # no backbone config found, create dervied lightning-ir config based on backbone config
+            # no backbone config found, create derived lightning-ir config based on backbone config
             config = None
             if pretrained_model_name_or_path in CHECKPOINT_MAPPING:
                 config = CHECKPOINT_MAPPING[pretrained_model_name_or_path]
-                config_class = config.__class__
+                ConfigClass = config.__class__
             elif cls is not LightningIRConfig:
-                config_class = cls
+                ConfigClass = cls
             else:
-                config_class = LightningIRConfigClassFactory.get_lightning_ir_config(pretrained_model_name_or_path)
-                if config_class is None:
+                ConfigClass = type(LightningIRConfigClassFactory.get_lightning_ir_config(pretrained_model_name_or_path))
+                if ConfigClass is None:
                     raise ValueError("Pass a config to `from_pretrained`.")
-            BackboneConfig = LightningIRConfigClassFactory.get_backbone_config(pretrained_model_name_or_path)
-            cls = LightningIRConfigClassFactory(config_class).from_backbone_class(BackboneConfig)
+            backbone_config = LightningIRConfigClassFactory.get_backbone_config(pretrained_model_name_or_path)
+            cls = LightningIRConfigClassFactory(ConfigClass).from_backbone_class(type(backbone_config))
             if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
                 derived_config = cls.from_pretrained(pretrained_model_name_or_path, config=config)
                 derived_config.update(config.to_dict())
