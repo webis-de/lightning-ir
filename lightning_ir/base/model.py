@@ -11,11 +11,11 @@ from pathlib import Path
 from typing import Any, Literal, Mapping, Protocol, Self, Sequence, Type, TypeVar
 
 import torch
-from transformers import MODEL_MAPPING, BatchEncoding, BertModel, PreTrainedModel
+from transformers import BatchEncoding, BertModel, PreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 
 from .._flash import FLASH_ATTENTION_MAP
-from .class_factory import LightningIRModelClassFactory
+from .class_factory import LightningIRModelClassFactory, _get_model_class
 from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
 
@@ -167,21 +167,23 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         if cls is LightningIRModel or all(issubclass(base, LightningIRModel) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir model based on backbone model
             if config is not None:
-                config_class = config.__class__
+                ConfigClass = config.__class__
             elif model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]
-                config_class = _config.__class__
+                ConfigClass = _config.__class__
                 if config is None:
                     config = _config
             elif cls is not LightningIRModel:
-                config_class = cls.config_class
+                ConfigClass = cls.config_class
             else:
-                config_class = LightningIRModelClassFactory.get_lightning_ir_config(model_name_or_path)
-                if config_class is None:
+                ConfigClass = type(LightningIRModelClassFactory.get_lightning_ir_config(model_name_or_path))
+                if ConfigClass is None:
                     raise ValueError("Pass a config to `from_pretrained`.")
-            BackboneConfig = LightningIRModelClassFactory.get_backbone_config(model_name_or_path)
-            BackboneModel = MODEL_MAPPING[BackboneConfig]
-            cls = LightningIRModelClassFactory(config_class).from_backbone_class(BackboneModel)
+            backbone_config = LightningIRModelClassFactory.get_backbone_config(model_name_or_path).from_pretrained(
+                model_name_or_path
+            )
+            BackboneModel = _get_model_class(backbone_config)
+            cls = LightningIRModelClassFactory(ConfigClass).from_backbone_class(BackboneModel)
             if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
                 derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)
                 derived_config.update(config.to_dict())
