@@ -189,12 +189,13 @@ class BiEncoderModel(LightningIRModel):
                 super().__setattr__(name, value)
 
         if self.config.projection == "mlm":
+            module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[self.config.backbone_model_type or self.config.model_type]
             if self.config.tie_projection:
-                return self.projection
+                output = self.projection
+                for module_name in module_names.split("."):
+                    output = getattr(output, module_name)
+                return output
             else:
-                module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[
-                    self.config.backbone_model_type or self.config.model_type
-                ]
                 query_output = self.query_projection
                 doc_output = self.doc_projection
                 for module_name in module_names.split("."):
