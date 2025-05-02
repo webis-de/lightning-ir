@@ -1,6 +1,9 @@
 from typing import Literal, Sequence
 
-from ..bi_encoder import BiEncoderConfig, BiEncoderModel
+import torch
+from transformers import BatchEncoding
+
+from ..bi_encoder import BiEncoderConfig, BiEncoderModel, BiEncoderEmbedding
 
 
 class ColConfig(BiEncoderConfig):
@@ -29,3 +32,18 @@ class ColConfig(BiEncoderConfig):
 
 class ColModel(BiEncoderModel):
     config_class = ColConfig
+
+    def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
+        expansion = True if input_type == "query" else False  # getattr(self.config, f"{input_type}_expansion")
+        pooling_strategy = None
+        projection = self.projection if self.config.tie_projection else getattr(self, f"{input_type}_projection")
+        mask_scoring_input_ids = getattr(self, f"{input_type}_mask_scoring_input_ids")
+
+        embeddings = self._backbone_forward(**encoding).last_hidden_state
+        embeddings = projection(embeddings)
+        embeddings = self._sparsification(embeddings, self.config.sparsification)
+        embeddings = self._pooling(embeddings, encoding["attention_mask"], pooling_strategy)
+        if self.config.normalize:
+            embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
+        scoring_mask = self.scoring_mask(encoding, expansion, pooling_strategy, mask_scoring_input_ids)
+        return BiEncoderEmbedding(embeddings, scoring_mask, encoding)
