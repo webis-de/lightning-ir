@@ -5,4 +5,4 @@
 .. autoclass:: {{ objname }}
    :members:
    :show-inheritance:
-   :inherited-members: None, Tensor, Module, LightningDataModule, LightningModule, Trainer, LightningCLI, PretrainedConfig, PreTrainedModel
+   :inherited-members: None, LightningCLI, LightningDataModule, LightningModule, Module, PretrainedConfig, PreTrainedModel, PreTrainedTokenizerBase, PushToHubMixin, SpecialTokensMixin, Tensor, Trainer
