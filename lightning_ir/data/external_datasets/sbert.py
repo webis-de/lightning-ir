@@ -1,7 +1,8 @@
 import codecs
-import json
 
 from .ir_datasets_utils import ScoredDocTuples, register_new_dataset
+
+# import json
 
 
 class SBERTScordDocTuples(ScoredDocTuples):
@@ -10,7 +11,8 @@ class SBERTScordDocTuples(ScoredDocTuples):
         with self._docpairs_dlc.stream() as f:
             f = codecs.getreader("utf8")(f)
             for line in f:
-                data = json.loads(line)
+                pass
+                # data = json.loads(line)
                 # TODO parse data
 
 
