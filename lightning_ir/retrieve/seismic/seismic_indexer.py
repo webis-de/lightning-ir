@@ -1,22 +1,25 @@
 import os
-import tempfile
 from pathlib import Path
 
+import numpy as np
 import torch
 
 try:
     _seismic_available = True
-    from seismic import PySeismicIndex
+    import seismic
+    from seismic import SeismicDataset, SeismicIndex
+
+    STRING_TYPE = seismic.get_seismic_string()
 except ImportError:
+    STRING_TYPE = None
     _seismic_available = False
-    PySeismicIndex = None
+    SeismicIndex = SeismicDataset = None
 
 
-from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
 from ...models import SpladeConfig
 from ..base import IndexConfig, Indexer
-from .seismic_format import SeismicFormatConverter
 
 
 class SeismicIndexer(Indexer):
@@ -24,10 +27,10 @@ class SeismicIndexer(Indexer):
         self,
         index_dir: Path,
         index_config: "SeismicIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
         if _seismic_available is False:
             raise ImportError(
                 "Please install the seismic package to use the SeismicIndexer. "
@@ -35,9 +38,8 @@ class SeismicIndexer(Indexer):
                 "https://github.com/TusKANNy/seismic?tab=readme-ov-file#using-the-python-interface"
             )
         self.index_config: SeismicIndexConfig
-        self.tmp_file = tempfile.NamedTemporaryFile("wb", delete_on_close=False)
-        # NOTE overwrite the number of documents when saving
-        self.tmp_file.write((0).to_bytes(4, byteorder="little", signed=False))
+        assert SeismicDataset is not None
+        self.seismic_dataset = SeismicDataset()
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
         doc_embeddings = output.doc_embeddings
@@ -59,24 +61,25 @@ class SeismicIndexer(Indexer):
         self.num_embeddings += embeddings.shape[0]
         self.num_docs += num_docs
 
-        self.tmp_file.write(SeismicFormatConverter.convert_to_seismic_format(embeddings))
+        for idx, doc_id in enumerate(index_batch.doc_ids):
+            non_zero = embeddings[idx].nonzero().view(-1)
+            values = embeddings[idx][non_zero].float().numpy(force=True)
+            tokens = np.array(self.module.tokenizer.convert_ids_to_tokens(non_zero), dtype="U30")
+            self.seismic_dataset.add_document(doc_id, tokens, values)
 
     def save(self) -> None:
         super().save()
 
-        self.tmp_file.seek(0)
-        self.tmp_file.write((self.num_docs).to_bytes(4, byteorder="little", signed=False))
-
-        self.tmp_file.close()
-        assert PySeismicIndex is not None
-        index = PySeismicIndex.build(
-            self.tmp_file.name,
+        assert SeismicIndex is not None
+        index = SeismicIndex.build_from_dataset(
+            self.seismic_dataset,
             n_postings=self.index_config.num_postings,
             centroid_fraction=self.index_config.centroid_fraction,
-            truncated_kmeans_training=self.index_config.truncated_kmeans_training,
-            truncation_size=self.index_config.truncation_size,
             min_cluster_size=self.index_config.min_cluster_size,
             summary_energy=self.index_config.summary_energy,
+            nknn=self.index_config.num_k_nearest_neighbors,
+            batched_indexing=self.index_config.batch_size,
+            num_threads=self.index_config.num_threads,
         )
         index.save(str(self.index_dir) + os.path.sep)
 
@@ -87,17 +90,19 @@ class SeismicIndexConfig(IndexConfig):
 
     def __init__(
         self,
-        num_postings: int = 4_000,
+        num_postings: int = 3_500,
         centroid_fraction: float = 0.1,
-        summary_energy: float = 0.4,
-        truncated_kmeans_training: bool = False,
-        truncation_size: int = 16,
         min_cluster_size: int = 2,
+        summary_energy: float = 0.4,
+        num_k_nearest_neighbors: int = 0,
+        batch_size: int | None = None,
+        num_threads: int = 0,
     ) -> None:
         super().__init__()
         self.num_postings = num_postings
         self.centroid_fraction = centroid_fraction
         self.summary_energy = summary_energy
-        self.truncated_kmeans_training = truncated_kmeans_training
-        self.truncation_size = truncation_size
         self.min_cluster_size = min_cluster_size
+        self.num_k_nearest_neighbors = num_k_nearest_neighbors
+        self.batch_size = batch_size
+        self.num_threads = num_threads

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 
-from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
 from ...models import ColConfig
 from ..base import IndexConfig, Indexer
@@ -17,15 +17,15 @@ class PlaidIndexer(Indexer):
         self,
         index_dir: Path,
         index_config: "PlaidIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
 
         self.index_config: PlaidIndexConfig
 
         self._train_embeddings: torch.Tensor | None = torch.full(
-            (self.index_config.num_train_embeddings, self.bi_encoder_config.embedding_dim),
+            (self.index_config.num_train_embeddings, self.module.config.embedding_dim),
             torch.nan,
             dtype=torch.float32,
         )

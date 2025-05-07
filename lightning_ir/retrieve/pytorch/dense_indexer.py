@@ -3,7 +3,7 @@ from pathlib import Path
 
 import torch
 
-from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
 from ...models import ColConfig, DprConfig
 from ..base import IndexConfig, Indexer
@@ -14,10 +14,10 @@ class TorchDenseIndexer(Indexer):
         self,
         index_dir: Path,
         index_config: "TorchDenseIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
         self.embeddings = array.array("f")
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
