@@ -4,7 +4,7 @@ from typing import Type
 
 import torch
 
-from ...bi_encoder import BiEncoderConfig, BiEncoderModule, BiEncoderOutput
+from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
 from ...models import ColConfig, DprConfig
 from ..base import IndexConfig, Indexer
