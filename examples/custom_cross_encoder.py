@@ -3,6 +3,7 @@ from torch.optim import AdamW
 from transformers import AutoConfig, AutoModel, AutoTokenizer, BatchEncoding
 
 from lightning_ir import (
+    CrossEncoderConfig,
     CrossEncoderModel,
     CrossEncoderModule,
     CrossEncoderOutput,
@@ -12,7 +13,6 @@ from lightning_ir import (
     RankNet,
     TupleDataset,
 )
-from lightning_ir.cross_encoder.config import CrossEncoderConfig
 
 
 class CustomCrossEncoderConfig(CrossEncoderConfig):

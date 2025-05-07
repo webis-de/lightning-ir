@@ -87,7 +87,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         :param embeddings: Query or document embeddings
         :type embeddings: torch.Tensor
         :param sparsification_strategy: The sparsification strategy. No sparsification is applied if None,
-        defaults to None
+            defaults to None
         :type sparsification_strategy: Literal['relu', 'relu_log'] | None, optional
         :raises ValueError: If an unknown sparsification strategy is passed
         :return: (Optionally) sparsified embeddings

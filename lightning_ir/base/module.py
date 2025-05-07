@@ -185,7 +185,7 @@ class LightningIRModule(LightningModule):
     ) -> Dict[str, BatchEncoding]:
         """Tokenizes queries and documents and returns the tokenized BatchEncoding_.
 
-        :: _BatchEncoding: https://huggingface.co/transformers/main_classes/tokenizer#transformers.BatchEncoding
+        .. _BatchEncoding: https://huggingface.co/transformers/main_classes/tokenizer#transformers.BatchEncoding
 
         :param queries: Queries to tokenize
         :type queries: Sequence[str] | None
