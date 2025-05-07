@@ -3,10 +3,10 @@ import transformers
 
 transformers.AdamW = None
 
-from colbert.modeling.checkpoint import Checkpoint
-from colbert.modeling.colbert import ColBERTConfig, colbert_score
+from colbert.modeling.checkpoint import Checkpoint  # noqa: E402
+from colbert.modeling.colbert import ColBERTConfig, colbert_score  # noqa: E402
 
-from lightning_ir import BiEncoderModule
+from lightning_ir import BiEncoderModule  # noqa: E402
 
 
 def test_same_as_colbert():

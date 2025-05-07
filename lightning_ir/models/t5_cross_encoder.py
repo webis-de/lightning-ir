@@ -1,8 +1,27 @@
+from typing import Dict, Literal, Sequence, Type
+
 import torch
 from transformers import BatchEncoding
 
-from ...cross_encoder.model import CrossEncoderModel, CrossEncoderOutput
-from .config import T5CrossEncoderConfig
+from ..cross_encoder.cross_encoder_config import CrossEncoderConfig
+from ..cross_encoder.cross_encoder_model import CrossEncoderModel, CrossEncoderOutput
+from ..cross_encoder.cross_encoder_tokenizer import CrossEncoderTokenizer
+
+
+class T5CrossEncoderConfig(CrossEncoderConfig):
+
+    model_type = "encoder-decoder-cross-encoder"
+
+    def __init__(
+        self,
+        query_length: int = 32,
+        doc_length: int = 512,
+        decoder_strategy: Literal["mono", "rank"] = "mono",
+        **kwargs,
+    ) -> None:
+        kwargs["pooling_strategy"] = "first"
+        super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)
+        self.decoder_strategy = decoder_strategy
 
 
 class ScaleLinear(torch.nn.Linear):
@@ -51,3 +70,42 @@ class T5CrossEncoderModel(CrossEncoderModel):
             scores = torch.nn.functional.log_softmax(scores, dim=-1)[:, 0]
             output.scores = scores.view(-1)
         return output
+
+
+class T5CrossEncoderTokenizer(CrossEncoderTokenizer):
+
+    config_class: Type[T5CrossEncoderConfig] = T5CrossEncoderConfig
+
+    def __init__(
+        self,
+        *args,
+        query_length: int = 32,
+        doc_length: int = 512,
+        decoder_strategy: Literal["mono", "rank"] = "mono",
+        **kwargs,
+    ):
+        super().__init__(
+            *args, query_length=query_length, doc_length=doc_length, decoder_strategy=decoder_strategy, **kwargs
+        )
+        self.decoder_strategy = decoder_strategy
+
+    def tokenize(
+        self,
+        queries: str | Sequence[str] | None = None,
+        docs: str | Sequence[str] | None = None,
+        num_docs: Sequence[int] | int | None = None,
+        **kwargs,
+    ) -> Dict[str, BatchEncoding]:
+        expanded_queries, docs = self._preprocess(queries, docs, num_docs)
+        if self.decoder_strategy == "mono":
+            pattern = "Query: {query} Document: {doc} Relevant:"
+        elif self.decoder_strategy == "rank":
+            pattern = "Query: {query} Document: {doc}"
+        else:
+            raise ValueError(f"Unknown decoder strategy: {self.decoder_strategy}")
+        input_texts = [pattern.format(query=query, doc=doc) for query, doc in zip(expanded_queries, docs)]
+
+        return_tensors = kwargs.get("return_tensors", None)
+        if return_tensors is not None:
+            kwargs["pad_to_multiple_of"] = 8
+        return {"encoding": self(input_texts, **kwargs)}

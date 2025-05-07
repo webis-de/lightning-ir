@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Tuple, Type
+from typing import TYPE_CHECKING, List, Tuple
 
 import torch
 
-from ...bi_encoder.model import BiEncoderEmbedding
+from ...bi_encoder.bi_encoder_model import BiEncoderEmbedding
+from ...models import ColConfig
 from ..base.packed_tensor import PackedTensor
 from ..base.searcher import SearchConfig, Searcher
 from .plaid_indexer import PlaidIndexConfig
@@ -127,7 +128,7 @@ class PlaidSearcher(Searcher):
         # padded_codes: `num_docs x max_num_query_vecs x max_num_codes_per_doc`
         # approx_similarity: `num_docs x max_num_query_vecs x max_num_codes_per_doc`
         approx_similarity = torch.gather(input=expanded_centroid_scores, dim=-1, index=padded_codes)
-        approx_scores = self.module.scoring_function.aggregate_similarity(
+        approx_scores = self.module.model.aggregate_similarity(
             approx_similarity,
             query_scoring_mask=query_scoring_mask,
             doc_scoring_mask=mask[:, None],
@@ -156,7 +157,7 @@ class PlaidSearcher(Searcher):
 
         # compute scores
         doc_embeddings = self._reconstruct_doc_embeddings(candidate_idcs)
-        scores = self.module.scoring_function.forward(query_embeddings, doc_embeddings, num_docs)
+        scores = self.module.model.score(query_embeddings, doc_embeddings, num_docs)
 
         scores, doc_idcs = self._filter_and_sort(PackedTensor(scores, lengths=candidate_idcs.lengths), candidate_idcs)
         doc_ids = [
@@ -167,7 +168,8 @@ class PlaidSearcher(Searcher):
 
 class PlaidSearchConfig(SearchConfig):
 
-    search_class: Type[Searcher] = PlaidSearcher
+    search_class = PlaidSearcher
+    SUPPORTED_MODELS = {ColConfig.model_type}
 
     def __init__(
         self,

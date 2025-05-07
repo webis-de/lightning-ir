@@ -15,7 +15,8 @@ except ImportError:
     _seismic_available = False
     PySeismicIndex = None
 
-from ...bi_encoder.model import BiEncoderEmbedding
+from ...bi_encoder.bi_encoder_model import BiEncoderEmbedding
+from ...models import SpladeConfig
 from ..base.searcher import ApproximateSearchConfig, ApproximateSearcher
 from .seismic_format import SeismicFormatConverter
 
@@ -44,7 +45,10 @@ class SeismicSearcher(ApproximateSearcher):
         self.search_config: SeismicSearchConfig
 
     def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> Tuple[PackedTensor, PackedTensor]:
-        embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
+        if query_embeddings.scoring_mask is None:
+            embeddings = query_embeddings.embeddings[:, 0]
+        else:
+            embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
 
         tmp_file = tempfile.NamedTemporaryFile("wb", delete_on_close=False)
         tmp_file.write((embeddings.shape[0]).to_bytes(4, byteorder="little", signed=False))
@@ -80,6 +84,7 @@ class SeismicSearcher(ApproximateSearcher):
 class SeismicSearchConfig(ApproximateSearchConfig):
 
     search_class = SeismicSearcher
+    SUPPORTED_MODELS = {SpladeConfig.model_type}
 
     def __init__(
         self,

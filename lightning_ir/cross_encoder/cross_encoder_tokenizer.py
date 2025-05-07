@@ -9,7 +9,7 @@ from typing import Dict, List, Sequence, Tuple, Type
 from transformers import BatchEncoding
 
 from ..base import LightningIRTokenizer
-from .config import CrossEncoderConfig
+from .cross_encoder_config import CrossEncoderConfig
 
 
 class CrossEncoderTokenizer(LightningIRTokenizer):

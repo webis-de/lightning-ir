@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
+from ...models import SpladeConfig
 from ..base.searcher import ExactSearchConfig, ExactSearcher
 from .sparse_indexer import TorchSparseIndexConfig
 
@@ -61,10 +62,14 @@ class TorchSparseSearcher(ExactSearcher):
         self.index.to_gpu()
 
     def _score(self, query_embeddings: BiEncoderEmbedding) -> torch.Tensor:
-        embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
+        if query_embeddings.scoring_mask is None:
+            embeddings = query_embeddings.embeddings[:, 0]
+        else:
+            embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
         scores = self.index.score(embeddings)
         return scores
 
 
 class TorchSparseSearchConfig(ExactSearchConfig):
     search_class = TorchSparseSearcher
+    SUPPORTED_MODELS = {SpladeConfig.model_type}

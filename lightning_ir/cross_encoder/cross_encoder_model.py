@@ -49,7 +49,7 @@ class CrossEncoderModel(LightningIRModel):
         :rtype: CrossEncoderOutput
         """
         embeddings = self._backbone_forward(**encoding).last_hidden_state
-        embeddings = self._pooling(
+        embeddings = self.pooling(
             embeddings, encoding.get("attention_mask", None), pooling_strategy=self.config.pooling_strategy
         )
         scores = self.linear(embeddings).view(-1)

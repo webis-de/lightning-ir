@@ -2,6 +2,8 @@ import os
 import tempfile
 from pathlib import Path
 
+import torch
+
 try:
     _seismic_available = True
     from seismic import PySeismicIndex
@@ -12,6 +14,7 @@ except ImportError:
 
 from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
 from ...data import IndexBatch
+from ...models import SpladeConfig
 from ..base import IndexConfig, Indexer
 from .seismic_format import SeismicFormatConverter
 
@@ -40,12 +43,19 @@ class SeismicIndexer(Indexer):
         doc_embeddings = output.doc_embeddings
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
-        doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
 
-        embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
+        if doc_embeddings.scoring_mask is None:
+            doc_lengths = torch.ones(
+                doc_embeddings.embeddings.shape[0], device=doc_embeddings.device, dtype=torch.int32
+            )
+            embeddings = doc_embeddings.embeddings[:, 0]
+        else:
+            doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
+            embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
+
         num_docs = len(index_batch.doc_ids)
         self.doc_ids.extend(index_batch.doc_ids)
-        self.doc_lengths.extend(doc_lengths.cpu().tolist())
+        self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
         self.num_embeddings += embeddings.shape[0]
         self.num_docs += num_docs
 
@@ -73,6 +83,7 @@ class SeismicIndexer(Indexer):
 
 class SeismicIndexConfig(IndexConfig):
     indexer_class = SeismicIndexer
+    SUPPORTED_MODELS = {SpladeConfig.model_type}
 
     def __init__(
         self,

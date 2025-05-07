@@ -1,8 +1,7 @@
 import warnings
 
 from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from .bi_encoder import BiEncoderConfig
-from .models import ColConfig, SpladeConfig, T5CrossEncoderConfig
+from .models import ColConfig, DprConfig, SpladeConfig, T5CrossEncoderConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -40,12 +39,23 @@ def _register_external_models():
     CHECKPOINT_MAPPING.update(
         {
             "colbert-ir/colbertv2.0": ColConfig(
-                query_length=32, doc_length=184, add_marker_tokens=True, normalize=True
+                query_length=32,
+                doc_length=184,
+                add_marker_tokens=True,
+                normalize=True,
+                query_expansion=True,
+                doc_mask_scoring_tokens="punctuation",
             ),
             "naver/splade-v3": SpladeConfig(),
-            "sentence-transformers/msmarco-bert-base-dot-v5": BiEncoderConfig(projection=None, embedding_dim=768),
-            "sentence-transformers/msmarco-distilbert-dot-v5": BiEncoderConfig(projection=None, embedding_dim=768),
-            "sentence-transformers/msmarco-MiniLM-L-6-v3": BiEncoderConfig(projection=None, embedding_dim=384),
+            "sentence-transformers/msmarco-bert-base-dot-v5": DprConfig(
+                projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
+            ),
+            "sentence-transformers/msmarco-distilbert-dot-v5": DprConfig(
+                projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
+            ),
+            "sentence-transformers/msmarco-MiniLM-L-6-v3": DprConfig(
+                projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
+            ),
             "castorini/monot5-base-msmarco-10k": T5CrossEncoderConfig(decoder_strategy="mono"),
             "castorini/monot5-base-msmarco": T5CrossEncoderConfig(decoder_strategy="mono"),
             "castorini/monot5-large-msmarco-10k": T5CrossEncoderConfig(decoder_strategy="mono"),

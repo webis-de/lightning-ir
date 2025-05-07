@@ -4,7 +4,7 @@ import array
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Type
+from typing import TYPE_CHECKING, List, Set, Type
 
 import torch
 
@@ -41,7 +41,8 @@ class Indexer(ABC):
 
 
 class IndexConfig:
-    indexer_class: Type[Indexer] = Indexer
+    indexer_class: Type[Indexer]
+    SUPPORTED_MODELS: Set[str]
 
     @classmethod
     def from_pretrained(cls, index_dir: Path | str) -> "IndexConfig":

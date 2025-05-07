@@ -79,7 +79,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         """Forward method of the model. Must be implemented by the derived class."""
         raise NotImplementedError
 
-    def _sparsification(
+    def sparsification(
         self, embeddings: torch.Tensor, sparsification_strategy: Literal["relu", "relu_log"] | None = None
     ) -> torch.Tensor:
         """Helper method to apply sparsification to the embeddings.
@@ -101,7 +101,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             return torch.log1p(torch.relu(embeddings))
         raise ValueError(f"Unknown sparsification strategy: {sparsification_strategy}")
 
-    def _pooling(
+    def pooling(
         self,
         embeddings: torch.Tensor,
         attention_mask: torch.Tensor | None,
@@ -139,7 +139,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
     @classmethod
     def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> Self:
-        """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method and to return a
+        """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method to return a
         derived LightningIRModel. See :class:`LightningIRModelClassFactory` for more details.
 
 .. _transformers.PreTrainedModel.from_pretrained: \

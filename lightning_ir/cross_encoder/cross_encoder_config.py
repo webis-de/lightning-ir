@@ -13,9 +13,6 @@ class CrossEncoderConfig(LightningIRConfig):
     model_type: str = "cross-encoder"
     """Model type for cross-encoder models."""
 
-    ADDED_ARGS = LightningIRConfig.ADDED_ARGS.union({"pooling_strategy", "linear_bias"})
-    """Arguments added to the configuration."""
-
     def __init__(
         self,
         query_length: int = 32,

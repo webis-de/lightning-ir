@@ -6,13 +6,19 @@ a Lightning IR model. The configuration class acts as a mixin for the `transform
 class from the Hugging Face Transformers library.
 """
 
+from __future__ import annotations
+
+import inspect
 from pathlib import Path
-from typing import Any, Dict, Set
+from typing import TYPE_CHECKING, Any, Dict, Type
 
 from transformers import PretrainedConfig
 
 from .class_factory import LightningIRConfigClassFactory
 from .external_model_hub import CHECKPOINT_MAPPING
+
+if TYPE_CHECKING:
+    from .tokenizer import LightningIRTokenizer
 
 
 class LightningIRConfig(PretrainedConfig):
@@ -28,11 +34,6 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
     backbone_model_type: str | None = None
     """Backbone model type for the configuration. Set by :func:`LightningIRModelClassFactory`."""
 
-    TOKENIZER_ARGS: Set[str] = {"query_length", "doc_length"}
-    """Arguments for the tokenizer."""
-    ADDED_ARGS: Set[str] = TOKENIZER_ARGS
-    """Arguments added to the configuration."""
-
     def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
         """Initializes the configuration.
 
@@ -45,21 +46,16 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         self.query_length = query_length
         self.doc_length = doc_length
 
-    def to_added_args_dict(self) -> Dict[str, Any]:
-        """Outputs a dictionary of the added arguments.
+    def get_tokenizer_kwargs(self, Tokenizer: Type[LightningIRTokenizer]) -> Dict[str, Any]:
+        """Returns the keyword arguments for the tokenizer. This method is used to pass the configuration
+        parameters to the tokenizer.
 
-        :return: Added arguments
+        :param Tokenizer: Class of the tokenizer to be used
+        :type Tokenizer: Type[LightningIRTokenizer]
+        :return: Keyword arguments for the tokenizer
         :rtype: Dict[str, Any]
         """
-        return {arg: getattr(self, arg) for arg in self.ADDED_ARGS if hasattr(self, arg)}
-
-    def to_tokenizer_dict(self) -> Dict[str, Any]:
-        """Outputs a dictionary of the tokenizer arguments.
-
-        :return: Tokenizer arguments
-        :rtype: Dict[str, Any]
-        """
-        return {arg: getattr(self, arg) for arg in self.TOKENIZER_ARGS}
+        return {k: getattr(self, k) for k in inspect.signature(Tokenizer.__init__).parameters if hasattr(self, k)}
 
     def to_dict(self) -> Dict[str, Any]:
         """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments and the backbone
@@ -71,7 +67,7 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         :return: Configuration dictionary
         :rtype: Dict[str, Any]
         """
-        output = getattr(super(), "to_dict")()
+        output = super().to_dict()
         if self.backbone_model_type is not None:
             output["backbone_model_type"] = self.backbone_model_type
         return output

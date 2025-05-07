@@ -20,8 +20,6 @@ from lightning_ir import (
 class CustomBiEncoderConfig(BiEncoderConfig):
     model_type = "custom-bi-encoder"
 
-    ADDED_ARGS = BiEncoderConfig.ADDED_ARGS.union({"additional_linear_layer"})
-
     def __init__(self, additional_linear_layer=True, **kwargs):
         super().__init__(**kwargs)
         self.additional_linear_layer = additional_linear_layer
