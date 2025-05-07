@@ -11,9 +11,9 @@ import torch
 from ..base.module import LightningIRModule
 from ..data import RankBatch, SearchBatch, TrainBatch
 from ..loss.loss import LossFunction, ScoringLossFunction
-from .config import CrossEncoderConfig
-from .model import CrossEncoderModel, CrossEncoderOutput
-from .tokenizer import CrossEncoderTokenizer
+from .cross_encoder_config import CrossEncoderConfig
+from .cross_encoder_model import CrossEncoderModel, CrossEncoderOutput
+from .cross_encoder_tokenizer import CrossEncoderTokenizer
 
 
 class CrossEncoderModule(LightningIRModule):

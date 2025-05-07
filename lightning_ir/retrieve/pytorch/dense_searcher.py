@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
+from ...models import ColConfig, DprConfig
 from ..base.searcher import ExactSearchConfig, ExactSearcher
 from .dense_indexer import TorchDenseIndexConfig
 
@@ -61,10 +62,14 @@ class TorchDenseSearcher(ExactSearcher):
         self.index.to_gpu()
 
     def _score(self, query_embeddings: BiEncoderEmbedding) -> torch.Tensor:
-        embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
+        if query_embeddings.scoring_mask is None:
+            embeddings = query_embeddings.embeddings[:, 0]
+        else:
+            embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
         scores = self.index.score(embeddings)
         return scores
 
 
 class TorchDenseSearchConfig(ExactSearchConfig):
     search_class = TorchDenseSearcher
+    SUPPORTED_MODELS = {ColConfig.model_type, DprConfig.model_type}

@@ -5,13 +5,13 @@ This module contains the tokenizer class bi-encoder models.
 """
 
 import warnings
-from typing import Dict, Sequence, Type
+from typing import Dict, Literal, Sequence, Type
 
 from tokenizers.processors import TemplateProcessing
 from transformers import BatchEncoding, BertTokenizer, BertTokenizerFast
 
 from ..base import LightningIRTokenizer
-from .config import BiEncoderConfig
+from .bi_encoder_config import BiEncoderConfig
 
 
 class BiEncoderTokenizer(LightningIRTokenizer):
@@ -27,54 +27,32 @@ class BiEncoderTokenizer(LightningIRTokenizer):
     def __init__(
         self,
         *args,
-        query_expansion: bool = False,
         query_length: int = 32,
-        attend_to_query_expanded_tokens: bool = False,
-        doc_expansion: bool = False,
         doc_length: int = 512,
-        attend_to_doc_expanded_tokens: bool = False,
-        add_marker_tokens: bool = True,
+        add_marker_tokens: bool = False,
         **kwargs,
     ):
         """:class:`.LightningIRTokenizer` for bi-encoder models. Encodes queries and documents separately. Optionally
         adds marker tokens are added to encoded input sequences.
 
-        :param query_expansion: Whether to expand queries with mask tokens, defaults to False
-        :type query_expansion: bool, optional
         :param query_length: Maximum query length in number of tokens, defaults to 32
         :type query_length: int, optional
-        :param attend_to_query_expanded_tokens: Whether to let non-expanded query tokens be able to attend to mask
-            expanded query tokens, defaults to False
-        :type attend_to_query_expanded_tokens: bool, optional
-        :param doc_expansion: Whether to expand documents with mask tokens, defaults to False
-        :type doc_expansion: bool, optional
         :param doc_length: Maximum document length in number of tokens, defaults to 512
         :type doc_length: int, optional
-        :param attend_to_doc_expanded_tokens: Whether to let non-expanded document tokens be able to attend to
-            mask expanded document tokens, defaults to False
-        :type attend_to_doc_expanded_tokens: bool, optional
         :param add_marker_tokens: Whether to add marker tokens to the query and document input sequences,
-            defaults to True
+            defaults to False
         :type add_marker_tokens: bool, optional
         :raises ValueError: If add_marker_tokens is True and a non-supported tokenizer is used
         """
         super().__init__(
             *args,
-            query_expansion=query_expansion,
             query_length=query_length,
-            attend_to_query_expanded_tokens=attend_to_query_expanded_tokens,
-            doc_expansion=doc_expansion,
             doc_length=doc_length,
-            attend_to_doc_expanded_tokens=attend_to_doc_expanded_tokens,
             add_marker_tokens=add_marker_tokens,
             **kwargs,
         )
-        self.query_expansion = query_expansion
         self.query_length = query_length
-        self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
-        self.doc_expansion = doc_expansion
         self.doc_length = doc_length
-        self.attend_to_doc_expanded_tokens = attend_to_doc_expanded_tokens
         self.add_marker_tokens = add_marker_tokens
 
         self.query_post_processor: TemplateProcessing | None = None
@@ -143,8 +121,8 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
         """
         if warn:
             warnings.warn(
-                "BiEncoderTokenizer is being directly called. Use tokenize_query and tokenize_doc to make sure "
-                "marker_tokens and query/doc expansion is applied."
+                "BiEncoderTokenizer is being directly called. Use `tokenize`, `tokenize_query`, or `tokenize_doc` "
+                "to make sure tokenization is done correctly.",
             )
         return super().__call__(*args, **kwargs)
 
@@ -174,6 +152,22 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
             encoding["attention_mask"].fill_(1)
         return encoding
 
+    def tokenize_input_sequence(
+        self, text: Sequence[str] | str, input_type: Literal["query", "doc"], *args, **kwargs
+    ) -> BatchEncoding:
+        """Tokenizes an input sequence. This method is used to tokenize both queries and documents.
+
+        :param queries: Single string or multiple strings to tokenize
+        :type queries: Sequence[str] | str
+        :return: Tokenized input sequences
+        :rtype: BatchEncoding
+        """
+        post_processer = getattr(self, f"{input_type}_post_processor")
+        kwargs["max_length"] = getattr(self, f"{input_type}_length")
+        if "padding" not in kwargs:
+            kwargs["truncation"] = True
+        return self._encode(text, *args, post_processor=post_processer, **kwargs)
+
     def tokenize_query(self, queries: Sequence[str] | str, *args, **kwargs) -> BatchEncoding:
         """Tokenizes input queries.
 
@@ -182,14 +176,7 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
         :return: Tokenized queries
         :rtype: BatchEncoding
         """
-        kwargs["max_length"] = self.query_length
-        if self.query_expansion:
-            kwargs["padding"] = "max_length"
-        else:
-            kwargs["truncation"] = True
-        encoding = self._encode(queries, *args, post_processor=self.query_post_processor, **kwargs)
-        if self.query_expansion:
-            self._expand(encoding, self.attend_to_query_expanded_tokens)
+        encoding = self.tokenize_input_sequence(queries, "query", *args, **kwargs)
         return encoding
 
     def tokenize_doc(self, docs: Sequence[str] | str, *args, **kwargs) -> BatchEncoding:
@@ -200,14 +187,7 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
         :return: Tokenized documents
         :rtype: BatchEncoding
         """
-        kwargs["max_length"] = self.doc_length
-        if self.doc_expansion:
-            kwargs["padding"] = "max_length"
-        else:
-            kwargs["truncation"] = True
-        encoding = self._encode(docs, *args, post_processor=self.doc_post_processor, **kwargs)
-        if self.doc_expansion:
-            self._expand(encoding, self.attend_to_doc_expanded_tokens)
+        encoding = self.tokenize_input_sequence(docs, "doc", *args, **kwargs)
         return encoding
 
     def tokenize(

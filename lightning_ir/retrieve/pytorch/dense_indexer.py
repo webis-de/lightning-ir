@@ -5,6 +5,7 @@ import torch
 
 from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
 from ...data import IndexBatch
+from ...models import ColConfig, DprConfig
 from ..base import IndexConfig, Indexer
 
 
@@ -24,11 +25,17 @@ class TorchDenseIndexer(Indexer):
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
 
-        doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
-        embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
+        if doc_embeddings.scoring_mask is None:
+            doc_lengths = torch.ones(
+                doc_embeddings.embeddings.shape[0], device=doc_embeddings.device, dtype=torch.int32
+            )
+            embeddings = doc_embeddings.embeddings[:, 0]
+        else:
+            doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
+            embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
         num_docs = len(index_batch.doc_ids)
         self.doc_ids.extend(index_batch.doc_ids)
-        self.doc_lengths.extend(doc_lengths.cpu().tolist())
+        self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
         self.num_embeddings += embeddings.shape[0]
         self.num_docs += num_docs
         self.embeddings.extend(embeddings.cpu().view(-1).float().tolist())
@@ -47,3 +54,4 @@ class TorchDenseIndexer(Indexer):
 
 class TorchDenseIndexConfig(IndexConfig):
     indexer_class = TorchDenseIndexer
+    SUPPORTED_MODELS = {ColConfig.model_type, DprConfig.model_type}

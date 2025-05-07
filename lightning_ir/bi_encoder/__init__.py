@@ -3,10 +3,16 @@
 This module provides the main classes and functions for bi-encoder models, including configurations, models,
 modules, and tokenizers."""
 
-from .config import BiEncoderConfig
-from .model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput, ScoringFunction
-from .module import BiEncoderModule
-from .tokenizer import BiEncoderTokenizer
+from .bi_encoder_config import BiEncoderConfig, MultiVectorBiEncoderConfig, SingleVectorBiEncoderConfig
+from .bi_encoder_model import (
+    BiEncoderEmbedding,
+    BiEncoderModel,
+    BiEncoderOutput,
+    MultiVectorBiEncoderModel,
+    SingleVectorBiEncoderModel,
+)
+from .bi_encoder_module import BiEncoderModule
+from .bi_encoder_tokenizer import BiEncoderTokenizer
 
 __all__ = [
     "BiEncoderConfig",
@@ -15,5 +21,8 @@ __all__ = [
     "BiEncoderModule",
     "BiEncoderOutput",
     "BiEncoderTokenizer",
-    "ScoringFunction",
+    "MultiVectorBiEncoderConfig",
+    "MultiVectorBiEncoderModel",
+    "SingleVectorBiEncoderConfig",
+    "SingleVectorBiEncoderModel",
 ]

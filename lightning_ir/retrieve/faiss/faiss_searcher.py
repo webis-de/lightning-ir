@@ -5,7 +5,8 @@ from typing import TYPE_CHECKING, Literal, Tuple
 
 import torch
 
-from ...bi_encoder.model import BiEncoderEmbedding
+from ...bi_encoder.bi_encoder_model import BiEncoderEmbedding
+from ...models import ColConfig, DprConfig
 from ..base.packed_tensor import PackedTensor
 from ..base.searcher import ApproximateSearchConfig, ApproximateSearcher
 
@@ -43,7 +44,10 @@ class FaissSearcher(ApproximateSearcher):
         super().__init__(index_dir, search_config, module, use_gpu)
 
     def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> Tuple[PackedTensor, PackedTensor]:
-        embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
+        if query_embeddings.scoring_mask is None:
+            embeddings = query_embeddings.embeddings[:, 0]
+        else:
+            embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
         candidate_scores, candidate_idcs = self.index.search(embeddings.float().cpu(), self.search_config.candidate_k)
         candidate_scores = torch.from_numpy(candidate_scores).view(-1)
         candidate_idcs = torch.from_numpy(candidate_idcs).view(-1)
@@ -58,6 +62,7 @@ class FaissSearcher(ApproximateSearcher):
 
 class FaissSearchConfig(ApproximateSearchConfig):
     search_class = FaissSearcher
+    SUPPORTED_MODELS = {ColConfig.model_type, DprConfig.model_type}
 
     def __init__(
         self,

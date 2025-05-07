@@ -2,7 +2,7 @@ import pytest
 import torch
 
 from lightning_ir.base.model import LightningIROutput
-from lightning_ir.bi_encoder.model import BiEncoderEmbedding, BiEncoderOutput
+from lightning_ir.bi_encoder.bi_encoder_model import BiEncoderEmbedding, BiEncoderOutput
 from lightning_ir.data.data import TrainBatch
 from lightning_ir.loss.loss import (
     ApproxMRR,

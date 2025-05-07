@@ -18,8 +18,6 @@ from lightning_ir.cross_encoder.config import CrossEncoderConfig
 class CustomCrossEncoderConfig(CrossEncoderConfig):
     model_type = "custom-cross-encoder"
 
-    ADDED_ARGS = CrossEncoderConfig.ADDED_ARGS.union({"additional_linear_layer"})
-
     def __init__(self, additional_linear_layer: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.additional_linear_layer = additional_linear_layer

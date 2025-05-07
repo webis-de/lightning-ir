@@ -9,7 +9,7 @@ This section provides step-by-step guides on how to build custom :py:class:`~lig
 Bi-Encoder
 ----------
 
-Say we wanted to build a custom bi-encoder model that adds an additional linear layer on top of the pooled embeddings. If we wanted to make this option configurable, we would first need to subclass the :py:class:`~lightning_ir.bi_encoder.config.BiEncoderConfig` and add a new attribute for the additional linear layer. We must also assign a new ``model_type`` to our model and make sure our additional attributes are included in the ``ADDED_ARGS`` set to ensure saved models are loaded correctly. For example:
+Say we wanted to build a custom bi-encoder model that adds an additional linear layer on top of the pooled embeddings. If we wanted to make this option configurable, we would first need to subclass the :py:class:`~lightning_ir.bi_encoder.config.BiEncoderConfig` and add a new attribute for the additional linear layer. We must also assign a new ``model_type`` to our model. For example:
 
 .. code-block:: python
 
@@ -17,8 +17,6 @@ Say we wanted to build a custom bi-encoder model that adds an additional linear 
 
     class CustomBiEncoderConfig(BiEncoderConfig):
         model_type = "custom-bi-encoder"
-
-        ADDED_ARGS = BiEncoderConfig.ADDED_ARGS.union({"additional_linear_layer"})
 
         def __init__(self, additional_linear_layer = True, **kwargs):
             super().__init__(**kwargs)
@@ -119,7 +117,7 @@ Here is the full code for our custom bi-encoder model:
 Cross-Encoder
 -------------
 
-Say we wanted to build a custom cross-encoder model that adds an additional linear layer on top of the pooled embeddings. If we wanted to make this option configurable, we would first need to subclass the :py:class:`~lightning_ir.cross_encoder.config.CrossEncoderConfig` and add a new attribute for the additional linear layer. We must also assign a new ``model_type`` to our model and make sure our additional attributes are included in the ``ADDED_ARGS`` set to ensure saved models are loaded correctly. For example:
+Say we wanted to build a custom cross-encoder model that adds an additional linear layer on top of the pooled embeddings. If we wanted to make this option configurable, we would first need to subclass the :py:class:`~lightning_ir.cross_encoder.config.CrossEncoderConfig` and add a new attribute for the additional linear layer. We must also assign a new ``model_type`` to our model. For example:
 
 .. code-block:: python
 
@@ -127,8 +125,6 @@ Say we wanted to build a custom cross-encoder model that adds an additional line
 
     class CustomCrossEncoderConfig(CrossEncoderConfig):
         model_type = "custom-cross-encoder"
-
-        ADDED_ARGS = CrossEncoderConfig.ADDED_ARGS.union({"additional_linear_layer"})
 
         def __init__(self, additional_linear_layer = True, **kwargs):
             super().__init__(**kwargs)

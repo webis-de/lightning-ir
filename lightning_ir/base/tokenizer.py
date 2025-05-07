@@ -6,7 +6,7 @@ This module contains the main tokenizer class for the Lightning IR library.
 
 import json
 from os import PathLike
-from typing import Dict, Sequence, Tuple, Type
+from typing import Dict, Self, Sequence, Tuple, Type
 
 from transformers import TOKENIZER_MAPPING, BatchEncoding, PreTrainedTokenizerBase
 
@@ -34,7 +34,7 @@ https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreT
         :param doc_length: Maximum number of tokens per document, defaults to 512
         :type doc_length: int, optional
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, query_length=query_length, doc_length=doc_length, **kwargs)
         self.query_length = query_length
         self.doc_length = doc_length
 
@@ -54,7 +54,7 @@ https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreT
         raise NotImplementedError
 
     @classmethod
-    def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> "LightningIRTokenizer":
+    def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> Self:
         """Loads a pretrained tokenizer. Wraps the transformers.PreTrainedTokenizer.from_pretrained_ method to return a
         derived LightningIRTokenizer class. See :class:`.LightningIRTokenizerClassFactory` for more details.
 
@@ -80,9 +80,7 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
         :rtype: LightningIRTokenizer
         """
         # provides AutoTokenizer.from_pretrained support
-        config = kwargs.pop("config", None)
-        if config is not None:
-            kwargs.update(config.to_tokenizer_dict())
+        config = kwargs.get("config", None)
         if cls is LightningIRTokenizer or all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir tokenizer based on backbone model
             if config is not None:
@@ -90,7 +88,8 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
             elif model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]
                 ConfigClass = _config.__class__
-                kwargs.update(_config.to_tokenizer_dict())
+                if config is None:
+                    kwargs["config"] = _config
             elif cls is not LightningIRTokenizer and hasattr(cls, "config_class"):
                 ConfigClass = cls.config_class
             else:
@@ -106,6 +105,9 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
                 BackboneTokenizer = BackboneTokenizers[0]
             cls = LightningIRTokenizerClassFactory(ConfigClass).from_backbone_class(BackboneTokenizer)
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
+        config = kwargs.pop("config", None)
+        if config is not None:
+            kwargs.update(config.get_tokenizer_kwargs(cls))
         return super(LightningIRTokenizer, cls).from_pretrained(model_name_or_path, *args, **kwargs)
 
     def _save_pretrained(

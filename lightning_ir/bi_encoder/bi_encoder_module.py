@@ -4,8 +4,10 @@ Module module for bi-encoder models.
 This module defines the Lightning IR module class used to implement bi-encoder models.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import List, Sequence, Tuple
+from typing import TYPE_CHECKING, List, Sequence, Tuple
 
 import torch
 from transformers import BatchEncoding
@@ -13,10 +15,12 @@ from transformers import BatchEncoding
 from ..base import LightningIRModule, LightningIROutput
 from ..data import IndexBatch, RankBatch, SearchBatch, TrainBatch
 from ..loss.loss import EmbeddingLossFunction, InBatchLossFunction, LossFunction, ScoringLossFunction
-from ..retrieve import SearchConfig, Searcher
-from .config import BiEncoderConfig
-from .model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput
-from .tokenizer import BiEncoderTokenizer
+from .bi_encoder_config import BiEncoderConfig
+from .bi_encoder_model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput
+from .bi_encoder_tokenizer import BiEncoderTokenizer
+
+if TYPE_CHECKING:
+    from ..retrieve import SearchConfig, Searcher
 
 
 class BiEncoderModule(LightningIRModule):
@@ -54,7 +58,6 @@ class BiEncoderModule(LightningIRModule):
         self.model: BiEncoderModel
         self.config: BiEncoderConfig
         self.tokenizer: BiEncoderTokenizer
-        self.scoring_function = self.model.scoring_function
         if self.config.add_marker_tokens and len(self.tokenizer) > self.config.vocab_size:
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
         self._searcher = None
@@ -85,8 +88,8 @@ class BiEncoderModule(LightningIRModule):
 
     def forward(self, batch: RankBatch | IndexBatch | SearchBatch) -> BiEncoderOutput:
         """Runs a forward pass of the model on a batch of data. The output will vary depending on the type of batch. If
-        the batch is a :class`.RankBatch`, query and document embeddings are computed and the relevance score is
-        computed using the :attr:`.scoring_function`. If the batch is an :class:`.IndexBatch`, only document embeddings
+        the batch is a :class`.RankBatch`, query and document embeddings are computed and the relevance score is the
+        similarity between the two embeddings. If the batch is an :class:`.IndexBatch`, only document embeddings
         are comuputed. If the batch is a :class:`.SearchBatch`, only query embeddings are computed and
         the model will additionally retrieve documents if :attr:`.searcher` is set.
 
@@ -186,21 +189,28 @@ class BiEncoderModule(LightningIRModule):
             ],
             dim=1,
         ).view(-1, num_embs, emb_dim)
-        ib_scoring_mask = torch.cat(
-            [
-                embeddings.scoring_mask[pos_idcs].view(num_queries, -1, num_embs),
-                embeddings.scoring_mask[neg_idcs].view(num_queries, -1, num_embs),
-            ],
-            dim=1,
-        ).view(-1, num_embs)
-        ib_encoding = {}
-        for key, value in embeddings.encoding.items():
-            seq_len = value.shape[-1]
-            ib_encoding[key] = torch.cat(
-                [value[pos_idcs].view(num_queries, -1, seq_len), value[neg_idcs].view(num_queries, -1, seq_len)],
+        if embeddings.scoring_mask is None:
+            ib_scoring_mask = None
+        else:
+            ib_scoring_mask = torch.cat(
+                [
+                    embeddings.scoring_mask[pos_idcs].view(num_queries, -1, num_embs),
+                    embeddings.scoring_mask[neg_idcs].view(num_queries, -1, num_embs),
+                ],
                 dim=1,
-            ).view(-1, seq_len)
-        return BiEncoderEmbedding(ib_embeddings, ib_scoring_mask, BatchEncoding(ib_encoding))
+            ).view(-1, num_embs)
+        if embeddings.encoding is None:
+            ib_encoding = None
+        else:
+            ib_encoding = {}
+            for key, value in embeddings.encoding.items():
+                seq_len = value.shape[-1]
+                ib_encoding[key] = torch.cat(
+                    [value[pos_idcs].view(num_queries, -1, seq_len), value[neg_idcs].view(num_queries, -1, seq_len)],
+                    dim=1,
+                ).view(-1, seq_len)
+            ib_encoding = BatchEncoding(ib_encoding)
+        return BiEncoderEmbedding(ib_embeddings, ib_scoring_mask, ib_encoding)
 
     def validation_step(
         self,

@@ -18,7 +18,10 @@ from .bi_encoder import (
     BiEncoderModule,
     BiEncoderOutput,
     BiEncoderTokenizer,
-    ScoringFunction,
+    MultiVectorBiEncoderConfig,
+    MultiVectorBiEncoderModel,
+    SingleVectorBiEncoderConfig,
+    SingleVectorBiEncoderModel,
 )
 from .callbacks import IndexCallback, RankCallback, RegisterLocalDatasetCallback, ReRankCallback, SearchCallback
 from .cross_encoder import (
@@ -158,6 +161,8 @@ __all__ = [
     "LightningIRTrainer",
     "LightningIRWandbLogger",
     "LinearLRSchedulerWithLinearWarmup",
+    "MultiVectorBiEncoderConfig",
+    "MultiVectorBiEncoderModel",
     "PearsonCorrelation",
     "InfoNCE",
     "QueryDataset",
@@ -169,9 +174,10 @@ __all__ = [
     "RegisterLocalDatasetCallback",
     "ReRankCallback",
     "RunDataset",
+    "SingleVectorBiEncoderConfig",
+    "SingleVectorBiEncoderModel",
     "ScoreBasedInBatchCrossEntropy",
     "ScoreBasedInBatchLossFunction",
-    "ScoringFunction",
     "SearchBatch",
     "SearchCallback",
     "SearchConfig",

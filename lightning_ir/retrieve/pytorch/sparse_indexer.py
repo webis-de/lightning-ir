@@ -5,6 +5,7 @@ import torch
 
 from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
 from ...data import IndexBatch
+from ...models import SpladeConfig
 from ..base import IndexConfig, Indexer
 
 
@@ -27,8 +28,14 @@ class TorchSparseIndexer(Indexer):
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
 
-        doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
-        embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
+        if doc_embeddings.scoring_mask is None:
+            doc_lengths = torch.ones(
+                doc_embeddings.embeddings.shape[0], device=doc_embeddings.device, dtype=torch.int32
+            )
+            embeddings = doc_embeddings.embeddings[:, 0]
+        else:
+            doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
+            embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
         num_docs = len(index_batch.doc_ids)
         self.doc_ids.extend(index_batch.doc_ids)
 
@@ -39,7 +46,7 @@ class TorchSparseIndexer(Indexer):
         self.col_indices.extend(dim_idcs.cpu().tolist())
         self.values.extend(values.cpu().tolist())
 
-        self.doc_lengths.extend(doc_lengths.cpu().tolist())
+        self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
         self.num_embeddings += embeddings.shape[0]
         self.num_docs += num_docs
 
@@ -62,3 +69,4 @@ class TorchSparseIndexer(Indexer):
 
 class TorchSparseIndexConfig(IndexConfig):
     indexer_class = TorchSparseIndexer
+    SUPPORTED_MODELS = {SpladeConfig.model_type}
