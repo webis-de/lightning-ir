@@ -142,7 +142,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
 
         index_dir = self._get_save_path(trainer, pl_module, dataset_idx)
 
-        indexer = self.index_config.indexer_class(index_dir, self.index_config, pl_module.config, self.verbose)
+        indexer = self.index_config.indexer_class(index_dir, self.index_config, pl_module, self.verbose)
         return indexer
 
     def _log_to_pg(self, info: Dict[str, Any], trainer: Trainer):
