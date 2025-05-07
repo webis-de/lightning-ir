@@ -1,0 +1,1 @@
+{"num_postings": 32, "centroid_fraction": 0.1, "summary_energy": 0.4, "min_cluster_size": 2, "num_k_nearest_neighbors": 0, "batch_size": null, "num_threads": 0, "index_dir": "/home/fschlatt/Code/uni/lightning-ir/tests/data/indexes/seismic-splade-dot/lightning-ir", "index_type": "SeismicIndexConfig"}

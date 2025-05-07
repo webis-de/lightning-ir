@@ -107,7 +107,6 @@ def get_index(
     search_config: SearchConfig,
 ) -> Path:
     index_config: IndexConfig
-    num_vecs = "multi" if isinstance(bi_encoder_module.config, MultiVectorBiEncoderConfig) else "single"
     if isinstance(search_config, FaissSearchConfig):
         index_type = "faiss"
         index_config = FaissFlatIndexConfig()
@@ -125,7 +124,11 @@ def get_index(
         index_config = SeismicIndexConfig(num_postings=32)
     else:
         raise ValueError("Unknown search_config type")
-    index_dir = DATA_DIR / "indexes" / f"{index_type}-{num_vecs}-vector-{bi_encoder_module.config.similarity_function}"
+    index_dir = (
+        DATA_DIR
+        / "indexes"
+        / f"{index_type}-{bi_encoder_module.config.model_type}-{bi_encoder_module.config.similarity_function}"
+    )
     if index_dir.exists():
         return index_dir
 

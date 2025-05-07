@@ -3,7 +3,7 @@ from pathlib import Path
 
 import torch
 
-from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
 from ...models import SpladeConfig
 from ..base import IndexConfig, Indexer
@@ -14,10 +14,10 @@ class TorchSparseIndexer(Indexer):
         self,
         index_dir: Path,
         index_config: "TorchSparseIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
         self.crow_indices = array.array("L")
         self.crow_indices.append(0)
         self.col_indices = array.array("L")
@@ -62,7 +62,7 @@ class TorchSparseIndexer(Indexer):
             torch.frombuffer(self.crow_indices, dtype=torch.int64),
             torch.frombuffer(self.col_indices, dtype=torch.int64),
             torch.frombuffer(self.values, dtype=torch.float32),
-            torch.Size([self.num_embeddings, self.bi_encoder_config.embedding_dim]),
+            torch.Size([self.num_embeddings, self.module.config.embedding_dim]),
         )
         torch.save(index, self.index_dir / "index.pt")
 
