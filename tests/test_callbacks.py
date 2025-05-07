@@ -6,14 +6,7 @@ import pandas as pd
 import pytest
 from _pytest.fixtures import SubRequest
 
-from lightning_ir import (
-    BiEncoderModule,
-    LightningIRDataModule,
-    LightningIRModule,
-    LightningIRTrainer,
-    MultiVectorBiEncoderConfig,
-    RunDataset,
-)
+from lightning_ir import BiEncoderModule, LightningIRDataModule, LightningIRModule, LightningIRTrainer, RunDataset
 from lightning_ir.callbacks import IndexCallback, RegisterLocalDatasetCallback, ReRankCallback, SearchCallback
 from lightning_ir.models import DprConfig
 from lightning_ir.retrieve import (
