@@ -28,6 +28,8 @@ class CrossEncoderModule(LightningIRModule):
         """:class:`.LightningIRModule` for cross-encoder models. It contains a :class:`.CrossEncoderModel` and a
         :class:`.CrossEncoderTokenizer` and implements the training, validation, and testing steps for the model.
 
+        .. _ir-measures: https://ir-measur.es/en/latest/index.html
+
         :param model_name_or_path: Name or path of backbone model or fine-tuned Lightning IR model, defaults to None
         :type model_name_or_path: str | None, optional
         :param config: CrossEncoderConfig to apply when loading from backbone model, defaults to None
