@@ -37,6 +37,8 @@ class BiEncoderModule(LightningIRModule):
         """:class:`.LightningIRModule` for bi-encoder models. It contains a :class:`.BiEncoderModel` and a
         :class:`.BiEncoderTokenizer` and implements the training, validation, and testing steps for the model.
 
+        .. _ir-measures: https://ir-measur.es/en/latest/index.html
+
         :param model_name_or_path: Name or path of backbone model or fine-tuned Lightning IR model, defaults to None
         :type model_name_or_path: str | None, optional
         :param config: BiEncoderConfig to apply when loading from backbone model, defaults to None
