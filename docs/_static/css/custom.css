@@ -3,9 +3,8 @@ details {
 }
 
 td>details {
-    display: inline-flex;
-    align-items: center;
-    vertical-align: middle;
-    padding: 0;
+    display: inline-block;
+    text-align: right;
     margin: 0;
+    padding: 0;
 }
