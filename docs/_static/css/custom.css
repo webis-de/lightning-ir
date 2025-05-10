@@ -1,3 +1,10 @@
 details {
     margin-top: 1.0rem;
 }
+
+td>details {
+    display: inline-block;
+    text-align: right;
+    margin: 0;
+    padding: 0;
+}
