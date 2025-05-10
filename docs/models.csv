@@ -14,16 +14,28 @@ Model Name,Native,TREC DL 2019,TREC DL 2020,NanoBEIR
     .. csv-table::
        :file: ./nanobeir_details_bienc.csv
        :header-rows: 0"
-"`sentence-transformers/msmarco-bert-base-dot-v5 <https://huggingface.co/sentence-transformers/msmarco-bert-base-dot-v5>`_",|x|,0.705,0.735,
+"`sentence-transformers/msmarco-bert-base-dot-v5 <https://huggingface.co/sentence-transformers/msmarco-bert-base-dot-v5>`_",|x|,0.705,0.735,".. collapse:: 0.574
+
+    .. csv-table::
+       :file: ./nanobeir_details_external_bienc.csv
+       :header-rows: 0"
 "`webis/colbert <https://huggingface.co/webis/colbert>`_",|c|,0.751,0.749,".. collapse:: 0.635
 
     .. csv-table::
        :file: ./nanobeir_details_colbert.csv
        :header-rows: 0"
-"`colbert-ir/colbertv2.0 <https://huggingface.co/colbert-ir/colbertv2.0>`_",|x|,0.732,0.746,
+"`colbert-ir/colbertv2.0 <https://huggingface.co/colbert-ir/colbertv2.0>`_",|x|,0.732,0.746,".. collapse:: 0.613
+    
+    .. csv-table::
+       :file: ./nanobeir_details_external_colbert.csv
+       :header-rows: 0"
 "`webis/splade <https://huggingface.co/webis/splade>`_",|c|,0.736,0.723,".. collapse:: 0.619
 
     .. csv-table::
        :file: ./nanobeir_details_splade.csv
        :header-rows: 0"
-"`naver/splade-v3 <https://huggingface.co/naver/splade-v3>`_",|x|,0.715,0.749,
+"`naver/splade-v3 <https://huggingface.co/naver/splade-v3>`_",|x|,0.715,0.749,".. collapse:: 0.635
+
+    .. csv-table::
+       :file: ./nanobeir_details_external_splade.csv
+       :header-rows: 0"
