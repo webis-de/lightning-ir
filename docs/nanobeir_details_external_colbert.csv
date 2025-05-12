@@ -1,0 +1,13 @@
+climate-fever,0.292
+dbpedia-entity,0.675
+fever,0.941
+fiqa,0.458
+hotpotqa,0.790
+msmarco,0.684
+nfcorpus,0.366
+nq,0.682
+quora,0.931
+scidocs,0.329
+arguana,0.510
+scifact,0.698
+webis-touche,0.609
