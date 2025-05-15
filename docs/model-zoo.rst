@@ -10,7 +10,10 @@ Native models were fine-tuned using Lightning IR and the model's HuggingFace mod
 
 **Reproduction**
 
-The following command and configuration can be used to reproduce the results:
+The following commands and configurations can be used to reproduce the results:
+
+
+**Reranking Results**
 
 .. collapse:: config.yaml
     
@@ -41,10 +44,15 @@ The following command and configuration can be used to reproduce the results:
 
     lightning-ir re_rank --config config.yaml
 
+.. csv-table::
+  :file: ./models/reranking.csv
+  :header-rows: 1
+
+**Retrieval Results**
 
 .. csv-table::
-    :file: ./models.csv
-    :header-rows: 1
+  :file: ./models/retrieval.csv
+  :header-rows: 1
 
 .. |c| unicode:: U+2705
 .. |x| unicode:: U+274C
