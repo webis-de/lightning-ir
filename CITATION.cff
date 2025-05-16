@@ -11,7 +11,7 @@ authors:
     given-names: "Matthias"
     orcid: 0000-0002-9733-2890
 title: "Lightning IR: Straightforward Fine-tuning and Inference of Transformer-based Language Models for Information Retrieval"
-version: 0.0.3
+version: 0.0.4
 preferred-citation:
   type: conference-paper
   title: "Lightning IR: Straightforward Fine-tuning and Inference of Transformer-based Language Models for Information Retrieval"
