@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
+from ...modeling_utils.batching import _batch_scoring
 from ...models import ColConfig, DprConfig
 from ..base.searcher import ExactSearchConfig, ExactSearcher
 from .dense_indexer import TorchDenseIndexConfig
@@ -27,17 +28,21 @@ class TorchDenseIndex:
 
     def score(self, embeddings: torch.Tensor) -> torch.Tensor:
         embeddings = embeddings.to(self.device)
-        similarity = self.similarity_function(embeddings, self.index).to_dense()
+        similarity = self.similarity_function(embeddings, self.index)
         return similarity
 
     @property
     def num_embeddings(self) -> int:
         return self.index.shape[0]
 
-    def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    @_batch_scoring
+    def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x[:, None], y[None], dim=-1)
 
-    def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    @_batch_scoring
+    def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.T)
 
     def to_gpu(self) -> None:
