@@ -143,7 +143,9 @@ class _IRDataset:
         """
         if self.ir_dataset is None:
             return
-        getattr(self.ir_dataset, f"{constituent}_path")()
+        if self.ir_dataset.has(constituent):
+            # get first item to trigger download
+            next(getattr(self.ir_dataset, f"{constituent}_iter")())
 
 
 class _DataParallelIterableDataset(IterableDataset):
@@ -431,14 +433,9 @@ class RunDataset(_IRDataset, Dataset):
         """Downloads docs, queries, scoreddocs, and qrels using ir_datasets if needed and available."""
         self.prepare_constituent("docs")
         self.prepare_constituent("queries")
-        try:
+        if self.run_path is None:
             self.prepare_constituent("scoreddocs")
-        except AttributeError:
-            pass
-        try:
-            self.prepare_constituent("qrels")
-        except AttributeError:
-            pass
+        self.prepare_constituent("qrels")
 
     def _setup(self):
         if self.run is not None:
