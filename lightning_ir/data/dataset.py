@@ -135,6 +135,16 @@ class _IRDataset:
         self._qrels = qrels
         return self._qrels
 
+    def prepare_constituent(self, constituent: Literal["qrels", "queries", "docs", "scoreddocs", "docpairs"]) -> None:
+        """Downloads the constituent of the dataset using ir_datasets if needed.
+
+        :param constituent: Constituent to download
+        :type constituent: Literal["qrels", "queries", "docs", "scoreddocs", "docpairs"]
+        """
+        if self.ir_dataset is None:
+            return
+        getattr(self.ir_dataset, f"{constituent}_path")()
+
 
 class _DataParallelIterableDataset(IterableDataset):
     # https://github.com/Lightning-AI/pytorch-lightning/issues/15734
@@ -203,6 +213,10 @@ class QueryDataset(_IRDataset, _DataParallelIterableDataset):
                 query_sample.qrels = qrels
             yield query_sample
 
+    def prepare_data(self) -> None:
+        """Downloads queries using ir_datasets if needed."""
+        self.prepare_constituent("queries")
+
 
 class DocDataset(_IRDataset, _DataParallelIterableDataset):
     def __init__(self, doc_dataset: str, num_docs: int | None = None, text_fields: Sequence[str] | None = None) -> None:
@@ -246,6 +260,10 @@ class DocDataset(_IRDataset, _DataParallelIterableDataset):
         step = self.num_replicas
         for sample in islice(self.ir_dataset.docs_iter(), start, stop, step):
             yield DocSample.from_ir_dataset_sample(sample, self.text_fields)
+
+    def prepare_data(self) -> None:
+        """Downloads documents using ir_datasets if needed."""
+        self.prepare_constituent("docs")
 
 
 class Sampler:
@@ -408,6 +426,19 @@ class RunDataset(_IRDataset, Dataset):
             )
 
         self.run: pd.DataFrame | None = None
+
+    def prepare_data(self) -> None:
+        """Downloads docs, queries, scoreddocs, and qrels using ir_datasets if needed and available."""
+        self.prepare_constituent("docs")
+        self.prepare_constituent("queries")
+        try:
+            self.prepare_constituent("scoreddocs")
+        except AttributeError:
+            pass
+        try:
+            self.prepare_constituent("qrels")
+        except AttributeError:
+            pass
 
     def _setup(self):
         if self.run is not None:
@@ -684,3 +715,9 @@ class TupleDataset(_IRDataset, IterableDataset):
             if targets is not None:
                 targets = torch.tensor(targets)
             yield RankSample(query_id, query, doc_ids, docs, targets)
+
+    def prepare_data(self) -> None:
+        """Downloads tuples using ir_datasets if needed."""
+        self.prepare_constituent("docs")
+        self.prepare_constituent("queries")
+        self.prepare_constituent("docpairs")

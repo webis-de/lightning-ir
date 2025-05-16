@@ -56,7 +56,7 @@ class LightningIRDataModule(LightningDataModule):
         if (self.train_batch_size is not None) != (self.train_dataset is not None):
             raise ValueError("Both train_batch_size and train_dataset must be provided.")
         if (self.inference_batch_size is not None) != (self.inference_datasets is not None):
-            raise ValueError("Both train_batch_size and train_dataset must be provided.")
+            raise ValueError("Both inference_batch_size and inference_dataset must be provided.")
 
     def _setup_inference(self, stage: Literal["validate", "test"]) -> None:
         if self.inference_datasets is None:
@@ -74,6 +74,14 @@ class LightningIRDataModule(LightningDataModule):
                 raise ValueError(
                     "Inference Dataset must be of type RunDataset, TupleDataset, QueryDataset, or DocDataset."
                 )
+
+    def prepare_data(self) -> None:
+        """Downloads the data using ir_datasets if needed."""
+        if self.train_dataset is not None:
+            self.train_dataset.prepare_data()
+        if self.inference_datasets is not None:
+            for inference_dataset in self.inference_datasets:
+                inference_dataset.prepare_data()
 
     def setup(self, stage: Literal["fit", "validate", "test"]) -> None:
         """Sets up the data module for a given stage.
