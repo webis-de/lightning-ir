@@ -146,6 +146,8 @@ class _IRDataset:
         if self.ir_dataset.has(constituent):
             # get first item to trigger download
             next(getattr(self.ir_dataset, f"{constituent}_iter")())
+            if constituent == "docs":
+                self.ir_dataset.docs_store()
 
 
 class _DataParallelIterableDataset(IterableDataset):
