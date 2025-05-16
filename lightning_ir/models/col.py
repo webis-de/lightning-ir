@@ -238,6 +238,6 @@ class ColTokenizer(BiEncoderTokenizer):
         if expansion:
             kwargs["padding"] = "max_length"
         encoding = super().tokenize_input_sequence(text, input_type, *args, **kwargs)
-        if self.query_expansion:
-            encoding = self._expand(encoding, self.attend_to_query_expanded_tokens)
+        if expansion:
+            encoding = self._expand(encoding, getattr(self, f"attend_to_{input_type}_expanded_tokens"))
         return encoding
