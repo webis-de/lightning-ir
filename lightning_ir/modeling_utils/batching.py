@@ -16,7 +16,7 @@ def _batch_elementwise_scoring(
         """x and y have shape (N, ..., D) where ... are broadcastable dimensions and D is the embedding dimension."""
         if x.shape[0] <= BATCH_SIZE:
             return similarity_function(x, y)
-        out = torch.zeros(x.shape[0], x.shape[1], y.shape[2], device=x.device, dtype=x.dtype)
+        out = torch.empty(x.shape[0], x.shape[1], y.shape[2], device=x.device, dtype=x.dtype)
         for i in range(0, x.shape[0], BATCH_SIZE):
             out[i : i + BATCH_SIZE] = similarity_function(x[i : i + BATCH_SIZE], y[i : i + BATCH_SIZE])
         return out
@@ -36,7 +36,7 @@ def _batch_pairwise_scoring(
         """x has shape (N, D) and y has shape (M, D)"""
         if x.shape[0] <= BATCH_SIZE and y.shape[0] <= BATCH_SIZE:
             return similarity_function(x, y)
-        out = torch.zeros(x.shape[0], y.shape[0], device=x.device, dtype=x.dtype)
+        out = torch.empty(x.shape[0], y.shape[0], device=x.device, dtype=x.dtype)
         for i in range(0, x.shape[0], BATCH_SIZE):
             for j in range(0, y.shape[0], BATCH_SIZE):
                 out[i : i + BATCH_SIZE, j : j + BATCH_SIZE] = similarity_function(
