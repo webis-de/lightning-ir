@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
-from ...modeling_utils.batching import _batch_scoring
+from ...modeling_utils.batching import _batch_pairwise_scoring
 from ...models import SpladeConfig
 from ..base.searcher import ExactSearchConfig, ExactSearcher
 from .sparse_indexer import TorchSparseIndexConfig
@@ -36,12 +36,12 @@ class TorchSparseIndex:
         return self.index.shape[0]
 
     @staticmethod
-    @_batch_scoring
+    @_batch_pairwise_scoring
     def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return y.matmul(x.T).T / (torch.norm(x, dim=-1)[:, None] * torch.norm(y, dim=-1)[None])
 
     @staticmethod
-    @_batch_scoring
+    @_batch_pairwise_scoring
     def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return y.matmul(x.T).T
 

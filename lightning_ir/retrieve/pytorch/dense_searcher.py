@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
-from ...modeling_utils.batching import _batch_scoring
+from ...modeling_utils.batching import _batch_pairwise_scoring
 from ...models import ColConfig, DprConfig
 from ..base.searcher import ExactSearchConfig, ExactSearcher
 from .dense_indexer import TorchDenseIndexConfig
@@ -36,12 +36,12 @@ class TorchDenseIndex:
         return self.index.shape[0]
 
     @staticmethod
-    @_batch_scoring
+    @_batch_pairwise_scoring
     def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x[:, None], y[None], dim=-1)
 
     @staticmethod
-    @_batch_scoring
+    @_batch_pairwise_scoring
     def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.T)
 
