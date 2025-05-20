@@ -74,6 +74,12 @@ The following command can be used to reproduce the results:
           devices: auto
           num_nodes: 1
           logger: false
+          callbacks:
+            - class_path: IndexCallback
+              init_args:
+                index_config:
+                  class_path: TorchDenseIndexConfig # for Bi-Encoder and ColBERT
+                  # class_path: TorchSparseIndexConfig # for SPLADE
         model:
           class_path: BiEncoderModule
           init_args:
@@ -136,6 +142,15 @@ The following command can be used to reproduce the results:
           devices: auto
           num_nodes: 1
           logger: false
+          callbacks:
+            - class_path: SearchCallback
+              init_args:
+                search_config:
+                  class_path: TorchDenseSearchConfig # for Bi-Encoder and ColBERT
+                  # class_path: TorchSparseSearchConfig # for SPLADE
+                  init_args:
+                    k: 100
+                use_gpu: true
         model:
           class_path: BiEncoderModule
           init_args:
