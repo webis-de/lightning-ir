@@ -385,8 +385,8 @@ class LightningIRModule(LightningModule):
         df = df.pivot(index="dataset", columns="metric", values="value")
         df.columns.name = None
 
-        datamodule: LightningIRDataModule = getattr(trainer, "datamodule", None)
-        if datamodule.inference_datasets is not None:
+        datamodule: LightningIRDataModule | None = getattr(trainer, "datamodule", None)
+        if datamodule is not None and datamodule.inference_datasets is not None:
             dataset_ids = [dataset.dataset_id for dataset in datamodule.inference_datasets]
             df = df.reindex(dataset_ids)
 
