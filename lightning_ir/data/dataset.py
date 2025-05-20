@@ -24,7 +24,18 @@ from .external_datasets.ir_datasets_utils import ScoredDocTuple
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 
 
+class _DummyIterableDataset(IterableDataset):
+    """Dummy iterable dataset to use when all inference datasets are skipped."""
+
+    def __iter__(self) -> Iterator:
+        yield from iter([])
+
+
 class _IRDataset:
+
+    _SKIP: bool = False
+    """Set to True to skip the dataset during inference."""
+
     def __init__(self, dataset: str) -> None:
         super().__init__()
         self._dataset = dataset
@@ -131,7 +142,6 @@ class _IRDataset:
             qrels["iteration"] = 0
         qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
         qrels = qrels.set_index(["query_id", "doc_id", "iteration"]).unstack(level=-1)
-        qrels = qrels.droplevel(0, axis=1)
         self._qrels = qrels
         return self._qrels
 
@@ -212,8 +222,8 @@ class QueryDataset(_IRDataset, _DataParallelIterableDataset):
             if self.qrels is not None:
                 qrels = (
                     self.qrels.loc[[query_sample.query_id]]
-                    .stack()
-                    .rename("relevance")
+                    .stack(future_stack=True)
+                    .dropna()
                     .astype(int)
                     .reset_index()
                     .to_dict(orient="records")
@@ -460,7 +470,7 @@ class RunDataset(_IRDataset, Dataset):
             if self._docs is None and self.add_docs_not_in_ranking:
                 how = "outer"
             self.run = self.run.merge(
-                self.qrels.loc[pd.IndexSlice[query_ids, :]].add_prefix("relevance_", axis=1),
+                self.qrels.loc[pd.IndexSlice[query_ids, :]].droplevel(0, axis=1).add_prefix("relevance_", axis=1),
                 on=["query_id", "doc_id"],
                 how=how,
             )
@@ -601,7 +611,6 @@ class RunDataset(_IRDataset, Dataset):
             self.run = self.run.drop(["relevance", "iteration"], axis=1, errors="ignore")
             qrels = qrels.drop_duplicates(["query_id", "doc_id", "iteration"])
             qrels = qrels.set_index(["query_id", "doc_id", "iteration"]).unstack(level=-1)
-            qrels = qrels.droplevel(0, axis=1)
             self._qrels = qrels
             return self._qrels
         return super().qrels
@@ -651,8 +660,8 @@ class RunDataset(_IRDataset, Dataset):
         if self.qrels is not None:
             qrels = (
                 self.qrels.loc[[query_id]]
-                .stack()
-                .rename("relevance")
+                .stack(future_stack=True)
+                .dropna()
                 .astype(int)
                 .reset_index()
                 .to_dict(orient="records")

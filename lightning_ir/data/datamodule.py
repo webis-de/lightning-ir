@@ -15,7 +15,16 @@ from lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
 
 from .data import IndexBatch, RankBatch, SearchBatch, TrainBatch
-from .dataset import DocDataset, DocSample, QueryDataset, QuerySample, RankSample, RunDataset, TupleDataset
+from .dataset import (
+    DocDataset,
+    DocSample,
+    QueryDataset,
+    QuerySample,
+    RankSample,
+    RunDataset,
+    TupleDataset,
+    _DummyIterableDataset,
+)
 
 
 class LightningIRDataModule(LightningDataModule):
@@ -50,7 +59,7 @@ class LightningIRDataModule(LightningDataModule):
         self.train_dataset = train_dataset
         self.train_batch_size = train_batch_size
         self.shuffle_train = shuffle_train
-        self.inference_datasets = inference_datasets
+        self.inference_datasets = None if inference_datasets is None else list(inference_datasets)
         self.inference_batch_size = inference_batch_size
 
         if (self.train_batch_size is not None) != (self.train_dataset is not None):
@@ -138,7 +147,7 @@ class LightningIRDataModule(LightningDataModule):
         :rtype: List[DataLoader]
         """
         inference_datasets = self.inference_datasets or []
-        return [
+        dataloaders = [
             DataLoader(
                 dataset,
                 batch_size=self.inference_batch_size,
@@ -147,7 +156,11 @@ class LightningIRDataModule(LightningDataModule):
                 prefetch_factor=16 if self.num_workers > 0 else None,
             )
             for dataset in inference_datasets
+            if not dataset._SKIP
         ]
+        if not dataloaders:
+            dataloaders = [DataLoader(_DummyIterableDataset())]
+        return dataloaders
 
     def _aggregate_samples(self, samples: Sequence[RankSample | QuerySample | DocSample]) -> Dict[str, Any]:
         aggregated = defaultdict(list)

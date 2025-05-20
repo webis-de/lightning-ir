@@ -12,8 +12,9 @@ import torch
 from lightning import LightningModule, Trainer
 from lightning.pytorch.callbacks import Callback, TQDMProgressBar
 
-from ..data import RankBatch, SearchBatch
-from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset
+from ..base.validation_utils import evaluate_run
+from ..data import LightningIRDataModule, RankBatch, SearchBatch
+from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset, _DummyIterableDataset
 from ..data.external_datasets.ir_datasets_utils import register_new_dataset
 from ..retrieve import IndexConfig, Indexer, SearchConfig, Searcher
 
@@ -74,20 +75,40 @@ class _OverwriteMixin:
 
     _get_save_path: Callable[[Trainer, LightningModule, int], Path]
 
-    def _remove_overwrite_datasets(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
+    def _remove_overwrite_datasets(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         overwrite = getattr(self, "overwrite", False)
         if not overwrite:
-            datasets = list(trainer.datamodule.inference_datasets)
-            remove_datasets = []
+            datamodule: LightningIRDataModule | None = getattr(trainer, "datamodule", None)
+            if datamodule is None:
+                raise ValueError("No datamodule found")
+            if datamodule.inference_datasets is None:
+                return
+            datasets = list(datamodule.inference_datasets)
             for dataset_idx in range(len(datasets)):
+                dataset = datasets[dataset_idx]
                 save_path = self._get_save_path(trainer, pl_module, dataset_idx)
                 if save_path.exists():
-                    remove_datasets.append(dataset_idx)
-                    trainer.print(
-                        f"`{save_path}` already exists. Skipping this dataset. Set overwrite=True to overwrite"
-                    )
-            for dataset_idx in remove_datasets[::-1]:
-                del trainer.datamodule.inference_datasets[dataset_idx]
+                    dataset._SKIP = True
+                    trainer.print(f"`{save_path}` already exists. Set overwrite=True to overwrite")
+                    if (
+                        save_path.name.endswith(".run")
+                        and dataset.qrels is not None
+                        and pl_module.evaluation_metrics is not None
+                    ):
+                        run = RunDataset._load_csv(save_path)
+                        qrels = dataset.qrels.stack(future_stack=True).dropna().astype(int).reset_index()
+                        dataset_id = pl_module.get_dataset_id(dataset_idx)
+                        for key, value in evaluate_run(run, qrels, pl_module.evaluation_metrics).items():
+                            key = f"{dataset_id}/{key}"
+                            pl_module._additional_log_metrics[key] = value
+
+    def _cleanup(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        # reset skip flat and additional log metrics
+        datamodule: LightningIRDataModule = getattr(trainer, "datamodule", None)
+        if datamodule is not None and datamodule.inference_datasets is not None:
+            for dataset in datamodule.inference_datasets:
+                dataset._SKIP = False
+        pl_module._additional_log_metrics = {}
 
 
 class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
@@ -130,7 +151,19 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         """
         if stage != "test":
             raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
-        self._remove_overwrite_datasets(trainer, pl_module, stage)
+        self._remove_overwrite_datasets(trainer, pl_module)
+
+    def teardown(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
+        """Hook to cleanup the callback.
+
+        :param trainer: PyTorch Lightning Trainer
+        :type trainer: Trainer
+        :param pl_module: LightningIR bi-encoder module used for indexing
+        :type pl_module: BiEncoderModule
+        :param stage: Stage of the trainer, must be "test"
+        :type stage: str
+        """
+        self._cleanup(trainer, pl_module)
 
     def _get_save_path(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Path:
         return self._get_index_dir(pl_module, trainer.datamodule.inference_datasets[dataset_idx])
@@ -168,7 +201,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         if dataloaders is None:
             raise ValueError("No test_dataloaders found")
         datasets = [dataloader.dataset for dataloader in dataloaders]
-        if not all(isinstance(dataset, DocDataset) for dataset in datasets):
+        if not all(isinstance(dataset, (DocDataset, _DummyIterableDataset)) for dataset in datasets):
             raise ValueError("Expected DocDatasets for indexing")
 
     def on_test_batch_start(
@@ -276,7 +309,19 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
                 print(f"Using default save_dir `{self.save_dir}` to save runs")
             else:
                 raise ValueError("No save_dir provided and model_name_or_path is not a path")
-        self._remove_overwrite_datasets(trainer, pl_module, stage)
+        self._remove_overwrite_datasets(trainer, pl_module)
+
+    def teardown(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
+        """Hook to cleanup the callback.
+
+        :param trainer: PyTorch Lightning Trainer
+        :type trainer: Trainer
+        :param pl_module: LightningIR bi-encoder module used for indexing
+        :type pl_module: BiEncoderModule
+        :param stage: Stage of the trainer, must be "test"
+        :type stage: str
+        """
+        self._cleanup(trainer, pl_module)
 
     def _get_save_path(self, trainer: Trainer, pl_module: LightningIRModule, dataset_idx: int) -> Path:
         datamodule = getattr(trainer, "datamodule", None)
@@ -442,7 +487,7 @@ class SearchCallback(RankCallback, _IndexDirMixin):
         if dataloaders is None:
             raise ValueError("No test_dataloaders found")
         datasets = [dataloader.dataset for dataloader in dataloaders]
-        if not all(isinstance(dataset, QueryDataset) for dataset in datasets):
+        if not all(isinstance(dataset, (QueryDataset, _DummyIterableDataset)) for dataset in datasets):
             raise ValueError("Expected QueryDatasets for indexing")
 
     def on_test_batch_start(
