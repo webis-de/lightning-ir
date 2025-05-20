@@ -5,7 +5,6 @@ This module contains the main module class deriving from a LightningModule_.
 .. _LightningModule: https://lightning.ai/docs/pytorch/stable/common/lightning_module.html
 """
 
-from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple, Type
 
@@ -14,7 +13,7 @@ import torch
 from lightning import LightningModule
 from transformers import BatchEncoding
 
-from ..data import RankBatch, SearchBatch, TrainBatch
+from ..data import LightningIRDataModule, RankBatch, SearchBatch, TrainBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
@@ -79,34 +78,13 @@ class LightningIRModule(LightningModule):
         self.evaluation_metrics = evaluation_metrics
         self._optimizer: torch.optim.Optimizer | None = None
         self.tokenizer = LightningIRTokenizer.from_pretrained(self.config.name_or_path, config=self.config)
+        self._additional_log_metrics: Dict[str, float] = {}
 
     def on_train_start(self) -> None:
         """Called at the beginning of training after sanity check."""
         super().on_train_start()
         # NOTE huggingface models are in eval mode by default
         self.model = self.model.train()
-
-    @staticmethod
-    def _print_results(results: list[Dict[str, torch.Tensor]], stage: str) -> None:
-        data = []
-        datasets = []
-        for result in results:
-            for key, value in result.items():
-                if "dataloader_idx" in key:
-                    key = "/".join(key.split("/")[:-1])
-                *dataset_parts, metric = key.split("/")
-                if metric.startswith("validation-"):
-                    metric = metric[len("validation-") :]
-                dataset = "/".join(dataset_parts)
-                datasets.append(dataset)
-                data.append({"dataset": dataset, "metric": metric, "value": value.item()})
-        if not data:
-            return
-        datasets = list(dict.fromkeys(datasets))
-        df = pd.DataFrame(data)
-        df = df.pivot(index="dataset", columns="metric", values="value")
-        df.columns.name = None
-        print(df)
 
     def on_validation_start(self) -> None:
         """Called at the beginning of validation."""
@@ -118,7 +96,7 @@ class LightningIRModule(LightningModule):
         if trainer is None:
             return
 
-        trainer._evaluation_loop._print_results = self._print_results
+        trainer._evaluation_loop._print_results = lambda *args, **kwargs: None
 
     def on_test_start(self) -> None:
         """Called at the beginning of testing."""
@@ -385,25 +363,38 @@ class LightningIRModule(LightningModule):
             metrics[f"validation-{loss_function.__class__.__name__}"] = loss_function.compute_loss(output, batch)
         return metrics
 
-    def on_validation_epoch_end(self) -> None:
-        """Logs the accumulated metrics for each dataloader."""
-        try:
-            trainer = self.trainer
-        except RuntimeError:
-            trainer = None
-        if trainer is not None:
-            metrics = trainer.callback_metrics
-            accum_metrics = defaultdict(list)
-            for key, value in metrics.items():
-                split = key.split("/")
-                if "dataloader_idx" in split[-1]:
-                    accum_metrics[split[-2]].append(value)
-            for key, value in accum_metrics.items():
-                self.log(key, torch.stack(value).mean(), logger=False)
+    def on_validation_end(self) -> None:
+        """Prints the validation results for each dataloader."""
+        trainer = self.trainer
+        results = trainer.callback_metrics
 
-    def on_test_epoch_end(self) -> None:
-        """Logs the accumulated metrics for each dataloader."""
-        self.on_validation_epoch_end()
+        data = []
+        for key, value in {**results, **self._additional_log_metrics}.items():
+            if "dataloader_idx" in key:
+                key = "/".join(key.split("/")[:-1])
+            *dataset_parts, metric = key.split("/")
+            if metric.startswith("validation-"):
+                metric = metric[len("validation-") :]
+            dataset = "/".join(dataset_parts)
+            if isinstance(value, torch.Tensor):
+                value = value.item()
+            data.append({"dataset": dataset, "metric": metric, "value": value})
+        if not data:
+            return
+        df = pd.DataFrame(data)
+        df = df.pivot(index="dataset", columns="metric", values="value")
+        df.columns.name = None
+
+        datamodule: LightningIRDataModule = getattr(trainer, "datamodule", None)
+        if datamodule.inference_datasets is not None:
+            dataset_ids = [dataset.dataset_id for dataset in datamodule.inference_datasets]
+            df = df.reindex(dataset_ids)
+
+        trainer.print(df)
+
+    def on_test_end(self) -> None:
+        """Prints the accumulated metrics for each dataloader."""
+        self.on_validation_end()
 
     def save_pretrained(self, save_path: str | Path) -> None:
         """Saves the model and tokenizer to the save path.
