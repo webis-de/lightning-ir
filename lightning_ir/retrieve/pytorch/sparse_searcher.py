@@ -37,11 +37,13 @@ class TorchSparseIndex:
 
     @staticmethod
     @_batch_pairwise_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return y.matmul(x.T).T / (torch.norm(x, dim=-1)[:, None] * torch.norm(y, dim=-1)[None])
 
     @staticmethod
     @_batch_pairwise_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return y.matmul(x.T).T
 

@@ -37,11 +37,13 @@ class TorchDenseIndex:
 
     @staticmethod
     @_batch_pairwise_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x[:, None], y[None], dim=-1)
 
     @staticmethod
     @_batch_pairwise_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
     def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.T)
 
