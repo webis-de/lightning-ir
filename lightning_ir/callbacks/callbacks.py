@@ -96,7 +96,7 @@ class _OverwriteMixin:
                         and pl_module.evaluation_metrics is not None
                     ):
                         run = RunDataset._load_csv(save_path)
-                        qrels = dataset.qrels.stack(future_stack=True).reset_index()
+                        qrels = dataset.qrels.stack(future_stack=True).dropna().astype(int).reset_index()
                         dataset_id = pl_module.get_dataset_id(dataset_idx)
                         for key, value in evaluate_run(run, qrels, pl_module.evaluation_metrics).items():
                             key = f"{dataset_id}/{key}"

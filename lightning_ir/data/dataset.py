@@ -223,6 +223,7 @@ class QueryDataset(_IRDataset, _DataParallelIterableDataset):
                 qrels = (
                     self.qrels.loc[[query_sample.query_id]]
                     .stack(future_stack=True)
+                    .dropna()
                     .astype(int)
                     .reset_index()
                     .to_dict(orient="records")
@@ -469,7 +470,7 @@ class RunDataset(_IRDataset, Dataset):
             if self._docs is None and self.add_docs_not_in_ranking:
                 how = "outer"
             self.run = self.run.merge(
-                self.qrels.loc[pd.IndexSlice[query_ids, :]].add_prefix("relevance_", axis=1),
+                self.qrels.loc[pd.IndexSlice[query_ids, :]].droplevel(0, axis=1).add_prefix("relevance_", axis=1),
                 on=["query_id", "doc_id"],
                 how=how,
             )
@@ -657,7 +658,14 @@ class RunDataset(_IRDataset, Dataset):
                 targets = (targets - targets_min) / (targets_max - targets_min)
         qrels = None
         if self.qrels is not None:
-            qrels = self.qrels.loc[[query_id]].stack().astype(int).reset_index().to_dict(orient="records")
+            qrels = (
+                self.qrels.loc[[query_id]]
+                .stack(future_stack=True)
+                .dropna()
+                .astype(int)
+                .reset_index()
+                .to_dict(orient="records")
+            )
         return RankSample(query_id, query, doc_ids, docs, targets, qrels)
 
 

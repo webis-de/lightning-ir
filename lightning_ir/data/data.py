@@ -45,10 +45,13 @@ class QuerySample:
     :type query_id: str
     :param query: Query text
     :type query_id: str
+    :param qrels: Optional list of dictionaries mapping document ids to relevance labels
+    :type qrels: List[Dict[str, Any]], optional
     """
 
     query_id: str
     query: str
+    qrels: List[Dict[str, Any]] | None = None
 
     @classmethod
     def from_ir_dataset_sample(cls, sample: GenericQuery) -> "QuerySample":
