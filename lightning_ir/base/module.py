@@ -291,7 +291,7 @@ class LightningIRModule(LightningModule):
         try:
             datamodule = getattr(self.trainer, "datamodule", None)
             dataset = datamodule.inference_datasets[dataloader_idx]
-            if dataset.run_path is not None:
+            if getattr(dataset, "run_path", None) is not None:
                 dataset_id = dataset.run_path.name
             else:
                 dataset_id = dataset.dataset_id
