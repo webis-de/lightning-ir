@@ -366,6 +366,8 @@ class LightningIRModule(LightningModule):
     def on_validation_end(self) -> None:
         """Prints the validation results for each dataloader."""
         trainer = self.trainer
+        if not (trainer.is_global_zero and trainer._evaluation_loop.verbose):
+            return
         results = trainer.callback_metrics
 
         data = []
