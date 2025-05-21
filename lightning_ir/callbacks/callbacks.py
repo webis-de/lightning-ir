@@ -9,12 +9,12 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, TypeVar
 
 import pandas as pd
 import torch
-from lightning import LightningModule, Trainer
+from lightning import Trainer
 from lightning.pytorch.callbacks import Callback, TQDMProgressBar
 
 from ..base.validation_utils import evaluate_run
 from ..data import LightningIRDataModule, RankBatch, SearchBatch
-from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset, _DummyIterableDataset
+from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset, _DummyIterableDataset, _IRDataset
 from ..data.external_datasets.ir_datasets_utils import register_new_dataset
 from ..retrieve import IndexConfig, Indexer, SearchConfig, Searcher
 
@@ -73,7 +73,7 @@ class _IndexDirMixin:
 class _OverwriteMixin:
     """Mixin to skip datasets (for indexing or searching) if they already exist"""
 
-    _get_save_path: Callable[[Trainer, LightningModule, int], Path]
+    _get_save_path: Callable[[LightningIRModule, _IRDataset], Path]
 
     def _remove_overwrite_datasets(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         overwrite = getattr(self, "overwrite", False)
@@ -83,10 +83,9 @@ class _OverwriteMixin:
                 raise ValueError("No datamodule found")
             if datamodule.inference_datasets is None:
                 return
-            datasets = list(datamodule.inference_datasets)
-            for dataset_idx in range(len(datasets)):
-                dataset = datasets[dataset_idx]
-                save_path = self._get_save_path(trainer, pl_module, dataset_idx)
+            inference_datasets = list(datamodule.inference_datasets)
+            for dataset_idx, dataset in enumerate(inference_datasets):
+                save_path = self._get_save_path(pl_module, dataset)
                 if save_path.exists():
                     dataset._SKIP = True
                     trainer.print(f"`{save_path}` already exists. Set overwrite=True to overwrite")
@@ -104,7 +103,7 @@ class _OverwriteMixin:
 
     def _cleanup(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         # reset skip flat and additional log metrics
-        datamodule: LightningIRDataModule = getattr(trainer, "datamodule", None)
+        datamodule: LightningIRDataModule | None = getattr(trainer, "datamodule", None)
         if datamodule is not None and datamodule.inference_datasets is not None:
             for dataset in datamodule.inference_datasets:
                 dataset._SKIP = False
@@ -165,15 +164,21 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         """
         self._cleanup(trainer, pl_module)
 
-    def _get_save_path(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Path:
-        return self._get_index_dir(pl_module, trainer.datamodule.inference_datasets[dataset_idx])
+    def _get_save_path(self, pl_module: BiEncoderModule, dataset: _IRDataset) -> Path:
+        if not isinstance(dataset, DocDataset):
+            raise ValueError("Expected DocDataset for indexing")
+        return self._get_index_dir(pl_module, dataset)
 
     def _get_indexer(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Indexer:
         dataloaders = trainer.test_dataloaders
         if dataloaders is None:
             raise ValueError("No test_dataloaders found")
 
-        index_dir = self._get_save_path(trainer, pl_module, dataset_idx)
+        dataloaders = trainer.test_dataloaders
+        if dataloaders is None:
+            raise ValueError("No test_dataloaders found")
+        dataset = dataloaders[dataset_idx].dataset
+        index_dir = self._get_save_path(pl_module, dataset)
 
         indexer = self.index_config.indexer_class(index_dir, self.index_config, pl_module, self.verbose)
         return indexer
@@ -323,13 +328,9 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         """
         self._cleanup(trainer, pl_module)
 
-    def _get_save_path(self, trainer: Trainer, pl_module: LightningIRModule, dataset_idx: int) -> Path:
-        datamodule = getattr(trainer, "datamodule", None)
-        if datamodule is None:
-            raise ValueError("No datamodule found")
+    def _get_save_path(self, pl_module: LightningIRModule, dataset: _IRDataset) -> Path:
         if self.save_dir is None:
             raise ValueError("No save_dir found; call setup before using this method")
-        dataset = datamodule.inference_datasets[dataset_idx]
         if self.run_name is not None:
             run_file = self.run_name
         elif isinstance(dataset, QueryDataset):
@@ -339,6 +340,8 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
                 run_file = f"{dataset.dataset_id.replace('/', '-')}.run"
             else:
                 run_file = f"{dataset.run_path.name.split('.')[0]}.run"
+        else:
+            raise ValueError("Expected QueryDataset or RunDataset for ranking")
         run_file_path = self.save_dir / run_file
         return run_file_path
 
@@ -359,7 +362,11 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
     def _write_run_dfs(self, trainer: Trainer, pl_module: LightningIRModule, dataloader_idx: int):
         if not trainer.is_global_zero or not self.run_dfs:
             return
-        run_file_path = self._get_save_path(trainer, pl_module, dataloader_idx)
+        dataloaders = trainer.test_dataloaders
+        if dataloaders is None:
+            raise ValueError("No test_dataloaders found")
+        dataset = dataloaders[dataloader_idx].dataset
+        run_file_path = self._get_save_path(pl_module, dataset)
         run_file_path.parent.mkdir(parents=True, exist_ok=True)
         run_df = pd.concat(self.run_dfs, ignore_index=True)
         run_df.to_csv(run_file_path, header=False, index=False, sep="\t")
@@ -567,13 +574,13 @@ class RegisterLocalDatasetCallback(Callback):
         self.scoreddocs = scoreddocs
         self.qrels_defs = qrels_defs
 
-    def setup(self, trainer: Trainer, pl_module: LightningModule, stage: str) -> None:
+    def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         """Hook that registers dataset.
 
         :param trainer: PyTorch Lightning Trainer
         :type trainer: Trainer
-        :param pl_module: PyTorch Lightning LightningModule
-        :type pl_module: LightningModule
+        :param pl_module: Lightning IR module
+        :type pl_module: LightningIRModule
         :param stage: Stage of the trainer
         :type stage: str
         """
