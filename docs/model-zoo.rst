@@ -77,9 +77,11 @@ The following command can be used to reproduce the results:
           callbacks:
             - class_path: IndexCallback
               init_args:
+                index_dir: {INDEX_DIR}
                 index_config:
                   class_path: TorchDenseIndexConfig # for Bi-Encoder and ColBERT
                   # class_path: TorchSparseIndexConfig # for SPLADE
+            
         model:
           class_path: BiEncoderModule
           init_args:
@@ -150,7 +152,9 @@ The following command can be used to reproduce the results:
                   # class_path: TorchSparseSearchConfig # for SPLADE
                   init_args:
                     k: 100
+                index_dir: {INDEX_DIR}
                 use_gpu: true
+                save_dir: ./runs
         model:
           class_path: BiEncoderModule
           init_args:
