@@ -84,7 +84,7 @@ class _OverwriteMixin:
             if datamodule.inference_datasets is None:
                 return
             inference_datasets = list(datamodule.inference_datasets)
-            for dataset_idx, dataset in enumerate(inference_datasets):
+            for dataset in inference_datasets:
                 save_path = self._get_save_path(pl_module, dataset)
                 if save_path.exists():
                     dataset._SKIP = True
@@ -96,7 +96,10 @@ class _OverwriteMixin:
                     ):
                         run = RunDataset._load_csv(save_path)
                         qrels = dataset.qrels.stack(future_stack=True).dropna().astype(int).reset_index()
-                        dataset_id = pl_module.get_dataset_id(dataset_idx)
+                        if isinstance(dataset, RunDataset) and dataset.run_path is not None:
+                            dataset_id = dataset.run_path.name
+                        else:
+                            dataset_id = dataset.dataset_id
                         for key, value in evaluate_run(run, qrels, pl_module.evaluation_metrics).items():
                             key = f"{dataset_id}/{key}"
                             pl_module._additional_log_metrics[key] = value

@@ -13,7 +13,7 @@ import torch
 from lightning import LightningModule
 from transformers import BatchEncoding
 
-from ..data import LightningIRDataModule, RankBatch, SearchBatch, TrainBatch
+from ..data import LightningIRDataModule, RankBatch, RunDataset, SearchBatch, TrainBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
@@ -264,17 +264,20 @@ class LightningIRModule(LightningModule):
         :return: path to run file, ir-datasets_ dataset id, or dataloader index
         :rtype: str
         """
-        dataset_id = str(dataloader_idx)
-        datamodule = None
         try:
-            datamodule = getattr(self.trainer, "datamodule", None)
-            dataset = datamodule.inference_datasets[dataloader_idx]
-            if getattr(dataset, "run_path", None) is not None:
-                dataset_id = dataset.run_path.name
-            else:
-                dataset_id = dataset.dataset_id
-        except Exception:
-            pass
+            trainer = self.trainer
+        except RuntimeError:
+            trainer = None
+        if trainer is None:
+            return str(dataloader_idx)
+        dataloaders = trainer.test_dataloaders
+        if dataloaders is None:
+            return str(dataloader_idx)
+        dataset = dataloaders[dataloader_idx].dataset
+        if isinstance(dataset, RunDataset) and dataset.run_path is not None:
+            dataset_id = dataset.run_path.name
+        else:
+            dataset_id = dataset.dataset_id
         return dataset_id
 
     def validate(
