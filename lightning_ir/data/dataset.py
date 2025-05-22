@@ -31,7 +31,7 @@ class _DummyIterableDataset(IterableDataset):
         yield from iter([])
 
 
-class _IRDataset:
+class IRDataset:
 
     _SKIP: bool = False
     """Set to True to skip the dataset during inference."""
@@ -185,7 +185,7 @@ class _DataParallelIterableDataset(IterableDataset):
         self.rank = process_rank * num_workers + worker_id
 
 
-class QueryDataset(_IRDataset, _DataParallelIterableDataset):
+class QueryDataset(IRDataset, _DataParallelIterableDataset):
     def __init__(self, query_dataset: str, num_queries: int | None = None) -> None:
         """Dataset containing queries.
 
@@ -196,7 +196,7 @@ class QueryDataset(_IRDataset, _DataParallelIterableDataset):
         :type num_queries: int | None, optional
         """
         super().__init__(query_dataset)
-        super(_IRDataset, self).__init__()
+        super(IRDataset, self).__init__()
         self.num_queries = num_queries
 
     def __len__(self) -> int:
@@ -236,7 +236,7 @@ class QueryDataset(_IRDataset, _DataParallelIterableDataset):
         self.prepare_constituent("queries")
 
 
-class DocDataset(_IRDataset, _DataParallelIterableDataset):
+class DocDataset(IRDataset, _DataParallelIterableDataset):
     def __init__(self, doc_dataset: str, num_docs: int | None = None, text_fields: Sequence[str] | None = None) -> None:
         """Dataset containing documents.
 
@@ -249,7 +249,7 @@ class DocDataset(_IRDataset, _DataParallelIterableDataset):
         :type text_fields: Sequence[str] | None, optional
         """
         super().__init__(doc_dataset)
-        super(_IRDataset, self).__init__()
+        super(IRDataset, self).__init__()
         self.num_docs = num_docs
         self.text_fields = text_fields
 
@@ -391,7 +391,7 @@ class Sampler:
         raise ValueError("Invalid sampling strategy.")
 
 
-class RunDataset(_IRDataset, Dataset):
+class RunDataset(IRDataset, Dataset):
     def __init__(
         self,
         run_path_or_id: Path | str,
@@ -669,7 +669,7 @@ class RunDataset(_IRDataset, Dataset):
         return RankSample(query_id, query, doc_ids, docs, targets, qrels)
 
 
-class TupleDataset(_IRDataset, IterableDataset):
+class TupleDataset(IRDataset, IterableDataset):
     def __init__(
         self,
         tuples_dataset: str,
@@ -686,7 +686,7 @@ class TupleDataset(_IRDataset, IterableDataset):
         :type num_docs: int | None, optional
         """
         super().__init__(tuples_dataset)
-        super(_IRDataset, self).__init__()
+        super(IRDataset, self).__init__()
         self.targets = targets
         self.num_docs = num_docs
 

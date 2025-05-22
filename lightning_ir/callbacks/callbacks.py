@@ -14,7 +14,7 @@ from lightning.pytorch.callbacks import Callback, TQDMProgressBar
 
 from ..base.validation_utils import evaluate_run
 from ..data import LightningIRDataModule, RankBatch, SearchBatch
-from ..data.dataset import RUN_HEADER, DocDataset, QueryDataset, RunDataset, _DummyIterableDataset, _IRDataset
+from ..data.dataset import RUN_HEADER, DocDataset, IRDataset, QueryDataset, RunDataset, _DummyIterableDataset
 from ..data.external_datasets.ir_datasets_utils import register_new_dataset
 from ..retrieve import IndexConfig, Indexer, SearchConfig, Searcher
 
@@ -73,7 +73,7 @@ class _IndexDirMixin:
 class _OverwriteMixin:
     """Mixin to skip datasets (for indexing or searching) if they already exist"""
 
-    _get_save_path: Callable[[LightningIRModule, _IRDataset], Path]
+    _get_save_path: Callable[[LightningIRModule, IRDataset], Path]
 
     def _remove_overwrite_datasets(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         overwrite = getattr(self, "overwrite", False)
@@ -167,20 +167,17 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         """
         self._cleanup(trainer, pl_module)
 
-    def _get_save_path(self, pl_module: BiEncoderModule, dataset: _IRDataset) -> Path:
+    def _get_save_path(self, pl_module: BiEncoderModule, dataset: IRDataset) -> Path:
         if not isinstance(dataset, DocDataset):
             raise ValueError("Expected DocDataset for indexing")
         return self._get_index_dir(pl_module, dataset)
 
-    def _get_indexer(self, trainer: Trainer, pl_module: BiEncoderModule, dataset_idx: int) -> Indexer:
-        dataloaders = trainer.test_dataloaders
-        if dataloaders is None:
-            raise ValueError("No test_dataloaders found")
-
-        dataloaders = trainer.test_dataloaders
-        if dataloaders is None:
-            raise ValueError("No test_dataloaders found")
-        dataset = dataloaders[dataset_idx].dataset
+    def _get_indexer(self, pl_module: BiEncoderModule, dataloader_idx: int) -> Indexer:
+        dataset = pl_module.get_dataset(dataloader_idx)
+        if dataset is None:
+            raise ValueError("No dataset found to index")
+        if not isinstance(dataset, DocDataset):
+            raise ValueError("Expected DocDataset for indexing")
         index_dir = self._get_save_path(pl_module, dataset)
 
         indexer = self.index_config.indexer_class(index_dir, self.index_config, pl_module, self.verbose)
@@ -229,7 +226,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         :type dataloader_idx: int, optional
         """
         if batch_idx == 0:
-            self.indexer = self._get_indexer(trainer, pl_module, dataloader_idx)
+            self.indexer = self._get_indexer(pl_module, dataloader_idx)
         super().on_test_batch_start(trainer, pl_module, batch, batch_idx, dataloader_idx)
 
     def on_test_batch_end(
@@ -331,7 +328,7 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         """
         self._cleanup(trainer, pl_module)
 
-    def _get_save_path(self, pl_module: LightningIRModule, dataset: _IRDataset) -> Path:
+    def _get_save_path(self, pl_module: LightningIRModule, dataset: IRDataset) -> Path:
         if self.save_dir is None:
             raise ValueError("No save_dir found; call setup before using this method")
         if self.run_name is not None:
@@ -368,7 +365,11 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         dataloaders = trainer.test_dataloaders
         if dataloaders is None:
             raise ValueError("No test_dataloaders found")
-        dataset = dataloaders[dataloader_idx].dataset
+        dataset = pl_module.get_dataset(dataloader_idx)
+        if dataset is None:
+            raise ValueError("No dataset found to write run file")
+        if not isinstance(dataset, (QueryDataset, RunDataset)):
+            raise ValueError("Expected QueryDataset or RunDataset for ranking")
         run_file_path = self._get_save_path(pl_module, dataset)
         run_file_path.parent.mkdir(parents=True, exist_ok=True)
         run_df = pd.concat(self.run_dfs, ignore_index=True)
