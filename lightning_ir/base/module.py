@@ -11,9 +11,11 @@ from typing import Any, Dict, List, Sequence, Tuple, Type
 import pandas as pd
 import torch
 from lightning import LightningModule
+from lightning.pytorch.trainer.states import RunningStage
 from transformers import BatchEncoding
 
 from ..data import LightningIRDataModule, RankBatch, RunDataset, SearchBatch, TrainBatch
+from ..data.dataset import IRDataset
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
@@ -254,6 +256,33 @@ class LightningIRModule(LightningModule):
         """
         return self.validation_step(batch, batch_idx, dataloader_idx)
 
+    def get_dataset(self, dataloader_idx: int) -> IRDataset | None:
+        """Gets the dataset instance from the dataloader index. Returns None if no dataset is found.
+
+        :param dataloader_idx: Index of the dataloader
+        :type dataloader_idx: int
+        :return: Inference dataset
+        :rtype: IRDataset | None
+        """
+        try:
+            trainer = self.trainer
+        except RuntimeError:
+            trainer = None
+        if trainer is None:
+            return None
+        STAGE_TO_DATALOADER = {
+            RunningStage.VALIDATING: "val_dataloaders",
+            RunningStage.TESTING: "test_dataloaders",
+            RunningStage.PREDICTING: "predict_dataloaders",
+            RunningStage.SANITY_CHECKING: "val_dataloaders",
+        }
+        if trainer.state.stage is None:
+            return None
+        dataloaders = getattr(trainer, STAGE_TO_DATALOADER[trainer.state.stage], None)
+        if dataloaders is None:
+            return None
+        return dataloaders[dataloader_idx].dataset
+
     def get_dataset_id(self, dataloader_idx: int) -> str:
         """Gets the dataset id from the dataloader index for logging.
 
@@ -264,16 +293,9 @@ class LightningIRModule(LightningModule):
         :return: path to run file, ir-datasets_ dataset id, or dataloader index
         :rtype: str
         """
-        try:
-            trainer = self.trainer
-        except RuntimeError:
-            trainer = None
-        if trainer is None:
+        dataset = self.get_dataset(dataloader_idx)
+        if dataset is None:
             return str(dataloader_idx)
-        dataloaders = trainer.test_dataloaders
-        if dataloaders is None:
-            return str(dataloader_idx)
-        dataset = dataloaders[dataloader_idx].dataset
         if isinstance(dataset, RunDataset) and dataset.run_path is not None:
             dataset_id = dataset.run_path.name
         else:
