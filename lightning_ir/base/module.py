@@ -281,6 +281,8 @@ class LightningIRModule(LightningModule):
         dataloaders = getattr(trainer, STAGE_TO_DATALOADER[trainer.state.stage], None)
         if dataloaders is None:
             return None
+        if isinstance(dataloaders, torch.utils.data.DataLoader):
+            dataloaders = [dataloaders]
         return dataloaders[dataloader_idx].dataset
 
     def get_dataset_id(self, dataloader_idx: int) -> str:
