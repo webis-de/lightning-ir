@@ -4,12 +4,12 @@
 Build A Custom Model
 ====================
 
-This section provides step-by-step guides on how to build custom :py:class:`~lightning_ir.bi_encoder.model.BiEncoderModel` and :py:class:`~lightning_ir.cross_encoder.model.CrossEncoderModel` models in Lightning IR.
+This section provides step-by-step guides on how to build custom :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel` and :py:class:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel` models in Lightning IR.
 
 Bi-Encoder
 ----------
 
-Say we wanted to build a custom bi-encoder model that adds an additional linear layer on top of the pooled embeddings. If we wanted to make this option configurable, we would first need to subclass the :py:class:`~lightning_ir.bi_encoder.config.BiEncoderConfig` and add a new attribute for the additional linear layer. We must also assign a new ``model_type`` to our model. For example:
+Say we wanted to build a custom bi-encoder model that adds an additional linear layer on top of the pooled embeddings. If we wanted to make this option configurable, we would first need to subclass the :py:class:`~lightning_ir.bi_encoder.bi_encoder_config.BiEncoderConfig` and add a new attribute for the additional linear layer. We must also assign a new ``model_type`` to our model. For example:
 
 .. code-block:: python
 
@@ -22,7 +22,7 @@ Say we wanted to build a custom bi-encoder model that adds an additional linear 
             super().__init__(**kwargs)
             self.additional_linear_layer = additional_linear_layer
 
-Next, we need to subclass the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel` and override the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel.encode` method to include the additional linear layer. We also need to ensure that our new config class is registered with our new model as the :py:meth:`~lightning_ir.bi_encoder.model.BiEncoderModel.config_class` attribute. In the :py:class:`lightning_ir.bi_encoder.model.BiEncoderModel.encode` method, the :py:meth:`~lightning_ir.bi_encoder.model.BiEncoderModel._backbone_forward` method runs the backbone model and returns the contextualized embeddings of the input sequence. We then apply our additional linear layer to the pooled embeddings. Afterwards, the various steps of the processing pipeline for bi-encoders are applied (see :ref:`concepts-model` for more details). For example:
+Next, we need to subclass the :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel` and override the :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel.encode` method to include the additional linear layer. We also need to ensure that our new config class is registered with our new model as the :py:meth:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel.config_class` attribute. In the :py:class:`~lightning_ir.bi_encoder.model.BiEncoderModel.encode` method, the :py:meth:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel._backbone_forward` method runs the backbone model and returns the contextualized embeddings of the input sequence. We then apply our additional linear layer to the pooled embeddings. Afterwards, the various steps of the processing pipeline for bi-encoders are applied (see :ref:`concepts-model` for more details). For example:
 
 .. code-block:: python
     
@@ -69,7 +69,7 @@ Next, we need to subclass the :py:class:`lightning_ir.bi_encoder.model.BiEncoder
             )
             return BiEncoderEmbedding(embeddings, scoring_mask)
 
-Finally, to make sure we can use our new model within the Hugging Face ecosystem, we need to register our model with the Hugging Face auto loading mechanism. We additionally need to register the :py:class:`~lightning_ir.bi_encoder.tokenizer.BiEncoderTokenizer` to ensure it is loaded when loading our new model. We can do this by adding the following code to our model file:
+Finally, to make sure we can use our new model within the Hugging Face ecosystem, we need to register our model with the Hugging Face auto loading mechanism. We additionally need to register the :py:class:`~lightning_ir.bi_encoder.bi_encoder_tokenizer.BiEncoderTokenizer` to ensure it is loaded when loading our new model. We can do this by adding the following code to our model file:
 
 .. code-block:: python
 
@@ -117,7 +117,7 @@ Here is the full code for our custom bi-encoder model:
 Cross-Encoder
 -------------
 
-Say we wanted to build a custom cross-encoder model that adds an additional linear layer on top of the pooled embeddings. If we wanted to make this option configurable, we would first need to subclass the :py:class:`~lightning_ir.cross_encoder.config.CrossEncoderConfig` and add a new attribute for the additional linear layer. We must also assign a new ``model_type`` to our model. For example:
+Say we wanted to build a custom cross-encoder model that adds an additional linear layer on top of the pooled embeddings. If we wanted to make this option configurable, we would first need to subclass the :py:class:`~lightning_ir.cross_encoder.cross_encoder_config.CrossEncoderConfig` and add a new attribute for the additional linear layer. We must also assign a new ``model_type`` to our model. For example:
 
 .. code-block:: python
 
@@ -130,7 +130,7 @@ Say we wanted to build a custom cross-encoder model that adds an additional line
             super().__init__(**kwargs)
             self.additional_linear_layer = additional_linear_layer
 
-Next, we need to subclass the :py:class:`~lightning_ir.cross_encoder.model.CrossEncoderModel` and override the :py:meth:`~lightning_ir.cross_encoder.model.CrossEncoderModel.forward` method to include the additional linear layer. We also need to ensure that our new config class is registered with our new model as the :py:attr:`~lightning_ir.cross_encoder.model.CrossEncoderModel.config_class` attribute. In the :py:meth:`~lightning_ir.cross_encoder.model.CrossEncoderModel.forward` method, the :py:meth:`~lightning_ir.cross_encoder.model.CrossEncoderModel._backbone_forward` method runs the backbone model and returns the contextualized embeddings of the input sequence. The :py:meth:`~lightning_ir.cross_encoder.model.CrossEncoderModel._pooling` method aggregates the embeddings based on the pooling strategy specified in the config. We then apply our additional linear layer to the pooled embeddings and finally use a linear layer to compute the final relevance score. For example:
+Next, we need to subclass the :py:class:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel` and override the :py:meth:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel.forward` method to include the additional linear layer. We also need to ensure that our new config class is registered with our new model as the :py:attr:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel.config_class` attribute. In the :py:meth:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel.forward` method, the :py:meth:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel._backbone_forward` method runs the backbone model and returns the contextualized embeddings of the input sequence. The :py:meth:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel._pooling` method aggregates the embeddings based on the pooling strategy specified in the config. We then apply our additional linear layer to the pooled embeddings and finally use a linear layer to compute the final relevance score. For example:
 
 .. code-block:: python
     
@@ -165,7 +165,7 @@ Next, we need to subclass the :py:class:`~lightning_ir.cross_encoder.model.Cross
 
 
 
-Finally, to make sure we can use our new model within the Hugging Face ecosystem, we need to register our model with the Hugging Face auto loading mechanism. We additionally need to register the :py:class:`~lightning_ir.cross_encoder.tokenizer.CrossEncoderTokenizer` to ensure it is loaded when loading our new model. We can do this by adding the following code to our model file:
+Finally, to make sure we can use our new model within the Hugging Face ecosystem, we need to register our model with the Hugging Face auto loading mechanism. We additionally need to register the :py:class:`~lightning_ir.cross_encoder.cross_encoder_tokenizer.CrossEncoderTokenizer` to ensure it is loaded when loading our new model. We can do this by adding the following code to our model file:
 
 .. code-block:: python
 
