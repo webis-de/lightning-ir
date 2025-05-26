@@ -3,6 +3,7 @@ from typing import Literal, Sequence
 
 from transformers import BatchEncoding
 
+from lightning_ir.bi_encoder.model import BiEncoderEmbedding
 import torch
 
 from lightning_ir.models.mvr.config import MVRConfig
@@ -73,3 +74,27 @@ class MVRModel(BiEncoderModel):
                 return torch.ones((shape[0], (self.config.num_viewer_tokens)), dtype=torch.bool, device=device)
             return torch.ones((shape[0], 1), dtype=torch.bool, device=device)
         return super().scoring_mask
+    
+    def score(
+        self,
+        query_embeddings: BiEncoderEmbedding,
+        doc_embeddings: BiEncoderEmbedding,
+        num_docs: Sequence[int] | int | None = None,
+    ) -> torch.Tensor:
+        """Compute relevance scores between queries and documents.
+
+        :param query_embeddings: Embeddings and scoring mask for the queries
+        :type query_embeddings: BiEncoderEmbedding
+        :param doc_embeddings: Embeddings and scoring mask for the documents
+        :type doc_embeddings: BiEncoderEmbedding
+        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
+            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
+            sequence contains one value per query specifying the number of documents for that query. If an integer,
+            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
+            the number of documents by the number of queries, defaults to None
+        :type num_docs: Sequence[int] | int | None, optional
+        :return: Relevance scores
+        :rtype: torch.Tensor
+        """
+        scores,_ = self.scoring_function(query_embeddings, doc_embeddings, num_docs=num_docs)
+        return scores
