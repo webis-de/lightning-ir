@@ -32,7 +32,7 @@ The following sections provide a step-by-step example of how to fine-tune a bi-e
 Fine-Tuning
 +++++++++++
 
-To fine-tune a model you need to define the model module (either a :py:class:`~lightning_ir.bi_encoder.bi-encoder-module.BiEncoderModule` or a :py:class:`~lightning_ir.cross_encoder.cross-encoder-module.CrossEncoderModule`), the :py:class:`~lightning_ir.data.datamodule.LightningIRDataModule` (which has either a :py:class:`~lightning_ir.data.dataset.TupleDataset` or :py:class:`~lightning_ir.data.dataset.RunDataset` training dataset), and the :py:class:`~lightning_ir.main.LightningIRTrainer` settings.   
+To fine-tune a model you need to define the model module (either a :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule` or a :py:class:`~lightning_ir.cross_encoder.cross_encoder_module.CrossEncoderModule`), the :py:class:`~lightning_ir.data.datamodule.LightningIRDataModule` (which has either a :py:class:`~lightning_ir.data.dataset.TupleDataset` or :py:class:`~lightning_ir.data.dataset.RunDataset` training dataset), and the :py:class:`~lightning_ir.main.LightningIRTrainer` settings.   
 
 The following command and configuration file demonstrates how to fine-tune a bi-encoder (or cross-encoder) on the MS MARCO passage ranking dataset using the CLI.
 
@@ -57,7 +57,7 @@ The following script demonstrates how to do the same but programatically.
 Indexing
 ++++++++
 
-For indexing, you need an already fine-tuned :py:class:`~lightning_ir.bi_encoder.bi-encoder-model.BiEncoderModel`. See the :ref:`model-zoo` for examples. Depending on the bi-encoder model type, you need to select the appropriate :py:class:`~lightning_ir.retrieve.base.indexer.IndexConfig` to pass to the :py:class:`~lightning_ir.callbacks.callbacks.IndexCallback`. In addition, you need to specify the :py:class:`~lightning_ir.data.dataset.DocDataset` to index. The model module, data module, and indexing callback are then passed to the trainer to run the indexing.
+For indexing, you need an already fine-tuned :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel`. See the :ref:`model-zoo` for examples. Depending on the bi-encoder model type, you need to select the appropriate :py:class:`~lightning_ir.retrieve.base.indexer.IndexConfig` to pass to the :py:class:`~lightning_ir.callbacks.callbacks.IndexCallback`. In addition, you need to specify the :py:class:`~lightning_ir.data.dataset.DocDataset` to index. The model module, data module, and indexing callback are then passed to the trainer to run the indexing.
 
 The following command and configuration file demonstrate how to index the MS MARCO passage ranking dataset using an already fine-tuned bi-encoder and `faiss <https://faiss.ai/>`_.
 
@@ -82,7 +82,7 @@ The following script demonstrates how to do the same but programatically.
 Searching
 +++++++++
 
-For searching, you need an already fine-tuned :py:class:`~lightning_ir.bi_encoder.bi-encoder-model.BiEncoderModel`. See the :ref:`model-zoo` for examples. Additionally, you must have created an index using the :ref:`indexing` step. The search is performed using the :py:class:`~lightning_ir.callbacks.callbacks.SearchCallback` which requires a :py:class:`~lightning_ir.retrieve.base.searcher.SearchConfig` that corresponds to the :py:class:`~lightning_ir.retrieve.base.indexer.IndexConfig` used during indexing. The data module must receive a :py:class:`~lightning_ir.data.dataset.QueryDataset` to iterate over a set of queries. The model module, data module, and searching callback are then passed to the trainer to run searching. If the dataset has relevance judgements and a set of evaluation metrics are passed to the model, the trainer will report effectiveness metrics.
+For searching, you need an already fine-tuned :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel`. See the :ref:`model-zoo` for examples. Additionally, you must have created an index using the :ref:`indexing` step. The search is performed using the :py:class:`~lightning_ir.callbacks.callbacks.SearchCallback` which requires a :py:class:`~lightning_ir.retrieve.base.searcher.SearchConfig` that corresponds to the :py:class:`~lightning_ir.retrieve.base.indexer.IndexConfig` used during indexing. The data module must receive a :py:class:`~lightning_ir.data.dataset.QueryDataset` to iterate over a set of queries. The model module, data module, and searching callback are then passed to the trainer to run searching. If the dataset has relevance judgements and a set of evaluation metrics are passed to the model, the trainer will report effectiveness metrics.
 
 The following command and configuration file demonstrate how to retrieve the top-100 passages for each query from the TREC Deep Learning 2019 and 2020 tracks. After searching, the results are saved in a run file and the effectiveness is reported using nDCG\@10.
 
@@ -105,7 +105,7 @@ The following script demonstrates how to do the same but programatically.
 Re-Ranking
 ++++++++++
 
-For re-ranking, you need an already fine-tuned :py:class:`~lightning_ir.bi_encoder.bi-encoder-model.BiEncoderModel` or :py:class:`~lightning_ir.cross_encoder.cross-encoder-model.CrossEncoderModel` (the latter are usually more effective). The data module must receive a :py:class:`~lightning_ir.data.dataset.RunDataset` which loads the run file to re-rank. To save the re-ranked file you need to specify a :py:class:`~lightning_ir.callbacks.callbacks.ReRankCallback`. The model module, data module, and re-ranking callback are then passed to the trainer to run re-ranking. If the dataset has relevance judgements and a set of evaluation metrics are passed to the model, the trainer will report effectiveness metrics.
+For re-ranking, you need an already fine-tuned :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel` or :py:class:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel` (the latter are usually more effective). The data module must receive a :py:class:`~lightning_ir.data.dataset.RunDataset` which loads the run file to re-rank. To save the re-ranked file you need to specify a :py:class:`~lightning_ir.callbacks.callbacks.ReRankCallback`. The model module, data module, and re-ranking callback are then passed to the trainer to run re-ranking. If the dataset has relevance judgements and a set of evaluation metrics are passed to the model, the trainer will report effectiveness metrics.
 
 The following command and configuration file demonstrate how to re-rank the top-100 passages for each query from the TREC Deep Learning 2019 and 2020 tracks using a cross-encoder. After re-ranking, the results are saved in a run file and the effectiveness is reported using nDCG\@10.
 
