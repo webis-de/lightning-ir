@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gc
 import itertools
 from dataclasses import is_dataclass
 from pathlib import Path
@@ -474,6 +475,8 @@ class SearchCallback(RankCallback, _IndexDirMixin):
                 return self.searcher
             # free up memory
             del self.searcher
+            gc.collect()
+            torch.cuda.empty_cache()
 
         searcher = self.search_config.search_class(index_dir, self.search_config, pl_module, self.use_gpu)
         return searcher
