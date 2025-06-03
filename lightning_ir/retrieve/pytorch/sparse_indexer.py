@@ -39,16 +39,25 @@ class TorchSparseIndexer(Indexer):
         num_docs = len(index_batch.doc_ids)
         self.doc_ids.extend(index_batch.doc_ids)
 
-        token_idcs, dim_idcs = torch.nonzero(embeddings, as_tuple=True)
-        crow_indices = token_idcs.bincount().cumsum(0) + self.crow_indices[-1]
-        values = embeddings[token_idcs, dim_idcs]
+        crow_indices, col_indices, values = self.to_sparse_csr(embeddings)
+        crow_indices += self.crow_indices[-1]
+
         self.crow_indices.extend(crow_indices.cpu().tolist())
-        self.col_indices.extend(dim_idcs.cpu().tolist())
+        self.col_indices.extend(col_indices.cpu().tolist())
         self.values.extend(values.cpu().tolist())
 
         self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
         self.num_embeddings += embeddings.shape[0]
         self.num_docs += num_docs
+
+    @staticmethod
+    def to_sparse_csr(
+        embeddings: torch.Tensor,
+    ) -> torch.Tensor:
+        token_idcs, dim_idcs = torch.nonzero(embeddings, as_tuple=True)
+        crow_indices = token_idcs.bincount().cumsum(0)
+        values = embeddings[token_idcs, dim_idcs]
+        return crow_indices, dim_idcs, values
 
     def to_gpu(self) -> None:
         pass
