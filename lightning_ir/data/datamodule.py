@@ -140,8 +140,16 @@ class LightningIRDataModule(LightningDataModule):
         """
         return self.inference_dataloader()
 
+    def predict_dataloader(self) -> Any:
+        """Returns a list of dataloaders for predicting.
+
+        :return: Dataloaders for predicting
+        :rtype: List[DataLoader]
+        """
+        return self.inference_dataloader()
+
     def inference_dataloader(self) -> List[DataLoader]:
-        """Returns a list of dataloaders for inference (testing or validation).
+        """Returns a list of dataloaders for inference (validation, testing, or predicting).
 
         :return: Dataloaders for inference
         :rtype: List[DataLoader]
