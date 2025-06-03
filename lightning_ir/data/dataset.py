@@ -135,7 +135,7 @@ class IRDataset:
         """
         if self._qrels is not None:
             return self._qrels
-        if self.ir_dataset is None:
+        if self.ir_dataset is None or not self.ir_dataset.has_qrels():
             return None
         qrels = pd.DataFrame(self.ir_dataset.qrels_iter()).rename({"subtopic_id": "iteration"}, axis=1)
         if "iteration" not in qrels.columns:
@@ -154,7 +154,7 @@ class IRDataset:
         if self.ir_dataset is None:
             return
         if self.ir_dataset.has(constituent):
-            if constituent == "docs":
+            if constituent == "docs" and hasattr(self.ir_dataset, "docs_store"):
                 # build docs store if not already built
                 docs_store = self.ir_dataset.docs_store()
                 if not docs_store.built():
@@ -264,7 +264,7 @@ class DocDataset(IRDataset, _DataParallelIterableDataset):
         # TODO fix len for multi-gpu and multi-worker inference
         num_docs = self.num_docs or self.ir_dataset.docs_count()
         if num_docs is None:
-            raise ValueError("Unable to determine number of documents.")
+            raise TypeError("Unable to determine number of documents.")
         return num_docs
 
     def __iter__(self) -> Iterator[DocSample]:
