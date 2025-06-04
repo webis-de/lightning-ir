@@ -114,9 +114,17 @@ class BiEncoderModule(LightningIRModule):
         output = self.model.forward(
             encodings.get("query_encoding", None), encodings.get("doc_encoding", None), num_docs
         )
+        doc_ids = getattr(batch, "doc_ids", None)
+        if doc_ids is not None and output.doc_embeddings is not None:
+            output.doc_embeddings.ids = doc_ids
+        query_ids = getattr(batch, "query_ids", None)
+        if query_ids is not None and output.query_embeddings is not None:
+            output.query_embeddings.ids = query_ids
         if isinstance(batch, SearchBatch) and self.searcher is not None:
             scores, doc_ids = self.searcher.search(output)
             output.scores = scores
+            if output.doc_embeddings is not None:
+                output.doc_embeddings.ids = [doc_id for _doc_ids in doc_ids for doc_id in _doc_ids]
             batch.doc_ids = doc_ids
         return output
 

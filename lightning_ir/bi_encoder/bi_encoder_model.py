@@ -7,7 +7,7 @@ This module defines the model class used to implement bi-encoder models.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from string import punctuation
-from typing import Iterable, Literal, Self, Sequence, Tuple, Type, overload
+from typing import Iterable, List, Literal, Self, Sequence, Tuple, Type, overload
 
 import torch
 from transformers import BatchEncoding
@@ -28,6 +28,8 @@ class BiEncoderEmbedding:
     """Mask tensor designating which vectors should be ignored during scoring."""
     encoding: BatchEncoding | None
     """Tokenizer encodings used to generate the embeddings."""
+    ids: List[str] | None = None
+    """List of ids for the embeddings, e.g., query or document ids."""
 
     @overload
     def to(self, device: torch.device, /) -> Self: ...
