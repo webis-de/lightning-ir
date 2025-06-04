@@ -57,6 +57,7 @@ class _IndexDirMixin:
     """Mixin to get index_dir"""
 
     index_dir: Path | str | None
+    index_name: str | None
 
     def _get_index_dir(self, pl_module: BiEncoderModule, dataset: DocDataset) -> Path:
         index_dir = self.index_dir
@@ -67,7 +68,10 @@ class _IndexDirMixin:
             else:
                 raise ValueError("No index_dir provided and model_name_or_path is not a path")
         index_dir = Path(index_dir)
-        index_dir = index_dir / dataset.docs_dataset_id
+        if self.index_name is None:
+            index_dir = index_dir / dataset.docs_dataset_id
+        else:
+            index_dir = index_dir / self.index_name
         return index_dir
 
 
@@ -119,6 +123,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         self,
         index_config: IndexConfig,
         index_dir: Path | str | None = None,
+        index_name: str | None = None,
         overwrite: bool = False,
         verbose: bool = False,
     ) -> None:
@@ -129,6 +134,9 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         :param index_dir: Directory to save index(es) to. If None, indexes will be stored in the model's directory,
             defaults to None
         :type index_dir: Path | str | None, optional
+        :param index_name: Name of the index. If None, the dataset's dataset_id or file name will be used,
+            defaults to None
+        :type index_name: str | None, optional
         :param overwrite: Whether to skip or overwrite already existing indexes, defaults to False
         :type overwrite: bool, optional
         :param verbose: Toggle verbose output, defaults to False
@@ -137,6 +145,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         super().__init__()
         self.index_config = index_config
         self.index_dir = index_dir
+        self.index_name = index_name
         self.overwrite = overwrite
         self.verbose = verbose
         self.indexer: Indexer
