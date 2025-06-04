@@ -443,6 +443,7 @@ class SearchCallback(RankCallback, _IndexDirMixin):
         self,
         search_config: SearchConfig,
         index_dir: Path | str | None = None,
+        index_name: str | None = None,
         save_dir: Path | str | None = None,
         run_name: str | None = None,
         overwrite: bool = False,
@@ -454,6 +455,9 @@ class SearchCallback(RankCallback, _IndexDirMixin):
         :type search_config: SearchConfig
         :param index_dir: Directory where indexes are stored, defaults to None
         :type index_dir: Path | str | None, optional
+        :param index_name: Name of the index. If None, the dataset's dataset_id or file name will be used,
+            defaults to None
+        :type index_name: str | None, optional
         :param save_dir: Directory to save run files to. If None, run files are saved in the model's directory,
             defaults to None
         :type save_dir: Path | str | None, optional
@@ -468,6 +472,7 @@ class SearchCallback(RankCallback, _IndexDirMixin):
         super().__init__(save_dir=save_dir, run_name=run_name, overwrite=overwrite)
         self.search_config = search_config
         self.index_dir = index_dir
+        self.index_name = index_name
         self.overwrite = overwrite
         self.use_gpu = use_gpu
         self.searcher: Searcher
