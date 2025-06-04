@@ -40,6 +40,7 @@ class TorchSparseIndexer(Indexer):
         self.doc_ids.extend(index_batch.doc_ids)
 
         crow_indices, col_indices, values = self.to_sparse_csr(embeddings)
+        crow_indices = crow_indices[1:]  # remove the first element which is always 0
         crow_indices += self.crow_indices[-1]
 
         self.crow_indices.extend(crow_indices.cpu().tolist())
@@ -55,7 +56,7 @@ class TorchSparseIndexer(Indexer):
         embeddings: torch.Tensor,
     ) -> torch.Tensor:
         token_idcs, dim_idcs = torch.nonzero(embeddings, as_tuple=True)
-        crow_indices = token_idcs.bincount().cumsum(0)
+        crow_indices = (token_idcs + 1).bincount().cumsum(0)
         values = embeddings[token_idcs, dim_idcs]
         return crow_indices, dim_idcs, values
 
