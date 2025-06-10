@@ -60,7 +60,7 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         if add_marker_tokens:
             # TODO support other tokenizers
             if not isinstance(self, (BertTokenizer, BertTokenizerFast)):
-                raise ValueError("Adding marker tokens is only supported for BertTokenizer.")
+                warnings.warn(f"Adding marker tokens may not be supported for {type(self)}.")
             self.add_tokens([self.QUERY_TOKEN, self.DOC_TOKEN], special_tokens=True)
             self.query_post_processor = TemplateProcessing(
                 single=f"[CLS] {self.QUERY_TOKEN} $0 [SEP]",
