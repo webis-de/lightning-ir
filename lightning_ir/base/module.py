@@ -14,7 +14,7 @@ from lightning import LightningModule
 from lightning.pytorch.trainer.states import RunningStage
 from transformers import BatchEncoding
 
-from ..data import LightningIRDataModule, RankBatch, RunDataset, SearchBatch, TrainBatch
+from ..data import RankBatch, RunDataset, SearchBatch, TrainBatch
 from ..data.dataset import IRDataset
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
@@ -414,10 +414,9 @@ class LightningIRModule(LightningModule):
         df = df.pivot(index="dataset", columns="metric", values="value")
         df.columns.name = None
 
-        datamodule: LightningIRDataModule | None = getattr(trainer, "datamodule", None)
-        if datamodule is not None and datamodule.inference_datasets is not None:
-            dataset_ids = [dataset.dataset_id for dataset in datamodule.inference_datasets]
-            df = df.reindex(dataset_ids)
+        # bring into correct order when skipping inference datasets
+        dataset_ids = [self.get_dataset_id(i) for i in range(df.shape[0])]
+        df = df.reindex(dataset_ids)
 
         trainer.print(df)
 
