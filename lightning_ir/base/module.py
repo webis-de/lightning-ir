@@ -14,7 +14,7 @@ from lightning import LightningModule
 from lightning.pytorch.trainer.states import RunningStage
 from transformers import BatchEncoding
 
-from ..data import LightningIRDataModule, RankBatch, RunDataset, SearchBatch, TrainBatch
+from ..data import RankBatch, RunDataset, SearchBatch, TrainBatch
 from ..data.dataset import IRDataset
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
