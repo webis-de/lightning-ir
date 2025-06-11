@@ -5,7 +5,7 @@ transformers.AdamW = None
 
 from colbert.modeling.checkpoint import Checkpoint  # noqa: E402
 from colbert.modeling.colbert import ColBERTConfig, colbert_score  # noqa: E402
-from pylate import models, rank
+from pylate import models, rank  # noqa: E402
 
 from lightning_ir import BiEncoderModule  # noqa: E402
 
