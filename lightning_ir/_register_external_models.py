@@ -1,7 +1,7 @@
 import warnings
 
-from safetensors.torch import load_file
 from huggingface_hub import hf_hub_download
+from safetensors.torch import load_file
 
 from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
 from .models import ColConfig, DprConfig, SpladeConfig, T5CrossEncoderConfig
