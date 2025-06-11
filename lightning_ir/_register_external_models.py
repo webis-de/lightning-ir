@@ -1,5 +1,8 @@
 import warnings
 
+from safetensors.torch import load_file
+from huggingface_hub import hf_hub_download
+
 from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
 from .models import ColConfig, DprConfig, SpladeConfig, T5CrossEncoderConfig
 
@@ -12,6 +15,22 @@ def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
     embeddings = model.embeddings.word_embeddings.weight.data
     embeddings[query_token_id] = embeddings[1]  # [unused0]
     embeddings[doc_token_id] = embeddings[2]  # [unused1]
+    return model
+
+
+def _map_moderncolbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
+    config = model.config
+    query_token_id = config.vocab_size
+    doc_token_id = config.vocab_size + 1
+    model.resize_token_embeddings(config.vocab_size + 2, 8)
+    embeddings = model.embeddings.tok_embeddings.weight.data
+    embeddings[query_token_id] = embeddings[50368]  # [unused0]
+    embeddings[doc_token_id] = embeddings[50369]  # [unused1]
+
+    path = hf_hub_download("lightonai/GTE-ModernColBERT-v1", filename="model.safetensors", subfolder="1_Dense")
+    state_dict = load_file(path)
+    state_dict["weight"] = state_dict.pop("linear.weight")
+    model.projection.load_state_dict(state_dict)
     return model
 
 
@@ -46,6 +65,15 @@ def _register_external_models():
                 query_expansion=True,
                 doc_mask_scoring_tokens="punctuation",
             ),
+            "lightonai/GTE-ModernColBERT-v1": ColConfig(
+                query_length=32,
+                doc_length=296,
+                add_marker_tokens=True,
+                normalize=True,
+                query_expansion=True,
+                projection="linear_no_bias",
+                doc_mask_scoring_tokens="punctuation",
+            ),
             "naver/splade-v3": SpladeConfig(),
             "sentence-transformers/msmarco-bert-base-dot-v5": DprConfig(
                 projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
@@ -75,6 +103,7 @@ def _register_external_models():
     POST_LOAD_CALLBACKS.update(
         {
             "colbert-ir/colbertv2.0": _map_colbert_marker_tokens,
+            "lightonai/GTE-ModernColBERT-v1": _map_moderncolbert_marker_tokens,
             "castorini/monot5-base-msmarco-10k": _map_mono_t5_weights,
             "castorini/monot5-base-msmarco": _map_mono_t5_weights,
             "castorini/monot5-large-msmarco-10k": _map_mono_t5_weights,

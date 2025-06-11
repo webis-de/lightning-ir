@@ -20,6 +20,11 @@ Model Name,Native,NanoBEIR
     .. csv-table::
        :file: ./nanobeir_details_external_colbert.csv
        :header-rows: 0"
+"`lightonai/GTE-ModernColBERT-v1 <https://huggingface.co/lightonai/GTE-ModernColBERT-v1>`_",|x|,".. collapse:: 0.697
+
+    .. csv-table::
+       :file: ./nanobeir_details_external_moderncol.csv
+       :header-rows: 0"
 "`webis/splade <https://huggingface.co/webis/splade>`_",|c|,".. collapse:: 0.619
 
     .. csv-table::

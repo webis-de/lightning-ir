@@ -13,5 +13,6 @@ Model Name,Native,TREC DL 2019,TREC DL 2020
 "`sentence-transformers/msmarco-bert-base-dot-v5 <https://huggingface.co/sentence-transformers/msmarco-bert-base-dot-v5>`_",|x|,0.705,0.735
 "`webis/colbert <https://huggingface.co/webis/colbert>`_",|c|,0.751,0.749
 "`colbert-ir/colbertv2.0 <https://huggingface.co/colbert-ir/colbertv2.0>`_",|x|,0.732,0.746
+"`lightonai/GTE-ModernColBERT-v1 <https://huggingface.co/lightonai/GTE-ModernColBERT-v1>`_",|x|,0.722,0.737
 "`webis/splade <https://huggingface.co/webis/splade>`_",|c|,0.736,0.723
 "`naver/splade-v3 <https://huggingface.co/naver/splade-v3>`_",|x|,0.715,0.749
