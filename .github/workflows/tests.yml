@@ -26,8 +26,7 @@ jobs:
         working-directory: ${{github.workspace}}
         run: |
           # Since splade makes problems otherwise:
-          pip3 install "splade@git+https://github.com/naver/splade.git" --no-deps
-          pip3 install omegaconf==2.1.2
+          pip3 install "splade@git+https://github.com/naver/splade.git" pylate --no-deps
           pip3 install .[test,dev]
       - name: Run tests
         working-directory: ${{github.workspace}}
