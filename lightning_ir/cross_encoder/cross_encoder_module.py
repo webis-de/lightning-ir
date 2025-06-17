@@ -4,7 +4,7 @@ Module module for cross-encoder models.
 This module defines the Lightning IR module class used to implement cross-encoder models.
 """
 
-from typing import List, Sequence, Tuple
+from typing import Any, List, Mapping, Sequence, Tuple
 
 import torch
 
@@ -24,6 +24,7 @@ class CrossEncoderModule(LightningIRModule):
         model: CrossEncoderModel | None = None,
         loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
+        model_kwargs: Mapping[str, Any] | None = None,
     ):
         """:class:`.LightningIRModule` for cross-encoder models. It contains a :class:`.CrossEncoderModel` and a
         :class:`.CrossEncoderTokenizer` and implements the training, validation, and testing steps for the model.
@@ -41,8 +42,12 @@ class CrossEncoderModule(LightningIRModule):
         :type loss_functions: Sequence[LossFunction  |  Tuple[LossFunction, float]] | None, optional
         :param evaluation_metrics: Metrics corresponding to ir-measures_ measure strings to apply during validation or
             testing, defaults to None
+        :type evaluation_metrics: Sequence[str] | None, optional
+        :param model_kwargs: Additional keyword arguments to pass to `from_pretrained` when loading a model,
+            defaults to None
+        :type model_kwargs: Mapping[str, Any] | None, optional
         """
-        super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics)
+        super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics, model_kwargs)
         self.model: CrossEncoderModel
         self.config: CrossEncoderConfig
         self.tokenizer: CrossEncoderTokenizer

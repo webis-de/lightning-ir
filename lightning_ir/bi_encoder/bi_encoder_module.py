@@ -7,7 +7,7 @@ This module defines the Lightning IR module class used to implement bi-encoder m
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, List, Mapping, Sequence, Tuple
 
 import torch
 from transformers import BatchEncoding
@@ -33,6 +33,7 @@ class BiEncoderModule(LightningIRModule):
         evaluation_metrics: Sequence[str] | None = None,
         index_dir: Path | None = None,
         search_config: SearchConfig | None = None,
+        model_kwargs: Mapping[str, Any] | None = None,
     ):
         """:class:`.LightningIRModule` for bi-encoder models. It contains a :class:`.BiEncoderModel` and a
         :class:`.BiEncoderTokenizer` and implements the training, validation, and testing steps for the model.
@@ -55,8 +56,11 @@ class BiEncoderModule(LightningIRModule):
         :type index_dir: Path | None, optional
         :param search_config: Configuration to use during retrieval, defaults to None
         :type search_config: SearchConfig | None, optional
+        :param model_kwargs: Additional keyword arguments to pass to `from_pretrained` when loading a model,
+            defaults to None
+        :type model_kwargs: Mapping[str, Any] | None, optional
         """
-        super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics)
+        super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics, model_kwargs)
         self.model: BiEncoderModel
         self.config: BiEncoderConfig
         self.tokenizer: BiEncoderTokenizer

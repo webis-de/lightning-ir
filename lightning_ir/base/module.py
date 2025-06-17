@@ -6,7 +6,7 @@ This module contains the main module class deriving from a LightningModule_.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple, Type
+from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
 
 import pandas as pd
 import torch
@@ -38,6 +38,7 @@ class LightningIRModule(LightningModule):
         model: LightningIRModel | None = None,
         loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
+        model_kwargs: Mapping[str, Any] | None = None,
     ):
         """Initializes the LightningIRModule.
 
@@ -55,17 +56,21 @@ class LightningIRModule(LightningModule):
         :param evaluation_metrics: Metrics corresponding to ir-measures_ measure strings to apply during validation or
             testing, defaults to None
         :type evaluation_metrics: Sequence[str] | None, optional
+        :param model_kwargs: Additional keyword arguments to pass to `from_pretrained` when loading a model,
+            defaults to None
+        :type model_kwargs: Mapping[str, Any] | None, optional
         :raises ValueError: If both model and model_name_or_path are provided
         :raises ValueError: If neither model nor model_name_or_path are provided
         """
         super().__init__()
+        model_kwargs = model_kwargs if model_kwargs is not None else {}
         self.save_hyperparameters()
         if model is not None and model_name_or_path is not None:
             raise ValueError("Only one of model or model_name_or_path must be provided.")
         if model is None:
             if model_name_or_path is None:
                 raise ValueError("Either model or model_name_or_path must be provided.")
-            model = LightningIRModel.from_pretrained(model_name_or_path, config=config)
+            model = LightningIRModel.from_pretrained(model_name_or_path, config=config, **model_kwargs)
 
         self.model: LightningIRModel = model
         self.config = self.model.config
