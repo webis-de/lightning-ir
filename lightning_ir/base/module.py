@@ -14,8 +14,7 @@ from lightning import LightningModule
 from lightning.pytorch.trainer.states import RunningStage
 from transformers import BatchEncoding
 
-from ..data import RankBatch, RunDataset, SearchBatch, TrainBatch
-from ..data.dataset import IRDataset
+from ..data import IRDataset, RankBatch, RunDataset, SearchBatch, TrainBatch
 from ..loss.loss import InBatchLossFunction, LossFunction
 from .config import LightningIRConfig
 from .model import LightningIRModel, LightningIROutput
@@ -235,7 +234,8 @@ class LightningIRModule(LightningModule):
         if self.evaluation_metrics is None:
             return output
 
-        dataset_id = self.get_dataset_id(dataloader_idx)
+        dataset = self.get_dataset(dataloader_idx)
+        dataset_id = str(dataloader_idx) if dataset is None else self.get_dataset_id(dataset)
         metrics = self.validate(output, batch)
         for key, value in metrics.items():
             key = f"{dataset_id}/{key}"
@@ -290,7 +290,7 @@ class LightningIRModule(LightningModule):
             dataloaders = [dataloaders]
         return dataloaders[dataloader_idx].dataset
 
-    def get_dataset_id(self, dataloader_idx: int) -> str:
+    def get_dataset_id(self, dataset: IRDataset) -> str:
         """Gets the dataset id from the dataloader index for logging.
 
         .. _ir-datasets: https://ir-datasets.com/
@@ -300,9 +300,6 @@ class LightningIRModule(LightningModule):
         :return: path to run file, ir-datasets_ dataset id, or dataloader index
         :rtype: str
         """
-        dataset = self.get_dataset(dataloader_idx)
-        if dataset is None:
-            return str(dataloader_idx)
         if isinstance(dataset, RunDataset) and dataset.run_path is not None:
             dataset_id = dataset.run_path.name
         else:
@@ -420,7 +417,15 @@ class LightningIRModule(LightningModule):
         df.columns.name = None
 
         # bring into correct order when skipping inference datasets
-        dataset_ids = [self.get_dataset_id(i) for i in range(df.shape[0])]
+        datamodule = getattr(self.trainer, "datamodule", None)
+        if datamodule is not None and hasattr(datamodule, "inference_datasets"):
+            inference_datasets = datamodule.inference_datasets
+            if len(inference_datasets) != df.shape[0]:
+                raise ValueError(
+                    "Number of inference datasets does not match number of dataloaders. "
+                    "Check if the dataloaders are correctly configured."
+                )
+            dataset_ids = [self.get_dataset_id(dataset) for dataset in inference_datasets]
         df = df.reindex(dataset_ids)
 
         trainer.print(df)
