@@ -20,6 +20,17 @@ from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
 
 
+def _update_config_with_kwargs(config: LightningIRConfig, **kwargs):
+    config.update(kwargs)
+
+    used_keys = set(config.to_dict().keys()) & set(kwargs.keys())
+
+    for key in used_keys:
+        kwargs.pop(key)
+
+    return config, kwargs
+
+
 @dataclass
 class LightningIROutput(ModelOutput):
     """Base class for the output of the Lightning IR model. It is a subclass of transformers.ModelOutput_.
@@ -184,10 +195,15 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             )
             BackboneModel = _get_model_class(backbone_config)
             cls = LightningIRModelClassFactory(ConfigClass).from_backbone_class(BackboneModel)
-            if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
-                derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)
-                derived_config.update(config.to_dict())
-                kwargs["config"] = derived_config
+            if config is not None:
+                if all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
+                    derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)
+                    derived_config.update(config.to_dict())
+                    config = derived_config
+                    kwargs["config"] = config
+                # NOTE 'config' is contained in kwargs, so we can update it
+                config, kwargs = _update_config_with_kwargs(**kwargs)
+                kwargs["config"] = config
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         if issubclass(cls, BertModel):
             kwargs["add_pooling_layer"] = False
