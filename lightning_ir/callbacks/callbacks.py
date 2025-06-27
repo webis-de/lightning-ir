@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import gc
 import itertools
 from dataclasses import is_dataclass
@@ -383,7 +384,7 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         run_file_path = self._get_save_path(pl_module, dataset)
         run_file_path.parent.mkdir(parents=True, exist_ok=True)
         run_df = pd.concat(self.run_dfs, ignore_index=True)
-        run_df.to_csv(run_file_path, header=False, index=False, sep="\t")
+        run_df.to_csv(run_file_path, header=False, index=False, sep="\t", quoting=csv.QUOTE_NONE)
 
     def on_test_batch_end(
         self,
