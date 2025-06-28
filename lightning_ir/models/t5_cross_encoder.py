@@ -1,3 +1,15 @@
+"""
+Configuration and model implementation for T5 (Text-to-Text Transfer Transformer) type cross-encoder models.
+Originally proposed in
+`Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer
+<https://dl.acm.org/doi/10.5555/3455716.3455856>`_.
+Two decoder strategies are supported:
+- `mono`: The model predicts whether the document is relevant to the query.
+- `rank`: The model predicts a relevance score for the document with respect to the query.
+`RankT5: Fine-Tuning T5 for Text Ranking with Ranking Losses
+<https://dl.acm.org/doi/10.1145/3539618.3592047>`_.
+"""
+
 from typing import Dict, Literal, Sequence, Type
 
 import torch
@@ -9,8 +21,10 @@ from ..cross_encoder.cross_encoder_tokenizer import CrossEncoderTokenizer
 
 
 class T5CrossEncoderConfig(CrossEncoderConfig):
+    """Configuration class for a T5 cross-encoder model."""
 
     model_type = "encoder-decoder-cross-encoder"
+    """Model type for a T5 cross-encoder model."""
 
     def __init__(
         self,
@@ -19,6 +33,17 @@ class T5CrossEncoderConfig(CrossEncoderConfig):
         decoder_strategy: Literal["mono", "rank"] = "mono",
         **kwargs,
     ) -> None:
+        """A T5 cross-encoder model encodes queries and documents jointly. The contextualized embeddings are pooled
+        into a single vector and fed to a linear layer which computes a final relevance score.
+
+        :param query_length: Maximum query length, defaults to 32
+        :type query_length: int, optional
+        :param doc_length: Maximum document length, defaults to 512
+        :type doc_length: int, optional
+        :param decoder_strategy: Strategy for the decoder, either "mono" for binary relevance or "rank" for ranking
+            documents, defaults to "mono"
+        :type decoder_strategy: Literal["mono", "rank"], optional
+        """
         kwargs["pooling_strategy"] = "first"
         super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)
         self.decoder_strategy = decoder_strategy
@@ -34,11 +59,20 @@ class ScaleLinear(torch.nn.Linear):
 
 
 class T5CrossEncoderModel(CrossEncoderModel):
+    """T5 cross-encoder model. See :class:`T5CrossEncoderConfig` for configuration options."""
+
     config_class = T5CrossEncoderConfig
+    """Configuration class for T5 cross-encoder models."""
 
     _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight", "linear.weight"]
+    """Keys of the weights that are tied between the encoder and decoder."""
 
     def __init__(self, config: T5CrossEncoderConfig, *args, **kwargs):
+        """Initializes a T5 cross-encoder model given a :class:`T5CrossEncoderConfig`.
+
+        :param config: Configuration for the T5 cross-encoder model
+        :type config: T5CrossEncoderConfig
+        """
         super().__init__(config, *args, **kwargs)
         self.config: T5CrossEncoderConfig
         if self.config.decoder_strategy == "mono":
@@ -58,6 +92,14 @@ class T5CrossEncoderModel(CrossEncoderModel):
     #     return shared
 
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
+        """Computes contextualized embeddings for the joint query-document input sequence and computes a relevance
+        score.
+
+        :param encoding: Tokenizer encoding for the joint query-document input sequence
+        :type encoding: BatchEncoding
+        :return: Output of the model
+        :rtype: CrossEncoderOutput
+        """
         decoder_input_ids = torch.zeros(
             (encoding["input_ids"].shape[0], 1), device=encoding["input_ids"].device, dtype=torch.long
         )
@@ -73,8 +115,10 @@ class T5CrossEncoderModel(CrossEncoderModel):
 
 
 class T5CrossEncoderTokenizer(CrossEncoderTokenizer):
+    """Tokenizer for T5 cross-encoder models. It formats the input text according to the decoder strategy."""
 
     config_class: Type[T5CrossEncoderConfig] = T5CrossEncoderConfig
+    """Configuration class for T5 cross-encoder tokenizers."""
 
     def __init__(
         self,
@@ -84,6 +128,15 @@ class T5CrossEncoderTokenizer(CrossEncoderTokenizer):
         decoder_strategy: Literal["mono", "rank"] = "mono",
         **kwargs,
     ):
+        """Initializes a T5 cross-encoder tokenizer.
+
+        :param query_length: Maximum query length, defaults to 32
+        :type query_length: int, optional
+        :param doc_length: Maximum document length, defaults to 512
+        :type doc_length: int, optional
+        :param decoder_strategy: Decoder strategy, defaults to "mono"
+        :type decoder_strategy: Literal["mono", "rank"], optional
+        """
         super().__init__(
             *args, query_length=query_length, doc_length=doc_length, decoder_strategy=decoder_strategy, **kwargs
         )
@@ -96,6 +149,17 @@ class T5CrossEncoderTokenizer(CrossEncoderTokenizer):
         num_docs: Sequence[int] | int | None = None,
         **kwargs,
     ) -> Dict[str, BatchEncoding]:
+        """Tokenizes queries and documents into a single sequence of tokens.
+
+        :param queries: Query or list of queries to tokenize, defaults to None
+        :type queries: str | Sequence[str] | None, optional
+        :param docs: Document or list of documents to tokenize, defaults to None
+        :type docs: str | Sequence[str] | None, optional
+        :param num_docs: Number of documents per query, defaults to None
+        :type num_docs: Sequence[int] | int | None, optional
+        :return: Tokenized queries and documents
+        :rtype: Dict[str, BatchEncoding]
+        """
         expanded_queries, docs = self._preprocess(queries, docs, num_docs)
         if self.decoder_strategy == "mono":
             pattern = "Query: {query} Document: {doc} Relevant:"
