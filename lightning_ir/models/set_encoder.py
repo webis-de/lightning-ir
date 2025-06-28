@@ -1,3 +1,9 @@
+"""
+Configuration and model implementation for SetEncoder type models. Originally proposed in
+`Set-Encoder: Permutation-Invariant Inter-passage Attention for Listwise Passage Re-ranking with Cross-Encoders
+<https://link.springer.com/chapter/10.1007/978-3-031-88711-6_1>`_.
+"""
+
 from functools import partial
 from typing import Dict, Sequence, Tuple
 
@@ -11,7 +17,10 @@ from ..cross_encoder.cross_encoder_tokenizer import CrossEncoderTokenizer
 
 
 class SetEncoderConfig(CrossEncoderConfig):
+    """Configuration class for a SetEncoder model."""
+
     model_type = "set-encoder"
+    """Model type for a SetEncoder model."""
 
     def __init__(
         self,
@@ -21,6 +30,18 @@ class SetEncoderConfig(CrossEncoderConfig):
         sample_missing_docs: bool = True,
         **kwargs,
     ):
+        """
+        A SetEncoder model encodes a query and a set of documents jointly.
+        Each passage's embedding is updated with context from the entire set,
+        and a relevance score is computed per passage using a linear layer.
+
+        :param depth: Number of documents to encode per query, defaults to 100
+        :type depth: int, optional
+        :param add_extra_token: Whether to add an extra token to the input sequence to separate the query
+            from the documents, defaults to False
+        :type add_extra_token: bool, optional
+        :param sample_missing_docs: Whether to sample missing documents when the number of documents is less"""
+
         super().__init__(*args, **kwargs)
         self.depth = depth
         self.add_extra_token = add_extra_token
@@ -28,12 +49,18 @@ class SetEncoderConfig(CrossEncoderConfig):
 
 
 class SetEncoderModel(CrossEncoderModel):
+    """SetEncoder model. See :class:`SetEncoderConfig` for configuration options."""
+
     config_class = SetEncoderConfig
     self_attention_pattern = "self"
 
     ALLOW_SUB_BATCHING = False  # listwise model
 
     def __init__(self, config: SetEncoderConfig, *args, **kwargs):
+        """Initializes a SetEncoder model give a :class:`SetEncoderConfig`.
+
+        :param config: Configuration for the SetEncoder model
+        :type config: SetEncoderConfig"""
         super().__init__(config, *args, **kwargs)
         self.config: SetEncoderConfig
         self.attn_implementation = "eager"
@@ -51,6 +78,27 @@ class SetEncoderModel(CrossEncoderModel):
         dtype: torch.dtype | None = None,
         num_docs: Sequence[int] | None = None,
     ) -> torch.Tensor:
+        """
+        Extends the attention mask to account for the number of documents per query.
+
+        :param attention_mask: Attention mask for the input sequence
+        :type attention_mask: torch.Tensor
+        :param input_shape: Shape of the input sequence
+        :type input_shape: Tuple[int, ...]
+        :param device: Device to move the attention mask to, defaults to None
+        :type device: torch.device | None, optional
+        :param dtype: Data type of the attention mask, defaults to None
+        :type dtype: torch.dtype | None, optional
+        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
+            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents,
+            i.e., the sequence contains one value per query specifying the number of documents for that query.
+            If an integer, assumes an equal number of documents per query.
+            If None, tries to infer the number of documents by dividing the number of documents by the number of queries,
+            defaults to None
+        :type num_docs: Sequence[int] | int | None, optional
+        :return: Extended attention mask
+        :rtype: torch.Tensor
+        """
         if num_docs is not None:
             eye = (1 - torch.eye(self.config.depth, device=device)).long()
             if not self.config.sample_missing_docs:
@@ -64,6 +112,14 @@ class SetEncoderModel(CrossEncoderModel):
         return super().get_extended_attention_mask(attention_mask, input_shape, device, dtype)
 
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
+        """Computes contextualized embeddings for the joint query-document input sequence and computes a relevance
+        score.
+
+        :param encoding: Tokenizer encoding for the joint query-document input sequence
+        :type encoding: BatchEncoding
+        :return: Output of the model
+        :rtype: CrossEncoderOutput
+        """
         num_docs = encoding.pop("num_docs", None)
         self.get_extended_attention_mask = partial(self.get_extended_attention_mask, num_docs=num_docs)
         for name, module in self.named_modules():
@@ -81,6 +137,26 @@ class SetEncoderModel(CrossEncoderModel):
         num_docs: Sequence[int],
         **kwargs,
     ) -> Tuple[torch.Tensor]:
+        """Performs the attention forward pass for the SetEncoder model.
+
+        :param _self: Reference to the SetEncoder instance
+        :type _self: SetEncoderModel
+        :param self: Reference to the attention module
+        :type self: torch.nn.Module
+        :param hidden_states: Hidden states from the previous layer
+        :type hidden_states: torch.Tensor
+        :param attention_mask: Attention mask for the input sequence, defaults to None
+        :type attention_mask: torch.FloatTensor | None, optional
+        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
+            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents,
+            i.e., the sequence contains one value per query specifying the number of documents for that query.
+            If an integer, assumes an equal number of documents per query.
+            If None, tries to infer the number of documents by dividing the number of documents by the number of queries,
+            defaults to None
+        :type num_docs: Sequence[int] | int, optional
+        :return: Contextualized embeddings
+        :rtype: Tuple[torch.Tensor]
+        """
         key_value_hidden_states = hidden_states
         if num_docs is not None:
             key_value_hidden_states = _self.cat_other_doc_hidden_states(hidden_states, num_docs)
@@ -106,6 +182,20 @@ class SetEncoderModel(CrossEncoderModel):
         hidden_states: torch.Tensor,
         num_docs: Sequence[int],
     ) -> torch.Tensor:
+        """Concatenates the hidden states of other documents to the hidden states of the query and documents.
+
+        :param hidden_states: Hidden states of the query and documents
+        :type hidden_states: torch.Tensor
+        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
+            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents,
+            i.e., the sequence contains one value per query specifying the number of documents for that query.
+            If an integer, assumes an equal number of documents per query.
+            If None, tries to infer the number of documents by dividing the number of documents by the number of queries,
+            defaults to None
+        :type num_docs: Sequence[int] | int, optional
+        :return: Concatenated hidden states of the query and documents
+        :rtype: torch.Tensor
+        """
         idx = 1 if self.config.add_extra_token else 0
         split_other_doc_hidden_states = torch.split(hidden_states[:, idx], list(num_docs))
         repeated_other_doc_hidden_states = []
@@ -138,6 +228,15 @@ class SetEncoderTokenizer(CrossEncoderTokenizer):
         add_extra_token: bool = False,
         **kwargs,
     ):
+        """Initializes a SetEncoder tokenizer.
+
+        :param query_length: Maximum query length, defaults to 32
+        :type query_length: int, optional
+        :param doc_length: Maximum document length, defaults to 512
+        :type doc_length: int, optional
+        :param add_extra_token: Whether to add an extra interaction token, defaults to False
+        :type add_extra_token: bool, optional
+        """
         super().__init__(
             *args, query_length=query_length, doc_length=doc_length, add_extra_token=add_extra_token, **kwargs
         )
