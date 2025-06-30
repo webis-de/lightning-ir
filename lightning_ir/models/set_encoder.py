@@ -32,8 +32,8 @@ class SetEncoderConfig(CrossEncoderConfig):
     ):
         """
         A SetEncoder model encodes a query and a set of documents jointly.
-        Each passage's embedding is updated with context from the entire set,
-        and a relevance score is computed per passage using a linear layer.
+        Each document's embedding is updated with context from the entire set,
+        and a relevance score is computed per document using a linear layer.
 
         :param depth: Number of documents to encode per query, defaults to 100
         :type depth: int, optional
