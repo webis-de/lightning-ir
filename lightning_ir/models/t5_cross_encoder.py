@@ -16,8 +16,9 @@ import torch
 from transformers import BatchEncoding
 
 from ..cross_encoder.cross_encoder_config import CrossEncoderConfig
-from ..cross_encoder.cross_encoder_model import CrossEncoderModel, CrossEncoderOutput
+from ..cross_encoder.cross_encoder_model import CrossEncoderOutput
 from ..cross_encoder.cross_encoder_tokenizer import CrossEncoderTokenizer
+from .mono import MonoModel
 
 
 class T5CrossEncoderConfig(CrossEncoderConfig):
@@ -58,7 +59,7 @@ class ScaleLinear(torch.nn.Linear):
         return super().forward(input)
 
 
-class T5CrossEncoderModel(CrossEncoderModel):
+class T5CrossEncoderModel(MonoModel):
     """T5 cross-encoder model. See :class:`T5CrossEncoderConfig` for configuration options."""
 
     config_class = T5CrossEncoderConfig
