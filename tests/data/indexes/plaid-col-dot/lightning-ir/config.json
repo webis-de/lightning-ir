@@ -1,1 +1,0 @@
-{"num_centroids": 8, "num_train_embeddings": 1024, "k_means_iters": 4, "n_bits": 2, "seed": 42, "index_dir": "/home/fschlatt/Code/uni/lightning-ir/tests/data/indexes/plaid-col-dot/lightning-ir", "index_type": "PlaidIndexConfig"}
