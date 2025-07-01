@@ -1,5 +1,3 @@
-from ._register_external_models import _register_external_models
-from ._register_internal_models import _register_internal_models
 from .base import (
     LightningIRClassFactory,
     LightningIRConfig,
@@ -64,6 +62,8 @@ from .loss import (
     SupervisedMarginMSE,
 )
 from .main import LightningIRTrainer, LightningIRWandbLogger
+from .register_external_models import _register_external_models
+from .register_internal_models import _register_internal_models
 from .retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
@@ -145,6 +145,7 @@ __all__ = [
     "IndexCallback",
     "IndexConfig",
     "Indexer",
+    "InfoNCE",
     "KLDivergence",
     "L1Regularization",
     "L2Regularization",
@@ -164,18 +165,15 @@ __all__ = [
     "MultiVectorBiEncoderConfig",
     "MultiVectorBiEncoderModel",
     "PearsonCorrelation",
-    "InfoNCE",
     "QueryDataset",
     "QuerySample",
-    "RankCallback",
     "RankBatch",
+    "RankCallback",
     "RankNet",
     "RankSample",
     "RegisterLocalDatasetCallback",
     "ReRankCallback",
     "RunDataset",
-    "SingleVectorBiEncoderConfig",
-    "SingleVectorBiEncoderModel",
     "ScoreBasedInBatchCrossEntropy",
     "ScoreBasedInBatchLossFunction",
     "SearchBatch",
@@ -186,6 +184,9 @@ __all__ = [
     "SeismicIndexer",
     "SeismicSearchConfig",
     "SeismicSearcher",
+    "SingleVectorBiEncoderConfig",
+    "SingleVectorBiEncoderModel",
+    "SupervisedMarginMSE",
     "TorchDenseIndexConfig",
     "TorchDenseIndexer",
     "TorchDenseSearchConfig",
@@ -194,7 +195,6 @@ __all__ = [
     "TorchSparseIndexer",
     "TorchSparseSearchConfig",
     "TorchSparseSearcher",
-    "SupervisedMarginMSE",
     "TrainBatch",
     "TupleDataset",
     "WarmupLRScheduler",

@@ -6,7 +6,7 @@ This module contains the main model class and output class for the Lightning IR 
 
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import partial, wraps
+from functools import wraps
 from pathlib import Path
 from typing import Any, Literal, Mapping, Protocol, Self, Sequence, Type, TypeVar
 
@@ -14,7 +14,6 @@ import torch
 from transformers import BatchEncoding, BertModel, PreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 
-from .._flash import FLASH_ATTENTION_MAP
 from .class_factory import LightningIRModelClassFactory, _get_model_class
 from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
@@ -69,14 +68,6 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         self.config = config
 
         self._sub_batch_size: int | None = None
-
-        if self.config.backbone_model_type is not None:
-            flash_attn = FLASH_ATTENTION_MAP.get(self.config.backbone_model_type, None)
-            if flash_attn is not None:
-                flash_attn_forward, self_attn_pattern = flash_attn
-                for name, module in self.named_modules():
-                    if name.endswith(self_attn_pattern):
-                        module.forward = partial(flash_attn_forward, module)
 
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
