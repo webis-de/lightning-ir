@@ -426,7 +426,7 @@ class LightningIRModule(LightningModule):
                     "Check if the dataloaders are correctly configured."
                 )
             dataset_ids = [self.get_dataset_id(dataset) for dataset in inference_datasets]
-        df = df.reindex(dataset_ids)
+            df = df.reindex(dataset_ids)
 
         trainer.print(df)
 
