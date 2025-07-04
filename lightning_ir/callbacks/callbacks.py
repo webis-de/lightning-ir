@@ -278,6 +278,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
             },
             trainer,
         )
+        # TODO if dataset length cannot be inferred, num_test_batches is inf and no index is saved
         if batch_idx == trainer.num_test_batches[dataloader_idx] - 1:
             assert hasattr(self, "indexer")
             self.indexer.save()
