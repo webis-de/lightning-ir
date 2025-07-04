@@ -199,14 +199,14 @@ class QueryDataset(IRDataset, _DataParallelIterableDataset):
         super(IRDataset, self).__init__()
         self.num_queries = num_queries
 
-    def __len__(self) -> int:
+    def __len__(self) -> int | None:
         """Number of queries in the dataset.
 
         :return: Number of queries
         :rtype: int
         """
         # TODO fix len for multi-gpu and multi-worker inference
-        return self.num_queries or self.ir_dataset.queries_count()
+        return self.num_queries or getattr(self.ir_dataset, "queries_count", lambda: None)() or None
 
     def __iter__(self) -> Iterator[QuerySample]:
         """Iterate over queries in the dataset.
@@ -253,7 +253,7 @@ class DocDataset(IRDataset, _DataParallelIterableDataset):
         self.num_docs = num_docs
         self.text_fields = text_fields
 
-    def __len__(self) -> int:
+    def __len__(self) -> int | None:
         """Number of documents in the dataset.
 
         :raises ValueError: If no `num_docs` was not provided in the constructor and the number of documents cannot
@@ -262,9 +262,7 @@ class DocDataset(IRDataset, _DataParallelIterableDataset):
         :rtype: int
         """
         # TODO fix len for multi-gpu and multi-worker inference
-        num_docs = self.num_docs or self.ir_dataset.docs_count()
-        if num_docs is None:
-            raise TypeError("Unable to determine number of documents.")
+        num_docs = self.num_docs or getattr(self.ir_dataset, "doc_count", lambda: None)() or None
         return num_docs
 
     def __iter__(self) -> Iterator[DocSample]:
