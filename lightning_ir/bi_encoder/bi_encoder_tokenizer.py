@@ -8,10 +8,17 @@ import warnings
 from typing import Dict, Literal, Sequence, Type
 
 from tokenizers.processors import TemplateProcessing
-from transformers import BatchEncoding, BertTokenizer, BertTokenizerFast
+from transformers import BatchEncoding
 
-from ..base import LightningIRTokenizer
+from ..base import LightningIRClassFactory, LightningIRTokenizer
 from .bi_encoder_config import BiEncoderConfig
+
+ADD_MARKER_TOKEN_MAPPING = {
+    "bert": {
+        "single": "[CLS] {TOKEN} $0 [SEP]",
+        "pair": "[CLS] {TOKEN_1} $A [SEP] {TOKEN_2} $B:1 [SEP]:1",
+    }
+}
 
 
 class BiEncoderTokenizer(LightningIRTokenizer):
@@ -58,13 +65,19 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         self.query_post_processor: TemplateProcessing | None = None
         self.doc_post_processor: TemplateProcessing | None = None
         if add_marker_tokens:
-            # TODO support other tokenizers
-            if not isinstance(self, (BertTokenizer, BertTokenizerFast)):
-                warnings.warn(f"Adding marker tokens may not be supported for {type(self)}.")
+            backbone_model_type = LightningIRClassFactory.get_backbone_model_type(self.name_or_path)
+            if backbone_model_type not in ADD_MARKER_TOKEN_MAPPING:
+                raise ValueError(
+                    f"Adding marker tokens is not supported for the backbone model type '{backbone_model_type}'. "
+                    f"Supported types are: [{', '.join(ADD_MARKER_TOKEN_MAPPING.keys())}]. "
+                    "Please set `add_marker_tokens=False` "
+                    "or add the backbone model type to `ADD_MARKER_TOKEN_MAPPING`."
+                )
             self.add_tokens([self.QUERY_TOKEN, self.DOC_TOKEN], special_tokens=True)
+            pattern = ADD_MARKER_TOKEN_MAPPING[backbone_model_type]
             self.query_post_processor = TemplateProcessing(
-                single=f"[CLS] {self.QUERY_TOKEN} $0 [SEP]",
-                pair=f"[CLS] {self.QUERY_TOKEN} $A [SEP] {self.DOC_TOKEN} $B:1 [SEP]:1",
+                single=pattern["single"].format(TOKEN=self.QUERY_TOKEN),
+                pair=pattern["pair"].format(TOKEN_1=self.QUERY_TOKEN, TOKEN_2=self.DOC_TOKEN),
                 special_tokens=[
                     ("[CLS]", self.cls_token_id),
                     ("[SEP]", self.sep_token_id),
@@ -73,8 +86,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
                 ],
             )
             self.doc_post_processor = TemplateProcessing(
-                single=f"[CLS] {self.DOC_TOKEN} $0 [SEP]",
-                pair=f"[CLS] {self.QUERY_TOKEN} $A [SEP] {self.DOC_TOKEN} $B:1 [SEP]:1",
+                single=pattern["single"].format(TOKEN=self.DOC_TOKEN),
+                pair=pattern["pair"].format(TOKEN_1=self.QUERY_TOKEN, TOKEN_2=self.DOC_TOKEN),
                 special_tokens=[
                     ("[CLS]", self.cls_token_id),
                     ("[SEP]", self.sep_token_id),
