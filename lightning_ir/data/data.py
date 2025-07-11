@@ -62,7 +62,7 @@ class QuerySample:
         :return: Query sample
         :rtype: QuerySample
         """
-        return cls(sample[0], sample[1])
+        return cls(str(sample[0]), sample.default_text())
 
 
 @dataclass
@@ -92,7 +92,7 @@ class DocSample:
         """
         if text_fields is not None:
             return cls(sample[0], " ".join(getattr(sample, field) for field in text_fields))
-        return cls(sample[0], sample.default_text())
+        return cls(str(sample[0]), sample.default_text())
 
 
 @dataclass
