@@ -37,7 +37,6 @@ class CrossEncoderModel(LightningIRModel, ABC):
         """
         super().__init__(config, *args, **kwargs)
         self.config: CrossEncoderConfig
-        self.linear = torch.nn.Linear(config.hidden_size, 1, bias=config.linear_bias)
 
     @batch_encoding_wrapper
     @abstractmethod

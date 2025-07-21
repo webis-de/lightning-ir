@@ -6,6 +6,7 @@ Model implementation for mono cross-encoder models. Originally introduced in
 
 from typing import Type
 
+import torch
 from transformers import BatchEncoding
 
 from ..base.model import batch_encoding_wrapper
@@ -13,11 +14,22 @@ from ..cross_encoder.cross_encoder_config import CrossEncoderConfig
 from ..cross_encoder.cross_encoder_model import CrossEncoderModel, CrossEncoderOutput
 
 
-class MonoModel(CrossEncoderModel):
-    config_class: Type[CrossEncoderConfig] = CrossEncoderConfig
+class MonoConfig(CrossEncoderConfig):
     """Configuration class for mono cross-encoder models."""
 
-    def __init__(self, config: CrossEncoderConfig, *args, **kwargs):
+    model_type = "mono"
+    """Model type for mono cross-encoder models."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the configuration for mono cross-encoder models."""
+        super().__init__(*args, **kwargs)
+
+
+class MonoModel(CrossEncoderModel):
+    config_class: Type[MonoConfig] = MonoConfig
+    """Configuration class for mono cross-encoder models."""
+
+    def __init__(self, config: MonoConfig, *args, **kwargs):
         """A cross-encoder model that jointly encodes a query and document(s). The contextualized embeddings are
         aggragated into a single vector and fed to a linear layer which computes a final relevance score.
 
@@ -25,6 +37,7 @@ class MonoModel(CrossEncoderModel):
         :type config: CrossEncoderConfig
         """
         super().__init__(config, *args, **kwargs)
+        self.linear = torch.nn.Linear(config.hidden_size, 1, bias=config.linear_bias)
 
     @batch_encoding_wrapper
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
@@ -41,4 +54,5 @@ class MonoModel(CrossEncoderModel):
             embeddings, encoding.get("attention_mask", None), pooling_strategy=self.config.pooling_strategy
         )
         scores = self.linear(embeddings).view(-1)
+
         return CrossEncoderOutput(scores=scores, embeddings=embeddings)

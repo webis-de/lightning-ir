@@ -4,7 +4,8 @@ from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
 from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from .models import ColConfig, DprConfig, SpladeConfig, T5CrossEncoderConfig
+from .models import ColConfig, DprConfig, SpladeConfig, T5CrossEncoderConfig, MonoConfig
+from .cross_encoder import CrossEncoderConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -93,11 +94,17 @@ def _register_external_models():
             "Soyoung97/RankT5-base": T5CrossEncoderConfig(decoder_strategy="rank"),
             "Soyoung97/RankT5-large": T5CrossEncoderConfig(decoder_strategy="rank"),
             "Soyoung97/RankT5-3b": T5CrossEncoderConfig(decoder_strategy="rank"),
+            "castorini/monobert-large-msmarco-finetune-only": MonoConfig(linear_bias=True),
+            "castorini/monobert-large-msmarco": MonoConfig(linear_bias=True),
         }
     )
     STATE_DICT_KEY_MAPPING.update(
         {
             "colbert-ir/colbertv2.0": [("linear.weight", "bert.projection.weight")],
+            "castorini/monobert-large-msmarco-finetune-only": [
+                ("classifier.weight", "bert.linear.weight"),
+                ("classifier.bias", "bert.linear.bias"),
+            ],
         }
     )
     POST_LOAD_CALLBACKS.update(
