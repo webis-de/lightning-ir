@@ -4,6 +4,7 @@ Model module for cross-encoder models.
 This module defines the model class used to implement cross-encoder models.
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Type
 
@@ -23,7 +24,7 @@ class CrossEncoderOutput(LightningIROutput):
     """Joint query-document embeddings"""
 
 
-class CrossEncoderModel(LightningIRModel):
+class CrossEncoderModel(LightningIRModel, ABC):
     config_class: Type[CrossEncoderConfig] = CrossEncoderConfig
     """Configuration class for cross-encoder models."""
 
@@ -36,9 +37,9 @@ class CrossEncoderModel(LightningIRModel):
         """
         super().__init__(config, *args, **kwargs)
         self.config: CrossEncoderConfig
-        self.linear = torch.nn.Linear(config.hidden_size, 1, bias=config.linear_bias)
 
     @batch_encoding_wrapper
+    @abstractmethod
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
         """Computes contextualized embeddings for the joint query-document input sequence and computes a relevance
         score.
@@ -48,9 +49,4 @@ class CrossEncoderModel(LightningIRModel):
         :return: Output of the model
         :rtype: CrossEncoderOutput
         """
-        embeddings = self._backbone_forward(**encoding).last_hidden_state
-        embeddings = self.pooling(
-            embeddings, encoding.get("attention_mask", None), pooling_strategy=self.config.pooling_strategy
-        )
-        scores = self.linear(embeddings).view(-1)
-        return CrossEncoderOutput(scores=scores, embeddings=embeddings)
+        pass

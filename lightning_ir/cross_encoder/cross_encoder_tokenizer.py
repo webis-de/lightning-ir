@@ -17,7 +17,9 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
     config_class: Type[CrossEncoderConfig] = CrossEncoderConfig
     """Configuration class for the tokenizer."""
 
-    def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
+    def __init__(
+        self, *args, query_length: int = 32, doc_length: int = 512, tokenizer_pattern: str | None = None, **kwargs
+    ):
         """:class:`.LightningIRTokenizer` for cross-encoder models. Encodes queries and documents jointly and ensures
         that the input sequences are of the correct length.
 
@@ -27,7 +29,10 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         :type doc_length: int, optional
         :type doc_length: int, optional
         """
-        super().__init__(*args, query_length=query_length, doc_length=doc_length, **kwargs)
+        super().__init__(
+            *args, query_length=query_length, doc_length=doc_length, tokenizer_pattern=tokenizer_pattern, **kwargs
+        )
+        self.tokenizer_pattern = tokenizer_pattern
 
     def _truncate(self, text: Sequence[str], max_length: int) -> List[str]:
         """Encodes a list of texts, truncates them to a maximum number of tokens and decodes them to strings."""
@@ -98,22 +103,17 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
             raise ValueError("Both queries and docs must be provided.")
         if isinstance(docs, str) and not isinstance(queries, str):
             raise ValueError("Queries and docs must be both lists or both strings.")
-        is_string_queries = False
-        is_string_docs = False
         if isinstance(queries, str):
             queries = [queries]
-            is_string_queries = True
         if isinstance(docs, str):
             docs = [docs]
-            is_string_docs = True
-        is_string_both = is_string_queries and is_string_docs
         num_docs = self._process_num_docs(queries, docs, num_docs)
         queries, docs = self._preprocess(queries, docs, num_docs)
-        return_tensors = kwargs.get("return_tensors", None)
-        if return_tensors is not None:
-            kwargs["pad_to_multiple_of"] = 8
-        if is_string_both:
-            encoding = self(queries[0], docs[0], **kwargs)
+
+        if self.tokenizer_pattern is not None:
+            input_texts = [self.tokenizer_pattern.format(query=query, doc=doc) for query, doc in zip(queries, docs)]
+            encoding = self(input_texts, **kwargs)
         else:
             encoding = self(queries, docs, **kwargs)
+
         return {"encoding": encoding}
