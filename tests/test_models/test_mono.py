@@ -1,8 +1,39 @@
 import pytest
 import torch
-from transformers import AutoTokenizer, T5ForConditionalGeneration
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, T5ForConditionalGeneration
 
 from lightning_ir import CrossEncoderModule
+
+
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "castorini/monobert-large-msmarco-finetune-only",
+    ],
+    ids=["monobert"],
+)
+def test_same_as_mono(model_name: str):
+    query = "What is the capital of France?"
+    documents = [
+        "Paris is the capital of France.",
+        "France is a country in Europe.",
+        "The Eiffel Tower is in Paris.",
+    ]
+
+    orig_tokenizer = AutoTokenizer.from_pretrained(model_name)
+    orig_model = AutoModelForSequenceClassification.from_pretrained(model_name).eval()
+    module = CrossEncoderModule(model_name_or_path=model_name).eval()
+
+    enc = orig_tokenizer(
+        [query] * len(documents), documents, padding=True, truncation=True, max_length=512, return_tensors="pt"
+    )
+
+    with torch.inference_mode():
+        logits = orig_model(**enc).logits
+        orig_scores = torch.nn.functional.log_softmax(logits, dim=-1)[:, 1]
+        output = module.score(queries=query, docs=documents)
+
+    assert torch.allclose(output.scores, orig_scores, atol=1e-4)
 
 
 @pytest.mark.parametrize(
@@ -38,7 +69,7 @@ def test_same_as_t5(model_name: str):
         )
         output = module.score(queries=query, docs=docs)
     if mode == "monot5":
-        scores = torch.nn.functional.log_softmax(orig_output.scores[0][:, [1176, 6136]], dim=1)[:, 0]
+        scores = torch.nn.functional.log_softmax(orig_output.scores[0][:, [6136, 1176]], dim=-1)[:, 1]
     elif mode == "rankt5":
         scores = orig_output.scores[0][:, 32089]
     assert torch.allclose(output.scores, scores, atol=1e-4)
