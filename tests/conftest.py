@@ -19,7 +19,7 @@ from lightning_ir import (
     RunDataset,
 )
 from lightning_ir.data.external_datasets.ir_datasets_utils import register_new_dataset
-from lightning_ir.models import ColConfig, DprConfig, SetEncoderConfig, SpladeConfig
+from lightning_ir.models import ColConfig, DprConfig, MonoConfig, SetEncoderConfig, SpladeConfig
 
 DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
@@ -66,9 +66,8 @@ BI_ENCODER_CONFIGS = {
 
 
 CROSS_ENCODER_CONFIGS = {
-    "CrossEncoder": CrossEncoderConfig(**GLOBAL_KWARGS),
+    "Mono": MonoConfig(**GLOBAL_KWARGS),
     "SetEncoder": SetEncoderConfig(**GLOBAL_KWARGS),
-    # "T5CrossEncoder": T5CrossEncoderConfig(**GLOBAL_KWARGS), # TODO tests are currently only setup for encoder only
 }
 
 ALL_CONFIGS = {**BI_ENCODER_CONFIGS, **CROSS_ENCODER_CONFIGS}

@@ -61,7 +61,7 @@ def test_cross_encoder_tokenizer(cross_encoder_config: CrossEncoderConfig, model
     doc = "Paris is the capital of France."
     encoding = tokenizer.tokenize(query, doc)["encoding"]
     assert encoding is not None
-    assert len(encoding.input_ids) == tokenizer.query_length + tokenizer.doc_length + 3
+    assert len(encoding.input_ids[0]) == tokenizer.query_length + tokenizer.doc_length + 3
 
     query = ["What is the capital of France?"]
     doc = ["Paris is the capital of France."]

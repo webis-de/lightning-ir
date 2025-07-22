@@ -11,12 +11,11 @@ import torch
 from tokenizers.processors import TemplateProcessing
 from transformers import BatchEncoding
 
-from ..cross_encoder.cross_encoder_config import CrossEncoderConfig
-from ..cross_encoder.cross_encoder_model import CrossEncoderModel, CrossEncoderOutput
-from ..cross_encoder.cross_encoder_tokenizer import CrossEncoderTokenizer
+from ..cross_encoder import CrossEncoderOutput, CrossEncoderTokenizer
+from .mono import MonoConfig, MonoModel
 
 
-class SetEncoderConfig(CrossEncoderConfig):
+class SetEncoderConfig(MonoConfig):
     """Configuration class for a SetEncoder model."""
 
     model_type = "set-encoder"
@@ -48,7 +47,7 @@ class SetEncoderConfig(CrossEncoderConfig):
         self.sample_missing_docs = sample_missing_docs
 
 
-class SetEncoderModel(CrossEncoderModel):
+class SetEncoderModel(MonoModel):
     """SetEncoder model. See :class:`SetEncoderConfig` for configuration options."""
 
     config_class = SetEncoderConfig
@@ -282,26 +281,6 @@ class SetEncoderTokenizer(CrossEncoderTokenizer):
         :return: Tokenized query-document sequence
         :rtype: Dict[str, BatchEncoding]
         """
-        if queries is None or docs is None:
-            raise ValueError("Both queries and docs must be provided.")
-        if isinstance(docs, str) and not isinstance(queries, str):
-            raise ValueError("Queries and docs must be both lists or both strings.")
-        is_string_queries = False
-        is_string_docs = False
-        if isinstance(queries, str):
-            queries = [queries]
-            is_string_queries = True
-        if isinstance(docs, str):
-            docs = [docs]
-            is_string_docs = True
-        is_string_both = is_string_queries and is_string_docs
-        num_docs = self._process_num_docs(queries, docs, num_docs)
-        queries, docs = self._preprocess(queries, docs, num_docs)
-        return_tensors = kwargs.get("return_tensors", None)
-        if return_tensors is not None:
-            kwargs["pad_to_multiple_of"] = 8
-        if is_string_both:
-            encoding = self(queries[0], docs[0], **kwargs)
-        else:
-            encoding = self(queries, docs, **kwargs)
-        return {"encoding": BatchEncoding({**encoding, "num_docs": num_docs})}
+        encoding_dict = super().tokenize(queries, docs, num_docs, **kwargs)
+        encoding_dict["encoding"] = BatchEncoding({**encoding_dict["encoding"], "num_docs": num_docs})
+        return encoding_dict

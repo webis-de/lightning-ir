@@ -4,8 +4,7 @@ from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
 from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from .models import ColConfig, DprConfig, SpladeConfig, T5CrossEncoderConfig, MonoConfig
-from .cross_encoder import CrossEncoderConfig
+from .models import ColConfig, DprConfig, MonoConfig, SpladeConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -41,7 +40,7 @@ def _map_mono_t5_weights(model: LightningIRModel) -> LightningIRModel:
         "The above warning, that the linear layer is not initialized, is expected and can be ignored."
         "The weights are initialized separately."
     )
-    model.linear.weight.data = model.shared.weight.data[[1176, 6136]]
+    model.linear.weight.data = model.shared.weight.data[[6136, 1176]]
     return model
 
 
@@ -53,6 +52,10 @@ def _map_rank_t5_weights(model: LightningIRModel) -> LightningIRModel:
     )
     model.linear.weight.data = model.shared.weight.data[[32089]]
     return model
+
+
+MONO_T5_PATTERN = "Query: {query} Document: {doc} Relevant:"
+RANK_T5_PATTERN = "Query: {query} Document: {doc}"
 
 
 def _register_external_models():
@@ -85,17 +88,23 @@ def _register_external_models():
             "sentence-transformers/msmarco-MiniLM-L-6-v3": DprConfig(
                 projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
             ),
-            "castorini/monot5-base-msmarco-10k": T5CrossEncoderConfig(decoder_strategy="mono"),
-            "castorini/monot5-base-msmarco": T5CrossEncoderConfig(decoder_strategy="mono"),
-            "castorini/monot5-large-msmarco-10k": T5CrossEncoderConfig(decoder_strategy="mono"),
-            "castorini/monot5-large-msmarco": T5CrossEncoderConfig(decoder_strategy="mono"),
-            "castorini/monot5-3b-msmarco-10k": T5CrossEncoderConfig(decoder_strategy="mono"),
-            "castorini/monot5-3b-msmarco": T5CrossEncoderConfig(decoder_strategy="mono"),
-            "Soyoung97/RankT5-base": T5CrossEncoderConfig(decoder_strategy="rank"),
-            "Soyoung97/RankT5-large": T5CrossEncoderConfig(decoder_strategy="rank"),
-            "Soyoung97/RankT5-3b": T5CrossEncoderConfig(decoder_strategy="rank"),
-            "castorini/monobert-large-msmarco-finetune-only": MonoConfig(linear_bias=True),
-            "castorini/monobert-large-msmarco": MonoConfig(linear_bias=True),
+            "castorini/monot5-base-msmarco-10k": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
+            "castorini/monot5-base-msmarco": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
+            "castorini/monot5-large-msmarco-10k": MonoConfig(
+                scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN
+            ),
+            "castorini/monot5-large-msmarco": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
+            "castorini/monot5-3b-msmarco-10k": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
+            "castorini/monot5-3b-msmarco": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
+            "Soyoung97/RankT5-base": MonoConfig(scoring_strategy="rank", tokenizer_pattern=RANK_T5_PATTERN),
+            "Soyoung97/RankT5-large": MonoConfig(scoring_strategy="rank", tokenizer_pattern=RANK_T5_PATTERN),
+            "Soyoung97/RankT5-3b": MonoConfig(scoring_strategy="rank", tokenizer_pattern=RANK_T5_PATTERN),
+            "castorini/monobert-large-msmarco-finetune-only": MonoConfig(
+                scoring_strategy="mono", linear_bias=True, pooling_strategy="bert_pool"
+            ),
+            "castorini/monobert-large-msmarco": MonoConfig(
+                scoring_strategy="mono", linear_bias=True, pooling_strategy="bert_pool"
+            ),
         }
     )
     STATE_DICT_KEY_MAPPING.update(
@@ -104,6 +113,14 @@ def _register_external_models():
             "castorini/monobert-large-msmarco-finetune-only": [
                 ("classifier.weight", "bert.linear.weight"),
                 ("classifier.bias", "bert.linear.bias"),
+                ("bert.pooler.dense.weight", "bert.bert_pool.0.weight"),
+                ("bert.pooler.dense.bias", "bert.bert_pool.0.bias"),
+            ],
+            "castorini/monobert-large-msmarco": [
+                ("classifier.weight", "bert.linear.weight"),
+                ("classifier.bias", "bert.linear.bias"),
+                ("bert.pooler.dense.weight", "bert.bert_pool.0.weight"),
+                ("bert.pooler.dense.bias", "bert.bert_pool.0.bias"),
             ],
         }
     )

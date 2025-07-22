@@ -1,9 +1,8 @@
 from .col import ColConfig, ColModel, ColTokenizer
 from .dpr import DprConfig, DprModel
+from .mono import MonoConfig, MonoModel
 from .set_encoder import SetEncoderConfig, SetEncoderModel, SetEncoderTokenizer
 from .splade import SpladeConfig, SpladeModel
-from .t5_cross_encoder import T5CrossEncoderConfig, T5CrossEncoderModel, T5CrossEncoderTokenizer
-from .mono import MonoModel, MonoConfig
 
 __all__ = [
     "ColConfig",
@@ -11,14 +10,11 @@ __all__ = [
     "ColTokenizer",
     "DprConfig",
     "DprModel",
+    "MonoConfig",
+    "MonoModel",
     "SetEncoderConfig",
     "SetEncoderModel",
     "SetEncoderTokenizer",
     "SpladeConfig",
     "SpladeModel",
-    "T5CrossEncoderConfig",
-    "T5CrossEncoderModel",
-    "T5CrossEncoderTokenizer",
-    "MonoConfig",
-    "MonoModel",
 ]
