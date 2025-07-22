@@ -1,13 +1,22 @@
 import torch
 import transformers
 
-transformers.AdamW = None
+transformers.AdamW = None  # monkey patch to avoid import error for original colbert
 
 from colbert.modeling.checkpoint import Checkpoint  # noqa: E402
 from colbert.modeling.colbert import ColBERTConfig, colbert_score  # noqa: E402
 from pylate import models, rank  # noqa: E402
+from pylate.models.colbert import ColBERT as PyLateColbert  # noqa: E402
 
 from lightning_ir import BiEncoderModule  # noqa: E402
+
+
+# monkeypatch pylate colbert for newest transformers compatibility
+def _get_model_type(*args, **kwargs):
+    return "ColBERT"
+
+
+PyLateColbert._get_model_type = _get_model_type
 
 
 def test_same_as_colbert():

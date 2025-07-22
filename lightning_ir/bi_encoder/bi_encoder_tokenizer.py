@@ -17,7 +17,11 @@ ADD_MARKER_TOKEN_MAPPING = {
     "bert": {
         "single": "[CLS] {TOKEN} $0 [SEP]",
         "pair": "[CLS] {TOKEN_1} $A [SEP] {TOKEN_2} $B:1 [SEP]:1",
-    }
+    },
+    "modernbert": {
+        "single": "[CLS] {TOKEN} $0 [SEP]",
+        "pair": "[CLS] {TOKEN_1} $A [SEP] {TOKEN_2} $B:1 [SEP]:1",
+    },
 }
 
 
