@@ -59,8 +59,8 @@ class LightningIRClassFactory(ABC):
     def __init__(self, MixinConfig: Type[LightningIRConfig]) -> None:
         """Creates a new LightningIRClassFactory.
 
-        :param MixinConfig: LightningIRConfig mixin class
-        :type MixinConfig: Type[LightningIRConfig]
+        Args:
+            MixinConfig (Type[LightningIRConfig]): LightningIRConfig mixin class.
         """
         if getattr(MixinConfig, "backbone_model_type", None) is not None:
             MixinConfig = MixinConfig.__bases__[0]
@@ -70,10 +70,10 @@ class LightningIRClassFactory(ABC):
     def get_backbone_config(model_name_or_path: str | Path) -> PretrainedConfig:
         """Grabs the configuration from a checkpoint of a pretrained HuggingFace model.
 
-        :param model_name_or_path: Path to the model or its name
-        :type model_name_or_path: str | Path
-        :return: Configuration of the backbone model
-        :rtype: PretrainedConfig
+        Args:
+            model_name_or_path (str | Path): Path to the model or its name.
+        Returns:
+            PretrainedConfig: Configuration of the backbone model.
         """
         backbone_model_type = LightningIRClassFactory.get_backbone_model_type(model_name_or_path)
         return CONFIG_MAPPING[backbone_model_type].from_pretrained(model_name_or_path)
@@ -82,10 +82,10 @@ class LightningIRClassFactory(ABC):
     def get_lightning_ir_config(model_name_or_path: str | Path) -> LightningIRConfig | None:
         """Grabs the Lightning IR configuration from a checkpoint of a pretrained Lightning IR model.
 
-        :param model_name_or_path: Path to the model or its name
-        :type model_name_or_path: str | Path
-        :return: Configuration class of the Lightning IR model
-        :rtype: LightningIRConfig | None
+        Args:
+            model_name_or_path (str | Path): Path to the model or its name.
+        Returns:
+            LightningIRConfig | None: Configuration class of the Lightning IR model.
         """
         model_type = LightningIRClassFactory.get_lightning_ir_model_type(model_name_or_path)
         if model_type is None:
@@ -96,10 +96,12 @@ class LightningIRClassFactory(ABC):
     def get_backbone_model_type(model_name_or_path: str | Path, *args, **kwargs) -> str:
         """Grabs the model type from a checkpoint of a pretrained HuggingFace model.
 
-        :param model_name_or_path: Path to the model or its name
-        :type model_name_or_path: str | Path
-        :return: Model type of the backbone model
-        :rtype: str
+        Args:
+            model_name_or_path (str | Path): Path to the model or its name.
+        Returns:
+            str: Model type of the backbone model.
+        Raises:
+            ValueError: If the type of the model is None in the configuration.
         """
         config_dict, _ = PretrainedConfig.get_config_dict(model_name_or_path, *args, **kwargs)
         backbone_model_type = config_dict.get("backbone_model_type", None) or config_dict.get("model_type")
@@ -111,10 +113,12 @@ class LightningIRClassFactory(ABC):
     def get_lightning_ir_model_type(model_name_or_path: str | Path) -> str | None:
         """Grabs the Lightning IR model type from a checkpoint of a pretrained HuggingFace model.
 
-        :param model_name_or_path: Path to the model or its name
-        :type model_name_or_path: str | Path
-        :return: Model type of the Lightning IR model
-        :rtype: str | None
+        Args:
+            model_name_or_path (str | Path): Path to the model or its name.
+        Returns:
+            str | None: Model type of the Lightning IR model.
+        Raises:
+            ValueError: If the backbone model type is not found in the configuration.
         """
         config_dict, _ = PretrainedConfig.get_config_dict(model_name_or_path)
         if "backbone_model_type" not in config_dict:
@@ -130,10 +134,10 @@ class LightningIRClassFactory(ABC):
     def from_pretrained(self, model_name_or_path: str | Path, *args, **kwargs) -> Any:
         """Loads a derived Lightning IR class from a pretrained HuggingFace model. Must be implemented by subclasses.
 
-        :param model_name_or_path: Path to the model or its name
-        :type model_name_or_path: str | Path
-        :return: Derived Lightning IR class
-        :rtype: Any
+        Args:
+            model_name_or_path (str | Path): Path to the model or its name.
+        Returns:
+            Any: Derived Lightning IR class.
         """
         ...
 
@@ -141,10 +145,10 @@ class LightningIRClassFactory(ABC):
     def from_backbone_class(self, BackboneClass: Type) -> Type:
         """Creates a derived Lightning IR class from a backbone HuggingFace class. Must be implemented by subclasses.
 
-        :param BackboneClass: Backbone class
-        :type BackboneClass: Type
-        :return: Derived Lightning IR class
-        :rtype: Type
+        Args:
+            BackboneClass (Type): Backbone class.
+        Returns:
+            Type: Derived Lightning IR class.
         """
         ...
 
@@ -155,10 +159,10 @@ class LightningIRConfigClassFactory(LightningIRClassFactory):
     def from_pretrained(self, model_name_or_path: str | Path, *args, **kwargs) -> Type[LightningIRConfig]:
         """Loads a derived LightningIRConfig from a pretrained HuggingFace model.
 
-        :param model_name_or_path: Path to the model or its name
-        :type model_name_or_path: str | Path
-        :return: Derived LightningIRConfig
-        :rtype: Type[LightningIRConfig]
+        Args:
+            model_name_or_path (str | Path): Path to the model or its name.
+        Returns:
+            Type[LightningIRConfig]: Derived LightningIRConfig.
         """
         backbone_config = self.get_backbone_config(model_name_or_path)
         DerivedLightningIRConfig = self.from_backbone_class(type(backbone_config))
@@ -166,15 +170,15 @@ class LightningIRConfigClassFactory(LightningIRClassFactory):
 
     def from_backbone_class(self, BackboneClass: Type[PretrainedConfig]) -> Type[LightningIRConfig]:
         """Creates a derived LightningIRConfig from a transformers.PretrainedConfig_ backbone configuration class. If
-        the backbone configuration class is already a dervied LightningIRConfig, it is returned as is.
-
+        the backbone configuration class is already a derived LightningIRConfig, it is returned as is.
+        
         .. _transformers.PretrainedConfig: \
 https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig
 
-        :param BackboneClass: Backbone configuration class
-        :type BackboneClass: Type[PretrainedConfig]
-        :return: Derived LightningIRConfig
-        :rtype: Type[LightningIRConfig]
+        Args:
+            BackboneClass (Type[PretrainedConfig]): Backbone configuration class.
+        Returns:
+            Type[LightningIRConfig]: Derived LightningIRConfig.
         """
         if getattr(BackboneClass, "backbone_model_type", None) is not None:
             return BackboneClass
@@ -198,10 +202,10 @@ class LightningIRModelClassFactory(LightningIRClassFactory):
     def from_pretrained(self, model_name_or_path: str | Path, *args, **kwargs) -> Type[LightningIRModel]:
         """Loads a derived LightningIRModel from a pretrained HuggingFace model.
 
-        :param model_name_or_path: Path to the model or its name
-        :type model_name_or_path: str | Path
-        :return: Derived LightningIRModel
-        :rtype: Type[LightningIRModel]
+        Args:
+            model_name_or_path (str | Path): Path to the model or its name.
+        Returns:
+            Type[LightningIRModel]: Derived LightningIRModel.
         """
         backbone_config = self.get_backbone_config(model_name_or_path)
         BackboneModel = _get_model_class(backbone_config)
@@ -215,13 +219,14 @@ class LightningIRModelClassFactory(LightningIRClassFactory):
         .. _transformers.PreTrainedModel: \
 https://huggingface.co/transformers/main_classes/model#transformers.PreTrainedModel
 
-        :param BackboneClass: Backbone model
-        :type BackboneClass: Type[PreTrainedModel]
-        :raises ValueError: If the backbone model is not a valid backbone model.
-        :raises ValueError: If the backbone model is not a LightningIRModel and no LightningIRConfig is passed.
-        :raises ValueError: If the LightningIRModel mixin is not registered with the Hugging Face model mapping.
-        :return: The derived LightningIRModel
-        :rtype: Type[LightningIRModel]
+        Args:
+            BackboneClass (Type[PreTrainedModel]): Backbone model class.
+        Returns:
+            Type[LightningIRModel]: Derived LightningIRModel.
+        Raises:
+            ValueError: If the backbone model is not a valid backbone model.
+            ValueError: If the backbone model is not a LightningIRModel and no LightningIRConfig is passed.
+            ValueError: If the LightningIRModel mixin is not registered with the Hugging Face model mapping.
         """
         if getattr(BackboneClass.config_class, "backbone_model_type", None) is not None:
             return BackboneClass
@@ -250,10 +255,10 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
     def get_backbone_config(model_name_or_path: str | Path) -> PretrainedConfig:
         """Grabs the tokenizer configuration class from a checkpoint of a pretrained HuggingFace tokenizer.
 
-        :param model_name_or_path: Path to the tokenizer or its name
-        :type model_name_or_path: str | Path
-        :return: Configuration class of the backbone tokenizer
-        :rtype: PretrainedConfig
+        Args:
+            model_name_or_path (str | Path): Path to the tokenizer or its name.
+        Returns:
+            PretrainedConfig: Configuration class of the backbone tokenizer.
         """
         backbone_model_type = LightningIRTokenizerClassFactory.get_backbone_model_type(model_name_or_path)
         return CONFIG_MAPPING[backbone_model_type].from_pretrained(model_name_or_path)
@@ -262,10 +267,10 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
     def get_backbone_model_type(model_name_or_path: str | Path, *args, **kwargs) -> str:
         """Grabs the model type from a checkpoint of a pretrained HuggingFace tokenizer.
 
-        :param model_name_or_path: Path to the tokenizer or its name
-        :type model_name_or_path: str | Path
-        :return: Model type of the backbone tokenizer
-        :rtype: str
+        Args:
+            model_name_or_path (str | Path): Path to the tokenizer or its name.
+        Returns:
+            str: Model type of the backbone tokenizer.
         """
         try:
             return LightningIRClassFactory.get_backbone_model_type(model_name_or_path, *args, **kwargs)
@@ -285,14 +290,14 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
     ) -> Type[LightningIRTokenizer]:
         """Loads a derived LightningIRTokenizer from a pretrained HuggingFace tokenizer.
 
-        :param model_name_or_path: Path to the tokenizer or its name
-        :type model_name_or_path: str | Path
-        :param use_fast: Whether to use the fast or slow tokenizer, defaults to True
-        :type use_fast: bool, optional
-        :raises ValueError: If use_fast is True and no fast tokenizer is found
-        :raises ValueError: If use_fast is False and no slow tokenizer is found
-        :return: Derived LightningIRTokenizer
-        :rtype: Type[LightningIRTokenizer]
+        Args:
+            model_name_or_path (str | Path): Path to the tokenizer or its name.
+            use_fast (bool, optional): Whether to use the fast tokenizer. Defaults to True.
+        Returns:
+            Type[LightningIRTokenizer]: Derived LightningIRTokenizer.
+        Raises:
+            ValueError: If no fast tokenizer is found when `use_fast` is True.
+            ValueError: If no slow tokenizer is found when `use_fast` is False.
         """
         backbone_config = self.get_backbone_config(model_name_or_path)
         BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
@@ -314,12 +319,13 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
     ) -> Tuple[Type[LightningIRTokenizer] | None, Type[LightningIRTokenizer] | None]:
         """Creates derived slow and fastLightningIRTokenizers from a tuple of backbone HuggingFace tokenizer classes.
 
-        :param BackboneClasses: Slow and fast backbone tokenizer classes
-        :type BackboneClasses: Tuple[Type[PreTrainedTokenizerBase] | None, Type[PreTrainedTokenizerBase] | None]
-        :param BackboneConfig: Backbone configuration class, defaults to None
-        :type BackboneConfig: Type[PretrainedConfig], optional
-        :return: Slow and fast derived LightningIRTokenizers
-        :rtype: Tuple[Type[LightningIRTokenizer] | None, Type[LightningIRTokenizer] | None]
+        Args:
+            BackboneClasses (Tuple[Type[PreTrainedTokenizerBase] | None, Type[PreTrainedTokenizerBase] | None]):
+                Slow and fast backbone tokenizer classes.
+            BackboneConfig (Type[PretrainedConfig] | None, optional): Backbone configuration class. Defaults to None.
+        Returns:
+            Tuple[Type[LightningIRTokenizer] | None, Type[LightningIRTokenizer] | None]: Slow and fast derived
+            LightningIRTokenizers.
         """
         DerivedLightningIRTokenizers = tuple(
             None if BackboneClass is None else self.from_backbone_class(BackboneClass)
@@ -336,10 +342,10 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
         .. _transformers.PreTrainedTokenizerBase: \
 https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.PreTrainedTokenizerBase
 
-        :param BackboneClass: Backbone tokenizer class
-        :type BackboneClass: Type[PreTrainedTokenizerBase]
-        :return: Derived LightningIRTokenizer
-        :rtype: Type[LightningIRTokenizer]
+        Args:
+            BackboneClass (Type[PreTrainedTokenizerBase]): Backbone tokenizer class.
+        Returns:
+            Type[LightningIRTokenizer]: Derived LightningIRTokenizer.
         """
         if hasattr(BackboneClass, "config_class"):
             return BackboneClass
