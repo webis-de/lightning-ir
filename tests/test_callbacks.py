@@ -72,7 +72,7 @@ def test_index_callback(
         enable_checkpointing=False,
         callbacks=[index_callback],
     )
-    trainer.test(bi_encoder_module, datamodule=doc_datamodule)
+    trainer.index(bi_encoder_module, datamodule=doc_datamodule)
 
     assert doc_datamodule.inference_datasets is not None
     assert index_callback.indexer.num_embeddings and index_callback.indexer.num_docs
