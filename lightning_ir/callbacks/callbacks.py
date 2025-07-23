@@ -130,18 +130,14 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
     ) -> None:
         """Callback to index documents using an :py:class:`~lightning_ir.retrieve.base.indexer.Indexer`.
 
-        :param index_config: Configuration for the indexer
-        :type index_config: IndexConfig
-        :param index_dir: Directory to save index(es) to. If None, indexes will be stored in the model's directory,
-            defaults to None
-        :type index_dir: Path | str | None, optional
-        :param index_name: Name of the index. If None, the dataset's dataset_id or file name will be used,
-            defaults to None
-        :type index_name: str | None, optional
-        :param overwrite: Whether to skip or overwrite already existing indexes, defaults to False
-        :type overwrite: bool, optional
-        :param verbose: Toggle verbose output, defaults to False
-        :type verbose: bool, optional
+        Args:
+            index_config (IndexConfig): Configuration for the indexer.
+            index_dir (Path | str | None): Directory to save index(es) to. If None, indexes will be stored in the
+                model's directory. Defaults to None.
+            index_name (str | None): Name of the index. If None, the dataset's dataset_id or file name will be used.
+                Defaults to None.
+            overwrite (bool): Whether to skip or overwrite already existing indexes. Defaults to False.
+            verbose (bool): Toggle verbose output. Defaults to False.
         """
         super().__init__()
         self.index_config = index_config
@@ -154,13 +150,12 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
     def setup(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
         """Hook to setup the callback.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR bi-encoder module used for indexing
-        :type pl_module: BiEncoderModule
-        :param stage: Stage of the trainer, must be "test"
-        :type stage: str
-        :raises ValueError: If the stage is not "test"
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (BiEncoderModule): LightningIR bi-encoder module used for indexing.
+            stage (str): Stage of the trainer, must be "test".
+        Raises:
+            ValueError: If the stage is not "test".
         """
         if stage != "test":
             raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
@@ -169,12 +164,10 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
     def teardown(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
         """Hook to cleanup the callback.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR bi-encoder module used for indexing
-        :type pl_module: BiEncoderModule
-        :param stage: Stage of the trainer, must be "test"
-        :type stage: str
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (BiEncoderModule): LightningIR bi-encoder module used for indexing.
+            stage (str): Stage of the trainer.
         """
         self._cleanup(trainer, pl_module)
 
@@ -206,12 +199,12 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
     def on_test_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
         """Hook to test datasets are configured correctly.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR BiEncoderModule
-        :type pl_module: BiEncoderModule
-        :raises ValueError: If no test_dataloaders are found
-        :raises ValueError: If not all test datasets are :py:class:`~lightning_ir.data.dataset.DocDataset`
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (BiEncoderModule): LightningIR bi-encoder module.
+        Raises:
+            ValueError: If no test_dataloaders are found.
+            ValueError: If not all test datasets are :py:class:`~lightning_ir.data.dataset.DocDataset`.
         """
         dataloaders = trainer.test_dataloaders
         if dataloaders is None:
@@ -225,16 +218,12 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
     ) -> None:
         """Hook to setup the indexer between datasets.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR bi-encoder module
-        :type pl_module: BiEncoderModule
-        :param batch: Batch of input data
-        :type batch: Any
-        :param batch_idx: Index of batch in the current dataset
-        :type batch_idx: int
-        :param dataloader_idx: Index of the dataloader, defaults to 0
-        :type dataloader_idx: int, optional
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (BiEncoderModule): LightningIR bi-encoder module.
+            batch (Any): Batch of input data.
+            batch_idx (int): Index of batch in the current dataset.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
         """
         if batch_idx == 0:
             self.indexer = self._get_indexer(pl_module, dataloader_idx)
@@ -263,6 +252,13 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         :type batch_idx: int
         :param dataloader_idx: Index of the dataloader, defaults to 0
         :type dataloader_idx: int, optional
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (BiEncoderModule): LightningIR bi-encoder module.
+            outputs (BiEncoderOutput): Encoded documents.
+            batch (Any): Batch of input data.
+            batch_idx (int): Index of batch in the current dataset.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
         """
         batch = self._gather(pl_module, batch)
         outputs = self._gather(pl_module, outputs)
@@ -290,14 +286,12 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
     ) -> None:
         """Callback to write run file of ranked documents to disk.
 
-        :param save_dir: Directory to save run files to. If None, run files will be saved in the models' directory,
-            defaults to None
-        :type save_dir: Path | str | None, optional
-        :param run_name: Name of the run file. If None, the dataset's dataset_id or file name will be used,
-            defaults to None
-        :type run_name: str | None, optional
-        :param overwrite: Whether to skip or overwrite already existing run files, defaults to False
-        :type overwrite: bool, optional
+        Args:
+            save_dir (Path | str | None): Directory to save run files to. If None, run files will be saved in the
+                models' directory. Defaults to None.
+            run_name (str | None): Name of the run file. If None, the dataset's dataset_id or file name will be used.
+                Defaults to None.
+            overwrite (bool): Whether to skip or overwrite already existing run files. Defaults to False.
         """
         super().__init__()
         self.save_dir = Path(save_dir) if save_dir is not None else None
@@ -308,14 +302,13 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         """Hook to setup the callback.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR module
-        :type pl_module: LightningIRModule
-        :param stage: Stage of the trainer, must be "test"
-        :type stage: str
-        :raises ValueError: If the stage is not "test"
-        :raises ValueError: If no save_dir is provided and model_name_or_path is not a path (the model is not local)
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (LightningIRModule): LightningIR module.
+            stage (str): Stage of the trainer, must be "test".
+        Raises:
+            ValueError: If the stage is not "test".
+            ValueError: If no save_dir is provided and model_name_or_path is not a path (the model is not local).
         """
         if stage != "test":
             raise ValueError(f"{self.__class__.__name__} can only be used in test stage")
@@ -331,12 +324,10 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
     def teardown(self, trainer: Trainer, pl_module: BiEncoderModule, stage: str) -> None:
         """Hook to cleanup the callback.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR bi-encoder module used for indexing
-        :type pl_module: BiEncoderModule
-        :param stage: Stage of the trainer, must be "test"
-        :type stage: str
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (LightningIRModule): LightningIR bi-encoder module used for indexing.
+            stage (str): Stage of the trainer, must be "test".
         """
         self._cleanup(trainer, pl_module)
 
@@ -398,18 +389,15 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
     ) -> None:
         """Hook to aggregate and write ranking to file.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR Module
-        :type pl_module: LightningIRModule
-        :param outputs: Scored query documents pairs
-        :type outputs: LightningIROutput
-        :param batch: Batch of input data
-        :type batch: Any
-        :param batch_idx: Index of batch in the current dataset
-        :type batch_idx: int
-        :param dataloader_idx: Index of the dataloader, defaults to 0
-        :type dataloader_idx: int, optional
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (LightningIRModule): LightningIR module.
+            outputs (LightningIROutput): Scored query documents pairs.
+            batch (Any): Batch of input data.
+            batch_idx (int): Index of batch in the current dataset.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+        Raises:
+            ValueError: If the batch does not have query_ids.
         """
         super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
         batch = self._gather(pl_module, batch)
@@ -453,23 +441,17 @@ class SearchCallback(RankCallback, _IndexDirMixin):
     ) -> None:
         """Callback to which uses index to retrieve documents efficiently.
 
-        :param search_config: Configuration of the :py:class:`~lightning_ir.retrieve.base.searcher.Searcher`
-        :type search_config: SearchConfig
-        :param index_dir: Directory where indexes are stored, defaults to None
-        :type index_dir: Path | str | None, optional
-        :param index_name: Name of the index. If None, the dataset's dataset_id or file name will be used,
-            defaults to None
-        :type index_name: str | None, optional
-        :param save_dir: Directory to save run files to. If None, run files are saved in the model's directory,
-            defaults to None
-        :type save_dir: Path | str | None, optional
-        :param run_name: Name of the run file. If None, the dataset's dataset_id or file name will be used,
-            defaults to None
-        :type run_name: str | None, optional
-        :param overwrite: Whether to skip or overwrite already existing run files, defaults to False
-        :type overwrite: bool, optional
-        :param use_gpu: Toggle to use gpu for retrieval, defaults to True
-        :type use_gpu: bool, optional
+        Args:
+            search_config (SearchConfig): Configuration of the :py:class:`~lightning_ir.retrieve.base.searcher.Searcher`
+            index_dir (Path | str | None): Directory where indexes are stored. Defaults to None.
+            index_name (str | None): Name of the index. If None, the dataset's dataset_id or file name will be used.
+                Defaults to None.
+            save_dir (Path | str | None): Directory to save run files to. If None, run files will be saved in the
+                model's directory. Defaults to None.
+            run_name (str | None): Name of the run file. If None, the dataset's dataset_id or file name will be used.
+                Defaults to None.
+            overwrite (bool): Whether to skip or overwrite already existing run files. Defaults to False.
+            use_gpu (bool): Toggle to use GPU for retrieval. Defaults to True.
         """
         super().__init__(save_dir=save_dir, run_name=run_name, overwrite=overwrite)
         self.search_config = search_config
@@ -509,12 +491,12 @@ class SearchCallback(RankCallback, _IndexDirMixin):
     def on_test_start(self, trainer: Trainer, pl_module: BiEncoderModule) -> None:
         """Hook to validate datasets
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR BiEncoderModule
-        :type pl_module: BiEncoderModule
-        :raises ValueError: If no test_dataloaders are found
-        :raises ValueError: If not all datasets are :py:class:`~lightning_ir.data.dataset.QueryDataset`
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (BiEncoderModule): LightningIR bi-encoder module.
+        Raises:
+            ValueError: If no test_dataloaders are found.
+            ValueError: If not all test datasets are :py:class:`~lightning_ir.data.dataset.QueryDataset`.
         """
         dataloaders = trainer.test_dataloaders
         if dataloaders is None:
@@ -528,16 +510,12 @@ class SearchCallback(RankCallback, _IndexDirMixin):
     ) -> None:
         """Hook to initialize searcher for new datasets.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR BiEncoderModule
-        :type pl_module: BiEncoderModule
-        :param batch: Batch of input data
-        :type batch: Any
-        :param batch_idx: Index of batch in dataset
-        :type batch_idx: int
-        :param dataloader_idx: Index of the dataloader, defaults to 0
-        :type dataloader_idx: int, optional
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (BiEncoderModule): LightningIR bi-encoder module.
+            batch (Any): Batch of input data.
+            batch_idx (int): Index of the batch in the dataset.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
         """
         if batch_idx == 0:
             self.searcher = self._get_searcher(trainer, pl_module, dataloader_idx)
@@ -569,24 +547,20 @@ class RegisterLocalDatasetCallback(Callback):
         - ``.tsv`` for training n-tuples
         - ``.tsv`` or ``.run`` for scored documents / run files
 
-        :param dataset_id: Dataset id
-        :type dataset_id: str
-        :param docs: Path to documents file or valid ir_datasets id from which documents should be taken,
-            defaults to None
-        :type docs: str | None, optional
-        :param queries: Path to queries file or valid ir_datastes id from which queries should be taken,
-            defaults to None
-        :type queries: str | None, optional
-        :param qrels: Path to qrels file or valid ir_datasets id from which qrels will be taken, defaults to None
-        :type qrels: str | None, optional
-        :param docpairs: Path to training n-tuple file or valid ir_datasets id from which training tuples will be taken,
-            defaults to None
-        :type docpairs: str | None, optional
-        :param scoreddocs: Path to run file or valid ir_datasets id from which scored documents will be taken,
-            defaults to None
-        :type scoreddocs: str | None, optional
-        :param qrels_defs: Optional dictionary describing the relevance levels of the qrels, defaults to None
-        :type qrels_defs: Dict[int, str] | None, optional
+        Args:
+            dataset_id (str): Dataset id.
+            docs (str | None): Path to documents file or valid ir_datasets id from which documents should be taken.
+                Defaults to None.
+            queries (str | None): Path to queries file or valid ir_datasets id from which queries should be taken.
+                Defaults to None.
+            qrels (str | None): Path to qrels file or valid ir_datasets id from which qrels will be taken.
+                Defaults to None.
+            docpairs (str | None): Path to training n-tuple file or valid ir_datasets id from which training tuples
+                will be taken. Defaults to None.
+            scoreddocs (str | None): Path to run file or valid ir_datasets id from which scored documents will be taken.
+                Defaults to None.
+            qrels_defs (Dict[int, str] | None): Optional dictionary describing the relevance levels of the qrels.
+                Defaults to None.
         """
         super().__init__()
         self.dataset_id = dataset_id
@@ -600,12 +574,10 @@ class RegisterLocalDatasetCallback(Callback):
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         """Hook that registers dataset.
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: Lightning IR module
-        :type pl_module: LightningIRModule
-        :param stage: Stage of the trainer
-        :type stage: str
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+            stage (str): Stage of the trainer.
         """
         register_new_dataset(
             self.dataset_id,
