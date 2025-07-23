@@ -31,8 +31,8 @@ class CrossEncoderModel(LightningIRModel):
         """A cross-encoder model that jointly encodes a query and document(s). The contextualized embeddings are
         aggragated into a single vector and fed to a linear layer which computes a final relevance score.
 
-        :param config: Configuration for the cross-encoder model
-        :type config: CrossEncoderConfig
+        Args:
+            config (CrossEncoderConfig): Configuration for the cross-encoder model.
         """
         super().__init__(config, *args, **kwargs)
         self.config: CrossEncoderConfig
@@ -43,10 +43,10 @@ class CrossEncoderModel(LightningIRModel):
         """Computes contextualized embeddings for the joint query-document input sequence and computes a relevance
         score.
 
-        :param encoding: Tokenizer encoding for the joint query-document input sequence
-        :type encoding: BatchEncoding
-        :return: Output of the model
-        :rtype: CrossEncoderOutput
+        Args:
+            encoding (BatchEncoding): Tokenizer encoding for the joint query-document input sequence.
+        Returns:
+            CrossEncoderOutput: Output of the model.
         """
         embeddings = self._backbone_forward(**encoding).last_hidden_state
         embeddings = self.pooling(

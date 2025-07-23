@@ -21,11 +21,9 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         """:class:`.LightningIRTokenizer` for cross-encoder models. Encodes queries and documents jointly and ensures
         that the input sequences are of the correct length.
 
-        :param query_length: Maximum number of tokens per query, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum number of tokens per document, defaults to 512
-        :type doc_length: int, optional
-        :type doc_length: int, optional
+        Args:
+            query_length (int): Maximum number of tokens per query. Defaults to 32.
+            doc_length (int): Maximum number of tokens per document. Defaults to 512.
         """
         super().__init__(*args, query_length=query_length, doc_length=doc_length, **kwargs)
 
@@ -81,18 +79,19 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
     ) -> Dict[str, BatchEncoding]:
         """Tokenizes queries and documents into a single sequence of tokens.
 
-        :param queries: Queries to tokenize, defaults to None
-        :type queries: str | Sequence[str] | None, optional
-        :param docs: Documents to tokenize, defaults to None
-        :type docs: str | Sequence[str] | None, optional
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int | None, optional
-        :return: Tokenized query-document sequence
-        :rtype: Dict[str, BatchEncoding]
+        Args:
+            queries (str | Sequence[str] | None): Queries to tokenize. Defaults to None.
+            docs (str | Sequence[str] | None): Documents to tokenize. Defaults to None.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_docs)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+        Returns:
+            Dict[str, BatchEncoding]: Tokenized query-document sequence.
+        Raises:
+            ValueError: If either queries or docs are None.
+            ValueError: If queries and docs are not both lists or both strings.
         """
         if queries is None or docs is None:
             raise ValueError("Both queries and docs must be provided.")
