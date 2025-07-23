@@ -42,13 +42,6 @@ https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreT
     ) -> Dict[str, BatchEncoding]:
         """Tokenizes queries and documents.
 
-        :param queries: Queries to tokenize, defaults to None
-        :type queries: str | Sequence[str] | None, optional
-        :param docs: Documents to tokenize, defaults to None
-        :type docs: str | Sequence[str] | None, optional
-        :raises NotImplementedError: Must be implemented by the derived class
-        :return: Dictionary of tokenized queries and documents
-        :rtype: Dict[str, BatchEncoding]
         Args:
             queries (str | Sequence[str] | None): Queries to tokenize. Defaults to None.
             docs (str | Sequence[str] | None): Documents to tokenize. Defaults to None.
