@@ -40,10 +40,10 @@ class BiEncoderEmbedding:
     def to(self, device) -> Self:
         """Moves the embeddings to the specified device.
 
-        :param device: Device to move the embeddings to or another instance to move to the same device
-        :type device: torch.device | BiEncoderEmbedding
-        :return: Self
-        :rtype: BiEncoderEmbedding
+        Args:
+            device (torch.device | BiEncoderEmbedding): Device to move the embeddings to or another instance to move to the same device.
+        Returns:
+            Self: The instance with embeddings moved to the specified device.
         """
         if isinstance(device, BiEncoderEmbedding):
             device = device.device
@@ -56,17 +56,18 @@ class BiEncoderEmbedding:
     def device(self) -> torch.device:
         """Returns the device of the embeddings.
 
-        :raises ValueError: If the embeddings and scoring_mask are not on the same device
-        :return: The device of the embeddings
-        :rtype: torch.device
+        Returns:
+            torch.device: Device of the embeddings.
+        Raises:
+            ValueError: If the embeddings and scoring_mask are not on the same device.
         """
         return self.embeddings.device
 
     def items(self) -> Iterable[Tuple[str, torch.Tensor]]:
         """Iterates over the embeddings attributes and their values like `dict.items()`.
 
-        :yield: Tuple of attribute name and its value
-        :rtype: Iterator[Iterable[Tuple[str, torch.Tensor]]]
+        Yields:
+            Tuple[str, torch.Tensor]: Tuple of attribute name and its value.
         """
         for field in self.__dataclass_fields__:
             yield field, getattr(self, field)
@@ -92,8 +93,10 @@ class BiEncoderModel(LightningIRModel, ABC):
     def __init__(self, config: BiEncoderConfig, *args, **kwargs) -> None:
         """Initializes a bi-encoder model given a :class:`.BiEncoderConfig`.
 
-        :param config: Configuration for the bi-encoder model
-        :type config: BiEncoderConfig
+        Args:
+            config (BiEncoderConfig): Configuration for the bi-encoder model.
+        Raises:
+            ValueError: If the similarity function is not supported.
         """
         super().__init__(config, *args, **kwargs)
         self.config: BiEncoderConfig
@@ -115,18 +118,16 @@ class BiEncoderModel(LightningIRModel, ABC):
     ) -> BiEncoderOutput:
         """Embeds queries and/or documents and computes relevance scores between them if both are provided.
 
-        :param query_encoding: Tokenizer encodings for the queries
-        :type query_encoding: BatchEncoding | None
-        :param doc_encoding: Tokenizer encodings for the documents
-        :type doc_encoding: BatchEncoding | None
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int | None, optional
-        :return: Output of the model
-        :rtype: BiEncoderOutput
+        Args:
+            query_encoding (BatchEncoding | None): Tokenizer encodings for the queries. Defaults to None.
+            doc_encoding (BatchEncoding | None): Tokenizer encodings for the documents. Defaults to None.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
+                should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e.,
+                the sequence contains one value per query specifying the number of documents for that query. If an integer,
+                assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
+                the number of documents by the number of queries. Defaults to None.
+        Returns:
+            BiEncoderOutput: Output of the model containing query and document embeddings and relevance scores.
         """
         query_embeddings = None
         if query_encoding is not None:
@@ -142,20 +143,20 @@ class BiEncoderModel(LightningIRModel, ABC):
     def encode_query(self, encoding: BatchEncoding) -> BiEncoderEmbedding:
         """Encodes tokenized queries.
 
-        :param encoding: Tokenizer encodings for the queries
-        :type encoding: BatchEncoding
-        :return: Query embeddings and scoring mask
-        :rtype: BiEncoderEmbedding
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the queries.
+        Returns:
+            BiEncoderEmbedding: Query embeddings and scoring mask.
         """
         return self.encode(encoding=encoding, input_type="query")
 
     def encode_doc(self, encoding: BatchEncoding) -> BiEncoderEmbedding:
         """Encodes tokenized documents.
 
-        :param encoding: Tokenizer encodings for the documents
-        :type encoding: BatchEncoding
-        :return: Query embeddings and scoring mask
-        :rtype: BiEncoderEmbedding
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the documents.
+        Returns:
+            BiEncoderEmbedding: Document embeddings and scoring mask.
         """
         return self.encode(encoding=encoding, input_type="doc")
 
@@ -182,18 +183,16 @@ class BiEncoderModel(LightningIRModel, ABC):
     ) -> torch.Tensor:
         """Computes the similarity score between all query and document embedding vector pairs.
 
-        :param query_embeddings: Embeddings of the queries
-        :type query_embeddings: BiEncoderEmbedding
-        :param doc_embeddings: Embeddings of the documents
-        :type doc_embeddings: BiEncoderEmbedding
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int | None, optional
-        :return: Similarity scores between all query and document embedding vector pairs
-        :rtype: torch.Tensor
+        Args:
+            query_embeddings (BiEncoderEmbedding): Embeddings of the queries.
+            doc_embeddings (BiEncoderEmbedding): Embeddings of the documents.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_docs)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+        Returns:
+            torch.Tensor: Similarity scores between all query and document embedding vector pairs.
         """
         num_docs_t = self._parse_num_docs(
             query_embeddings.embeddings.shape[0], doc_embeddings.embeddings.shape[0], num_docs, query_embeddings.device
@@ -225,14 +224,15 @@ class BiEncoderModel(LightningIRModel, ABC):
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
 
-        :param encoding: Tokenizer encodings for the text sequence
-        :type encoding: BatchEncoding
-        :param input_type: Type of input, either "query" or "doc"
-        :type input_type: Literal["query", "doc"]
-        :return: Embeddings and scoring mask
-        :rtype: BiEncoderEmbedding
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            BiEncoderEmbedding: Embeddings and scoring mask for the text sequence.
+        Raises:
+            NotImplementedError: If the method is not implemented.
         """
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def score(
@@ -243,20 +243,20 @@ class BiEncoderModel(LightningIRModel, ABC):
     ) -> torch.Tensor:
         """Compute relevance scores between queries and documents.
 
-        :param query_embeddings: Embeddings and scoring mask for the queries
-        :type query_embeddings: BiEncoderEmbedding
-        :param doc_embeddings: Embeddings and scoring mask for the documents
-        :type doc_embeddings: BiEncoderEmbedding
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int | None, optional
-        :return: Relevance scores
-        :rtype: torch.Tensor
+        Args:
+            query_embeddings (BiEncoderEmbedding): Embeddings and scoring mask for the queries.
+            doc_embeddings (BiEncoderEmbedding): Embeddings and scoring mask for the documents.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+        Returns:
+            torch.Tensor: Relevance scores.
+        Raises:
+            NotImplementedError: If the method is not implemented.
         """
-        pass
+        raise NotImplementedError
 
 
 class SingleVectorBiEncoderModel(BiEncoderModel):
@@ -270,8 +270,8 @@ class SingleVectorBiEncoderModel(BiEncoderModel):
     def __init__(self, config: SingleVectorBiEncoderConfig, *args, **kwargs) -> None:
         """Initializes a single-vector bi-encoder model given a :class:`.SingleVectorBiEncoderConfig`.
 
-        :param config: Configuration for the single-vector bi-encoder model
-        :type config: SingleVectorBiEncoderConfig
+        Args:
+            config (SingleVectorBiEncoderConfig): Configuration for the single-vector bi-encoder model.
         """
         super().__init__(config, *args, **kwargs)
 
@@ -283,18 +283,16 @@ class SingleVectorBiEncoderModel(BiEncoderModel):
     ) -> torch.Tensor:
         """Compute relevance scores between queries and documents.
 
-        :param query_embeddings: Embeddings and scoring mask for the queries
-        :type query_embeddings: BiEncoderEmbedding
-        :param doc_embeddings: Embeddings and scoring mask for the documents
-        :type doc_embeddings: BiEncoderEmbedding
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int | None, optional
-        :return: Relevance scores
-        :rtype: torch.Tensor
+        Args:
+            query_embeddings (BiEncoderEmbedding): Embeddings and scoring mask for the queries.
+            doc_embeddings (BiEncoderEmbedding): Embeddings and scoring mask for the documents.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+        Returns:
+            torch.Tensor: Relevance scores
         """
         return self.compute_similarity(query_embeddings, doc_embeddings, num_docs).view(-1)
 
@@ -309,10 +307,11 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
     def __init__(self, config: MultiVectorBiEncoderConfig, *args, **kwargs) -> None:
         """Initializes a multi-vector bi-encoder model given a :class:`.MultiVectorBiEncoderConfig`.
 
-        :param config: Configuration for the multi-vector bi-encoder model
-        :type config: MultiVectorBiEncoderConfig
-        :raises ValueError: If mask scoring tokens are specified in the configuration but the tokenizer is not available
-        :raises ValueError: If the specified mask scoring tokens are not in the tokenizer vocab
+        Args:
+            config (MultiVectorBiEncoderConfig): Configuration for the multi-vector bi-encoder model
+        Raises:
+            ValueError: If mask scoring tokens are specified in the configuration but the tokenizer is not available
+            ValueError: If the specified mask scoring tokens are not in the tokenizer vocab
         """
         super().__init__(config, *args, **kwargs)
 
@@ -384,12 +383,11 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
         """Computes a scoring mask for batched tokenized text sequences which is used in the scoring function to mask
         out vectors during scoring.
 
-        :param encoding: Tokenizer encodings for the text sequence
-        :type encoding: BatchEncoding
-        :param input_type: Type of input, either "query" or "doc"
-        :type input_type: Literal["query", "doc"]
-        :return: Scoring mask
-        :rtype: torch.Tensor
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            torch.Tensor: Scoring mask.
         """
         input_ids = encoding["input_ids"]
         attention_mask = encoding["attention_mask"]
@@ -413,14 +411,12 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
         """Aggregates the matrix of query-document similarities into a single score based on the configured aggregation
         strategy.
 
-        :param similarity: Query-document similarity matrix
-        :type similarity: torch.Tensor
-        :param query_scoring_mask: Which query vectors should be masked out during scoring
-        :type query_scoring_mask: torch.Tensor
-        :param doc_scoring_mask: Which doucment vectors should be masked out during scoring
-        :type doc_scoring_mask: torch.Tensor
-        :return: Aggregated similarity scores
-        :rtype: torch.Tensor
+        Args:
+            similarity (torch.Tensor): Query--document similarity matrix.
+            query_scoring_mask (torch.Tensor): Which query vectors should be masked out during scoring.
+            doc_scoring_mask (torch.Tensor): Which document vectors should be masked out during scoring.
+        Returns:
+            torch.Tensor: Aggregated similarity scores.
         """
         num_docs_t = self._parse_num_docs(
             query_scoring_mask.shape[0], doc_scoring_mask.shape[0], num_docs, similarity.device
@@ -438,18 +434,18 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
     ) -> torch.Tensor:
         """Compute relevance scores between queries and documents.
 
-        :param query_embeddings: Embeddings and scoring mask for the queries
-        :type query_embeddings: BiEncoderEmbedding
-        :param doc_embeddings: Embeddings and scoring mask for the documents
-        :type doc_embeddings: BiEncoderEmbedding
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int | None, optional
-        :return: Relevance scores
-        :rtype: torch.Tensor
+        Args:
+            query_embeddings (BiEncoderEmbedding): Embeddings and scoring mask for the queries.
+            doc_embeddings (BiEncoderEmbedding): Embeddings and scoring mask for the documents.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+        Returns:
+            torch.Tensor: Relevance scores.
+        Raises:
+            ValueError: If scoring masks are not provided for the embeddings.
         """
         similarity = self.compute_similarity(query_embeddings, doc_embeddings, num_docs)
         if query_embeddings.scoring_mask is None or doc_embeddings.scoring_mask is None:
