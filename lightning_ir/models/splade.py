@@ -40,19 +40,16 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
         masked language model (MLM) head. The logit distribution is then sparsified and aggregated to obtain a single
         embedding for the query and document.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
-        :param similarity_function: Similarity function to compute scores between query and document embeddings,
-            defaults to "dot"
-        :type similarity_function: Literal['cosine', 'dot'], optional
-        :param sparsification: Whether and which sparsification function to apply, defaults to None
-        :type sparsification: Literal['relu', 'relu_log'] | None, optional
-        :param query_pooling_strategy: Whether and how to pool the query token embeddings, defaults to "max"
-        :type query_pooling_strategy: Literal['first', 'mean', 'max', 'sum'], optional
-        :param doc_pooling_strategy: Whether and how to pool document token embeddings, defaults to "max"
-        :type doc_pooling_strategy: Literal['first', 'mean', 'max', 'sum'], optional
+        Args:
+            query_length (int): Maximum query length. Defaults to 32.
+            doc_length (int): Maximum document length. Defaults to 512.
+            similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
+                document embeddings. Defaults to "dot".
+            sparsification (Literal["relu", "relu_log"] | None): Sparsification function to apply. Defaults to "relu_log".
+            query_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query embeddings.
+                Defaults to "max".
+            doc_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for document embeddings.
+                Defaults to "max".
         """
         super().__init__(
             query_length=query_length,
@@ -85,8 +82,8 @@ class SpladeModel(SingleVectorBiEncoderModel):
     def __init__(self, config: SingleVectorBiEncoderConfig, *args, **kwargs) -> None:
         """Initializes a SPLADE model given a :class:`SpladeConfig`.
 
-        :param config: Configuration for the SPLADE model
-        :type config: SingleVectorBiEncoderConfig
+        Args:
+            config (SingleVectorBiEncoderConfig): Configuration for the SPLADE model.
         """
         super().__init__(config, *args, **kwargs)
         # grab language modeling head based on backbone model type
@@ -102,12 +99,11 @@ class SpladeModel(SingleVectorBiEncoderModel):
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
 
-        :param encoding: Tokenizer encodings for the text sequence
-        :type encoding: BatchEncoding
-        :param input_type: Type of input, either "query" or "doc"
-        :type input_type: Literal["query", "doc"]
-        :return: Embeddings and scoring mask
-        :rtype: BiEncoderEmbedding
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            BiEncoderEmbedding: Embeddings and scoring mask.
         """
         pooling_strategy = getattr(self.config, f"{input_type}_pooling_strategy")
         embeddings = self._backbone_forward(**encoding).last_hidden_state
@@ -125,12 +121,6 @@ class SpladeModel(SingleVectorBiEncoderModel):
 .. _transformers.PreTrainedModel.from_pretrained: \
     https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained
 
-        :param model_name_or_path: Name or path of the pretrained model
-        :type model_name_or_path: str | Path
-        :raises ValueError: If called on the abstract class :class:`LightningIRModel` and no config is passed
-        :return: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin
-        :rtype: LightningIRModel
-
         .. ::doctest
         .. highlight:: python
         .. code-block:: python
@@ -141,6 +131,13 @@ class SpladeModel(SingleVectorBiEncoderModel):
             >>> # Loading using base class and backbone checkpoint
             >>> type(LightningIRModel.from_pretrained("bert-base-uncased", config=CrossEncoderConfig()))
             <class 'lightning_ir.base.class_factory.CrossEncoderBertModel'>
+
+        Args:
+            model_name_or_path (str | Path): Name or path of the pretrained model.
+        Returns:
+            Self: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin.
+        Raises:
+            ValueError: If called on the abstract class :class:`SpladeModel` and no config is passed.
         """
         key_mapping = kwargs.pop("key_mapping", {})
         config = cls.config_class
@@ -171,8 +168,8 @@ class SpladeModel(SingleVectorBiEncoderModel):
         """Returns the output embeddings of the model for tieing the input and output embeddings. Returns None if no
         MLM head is used for projection.
 
-        :return: Output embeddings of the model
-        :rtype: torch.nn.Module | None
+        Returns:
+            torch.nn.Module | None: Output embeddings of the model.
         """
         module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[self.config.backbone_model_type or self.config.model_type]
         output = self.projection

@@ -170,18 +170,19 @@ class SetEncoderTokenizer(CrossEncoderTokenizer):
     ) -> Dict[str, BatchEncoding]:
         """Tokenizes queries and documents into a single sequence of tokens.
 
-        :param queries: Queries to tokenize, defaults to None
-        :type queries: str | Sequence[str] | None, optional
-        :param docs: Documents to tokenize, defaults to None
-        :type docs: str | Sequence[str] | None, optional
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int | None, optional
-        :return: Tokenized query-document sequence
-        :rtype: Dict[str, BatchEncoding]
+        Args:
+            queries (str | Sequence[str] | None): Queries to tokenize. Defaults to None.
+            docs (str | Sequence[str] | None): Documents to tokenize. Defaults to None.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_docs)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+            Returns:
+                Dict[str, BatchEncoding]: Tokenized query-document sequence.
+            Raises:
+                ValueError: If both queries and docs are None.
+                ValueError: If queries and docs are not both lists or both strings.
         """
         if queries is None or docs is None:
             raise ValueError("Both queries and docs must be provided.")
