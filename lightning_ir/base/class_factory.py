@@ -171,7 +171,7 @@ class LightningIRConfigClassFactory(LightningIRClassFactory):
     def from_backbone_class(self, BackboneClass: Type[PretrainedConfig]) -> Type[LightningIRConfig]:
         """Creates a derived LightningIRConfig from a transformers.PretrainedConfig_ backbone configuration class. If
         the backbone configuration class is already a derived LightningIRConfig, it is returned as is.
-        
+
         .. _transformers.PretrainedConfig: \
 https://huggingface.co/docs/transformers/main_classes/configuration#transformers.PretrainedConfig
 

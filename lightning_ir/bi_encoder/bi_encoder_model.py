@@ -41,7 +41,8 @@ class BiEncoderEmbedding:
         """Moves the embeddings to the specified device.
 
         Args:
-            device (torch.device | BiEncoderEmbedding): Device to move the embeddings to or another instance to move to the same device.
+            device (torch.device | BiEncoderEmbedding): Device to move the embeddings to or another instance to move to
+                the same device.
         Returns:
             Self: The instance with embeddings moved to the specified device.
         """
@@ -121,11 +122,11 @@ class BiEncoderModel(LightningIRModel, ABC):
         Args:
             query_encoding (BatchEncoding | None): Tokenizer encodings for the queries. Defaults to None.
             doc_encoding (BatchEncoding | None): Tokenizer encodings for the documents. Defaults to None.
-            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-                should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e.,
-                the sequence contains one value per query specifying the number of documents for that query. If an integer,
-                assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-                the number of documents by the number of queries. Defaults to None.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
         Returns:
             BiEncoderOutput: Output of the model containing query and document embeddings and relevance scores.
         """
