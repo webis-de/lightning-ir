@@ -45,7 +45,8 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
             doc_length (int): Maximum document length. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            sparsification (Literal["relu", "relu_log"] | None): Sparsification function to apply. Defaults to "relu_log".
+            sparsification (Literal["relu", "relu_log"] | None): Sparsification function to apply.
+                Defaults to "relu_log".
             query_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query embeddings.
                 Defaults to "max".
             doc_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for document embeddings.
