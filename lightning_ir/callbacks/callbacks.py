@@ -240,18 +240,6 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
     ) -> None:
         """Hook to pass encoded documents to the indexer
 
-        :param trainer: PyTorch Lightning Trainer
-        :type trainer: Trainer
-        :param pl_module: LightningIR bi-encoder module
-        :type pl_module: BiEncoderModule
-        :param outputs: Encoded documents
-        :type outputs: BiEncoderOutput
-        :param batch: Batch of input data
-        :type batch: Any
-        :param batch_idx: Index of batch in the current dataset
-        :type batch_idx: int
-        :param dataloader_idx: Index of the dataloader, defaults to 0
-        :type dataloader_idx: int, optional
         Args:
             trainer (Trainer): PyTorch Lightning Trainer.
             pl_module (BiEncoderModule): LightningIR bi-encoder module.

@@ -154,11 +154,6 @@ class LightningIRModule(LightningModule):
     def forward(self, batch: TrainBatch | RankBatch | SearchBatch) -> LightningIROutput:
         """Handles the forward pass of the model.
 
-        :param batch: Batch of training or ranking data
-        :type batch: TrainBatch | RankBatch
-        :raises NotImplementedError: Must be implemented by derived class
-        :return: Model output
-        :rtype: LightningIROutput
         Args:
             batch (TrainBatch | RankBatch | SearchBatch): Batch of training or ranking data.
         Returns:
