@@ -37,6 +37,11 @@ class IRDataset:
     """Set to True to skip the dataset during inference."""
 
     def __init__(self, dataset: str) -> None:
+        """Initializes a new IRDataset.
+
+        Args:
+            dataset (str): Dataset name.
+        """
         super().__init__()
         self._dataset = dataset
         self._queries = None
@@ -47,8 +52,8 @@ class IRDataset:
     def dataset(self) -> str:
         """Dataset name.
 
-        :return: Dataset name
-        :rtype: str
+        Returns:
+            str: Dataset name.
         """
         return self.DASHED_DATASET_MAP.get(self._dataset, self._dataset)
 
@@ -56,8 +61,8 @@ class IRDataset:
     def dataset_id(self) -> str:
         """Dataset id.
 
-        :return: Dataset id
-        :rtype: str
+        Returns:
+            str: Dataset id.
         """
         if self.ir_dataset is None:
             return self.dataset
@@ -67,8 +72,8 @@ class IRDataset:
     def docs_dataset_id(self) -> str:
         """ID of the dataset containing the documents.
 
-        :return: Document dataset id
-        :rtype: str
+        Returns:
+            str: Document dataset id.
         """
         return ir_datasets.docs_parent_id(self.dataset_id)
 
@@ -76,8 +81,8 @@ class IRDataset:
     def ir_dataset(self) -> ir_datasets.Dataset | None:
         """Instance of ir_datasets.Dataset.
 
-        :return: ir_datasets dataset
-        :rtype: ir_datasets.Dataset | None
+        Returns:
+            ir_datasets.Dataset | None: Instance of ir_datasets.Dataset or None if the dataset is not found.
         """
         try:
             return ir_datasets.load(self.dataset)
@@ -88,8 +93,8 @@ class IRDataset:
     def DASHED_DATASET_MAP(self) -> Dict[str, str]:
         """Map of dataset names with dashes to dataset names with slashes.
 
-        :return: Dataset map
-        :rtype: Dict[str, str]
+        Returns:
+            Dict[str, str]: Dataset map.
         """
         return {dataset.replace("/", "-"): dataset for dataset in ir_datasets.registry._registered}
 
@@ -97,9 +102,10 @@ class IRDataset:
     def queries(self) -> pd.Series:
         """Queries in the dataset.
 
-        :raises ValueError: If no queries are found in the dataset
-        :return: Queries
-        :rtype: pd.Series
+        Returns:
+            pd.Series: Queries.
+        Raises:
+            ValueError: If no queries are found in the dataset.
         """
         if self._queries is None:
             if self.ir_dataset is None:
@@ -116,9 +122,10 @@ class IRDataset:
     def docs(self) -> ir_datasets.indices.Docstore | Dict[str, GenericDoc]:
         """Documents in the dataset.
 
-        :raises ValueError: If no documents are found in the dataset
-        :return: Documents
-        :rtype: ir_datasets.indices.Docstore | Dict[str, GenericDoc]
+        Returns:
+            ir_datasets.indices.Docstore | Dict[str, GenericDoc]: Documents.
+        Raises:
+            ValueError: If no documents are found in the dataset.
         """
         if self._docs is None:
             if self.ir_dataset is None:
@@ -130,8 +137,8 @@ class IRDataset:
     def qrels(self) -> pd.DataFrame | None:
         """Qrels in the dataset.
 
-        :return: Qrels
-        :rtype: pd.DataFrame | None
+        Returns:
+            pd.DataFrame | None: Qrels.
         """
         if self._qrels is not None:
             return self._qrels
@@ -148,8 +155,8 @@ class IRDataset:
     def prepare_constituent(self, constituent: Literal["qrels", "queries", "docs", "scoreddocs", "docpairs"]) -> None:
         """Downloads the constituent of the dataset using ir_datasets if needed.
 
-        :param constituent: Constituent to download
-        :type constituent: Literal["qrels", "queries", "docs", "scoreddocs", "docpairs"]
+        Args:
+            constituent (Literal["qrels", "queries", "docs", "scoreddocs", "docpairs"]): Constituent to download.
         """
         if self.ir_dataset is None:
             return
@@ -189,11 +196,10 @@ class QueryDataset(IRDataset, _DataParallelIterableDataset):
     def __init__(self, query_dataset: str, num_queries: int | None = None) -> None:
         """Dataset containing queries.
 
-        :param query_dataset: Path to file containing queries or valid ir_datasets id
-        :type query_dataset: str
-        :param num_queries: Number of queries in dataset. If None, the number of queries will attempted to be inferred,
-            defaults to None
-        :type num_queries: int | None, optional
+        Args:
+            query_dataset (str): Path to file containing queries or valid ir_datasets id.
+            num_queries (int | None, optional): Number of queries in dataset. If None, the number of queries will
+                attempted to be inferred. Defaults to None.
         """
         super().__init__(query_dataset)
         super(IRDataset, self).__init__()
@@ -202,8 +208,8 @@ class QueryDataset(IRDataset, _DataParallelIterableDataset):
     def __len__(self) -> int | None:
         """Number of queries in the dataset. Returns None if the number of queries cannot be inferred.
 
-        :return: Number of queries
-        :rtype: int | None
+        Returns:
+            int | None: Number of queries.
         """
         # TODO fix len for multi-gpu and multi-worker inference
         return self.num_queries or getattr(self.ir_dataset, "queries_count", lambda: None)() or None
@@ -211,8 +217,8 @@ class QueryDataset(IRDataset, _DataParallelIterableDataset):
     def __iter__(self) -> Iterator[QuerySample]:
         """Iterate over queries in the dataset.
 
-        :yield: Query sample
-        :rtype: Iterator[QuerySample]
+        Yields:
+            QuerySample: Query sample.
         """
         start = self.rank
         stop = self.num_queries
@@ -240,13 +246,11 @@ class DocDataset(IRDataset, _DataParallelIterableDataset):
     def __init__(self, doc_dataset: str, num_docs: int | None = None, text_fields: Sequence[str] | None = None) -> None:
         """Dataset containing documents.
 
-        :param doc_dataset: Path to file containing documents or valid ir_datasets id
-        :type doc_dataset: str
-        :param num_docs: Number of documents in dataset. If None, the number of documents will attempted to be inferred,
-            defaults to None
-        :type num_docs: int | None, optional
-        :param text_fields: Fields to parse the document text from, defaults to None
-        :type text_fields: Sequence[str] | None, optional
+        Args:
+            doc_dataset (str): Path to file containing documents or valid ir_datasets id.
+            num_docs (int | None, optional): Number of documents in dataset. If None, the number of documents will
+                attempted to be inferred. Defaults to None.
+            text_fields (Sequence[str] | None, optional): Fields to parse the document text from. Defaults to None.
         """
         super().__init__(doc_dataset)
         super(IRDataset, self).__init__()
@@ -256,8 +260,8 @@ class DocDataset(IRDataset, _DataParallelIterableDataset):
     def __len__(self) -> int | None:
         """Number of documents in the dataset. Returns None if the number of documents cannot be inferred.
 
-        :return: Number of documents
-        :rtype: int | None
+        Returns:
+            int | None: Number of documents.
         """
         # TODO fix len for multi-gpu and multi-worker inference
         return self.num_docs or getattr(self.ir_dataset, "docs_count", lambda: None)() or None
@@ -265,8 +269,8 @@ class DocDataset(IRDataset, _DataParallelIterableDataset):
     def __iter__(self) -> Iterator[DocSample]:
         """Iterate over documents in the dataset.
 
-        :yield: Doc sample
-        :rtype: Iterator[DocSample]
+        Yields:
+            DocSample: Document sample.
         """
         start = self.rank
         stop = self.num_docs
@@ -287,12 +291,11 @@ class Sampler:
         """Sampling strategy to randomly sample a single relevant document. The remaining ``sample_size - 1``
         are non-relevant.
 
-        :param documents: Ranked list of documents
-        :type documents: pd.DataFrame
-        :param sample_size: Number of documents to sample
-        :type sample_size: int
-        :return: Sampled documents
-        :rtype: pd.DataFrame
+        Args:
+            documents (pd.DataFrame): Ranked list of documents.
+            sample_size (int): Number of documents to sample.
+        Returns:
+            pd.DataFrame: Sampled documents.
         """
         relevance = documents.filter(like="relevance").max(axis=1).fillna(0)
         relevant = documents.loc[relevance.gt(0)].sample(1)
@@ -307,12 +310,11 @@ class Sampler:
         """Sampling strategy to randomly sample a single relevant document. The remaining ``sample_size - 1``
         are non-relevant.
 
-        :param documents: Ranked list of documents
-        :type documents: pd.DataFrame
-        :param sample_size: Number of documents to sample
-        :type sample_size: int
-        :return: Sampled documents
-        :rtype: pd.DataFrame
+        Args:
+            documents (pd.DataFrame): Ranked list of documents.
+            sample_size (int): Number of documents to sample.
+        Returns:
+            pd.DataFrame: Sampled documents.
         """
         return documents.head(sample_size)
 
@@ -321,12 +323,11 @@ class Sampler:
         """Sampling strategy to randomly sample half the ``sample_size`` documents from the top of the ranking and the
         other half randomly.
 
-        :param documents: Ranked list of documents
-        :type documents: pd.DataFrame
-        :param sample_size: Number of documents to sample
-        :type sample_size: int
-        :return: Sampled documents
-        :rtype: pd.DataFrame
+        Args:
+            documents (pd.DataFrame): Ranked list of documents.
+            sample_size (int): Number of documents to sample.
+        Returns:
+            pd.DataFrame: Sampled documents.
         """
         top_size = sample_size // 2
         random_size = sample_size - top_size
@@ -338,12 +339,11 @@ class Sampler:
     def random(documents: pd.DataFrame, sample_size: int) -> pd.DataFrame:
         """Sampling strategy to randomly sample ``sample_size`` documents.
 
-        :param documents: Ranked list of documents
-        :type documents: pd.DataFrame
-        :param sample_size: Number of documents to sample
-        :type sample_size: int
-        :return: Sampled documents
-        :rtype: pd.DataFrame
+        Args:
+            documents (pd.DataFrame): Ranked list of documents.
+            sample_size (int): Number of documents to sample.
+        Returns:
+            pd.DataFrame: Sampled documents.
         """
         return documents.sample(sample_size)
 
@@ -352,12 +352,11 @@ class Sampler:
         """Sampling strategy to randomly sample documents with a higher probability to sample documents from the top of
         the ranking.
 
-        :param documents: Ranked list of documents
-        :type documents: pd.DataFrame
-        :param sample_size: Number of documents to sample
-        :type sample_size: int
-        :return: Sampled documents
-        :rtype: pd.DataFrame
+        Args:
+            documents (pd.DataFrame): Ranked list of documents.
+            sample_size (int): Number of documents to sample.
+        Returns:
+            pd.DataFrame: Sampled documents.
         """
         weights = 1 / np.log1p(documents["rank"])
         weights[weights.isna()] = weights.min()
@@ -372,12 +371,11 @@ class Sampler:
         """
         Samples a subset of documents from a ranked list given a sampling_strategy.
 
-        :param documents: Ranked list of documents
-        :type documents: pd.DataFrame
-        :param sample_size: Number of documents to sample
-        :type sample_size: int
-        :return: Sampled documents
-        :rtype: pd.DataFrame
+        Args:
+            documents (pd.DataFrame): Ranked list of documents.
+            sample_size (int): Number of documents to sample.
+        Returns:
+            pd.DataFrame: Sampled documents.
         """
         if sample_size == -1:
             return df
@@ -400,22 +398,19 @@ class RunDataset(IRDataset, Dataset):
         """Dataset containing a list of queries with a ranked list of documents per query. Subsets of the ranked list
         can be sampled using different sampling strategies.
 
-        :param run_path_or_id: Path to a run file or valid ir_datasets id
-        :type run_path_or_id: Path | str
-        :param depth: Depth at which to cut off the ranking. If -1 the full ranking is kept, defaults to -1
-        :type depth: int, optional
-        :param sample_size: The number of documents to sample per query, defaults to -1
-        :type sample_size: int, optional
-        :param sampling_strategy: The sample strategy to use to sample documents, defaults to "top"
-        :type sampling_strategy: Literal['single_relevant', 'top', 'random', 'log_random', 'top_and_random'], optional
-        :param targets: The data type to use as targets for a model during fine-tuning. If relevance the relevance
-            judgements are parsed from qrels, defaults to None
-        :type targets: Literal['relevance', 'subtopic_relevance', 'rank', 'score'] | None, optional
-        :param normalize_targets: Whether to normalize the targets between 0 and 1, defaults to False
-        :type normalize_targets: bool, optional
-        :param add_docs_not_in_ranking: Whether to add relevant to a sample that are in the qrels but not in the
-            ranking, defaults to False
-        :type add_docs_not_in_ranking: bool, optional
+        Args:
+            run_path_or_id (Path | str): Path to a run file or valid ir_datasets id.
+            depth (int): Depth at which to cut off the ranking. If -1 the full ranking is kept.
+                Defaults to -1.
+            sample_size (int): The number of documents to sample per query. Defaults to -1.
+            sampling_strategy (Literal["single_relevant", "top", "random", "log_random", "top_and_random"]):
+                The sample strategy to use to sample documents. Defaults to "top".
+            targets (Literal["relevance", "subtopic_relevance", "rank", "score"] | None):
+                The data type to use as targets for a model during fine-tuning. If "relevance" the relevance
+                judgements are parsed from qrels. Defaults to None.
+            normalize_targets (bool): Whether to normalize the targets between 0 and 1. Defaults to False.
+            add_docs_not_in_ranking (bool): Whether to add relevant documents to a sample that are in the qrels but not
+                in the ranking. Defaults to False.
         """
         self.run_path = None
         if Path(run_path_or_id).is_file():
@@ -592,8 +587,8 @@ class RunDataset(IRDataset, Dataset):
     def qrels(self) -> pd.DataFrame | None:
         """The qrels in the dataset. If the dataset does not contain qrels, the qrels are None.
 
-        :return: Qrels
-        :rtype: pd.DataFrame | None
+        Returns:
+            pd.DataFrame | None: Qrels.
         """
         if self._qrels is not None:
             return self._qrels
@@ -613,8 +608,8 @@ class RunDataset(IRDataset, Dataset):
     def __len__(self) -> int:
         """Number of queries in the dataset.
 
-        :return: Number of queries
-        :rtype: int
+        Returns:
+            int: Number of queries.
         """
         self._setup()
         return len(self.query_ids)
@@ -623,11 +618,12 @@ class RunDataset(IRDataset, Dataset):
         """Samples a single query and corresponding ranked documents from the run. The documents are sampled according
         to the sampling strategy and sample size.
 
-        :param idx: Index of the query
-        :type idx: int
-        :raises ValueError: If the targets are not found in the run file
-        :return: Sampled query and documents
-        :rtype: RankSample
+        Args:
+            idx (int): Index of the query.
+        Returns:
+            RankSample: Sampled query and documents.
+        Raises:
+            ValueError: If the targets are not found in the run file.
         """
         self._setup()
         query_id = str(self.query_ids[idx])
@@ -673,12 +669,11 @@ class TupleDataset(IRDataset, IterableDataset):
     ) -> None:
         """Dataset containing tuples of a query and n-documents. Used for fine-tuning models on ranking tasks.
 
-        :param tuples_dataset: Path to file containing tuples or valid ir_datasets id
-        :type tuples_dataset: str
-        :param targets: The data type to use as targets for a model during fine-tuning, defaults to "order"
-        :type targets: Literal["order", "score"], optional
-        :param num_docs: Maximum number of documents per query, defaults to None
-        :type num_docs: int | None, optional
+        Args:
+            tuples_dataset (str): Path to file containing tuples or valid ir_datasets id.
+            targets (Literal["order", "score"], optional): Data type to use as targets for a model during fine-tuning.
+                Defaults to "order".
+            num_docs (int | None, optional): Maximum number of documents per query. Defaults to None.
         """
         super().__init__(tuples_dataset)
         super(IRDataset, self).__init__()
@@ -712,8 +707,8 @@ class TupleDataset(IRDataset, IterableDataset):
     def __iter__(self) -> Iterator[RankSample]:
         """Iterates over tuples in the dataset.
 
-        :yield: A single tuple sample
-        :rtype: Iterator[RankSample]
+        Yields:
+            RankSample: Sampled query and documents with targets.
         """
         for sample in self.ir_dataset.docpairs_iter():
             query_id = sample.query_id
