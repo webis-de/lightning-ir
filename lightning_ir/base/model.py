@@ -166,10 +166,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
         Args:
             model_name_or_path (str | Path): Name or path of the pretrained model.
-
         Raises:
             ValueError: If called on the abstract class `LightningIRModel` and no config is passed.
-
         Returns:
             LightningIRModel: A derived `LightningIRModel` consisting of a backbone model
             and a `LightningIRModel` mixin.
