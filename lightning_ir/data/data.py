@@ -121,8 +121,8 @@ class TrainBatch(RankBatch):
         doc_ids (Sequence[Sequence[str]] | None): Optional list of list of document ids. Defaults to None.
         qrels (List[Dict[str, int]] | None): Optional list of dictionaries mapping document ids to relevance labels.
             Defaults to None.
-        targets (torch.Tensor | None): Optional list of target labels denoting the relevance of a document for the query.
-            Defaults to None.
+        targets (torch.Tensor | None): Optional list of target labels denoting the relevance of a document for the
+            query. Defaults to None.
     """
 
     targets: torch.Tensor | None = None
