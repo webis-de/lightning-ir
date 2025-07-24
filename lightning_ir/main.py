@@ -35,7 +35,7 @@ class LightningIRWandbLogger(WandbLogger):
         """Gets the save directory.
 
         Returns:
-            The path to the save directory.
+            str | None: The directory where the experiment logs are saved, or None if not available.
 
         """
         if isinstance(self.experiment, DummyExperiment):

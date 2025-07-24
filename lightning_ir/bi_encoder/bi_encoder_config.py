@@ -29,20 +29,16 @@ class BiEncoderConfig(LightningIRConfig):
         similarity of the query and document embeddings. Normalization and sparsification can be applied to the
         embeddings before computing the similarity score.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
-        :param similarity_function: Similarity function to compute scores between query and document embeddings,
-            defaults to "dot"
-        :type similarity_function: Literal['cosine', 'dot'], optional
-        :param normalize: Whether to normalize query and document embeddings, defaults to False
-        :type normalize: bool, optional
-        :param sparsification: Whether and which sparsification function to apply, defaults to None
-        :type sparsification: Literal['relu', 'relu_log'] | None, optional
-        :param add_marker_tokens: Whether to preprend extra marker tokens [Q] / [D] to queries / documents,
-            defaults to False
-        :type add_marker_tokens: bool, optional
+        Args:
+            query_length (int): Maximum query length. Defaults to 32.
+            doc_length (int): Maximum document length. Defaults to 512.
+            similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
+                document embeddings. Defaults to "dot".
+            normalize (bool): Whether to normalize query and document embeddings. Defaults to False.
+            sparsification (Literal['relu', 'relu_log'] | None): Whether and which sparsification function to apply.
+                Defaults to None.
+            add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
+                Defaults to False.
         """
         super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)
         self.similarity_function = similarity_function
@@ -73,24 +69,20 @@ class SingleVectorBiEncoderConfig(BiEncoderConfig):
         """Configuration class for a single-vector bi-encoder model. A single-vector bi-encoder model pools the
         representations of queries and documents into a single vector before computing a similarity score.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
-        :param similarity_function: Similarity function to compute scores between query and document embeddings,
-            defaults to "dot"
-        :type similarity_function: Literal['cosine', 'dot'], optional
-        :param normalize: Whether to normalize query and document embeddings, defaults to False
-        :type normalize: bool, optional
-        :param sparsification: Whether and which sparsification function to apply, defaults to None
-        :type sparsification: Literal['relu', 'relu_log'] | None, optional
-        :param add_marker_tokens: Whether to preprend extra marker tokens [Q] / [D] to queries / documents,
-            defaults to False
-        :type add_marker_tokens: bool, optional
-        :param query_pooling_strategy: Whether and how to pool the query token embeddings, defaults to "mean"
-        :type query_pooling_strategy: Literal['first', 'mean', 'max', 'sum'] | None, optional
-        :param doc_pooling_strategy: Whether and how to pool document token embeddings, defaults to "mean"
-        :type doc_pooling_strategy: Literal['first', 'mean', 'max', 'sum'] | None, optional
+        Args:
+            query_length (int): Maximum query length. Defaults to 32.
+            doc_length (int): Maximum document length. Defaults to 512.
+            similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
+                document embeddings. Defaults to "dot".
+            normalize (bool): Whether to normalize query and document embeddings. Defaults to False.
+            sparsification (Literal['relu', 'relu_log'] | None): Whether and which sparsification function to apply.
+                Defaults to None.
+            add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
+                Defaults to False.
+            query_pooling_strategy (Literal['first', 'mean', 'max', 'sum']): Whether and how to pool the query
+                token embeddings. Defaults to "mean".
+            doc_pooling_strategy (Literal['first', 'mean', 'max', 'sum']): Whether and how to pool document
+                token embeddings. Defaults to "mean".
         """
         super().__init__(
             query_length=query_length,
@@ -129,28 +121,24 @@ class MultiVectorBiEncoderConfig(BiEncoderConfig):
         relevance score by aggregating the similarities of query-document token pairs. Optionally, some tokens can be
         masked out during scoring.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
-        :param similarity_function: Similarity function to compute scores between query and document embeddings,
-            defaults to "dot"
-        :type similarity_function: Literal['cosine', 'dot'], optional
-        :param normalize: Whether to normalize query and document embeddings, defaults to False
-        :type normalize: bool, optional
-        :param sparsification: Whether and which sparsification function to apply, defaults to None
-        :type sparsification: Literal['relu', 'relu_log'] | None, optional
-        :param add_marker_tokens: Whether to preprend extra marker tokens [Q] / [D] to queries / documents,
-            defaults to False
-        :type add_marker_tokens: bool, optional
-        :param query_mask_scoring_tokens: Whether and which query tokens to ignore during scoring, defaults to None
-        :type query_mask_scoring_tokens: Sequence[str] | Literal['punctuation'] | None, optional
-        :param doc_mask_scoring_tokens: Whether and which document tokens to ignore during scoring, defaults to None
-        :type doc_mask_scoring_tokens: Sequence[str] | Literal['punctuation'] | None, optional
-        :param doc_aggregation_function: How to aggregate similarity scores over doc tokens, defaults to "max"
-        :type doc_aggregation_function: Literal[ 'sum', 'mean', 'max', 'harmonic_mean' ], optional
-        :param query_aggregation_function: How to aggregate similarity scores over query tokens, defaults to "sum"
-        :type query_aggregation_function: Literal[ 'sum', 'mean', 'max', 'harmonic_mean' ], optional
+        Args:
+            query_length (int): Maximum query length. Defaults to 32.
+            doc_length (int): Maximum document length. Defaults to 512.
+            similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
+                document embeddings. Defaults to "dot".
+            normalize (bool): Whether to normalize query and document embeddings. Defaults to False.
+            sparsification (Literal['relu', 'relu_log'] | None): Whether and which sparsification function to apply.
+                Defaults to None.
+            add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
+                Defaults to False.
+            query_mask_scoring_tokens (Sequence[str] | Literal['punctuation'] | None): Whether and which query tokens
+                to ignore during scoring. Defaults to None.
+            doc_mask_scoring_tokens (Sequence[str] | Literal['punctuation'] | None): Whether and which document tokens
+                to ignore during scoring. Defaults to None.
+            query_aggregation_function (Literal['sum', 'mean', 'max', 'harmonic_mean']): How to aggregate similarity
+                scores over query tokens. Defaults to "sum".
+            doc_aggregation_function (Literal['sum', 'mean', 'max', 'harmonic_mean']): How to aggregate similarity
+                scores over doc tokens. Defaults to "max".
         """
         super().__init__(
             query_length, doc_length, similarity_function, normalize, sparsification, add_marker_tokens, **kwargs

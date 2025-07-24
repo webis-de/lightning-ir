@@ -37,20 +37,22 @@ class DprConfig(SingleVectorBiEncoderConfig):
         contextualized token embeddings are aggregated to obtain a single embedding using a pooling strategy.
         Optionally, the pooled embeddings can be projected using a linear layer.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
-        :param similarity_function: Similarity function to compute scores between query and document embeddings,
-            defaults to "dot"
-        :type similarity_function: Literal['cosine', 'dot'], optional
-        :param sparsification: Whether and which sparsification function to apply, defaults to None
-        :type sparsification: Literal['relu', 'relu_log'] | None, optional
-        :param query_pooling_strategy: Whether and how to pool the query token embeddings, defaults to "first"
-        :type query_pooling_strategy: Literal['first', 'mean', 'max', 'sum'], optional
-        :param doc_pooling_strategy: Whether and how to pool document token embeddings, defaults to "first"
-        :type doc_pooling_strategy: Literal['first', 'mean', 'max', 'sum'], optional
-
+        Args:
+            query_length (int): Maximum query length. Defaults to 32.
+            doc_length (int): Maximum document length. Defaults to 512.
+            similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
+                document embeddings. Defaults to "dot".
+            normalize (bool): Whether to normalize the embeddings. Defaults to False.
+            sparsification (Literal["relu", "relu_log"] | None): Sparsification function to apply. Defaults to None.
+            add_marker_tokens (bool): Whether to add marker tokens to the input sequences. Defaults to False.
+            query_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query embeddings.
+                Defaults to "first".
+            doc_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for document embeddings.
+                Defaults to "first".
+            embedding_dim (int | None): Dimension of the final embeddings. If None, it will be set to the hidden size
+                of the backbone model. Defaults to None.
+            projection (Literal["linear", "linear_no_bias"] | None): Type of projection layer to apply on the pooled
+                embeddings. If None, no projection is applied. Defaults to "linear".
         """
         super().__init__(
             query_length=query_length,
@@ -80,8 +82,10 @@ class DprModel(SingleVectorBiEncoderModel):
     def __init__(self, config: SingleVectorBiEncoderConfig, *args, **kwargs) -> None:
         """Initializes a DPR model given a :class:`DprConfig`.
 
-        :param config: Configuration for the DPR model
-        :type config: SingleVectorBiEncoderConfig
+        Args:
+            config (SingleVectorBiEncoderConfig): Configuration for the DPR model.
+        Raises:
+            ValueError: If the embedding dimension is not specified in the configuration.
         """
         super().__init__(config, *args, **kwargs)
         if self.config.projection is None:
@@ -98,12 +102,11 @@ class DprModel(SingleVectorBiEncoderModel):
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
 
-        :param encoding: Tokenizer encodings for the text sequence
-        :type encoding: BatchEncoding
-        :param input_type: Type of input, either "query" or "doc"
-        :type input_type: Literal["query", "doc"]
-        :return: Embeddings and scoring mask
-        :rtype: BiEncoderEmbedding
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            BiEncoderEmbedding: Embeddings and scoring mask.
         """
         pooling_strategy = getattr(self.config, f"{input_type}_pooling_strategy")
         embeddings = self._backbone_forward(**encoding).last_hidden_state

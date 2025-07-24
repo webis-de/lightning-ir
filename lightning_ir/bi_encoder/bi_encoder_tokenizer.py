@@ -46,14 +46,13 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         """:class:`.LightningIRTokenizer` for bi-encoder models. Encodes queries and documents separately. Optionally
         adds marker tokens are added to encoded input sequences.
 
-        :param query_length: Maximum query length in number of tokens, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length in number of tokens, defaults to 512
-        :type doc_length: int, optional
-        :param add_marker_tokens: Whether to add marker tokens to the query and document input sequences,
-            defaults to False
-        :type add_marker_tokens: bool, optional
-        :raises ValueError: If add_marker_tokens is True and a non-supported tokenizer is used
+        Args:
+            query_length (int): Maximum query length in number of tokens. Defaults to 32.
+            doc_length (int): Maximum document length in number of tokens. Defaults to 512.
+            add_marker_tokens (bool): Whether to add marker tokens to the query and document input sequences.
+                Defaults to False.
+        Raises:
+            ValueError: If `add_marker_tokens` is True and a non-supported tokenizer is used.
         """
         super().__init__(
             *args,
@@ -104,8 +103,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
     def query_token_id(self) -> int | None:
         """The token id of the query token if marker tokens are added.
 
-        :return: Token id of the query token
-        :rtype: int | None
+        Return:
+            Token id of the query token if added, otherwise None.
         """
         if self.QUERY_TOKEN in self.added_tokens_encoder:
             return self.added_tokens_encoder[self.QUERY_TOKEN]
@@ -115,8 +114,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
     def doc_token_id(self) -> int | None:
         """The token id of the document token if marker tokens are added.
 
-        :return: Token id of the document token
-        :rtype: int | None
+        Returns:
+            Token id of the document token if added, otherwise None.
         """
         if self.DOC_TOKEN in self.added_tokens_encoder:
             return self.added_tokens_encoder[self.DOC_TOKEN]
@@ -129,12 +128,11 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         .. PretrainedTokenizer.__call__: \
 https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.PreTrainedTokenizer.__call__
 
-        :param text: Text to tokenize
-        :type text: str | Sequence[str]
-        :param warn: Set to false to silence warning, defaults to True
-        :type warn: bool, optional
-        :return: Tokenized text
-        :rtype: BatchEncoding
+        Args:
+            text (str | Sequence[str]): Text to tokenize.
+            warn (bool): Set to False to silence warning. Defaults to True.
+        Returns:
+            BatchEncoding: Tokenized text.
         """
         if warn:
             warnings.warn(
@@ -174,10 +172,11 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
     ) -> BatchEncoding:
         """Tokenizes an input sequence. This method is used to tokenize both queries and documents.
 
-        :param queries: Single string or multiple strings to tokenize
-        :type queries: Sequence[str] | str
-        :return: Tokenized input sequences
-        :rtype: BatchEncoding
+        Args:
+            text (Sequence[str] | str): Input text to tokenize.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            BatchEncoding: Tokenized input sequences.
         """
         post_processer = getattr(self, f"{input_type}_post_processor")
         kwargs["max_length"] = getattr(self, f"{input_type}_length")
@@ -188,10 +187,10 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
     def tokenize_query(self, queries: Sequence[str] | str, *args, **kwargs) -> BatchEncoding:
         """Tokenizes input queries.
 
-        :param queries: Query or queries to tokenize
-        :type queries: Sequence[str] | str
-        :return: Tokenized queries
-        :rtype: BatchEncoding
+        Args:
+            queries (Sequence[str] | str): Query or queries to tokenize.
+        Returns:
+            BatchEncoding: Tokenized queries.
         """
         encoding = self.tokenize_input_sequence(queries, "query", *args, **kwargs)
         return encoding
@@ -199,10 +198,10 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
     def tokenize_doc(self, docs: Sequence[str] | str, *args, **kwargs) -> BatchEncoding:
         """Tokenizes input documents.
 
-        :param docs: Document or documents to tokenize
-        :type docs: Sequence[str] | str
-        :return: Tokenized documents
-        :rtype: BatchEncoding
+        Args:
+            docs (Sequence[str] | str): Document or documents to tokenize.
+        Returns:
+            BatchEncoding: Tokenized documents.
         """
         encoding = self.tokenize_input_sequence(docs, "doc", *args, **kwargs)
         return encoding
@@ -215,12 +214,11 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
     ) -> Dict[str, BatchEncoding]:
         """Tokenizes queries and documents.
 
-        :param queries: Queries to tokenize, defaults to None
-        :type queries: str | Sequence[str] | None, optional
-        :param docs: Documents to tokenize, defaults to None
-        :type docs: str | Sequence[str] | None, optional
-        :return: Dictionary of tokenized queries and documents
-        :rtype: Dict[str, BatchEncoding]
+        Args:
+            queries (str | Sequence[str] | None): Queries to tokenize. Defaults to None.
+            docs (str | Sequence[str] | None): Documents to tokenize. Defaults to None.
+        Returns:
+            Dict[str, BatchEncoding]: Dictionary containing tokenized queries and documents.
         """
         encodings = {}
         kwargs.pop("num_docs", None)

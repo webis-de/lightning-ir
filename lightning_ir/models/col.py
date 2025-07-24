@@ -43,39 +43,31 @@ class ColConfig(MultiVectorBiEncoderConfig):
         linear layer. Queries and documents can optionally be expanded with mask tokens. Optionally, a set of tokens can
         be ignored during scoring.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
-        :param similarity_function: Similarity function to compute scores between query and document embeddings,
-            defaults to "dot"
-        :type similarity_function: Literal['cosine', 'dot'], optional
-        :param normalize: Whether to normalize query and document embeddings, defaults to False
-        :type normalize: bool, optional
-        :param add_marker_tokens: Whether to add extra marker tokens [Q] / [D] to queries / documents, defaults to False
-        :type add_marker_tokens: bool, optional
-        :param query_mask_scoring_tokens: Whether and which query tokens to ignore during scoring, defaults to None
-        :type query_mask_scoring_tokens: Sequence[str] | Literal['punctuation'] | None, optional
-        :param doc_mask_scoring_tokens: Whether and which document tokens to ignore during scoring, defaults to None
-        :type doc_mask_scoring_tokens: Sequence[str] | Literal['punctuation'] | None, optional
-        :param query_aggregation_function: How to aggregate similarity scores over query tokens, defaults to "sum"
-        :type query_aggregation_function: Literal[ 'sum', 'mean', 'max', 'harmonic_mean' ], optional
-        :param doc_aggregation_function: How to aggregate similarity scores over document tokens, defaults to "max"
-        :type doc_aggregation_function: Literal[ 'sum', 'mean', 'max', 'harmonic_mean' ], optional
-        :param embedding_dim: The output embedding dimension, defaults to 768
-        :type embedding_dim: int, optional
-        :param projection: Whether and how to project the output emeddings, defaults to "linear"
-        :type projection: Literal['linear', 'linear_no_bias', 'mlm'] | None, optional
-        :param query_expansion: Whether to expand queries with mask tokens, defaults to False
-        :type query_expansion: bool, optional
-        :param attend_to_query_expanded_tokens: Whether to allow query tokens to attend to mask tokens,
-            defaults to False
-        :type attend_to_query_expanded_tokens: bool, optional
-        :param doc_expansion: Whether to expand documents with mask tokens, defaults to False
-        :type doc_expansion: bool, optional
-        :param attend_to_doc_expanded_tokens: Whether to allow document tokens to attend to mask tokens,
-            defaults to False
-        :type attend_to_doc_expanded_tokens: bool, optional
+        Args:
+            query_length (int): Maximum query length in number of tokens. Defaults to 32.
+            doc_length (int): Maximum document length in number of tokens. Defaults to 512.
+            similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
+                document embeddings. Defaults to "dot".
+            normalize (bool): Whether to normalize query and document embeddings. Defaults to False.
+            add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
+                Defaults to False.
+            query_mask_scoring_tokens (Sequence[str] | Literal["punctuation"] | None): Whether and which query tokens
+                to ignore during scoring. Defaults to None.
+            doc_mask_scoring_tokens (Sequence[str] | Literal["punctuation"] | None): Whether and which document tokens
+                to ignore during scoring. Defaults to None.
+            query_aggregation_function (Literal["sum", "mean", "max", "harmonic_mean"]): How to aggregate
+                similarity scores over query tokens. Defaults to "sum".
+            doc_aggregation_function (Literal["sum", "mean", "max", "harmonic_mean"]): How to aggregate
+                similarity scores over document tokens. Defaults to "max".
+            embedding_dim (int): The output embedding dimension. Defaults to 128.
+            projection (Literal["linear", "linear_no_bias"]): Whether and how to project the output embeddings.
+                Defaults to "linear". If set to "linear_no_bias", the projection layer will not have a bias term.
+            query_expansion (bool): Whether to expand queries with mask tokens. Defaults to False.
+            attend_to_query_expanded_tokens (bool): Whether to allow query tokens to attend to mask expanded query
+                tokens. Defaults to False.
+            doc_expansion (bool): Whether to expand documents with mask tokens. Defaults to False.
+            attend_to_doc_expanded_tokens (bool): Whether to allow document tokens to attend to mask expanded document
+                tokens. Defaults to False.
         """
         super().__init__(
             query_length=query_length,
@@ -107,8 +99,10 @@ class ColModel(MultiVectorBiEncoderModel):
     def __init__(self, config: ColConfig, *args, **kwargs) -> None:
         """Initializes a Col model given a :class:`.ColConfig`.
 
-        :param config: Configuration for the Col model
-        :type config: ColConfig
+        Args:
+            config (ColConfig): Configuration for the Col model.
+        Raises:
+            ValueError: If the embedding dimension is not specified in the configuration.
         """
         super().__init__(config, *args, **kwargs)
         if config.embedding_dim is None:
@@ -121,12 +115,11 @@ class ColModel(MultiVectorBiEncoderModel):
         """Computes a scoring mask for batched tokenized text sequences which is used in the scoring function to mask
         out vectors during scoring.
 
-        :param encoding: Tokenizer encodings for the text sequence
-        :type encoding: BatchEncoding
-        :param input_type: Type of input, either "query" or "doc"
-        :type input_type: Literal["query", "doc"]
-        :return: Scoring mask
-        :rtype: torch.Tensor
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            torch.Tensor: Scoring mask.
         """
         input_ids = encoding["input_ids"]
         attention_mask = encoding["attention_mask"]
@@ -144,12 +137,11 @@ class ColModel(MultiVectorBiEncoderModel):
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
 
-        :param encoding: Tokenizer encodings for the text sequence
-        :type encoding: BatchEncoding
-        :param input_type: Type of input, either "query" or "doc"
-        :type input_type: Literal["query", "doc"]
-        :return: Embeddings and scoring mask
-        :rtype: BiEncoderEmbedding
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            BiEncoderEmbedding: Embeddings and scoring mask.
         """
         embeddings = self._backbone_forward(**encoding).last_hidden_state
         embeddings = self.projection(embeddings)
@@ -180,24 +172,19 @@ class ColTokenizer(BiEncoderTokenizer):
         """Initializes a Col model's tokenizer. Encodes queries and documents separately. Optionally adds marker tokens
         to encoded input sequences and expands queries and documents with mask tokens.
 
-        :param query_length: Maximum query length in number of tokens, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length in number of tokens, defaults to 512
-        :type doc_length: int, optional
-        :param add_marker_tokens: Whether to add marker tokens to the query and document input sequences,
-            defaults to False
-        :type add_marker_tokens: bool, optional
-        :param query_expansion: Whether to expand queries with mask tokens, defaults to False
-        :type query_expansion: bool, optional
-        :param attend_to_query_expanded_tokens: Whether to let non-expanded query tokens be able to attend to mask
-            expanded query tokens, defaults to False
-        :type attend_to_query_expanded_tokens: bool, optional
-        :param doc_expansion: Whether to expand documents with mask tokens, defaults to False
-        :type doc_expansion: bool, optional
-        :param attend_to_doc_expanded_tokens: Whether to let non-expanded document tokens be able to attend to
-            mask expanded document tokens, defaults to False
-        :type attend_to_doc_expanded_tokens: bool, optional
-        :raises ValueError: If add_marker_tokens is True and a non-supported tokenizer is used
+        Args:
+            query_length (int): Maximum query length in number of tokens. Defaults to 32.
+            doc_length (int): Maximum document length in number of tokens. Defaults to 512.
+            add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
+                Defaults to False.
+            query_expansion (bool): Whether to expand queries with mask tokens. Defaults to False.
+            attend_to_query_expanded_tokens (bool): Whether to allow query tokens to attend to mask expanded query
+                tokens. Defaults to False.
+            doc_expansion (bool): Whether to expand documents with mask tokens. Defaults to False.
+            attend_to_doc_expanded_tokens (bool): Whether to allow document tokens to attend to mask expanded document
+                tokens. Defaults to False.
+        Raises:
+            ValueError: If `add_marker_tokens` is True and a non-supported tokenizer is used.
         """
         super().__init__(
             *args,
@@ -229,10 +216,11 @@ class ColTokenizer(BiEncoderTokenizer):
     ) -> BatchEncoding:
         """Tokenizes an input sequence. This method is used to tokenize both queries and documents.
 
-        :param queries: Single string or multiple strings to tokenize
-        :type queries: Sequence[str] | str
-        :return: Tokenized input sequences
-        :rtype: BatchEncoding
+        Args:
+            text (Sequence[str] | str): Input text to tokenize.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            BatchEncoding: Tokenized input sequences.
         """
         expansion = getattr(self, f"{input_type}_expansion")
         if expansion:

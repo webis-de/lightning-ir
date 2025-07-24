@@ -242,10 +242,10 @@ class ApproximateSearcher(Searcher):
     def _gather_doc_embeddings(self, idcs: torch.Tensor) -> torch.Tensor:
         """Reconstructs embeddings from indices.
 
-        :param doc_idcs: Indices
-        :type doc_idcs: PackedTensor
-        :return: Reconstructed embeddings
-        :rtype: BiEncoderEmbedding
+        Args:
+            idcs (torch.Tensor): Indices of the document embeddings to gather.
+        Returns:
+            BiEncoderEmbedding: Reconstructed embeddings.
         """
         ...
 

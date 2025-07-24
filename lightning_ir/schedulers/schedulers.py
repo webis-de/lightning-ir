@@ -21,10 +21,9 @@ class LambdaWarmupScheduler(ABC):
     ) -> None:
         """Base class for schedulers with warmup.
 
-        :param num_warmup_steps: Number of warmup steps
-        :type num_warmup_steps: int
-        :param num_delay_steps: Number of steps to delay scheduler for, defaults to 0
-        :type num_delay_steps: int, optional
+        Args:
+            num_warmup_steps (int): Number of warmup steps.
+            num_delay_steps (int): Number of steps to delay the scheduler for. Defaults to 0.
         """
         self.num_warmup_steps = num_warmup_steps
         self.num_delay_steps = num_delay_steps
@@ -34,10 +33,10 @@ class LambdaWarmupScheduler(ABC):
     def value_lambda(self, current_step: int) -> float:
         """Lambda function to adjust the value at each step.
 
-        :param current_step: Current step
-        :type current_step: int
-        :return: Value at the current step
-        :rtype: float
+        Args:
+            current_step (int): Current step.
+        Returns:
+            float: Value at the current step.
         """
         ...
 
@@ -61,14 +60,11 @@ class LinearSchedulerWithLinearWarmup(LambdaWarmupScheduler):
     ) -> None:
         """Scheduler for linearly decreasing values with linear warmup.
 
-        :param num_warmup_steps: Number of warmup steps
-        :type num_warmup_steps: int
-        :param num_training_steps: Number of training steps
-        :type num_training_steps: int
-        :param final_value: The final value that should be reached at the end of decay, defaults to 0.0
-        :type final_value: float, optional
-        :param num_delay_steps: Number of steps to delay warmup / decay, defaults to 0
-        :type num_delay_steps: int, optional
+        Args:
+            num_warmup_steps (int): Number of warmup steps.
+            num_training_steps (int): Number of training steps.
+            final_value (float, optional): Final value that should be reached at the end of decay. Defaults to 0.0.
+            num_delay_steps (int, optional): Number of steps to delay warmup / decay. Defaults to 0.
         """
         self.num_training_steps = num_training_steps
         self.final_value = final_value
@@ -77,10 +73,10 @@ class LinearSchedulerWithLinearWarmup(LambdaWarmupScheduler):
     def value_lambda(self, current_step: int) -> float:
         """Lambda function for linearly decreasing values with linear warmup.
 
-        :param current_step: Current step
-        :type current_step: int
-        :return: Value at the current step
-        :rtype: float
+        Args:
+            current_step (int): Current step.
+        Returns:
+            float: Value at the current step.
         """
         if self._check_delay(current_step):
             return 0.0
@@ -96,10 +92,10 @@ class ConstantSchedulerWithLinearWarmup(LambdaWarmupScheduler):
     def value_lambda(self, current_step: int) -> float:
         """Lambda function for no decay with linear warmup.
 
-        :param current_step: Current step
-        :type current_step: int
-        :return: Value at the current step
-        :rtype: float
+        Args:
+            current_step (int): Current step.
+        Returns:
+            float: Value at the current step.
         """
         if self._check_delay(current_step):
             return 0.0
@@ -112,10 +108,10 @@ class ConstantSchedulerWithQuadraticWarmup(LambdaWarmupScheduler):
     def value_lambda(self, current_step: int) -> float:
         """Lambda function for no decay with quadratic warmup.
 
-        :param current_step: Current step
-        :type current_step: int
-        :return: Value at the current step
-        :rtype: float
+        Args:
+            current_step (int): Current step.
+        Returns:
+            float: Value at the current step.
         """
         if self._check_delay(current_step):
             return 0.0

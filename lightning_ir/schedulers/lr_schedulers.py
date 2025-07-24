@@ -14,10 +14,9 @@ class WarmupLRScheduler(LambdaWarmupScheduler, torch.optim.lr_scheduler.LambdaLR
     ) -> None:
         """Base class for learning rate schedulers with warmup.
 
-        :param optimizer: Optimizer to adjust the learning rate for.
-        :type optimizer: torch.optim.Optimizer
-        :param num_warmup_steps: Number of warmup steps.
-        :type num_warmup_steps: int
+        Args:
+            optimizer (torch.optim.Optimizer): Optimizer to adjust the learning rate for.
+            num_warmup_steps (int): Number of warmup steps.
         """
         last_epoch = -1
         self.interval = "step"

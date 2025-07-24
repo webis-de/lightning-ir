@@ -36,8 +36,8 @@ class LightningIROutput(ModelOutput):
 
     .. _transformers.ModelOutput: https://huggingface.co/transformers/main_classes/output.html#transformers.ModelOutput
 
-    :param scores: Output relevance scores for query--document pairs, defaults to None
-    :type scores: torch.Tensor | None, optional
+    Attributes:
+        scores (torch.Tensor | None): Output relevance scores for query--document pairs. Defaults to None.
     """
 
     scores: torch.Tensor | None = None
@@ -49,6 +49,11 @@ class LightningIRModel(PreTrainedModel):
 
     .. _transformers.PreTrainedModel: \
 https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel
+
+    Attributes:
+        config_class (Type[LightningIRConfig]): Configuration class for the model.
+        ALLOW_SUB_BATCHING (bool): Flag to allow mini batches of documents for a single query.
+            Set to false for listwise models to ensure correctness.
     """
 
     config_class: Type[LightningIRConfig] = LightningIRConfig
@@ -61,8 +66,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
     def __init__(self, config: LightningIRConfig, *args, **kwargs) -> None:
         """Initializes the model.
 
-        :param config: Configuration class for the model
-        :type config: LightningIRConfig
+        Args:
+            config(LightningIRConfig): Configuration class for the model
         """
         super().__init__(config, *args, **kwargs)
         self.config = config
@@ -73,7 +78,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         """Runs the forward method of the backbone model. Is overridden in
         :class:`~lightning_ir.base.class_factory.LightningIRModelClassFactory`.
 
-        :raises NotImplementedError: If not overridden in the derived class
+        Raises:
+            NotImplementedError: If not overridden in the derived class
         """
         raise NotImplementedError
 
@@ -86,14 +92,14 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
     ) -> torch.Tensor:
         """Helper method to apply sparsification to the embeddings.
 
-        :param embeddings: Query or document embeddings
-        :type embeddings: torch.Tensor
-        :param sparsification_strategy: The sparsification strategy. No sparsification is applied if None,
-            defaults to None
-        :type sparsification_strategy: Literal['relu', 'relu_log'] | None, optional
-        :raises ValueError: If an unknown sparsification strategy is passed
-        :return: (Optionally) sparsified embeddings
-        :rtype: torch.Tensor
+        Args:
+            embeddings(torch.Tensor): Query or document embeddings
+            sparsification_strategy(Literal['relu', 'relu_log'] | None): The sparsification strategy. No
+                sparsification is applied if None. Defaults to None.
+        Returns:
+            torch.Tensor: (Optionally) sparsified embeddings.
+        Raises:
+            ValueError: If an unknown sparsification strategy is passed.
         """
         if sparsification_strategy is None:
             return embeddings
@@ -111,15 +117,15 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
     ) -> torch.Tensor:
         """Helper method to apply pooling to the embeddings.
 
-        :param embeddings: Query or document embeddings
-        :type embeddings: torch.Tensor
-        :param attention_mask: Query or document attention mask
-        :type attention_mask: torch.Tensor | None
-        :param pooling_strategy: The pooling strategy. No pooling is applied if None.
-        :type pooling_strategy: Literal['first', 'mean', 'max', 'sum'] | None
-        :raises ValueError: If an unknown pooling strategy is passed
-        :return: (Optionally) pooled embeddings
-        :rtype: torch.Tensor
+        Args:
+            embeddings (torch.Tensor): Query or document embeddings
+            attention_mask (torch.Tensor | None): Query or document attention mask
+            pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | None):
+                The pooling strategy. No pooling is applied if None.
+        Returns:
+            torch.Tensor: (Optionally) pooled embeddings.
+        Raises:
+            ValueError: If an unknown pooling strategy is passed.
         """
         if pooling_strategy is None:
             return embeddings
@@ -147,12 +153,6 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 .. _transformers.PreTrainedModel.from_pretrained: \
     https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained
 
-        :param model_name_or_path: Name or path of the pretrained model
-        :type model_name_or_path: str | Path
-        :raises ValueError: If called on the abstract class :class:`LightningIRModel` and no config is passed
-        :return: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin
-        :rtype: LightningIRModel
-
         .. ::doctest
         .. highlight:: python
         .. code-block:: python
@@ -163,6 +163,14 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             >>> # Loading using base class and backbone checkpoint
             >>> type(LightningIRModel.from_pretrained("bert-base-uncased", config=CrossEncoderConfig()))
             <class 'lightning_ir.base.class_factory.CrossEncoderBertModel'>
+
+        Args:
+            model_name_or_path (str | Path): Name or path of the pretrained model.
+        Raises:
+            ValueError: If called on the abstract class `LightningIRModel` and no config is passed.
+        Returns:
+            LightningIRModel: A derived `LightningIRModel` consisting of a backbone model
+            and a `LightningIRModel` mixin.
         """
         # provides AutoModel.from_pretrained support
         config = kwargs.get("config", None)
@@ -213,7 +221,14 @@ T = TypeVar("T")
 def _cat_outputs(
     outputs: Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None], OutputClass: Type[T] | None
 ) -> torch.Tensor | T | None:
-    """Helper method to concatenate outputs of the model."""
+    """Helper method to concatenate outputs of the model.
+
+    Args:
+        outputs (Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None]): Outputs from the model.
+        OutputClass (Type[T] | None): Class to return the concatenated output as.
+    Returns:
+        torch.Tensor | T | None: Concatenated output.
+    """
     if len(outputs) == 1:
         return outputs[0]
     if len(outputs) == 0 or outputs[0] is None or OutputClass is None:
@@ -240,12 +255,13 @@ def batch_encoding_wrapper(func: BatchEncodingWrapper) -> BatchEncodingWrapper:
     """Decorator to enable sub-batching for models that support it. Lowers the batch size of the input batch encoding
     if the model runs out of memory.
 
-    :param func: Function to wrap that takes a batch encoding
-    :type func: BatchEncodingWrapper
-    :raises e: If CUDA runs out of memory even after lowering the batch size to 1
-    :raises ValueError: If no output was generated
-    :return: Wrapped function
-    :rtype: BatchEncodingWrapper
+    Args:
+        func (BatchEncodingWrapper): Function to wrap that takes a batch encoding.
+    Returns:
+        BatchEncodingWrapper: Wrapped function that handles sub-batching.
+    Raises:
+        RuntimeError: If CUDA runs out of memory and the batch size cannot be lowered further.
+        ValueError: If no output was generated.
     """
 
     @wraps(func)
