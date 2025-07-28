@@ -40,25 +40,21 @@ class BiEncoderModule(LightningIRModule):
 
         .. _ir-measures: https://ir-measur.es/en/latest/index.html
 
-        :param model_name_or_path: Name or path of backbone model or fine-tuned Lightning IR model, defaults to None
-        :type model_name_or_path: str | None, optional
-        :param config: BiEncoderConfig to apply when loading from backbone model, defaults to None
-        :type config: BiEncoderConfig | None, optional
-        :param model: Already instantiated BiEncoderModel, defaults to None
-        :type model: BiEncoderModel | None, optional
-        :param loss_functions: Loss functions to apply during fine-tuning, optional loss weights can be provided per
-            loss function, defaults to None
-        :type loss_functions: Sequence[LossFunction  |  Tuple[LossFunction, float]] | None, optional
-        :param evaluation_metrics: Metrics corresponding to ir-measures_ measure strings to apply during validation or
-            testing, defaults to None
-        :type evaluation_metrics: Sequence[str] | None, optional
-        :param index_dir: Path to an index used for retrieval, defaults to None
-        :type index_dir: Path | None, optional
-        :param search_config: Configuration to use during retrieval, defaults to None
-        :type search_config: SearchConfig | None, optional
-        :param model_kwargs: Additional keyword arguments to pass to `from_pretrained` when loading a model,
-            defaults to None
-        :type model_kwargs: Mapping[str, Any] | None, optional
+        Args:
+            model_name_or_path (str | None): Name or path of backbone model or fine-tuned Lightning IR model.
+                Defaults to None.
+            config (BiEncoderConfig | None): BiEncoderConfig to apply when loading from backbone model.
+                Defaults to None.
+            model (BiEncoderModel | None): Already instantiated BiEncoderModel. Defaults to None.
+            loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
+                Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function
+                Defaults to None.
+            evaluation_metrics (Sequence[str] | None): Metrics corresponding to ir-measures_ measure strings
+                to apply during validation or testing. Defaults to None.
+            index_dir (Path | None): Path to an index used for retrieval. Defaults to None.
+            search_config (SearchConfig | None): Configuration to use during retrieval. Defaults to None.
+            model_kwargs (Mapping[str, Any] | None): Additional keyword arguments to pass to `from_pretrained`
+                when loading a model. Defaults to None.
         """
         super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics, model_kwargs)
         self.model: BiEncoderModel
@@ -74,8 +70,8 @@ class BiEncoderModule(LightningIRModule):
     def searcher(self) -> Searcher | None:
         """Searcher used for retrieval if `index_dir` and `search_config` are set.
 
-        :return: Searcher class
-        :rtype: Searcher | None
+        Returns:
+            Searcher: Searcher class.
         """
         return self._searcher
 
@@ -99,11 +95,12 @@ class BiEncoderModule(LightningIRModule):
         are comuputed. If the batch is a :class:`.SearchBatch`, only query embeddings are computed and
         the model will additionally retrieve documents if :attr:`.searcher` is set.
 
-        :param batch: Input batch containg
-        :type batch: RankBatch | IndexBatch | SearchBatch
-        :raises ValueError: If the input batch contains neither queries nor documents
-        :return: Output of the model
-        :rtype: BiEncoderOutput
+        Args:
+            batch (RankBatch | IndexBatch | SearchBatch): Input batch containing queries and/or documents.
+        Returns:
+            BiEncoderOutput: Output of the model.
+        Raises:
+            ValueError: If the input batch contains neither queries nor documents.
         """
         queries = getattr(batch, "queries", None)
         docs = getattr(batch, "docs", None)
@@ -135,12 +132,11 @@ class BiEncoderModule(LightningIRModule):
     def score(self, queries: Sequence[str] | str, docs: Sequence[Sequence[str]] | Sequence[str]) -> BiEncoderOutput:
         """Computes relevance scores for queries and documents.
 
-        :param queries: Queries to score
-        :type queries: Sequence[str]
-        :param docs: Documents to score
-        :type docs: Sequence[Sequence[str]]
-        :return: Model output
-        :rtype: BiEncoderOutput
+        Args:
+            queries (Sequence[str] | str): Queries to score.
+            docs (Sequence[Sequence[str]] | Sequence[str]): Documents to score.
+        Returns:
+            BiEncoderOutput: Output of the model.
         """
         return super().score(queries, docs)
 
@@ -234,14 +230,12 @@ class BiEncoderModule(LightningIRModule):
     ) -> BiEncoderOutput:
         """Handles the validation step for the model.
 
-        :param batch: Batch of validation or testing data
-        :type batch: TrainBatch | IndexBatch | SearchBatch | RankBatch
-        :param batch_idx: Index of the batch
-        :type batch_idx: int
-        :param dataloader_idx: Index of the dataloader, defaults to 0
-        :type dataloader_idx: int, optional
-        :return: Model output
-        :rtype: BiEncoderOutput
+        Args:
+            batch (TrainBatch | IndexBatch | SearchBatch | RankBatch): Batch of validation or testing data.
+            batch_idx (int): Index of the batch.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+        Returns:
+            BiEncoderOutput: Output of the model.
         """
         if isinstance(batch, IndexBatch):
             return self.forward(batch)

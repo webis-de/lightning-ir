@@ -37,10 +37,9 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
     def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
         """Initializes the configuration.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
+        Args:
+            query_length (int, optional): Maximum query length. Defaults to 32.
+            doc_length (int, optional): Maximum document length. Defaults to 512.
         """
         super().__init__(*args, **kwargs)
         self.query_length = query_length
@@ -50,10 +49,10 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         """Returns the keyword arguments for the tokenizer. This method is used to pass the configuration
         parameters to the tokenizer.
 
-        :param Tokenizer: Class of the tokenizer to be used
-        :type Tokenizer: Type[LightningIRTokenizer]
-        :return: Keyword arguments for the tokenizer
-        :rtype: Dict[str, Any]
+        Args:
+            Tokenizer (Type[LightningIRTokenizer]): Class of the tokenizer to be used.
+        Returns:
+            Dict[str, Any]: Keyword arguments for the tokenizer.
         """
         return {k: getattr(self, k) for k in inspect.signature(Tokenizer.__init__).parameters if hasattr(self, k)}
 
@@ -64,8 +63,8 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         .. _transformers.PretrainedConfig.to_dict: \
 https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.to_dict
 
-        :return: Configuration dictionary
-        :rtype: Dict[str, Any]
+        Returns:
+            Dict[str, Any]: Configuration dictionary.
         """
         output = super().to_dict()
         if self.backbone_model_type is not None:
@@ -79,12 +78,13 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         .. _transformers.PretrainedConfig.from_pretrained: \
 https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.from_pretrained
 
-        :param pretrained_model_name_or_path: Pretrained model name or path
-        :type pretrained_model_name_or_path: str | Path
-        :raises ValueError: If `pre_trained_model_name_or_path` is not a Lightning IR model and no
-            :py:class:`LightningIRConfig` is passed
-        :return: Derived LightningIRConfig class
-        :rtype: LightningIRConfig
+        Args:
+            pretrained_model_name_or_path (str | Path): Pretrained model name or path.
+        Returns:
+            LightningIRConfig: Derived LightningIRConfig class.
+        Raises:
+            ValueError: If `pretrained_model_name_or_path` is not a Lightning IR model and no
+                :py:class:`LightningIRConfig` is passed.
         """
         # provides AutoConfig.from_pretrained support
         if cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__):

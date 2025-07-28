@@ -43,23 +43,22 @@ class LightningIRModule(LightningModule):
 
         .. _ir-measures: https://ir-measur.es/en/latest/index.html
 
-        :param model_name_or_path: Name or path of backbone model or fine-tuned Lightning IR model, defaults to None
-        :type model_name_or_path: str | None, optional
-        :param config: LightningIRConfig to apply when loading from backbone model, defaults to None
-        :type config: LightningIRConfig | None, optional
-        :param model: Already instantiated Lightning IR model, defaults to None
-        :type model: LightningIRModel | None, optional
-        :param loss_functions: Loss functions to apply during fine-tuning, optional loss weights can be provided per
-            loss function, defaults to None
-        :type loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None, optional
-        :param evaluation_metrics: Metrics corresponding to ir-measures_ measure strings to apply during validation or
-            testing, defaults to None
-        :type evaluation_metrics: Sequence[str] | None, optional
-        :param model_kwargs: Additional keyword arguments to pass to `from_pretrained` when loading a model,
-            defaults to None
-        :type model_kwargs: Mapping[str, Any] | None, optional
-        :raises ValueError: If both model and model_name_or_path are provided
-        :raises ValueError: If neither model nor model_name_or_path are provided
+        Args:
+            model_name_or_path (str | None): Name or path of backbone model or fine-tuned Lightning IR model.
+                Defaults to None.
+            config (LightningIRConfig | None): LightningIRConfig to apply when loading from backbone model.
+                Defaults to None.
+            model (LightningIRModel | None): Already instantiated Lightning IR model. Defaults to None.
+            loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
+                Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function
+                Defaults to None.
+            evaluation_metrics (Sequence[str] | None): Metrics corresponding to ir-measures_ measure strings
+                to apply during validation or testing. Defaults to None.
+            model_kwargs (Mapping[str, Any] | None): Additional keyword arguments to pass to `from_pretrained` when
+                loading a model. Defaults to None.
+        Raises:
+            ValueError: If both model and model_name_or_path are provided.
+            ValueError: If neither model nor model_name_or_path are provided.
         """
         super().__init__()
         model_kwargs = model_kwargs if model_kwargs is not None else {}
@@ -112,9 +111,10 @@ class LightningIRModule(LightningModule):
         """Configures the optizmizer for fine-tuning. This method is ignored when using the CLI. When using Lightning IR
         programmatically, the optimizer must be set using :meth:`set_optimizer`.
 
-        :raises ValueError: If optimizer is not set
-        :return: Optimizer
-        :rtype: torch.optim.Optimizer
+        Returns:
+            torch.optim.Optimizer: The optimizer set for the model.
+        Raises:
+            ValueError: If optimizer is not set. Call `set_optimizer`.
         """
         if self._optimizer is None:
             raise ValueError("Optimizer is not set. Call `set_optimizer`.")
@@ -125,12 +125,11 @@ class LightningIRModule(LightningModule):
     ) -> "LightningIRModule":
         """Sets the optimizer for the model. Necessary for fine-tuning when not using the CLI.
 
-        :param optimizer: Torch optimizer class
-        :type optimizer: Type[torch.optim.Optimizer]
-        :param optimizer_kwargs: Arguments to initialize the optimizer
-        :type optimizer_kwargs: Dict[str, Any]
-        :return: self
-        :rtype: LightningIRModule
+        Args:
+            optimizer (Type[torch.optim.Optimizer]): Torch optimizer class.
+            optimizer_kwargs (Dict[str, Any]): Arguments to initialize the optimizer.
+        Returns:
+            LightningIRModule: Self with the optimizer set.
         """
         self._optimizer = optimizer(self.parameters(), **optimizer_kwargs)
         return self
@@ -138,12 +137,11 @@ class LightningIRModule(LightningModule):
     def score(self, queries: Sequence[str] | str, docs: Sequence[Sequence[str]] | Sequence[str]) -> LightningIROutput:
         """Computes relevance scores for queries and documents.
 
-        :param queries: Queries to score
-        :type queries: Sequence[str]
-        :param docs: Documents to score
-        :type docs: Sequence[Sequence[str]]
-        :return: Model output
-        :rtype: LightningIROutput
+        Args:
+            queries (Sequence[str] | str): Queries to score.
+            docs (Sequence[Sequence[str]] | Sequence[str]): Documents to score.
+        Returns:
+            LightningIROutput: Model output containing the scores.
         """
         if isinstance(queries, str):
             queries = (queries,)
@@ -156,11 +154,12 @@ class LightningIRModule(LightningModule):
     def forward(self, batch: TrainBatch | RankBatch | SearchBatch) -> LightningIROutput:
         """Handles the forward pass of the model.
 
-        :param batch: Batch of training or ranking data
-        :type batch: TrainBatch | RankBatch
-        :raises NotImplementedError: Must be implemented by derived class
-        :return: Model output
-        :rtype: LightningIROutput
+        Args:
+            batch (TrainBatch | RankBatch | SearchBatch): Batch of training or ranking data.
+        Returns:
+            LightningIROutput: Model output.
+        Raises:
+            NotImplementedError: Must be implemented by derived class.
         """
         raise NotImplementedError
 
@@ -171,15 +170,13 @@ class LightningIRModule(LightningModule):
 
         .. _BatchEncoding: https://huggingface.co/transformers/main_classes/tokenizer#transformers.BatchEncoding
 
-        :param queries: Queries to tokenize
-        :type queries: Sequence[str] | None
-        :param docs: Documents to tokenize
-        :type docs: Sequence[str] | None
-        :param num_docs: Number of documents per query, if None num_docs is inferred by `len(docs) // len(queries)`,
-            defaults to None
-        :type num_docs: Sequence[int] | int | None
-        :return: Tokenized queries and documents, format depends on the tokenizer
-        :rtype: Dict[str, BatchEncoding]
+        Args:
+            queries (Sequence[str] | None): Queries to tokenize.
+            docs (Sequence[str] | None): Documents to tokenize.
+            num_docs (Sequence[int] | int | None): Number of documents per query, if None num_docs is inferred by
+                `len(docs) // len(queries)`. Defaults to None.
+        Returns:
+            Dict[str, BatchEncoding]: Tokenized queries and documents, format depends on the tokenizer.
         """
         encodings = self.tokenizer.tokenize(
             queries, docs, return_tensors="pt", padding=True, truncation=True, num_docs=num_docs
@@ -195,13 +192,13 @@ class LightningIRModule(LightningModule):
     def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
         """Handles the training step for the model.
 
-        :param batch: Batch of training data
-        :type batch: TrainBatch
-        :param batch_idx: Index of the batch
-        :type batch_idx: int
-        :raises ValueError: If no loss functions are set
-        :return: Sum of the losses weighted by the loss weights
-        :rtype: torch.Tensor
+        Args:
+            batch (TrainBatch): Batch of training data.
+            batch_idx (int): Index of the batch.
+        Returns:
+            torch.Tensor: Sum of the losses weighted by the loss weights.
+        Raises:
+            ValueError: If no loss functions are set.
         """
         if self.loss_functions is None:
             raise ValueError("Loss functions are not set")
@@ -220,14 +217,12 @@ class LightningIRModule(LightningModule):
     ) -> LightningIROutput:
         """Handles the validation step for the model.
 
-        :param batch: Batch of validation or testing data
-        :type batch: TrainBatch | RankBatch | SearchBatch
-        :param batch_idx: Index of the batch
-        :type batch_idx: int
-        :param dataloader_idx: Index of the dataloader, defaults to 0
-        :type dataloader_idx: int, optional
-        :return: Model output
-        :rtype: LightningIROutput
+        Args:
+            batch (TrainBatch | RankBatch | SearchBatch): Batch of validation or testing data.
+            batch_idx (int): Index of the batch.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+        Returns:
+            LightningIROutput: Model output.
         """
         output = self.forward(batch)
 
@@ -250,24 +245,22 @@ class LightningIRModule(LightningModule):
     ) -> LightningIROutput:
         """Handles the testing step for the model. Passes the batch to the validation step.
 
-        :param batch: Batch of testing data
-        :type batch: TrainBatch | RankBatch
-        :param batch_idx: Index of the batch
-        :type batch_idx: int
-        :param dataloader_idx: Index of the dataloader, defaults to 0
-        :type dataloader_idx: int, optional
-        :return: Model output
-        :rtype: LightningIROutput
+        Args:
+            batch (TrainBatch | RankBatch): Batch of testing data.
+            batch_idx (int): Index of the batch.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+        Returns:
+            LightningIROutput: Model output.
         """
         return self.validation_step(batch, batch_idx, dataloader_idx)
 
     def get_dataset(self, dataloader_idx: int) -> IRDataset | None:
         """Gets the dataset instance from the dataloader index. Returns None if no dataset is found.
 
-        :param dataloader_idx: Index of the dataloader
-        :type dataloader_idx: int
-        :return: Inference dataset
-        :rtype: IRDataset | None
+        Args:
+            dataloader_idx (int): Index of the dataloader.
+        Returns:
+            IRDataset | None: Inference dataset or None if no dataset is found.
         """
         try:
             trainer = self.trainer
@@ -295,10 +288,10 @@ class LightningIRModule(LightningModule):
 
         .. _ir-datasets: https://ir-datasets.com/
 
-        :param dataloader_idx: Index of the dataloader
-        :type dataloader_idx: int
-        :return: path to run file, ir-datasets_ dataset id, or dataloader index
-        :rtype: str
+        Args:
+            dataset (IRDataset): Dataset instance.
+        Returns:
+            str: Path to run file, ir-datasets_ dataset id, or dataloader index.
         """
         if isinstance(dataset, RunDataset) and dataset.run_path is not None:
             dataset_id = dataset.run_path.name
@@ -313,12 +306,11 @@ class LightningIRModule(LightningModule):
     ) -> Dict[str, float]:
         """Validates the model output with the evaluation metrics and loss functions.
 
-        :param output: Model output
-        :type output: LightningIROutput
-        :param batch: Batch of validation or testing data
-        :type batch: TrainBatch | RankBatch | SearchBatch
-        :return: Dictionary of evaluation metrics
-        :rtype: Dict[str, float]
+        Args:
+            output (LightningIROutput): Model output.
+            batch (TrainBatch | RankBatch | SearchBatch): Batch of validation or testing data.
+        Returns:
+            Dict[str, float]: Dictionary of evaluation metrics.
         """
         metrics: Dict[str, float] = {}
         if self.evaluation_metrics is None or output.scores is None:
@@ -334,12 +326,13 @@ class LightningIRModule(LightningModule):
     ) -> Dict[str, float]:
         """Validates the model output with the evaluation metrics.
 
-        :param output: Model output
-        :type output: LightningIROutput
-        :param batch: Batch of validation or testing data
-        :type batch: TrainBatch | RankBatch | SearchBatch
-        :return: Evaluation metrics
-        :rtype: Dict[str, float]
+        Args:
+            output (LightningIROutput): Model output.
+            batch (TrainBatch | RankBatch | SearchBatch): Batch of validation or testing data.
+        Returns:
+            Dict[str, float]: Dictionary of evaluation metrics.
+        Raises:
+            ValueError: If query_ids or doc_ids are not set in the batch.
         """
         metrics: Dict[str, float] = {}
         qrels = batch.qrels
@@ -365,12 +358,11 @@ class LightningIRModule(LightningModule):
     ) -> Dict[str, float]:
         """Validates the model output with the loss functions.
 
-        :param output: Model output
-        :type output: LightningIROutput
-        :param batch: Batch of validation or testing data
-        :type batch: TrainBatch | RankBatch | SearchBatch
-        :return: Evaluation metrics
-        :rtype: Dict[str, float]
+        Args:
+            output (LightningIROutput): Model output.
+            batch (TrainBatch | RankBatch | SearchBatch): Batch of validation or testing data.
+        Returns:
+            Dict[str, float]: Dictionary of evaluation metrics.
         """
         metrics: Dict[str, float] = {}
         query_ids = batch.query_ids
@@ -437,8 +429,8 @@ class LightningIRModule(LightningModule):
     def save_pretrained(self, save_path: str | Path) -> None:
         """Saves the model and tokenizer to the save path.
 
-        :param save_path: Path to save the model and tokenizer
-        :type save_path: str | Path
+        Args:
+            save_path (str | Path): Path to save the model and tokenizer.
         """
         self.model.save_pretrained(save_path)
         self.tokenizer.save_pretrained(save_path)

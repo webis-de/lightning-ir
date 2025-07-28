@@ -31,21 +31,19 @@ class CrossEncoderModule(LightningIRModule):
 
         .. _ir-measures: https://ir-measur.es/en/latest/index.html
 
-        :param model_name_or_path: Name or path of backbone model or fine-tuned Lightning IR model, defaults to None
-        :type model_name_or_path: str | None, optional
-        :param config: CrossEncoderConfig to apply when loading from backbone model, defaults to None
-        :type config: CrossEncoderConfig | None, optional
-        :param model: Already instantiated CrossEncoderModel, defaults to None
-        :type model: CrossEncoderModel | None, optional
-        :param loss_functions: Loss functions to apply during fine-tuning, optional loss weights can be provided per
-            loss function, defaults to None
-        :type loss_functions: Sequence[LossFunction  |  Tuple[LossFunction, float]] | None, optional
-        :param evaluation_metrics: Metrics corresponding to ir-measures_ measure strings to apply during validation or
-            testing, defaults to None
-        :type evaluation_metrics: Sequence[str] | None, optional
-        :param model_kwargs: Additional keyword arguments to pass to `from_pretrained` when loading a model,
-            defaults to None
-        :type model_kwargs: Mapping[str, Any] | None, optional
+        Args:
+            model_name_or_path (str | None): Name or path of backbone model or fine-tuned Lightning IR model.
+                Defaults to None.
+            config (CrossEncoderConfig | None): CrossEncoderConfig to apply when loading from backbone model.
+                Defaults to None.
+            model (CrossEncoderModel | None): Already instantiated CrossEncoderModel. Defaults to None.
+            loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
+                Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function.
+                Defaults to None.
+            evaluation_metrics (Sequence[str] | None): Metrics corresponding to ir-measures_ measure strings to apply
+                during validation or testing. Defaults to None.
+            model_kwargs (Mapping[str, Any] | None): Additional keyword arguments to pass to `from_pretrained` when
+                loading a model. Defaults to None.
         """
         super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics, model_kwargs)
         self.model: CrossEncoderModel
@@ -56,11 +54,12 @@ class CrossEncoderModule(LightningIRModule):
         """Runs a forward pass of the model on a batch of data and returns the contextualized embeddings from the
         backbone model as well as the relevance scores.
 
-        :param batch: Batch of data to run the forward pass on
-        :type batch: RankBatch | TrainBatch | SearchBatch
-        :raises ValueError: If the batch is a SearchBatch
-        :return: Output of the model
-        :rtype: CrossEncoderOutput
+        Args:
+            batch (RankBatch | TrainBatch | SearchBatch): Batch of data to run the forward pass on.
+        Returns:
+            CrossEncoderOutput: Output of the model.
+        Raises:
+            ValueError: If the batch is a SearchBatch.
         """
         if isinstance(batch, SearchBatch):
             raise ValueError("Searching is not available for cross-encoders")
