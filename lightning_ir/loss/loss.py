@@ -178,7 +178,7 @@ class SupervisedMarginMSE(MarginMSE):
 class RankNet(PairwiseLossFunction):
     """RankNet loss function for pairwise ranking tasks.
     Originally proposed in: `Learning to Rank using Gradient Descent \
-    <https://icml.cc/2015/wp-content/uploads/2015/06/icml_ranking.pdf>`_
+    <https://dl.acm.org/doi/10.1145/1102351.1102363>`_
     """
 
     def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
@@ -299,7 +299,9 @@ class ApproxLossFunction(ListwiseLossFunction):
 
 
 class ApproxNDCG(ApproxLossFunction):
-    """Approximate NDCG loss function for ranking tasks."""
+    """Approximate NDCG loss function for ranking tasks.
+    Originally proposed in: `Cumulated Gain-Based Evaluation of IR Techniques \
+    <https://dl.acm.org/doi/10.1145/582415.582418>`_"""
 
     def __init__(self, temperature: float = 1, scale_gains: bool = True):
         """Initialize the ApproxNDCG loss function.
@@ -789,7 +791,9 @@ class ScoreBasedInBatchLossFunction(InBatchLossFunction):
 
 
 class InBatchCrossEntropy(InBatchLossFunction):
-    """In-batch cross-entropy loss function for ranking tasks."""
+    """In-batch cross-entropy loss function for ranking tasks.
+    Originally proposed in: `Fast Single-Class Classification and the Principle of Logit Separation
+    <https://arxiv.org/pdf/1705.10246v1>`_"""
 
     def compute_loss(self, output: LightningIROutput) -> torch.Tensor:
         """Compute the in-batch cross-entropy loss.
@@ -856,7 +860,9 @@ class RegularizationLossFunction(EmbeddingLossFunction):
 
 
 class L2Regularization(RegularizationLossFunction):
-    """L2 Regularization loss function for query and document embeddings."""
+    """L2 Regularization loss function for query and document embeddings.
+    Originally proposed in: `Ridge Regression: Biased Estimation for Nonorthogonal Problems
+    <https://homepages.math.uic.edu/~lreyzin/papers/ridge.pdf>`_"""
 
     def compute_loss(self, output: BiEncoderOutput) -> torch.Tensor:
         """Compute the L2 regularization loss.
@@ -874,7 +880,9 @@ class L2Regularization(RegularizationLossFunction):
 
 
 class L1Regularization(RegularizationLossFunction):
-    """L1 Regularization loss function for query and document embeddings."""
+    """L1 Regularization loss function for query and document embeddings.
+    Originally proposed in: `Regression Shrinkage and Selection via the Lasso
+    <https://academic.oup.com/jrsssb/article/58/1/267/7027929>`_"""
 
     def compute_loss(self, output: BiEncoderOutput) -> torch.Tensor:
         """Compute the L1 regularization loss.
@@ -892,7 +900,9 @@ class L1Regularization(RegularizationLossFunction):
 
 
 class FLOPSRegularization(RegularizationLossFunction):
-    """FLOPS Regularization loss function for query and document embeddings."""
+    """FLOPS Regularization loss function for query and document embeddings.
+    Originally proposed in: `Minimizing FLOPS to Learn Efficient Sparse Representations
+    <https://arxiv.org/pdf/2004.05665>`_"""
 
     def compute_loss(self, output: BiEncoderOutput) -> torch.Tensor:
         """Compute the FLOPS regularization loss.
