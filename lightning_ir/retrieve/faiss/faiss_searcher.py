@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 
 class FaissSearcher(ApproximateSearcher):
+    """FAISS-based searcher for approximate nearest neighbor retrieval in the Lightning IR framework."""
+
     def __init__(
         self,
         index_dir: Path | str,
@@ -22,6 +24,14 @@ class FaissSearcher(ApproximateSearcher):
         module: BiEncoderModule,
         use_gpu: bool = False,
     ) -> None:
+        """Initialize the FaissSearcher.
+
+        Args:
+            index_dir (Path | str): Directory containing the FAISS index files.
+            search_config (FaissSearchConfig): Configuration for the FAISS searcher.
+            module (BiEncoderModule): The bi-encoder module used for embeddings.
+            use_gpu (bool): Whether to use GPU for FAISS operations. Defaults to False.
+        """
         import faiss
 
         self.search_config: FaissSearchConfig
@@ -61,6 +71,8 @@ class FaissSearcher(ApproximateSearcher):
 
 
 class FaissSearchConfig(ApproximateSearchConfig):
+    """Configuration class for FAISS-based searchers in the Lightning IR framework."""
+
     search_class = FaissSearcher
     SUPPORTED_MODELS = {ColConfig.model_type, DprConfig.model_type}
 
@@ -72,6 +84,16 @@ class FaissSearchConfig(ApproximateSearchConfig):
         n_probe: int = 1,
         ef_search: int = 16,
     ) -> None:
+        """Initialize the FaissSearchConfig.
+
+        Args:
+            k (int): Number of top results to return. Defaults to 10.
+            candidate_k (int): Number of candidates to retrieve before ranking. Defaults to 100.
+            imputation_strategy (Literal["min", "gather", "zero"]): Strategy for handling missing scores.
+                Defaults to "gather".
+            n_probe (int): Number of probes for the IVF index. Defaults to 1.
+            ef_search (int): Size of the dynamic list used during search. Defaults to 16.
+        """
         super().__init__(k, candidate_k, imputation_strategy)
         self.n_probe = n_probe
         self.ef_search = ef_search
