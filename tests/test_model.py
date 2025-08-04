@@ -7,7 +7,7 @@ from transformers import AutoModel
 from lightning_ir.base import LightningIRModel, LightningIRModule
 from lightning_ir.cross_encoder import CrossEncoderModule
 from lightning_ir.data import LightningIRDataModule, RunDataset, TupleDataset
-from lightning_ir.loss.loss import InBatchLossFunction
+from lightning_ir.loss.in_batch import InBatchLossFunction
 from lightning_ir.main import LightningIRTrainer
 
 DATA_DIR = Path(__file__).parent / "data"

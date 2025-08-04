@@ -10,7 +10,7 @@ import torch
 
 from ..base.module import LightningIRModule
 from ..data import RankBatch, SearchBatch, TrainBatch
-from ..loss.loss import LossFunction, ScoringLossFunction
+from ..loss.base import LossFunction, ScoringLossFunction
 from .cross_encoder_config import CrossEncoderConfig
 from .cross_encoder_model import CrossEncoderModel, CrossEncoderOutput
 from .cross_encoder_tokenizer import CrossEncoderTokenizer
