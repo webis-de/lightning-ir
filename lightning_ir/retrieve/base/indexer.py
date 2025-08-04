@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 
 
 class Indexer(ABC):
+    """Base class for indexers that create and manage indices for retrieval tasks."""
+
     def __init__(
         self,
         index_dir: Path,
@@ -21,6 +23,14 @@ class Indexer(ABC):
         module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
+        """Initialize the Indexer.
+
+        Args:
+            index_dir (Path): Directory where the index will be stored.
+            index_config (IndexConfig): Configuration for the index.
+            module (BiEncoderModule): The bi-encoder module used for encoding documents.
+            verbose (bool): Whether to print verbose output. Defaults to False.
+        """
         self.index_dir = index_dir
         self.index_config = index_config
         self.module = module
@@ -31,9 +41,17 @@ class Indexer(ABC):
         self.verbose = verbose
 
     @abstractmethod
-    def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None: ...
+    def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
+        """Add a batch of documents to the index.
+
+        Args:
+            index_batch (IndexBatch): The batch of documents to add.
+            output (BiEncoderOutput): The output from the bi-encoder module containing document embeddings.
+        """
+        ...
 
     def save(self) -> None:
+        """Save the index configuration and document IDs to the index directory."""
         self.index_config.save(self.index_dir)
         (self.index_dir / "doc_ids.txt").write_text("\n".join(self.doc_ids))
         doc_lengths = torch.frombuffer(self.doc_lengths, dtype=torch.int32)
@@ -41,11 +59,22 @@ class Indexer(ABC):
 
 
 class IndexConfig:
+    """Configuration class for indexers that defines the index type and other parameters."""
+
     indexer_class: Type[Indexer]
     SUPPORTED_MODELS: Set[str]
 
     @classmethod
     def from_pretrained(cls, index_dir: Path | str) -> "IndexConfig":
+        """Load the index configuration from a directory.
+
+        Args:
+            index_dir (Path | str): Path to the directory containing the index configuration.
+        Returns:
+            IndexConfig: An instance of the index configuration class.
+        Raises:
+            ValueError: If the index type in the configuration does not match the expected class name.
+        """
         index_dir = Path(index_dir)
         with open(index_dir / "config.json", "r") as f:
             data = json.load(f)
@@ -56,6 +85,11 @@ class IndexConfig:
             return cls(**data)
 
     def save(self, index_dir: Path) -> None:
+        """Save the index configuration to a directory.
+
+        Args:
+            index_dir (Path): The directory to save the index configuration.
+        """
         index_dir.mkdir(parents=True, exist_ok=True)
         with open(index_dir / "config.json", "w") as f:
             data = self.__dict__.copy()
@@ -64,4 +98,9 @@ class IndexConfig:
             json.dump(data, f)
 
     def to_dict(self) -> dict:
+        """Convert the index configuration to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the index configuration.
+        """
         return self.__dict__.copy()
