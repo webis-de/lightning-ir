@@ -34,12 +34,13 @@ class SetEncoderConfig(MonoConfig):
         Each document's embedding is updated with context from the entire set,
         and a relevance score is computed per document using a linear layer.
 
-        :param depth: Number of documents to encode per query, defaults to 100
-        :type depth: int, optional
-        :param add_extra_token: Whether to add an extra token to the input sequence to separate the query
-            from the documents, defaults to False
-        :type add_extra_token: bool, optional
-        :param sample_missing_docs: Whether to sample missing documents when the number of documents is less"""
+        Args:
+            depth (int): Number of documents to encode per query. Defaults to 100.
+            add_extra_token (bool): Whether to add an extra token to the input sequence to separate
+                the query from the documents. Defaults to False.
+            sample_missing_docs (bool): Whether to sample missing documents when the number of documents is less
+                than the specified depth. Defaults to True.
+        """
 
         super().__init__(*args, **kwargs)
         self.depth = depth
@@ -58,8 +59,9 @@ class SetEncoderModel(MonoModel):
     def __init__(self, config: SetEncoderConfig, *args, **kwargs):
         """Initializes a SetEncoder model give a :class:`SetEncoderConfig`.
 
-        :param config: Configuration for the SetEncoder model
-        :type config: SetEncoderConfig"""
+        Args:
+            config (SetEncoderConfig): Configuration for the SetEncoder model.
+        """
         super().__init__(config, *args, **kwargs)
         self.config: SetEncoderConfig
         self.attn_implementation = "eager"
@@ -80,22 +82,18 @@ class SetEncoderModel(MonoModel):
         """
         Extends the attention mask to account for the number of documents per query.
 
-        :param attention_mask: Attention mask for the input sequence
-        :type attention_mask: torch.Tensor
-        :param input_shape: Shape of the input sequence
-        :type input_shape: Tuple[int, ...]
-        :param device: Device to move the attention mask to, defaults to None
-        :type device: torch.device | None, optional
-        :param dtype: Data type of the attention mask, defaults to None
-        :type dtype: torch.dtype | None, optional
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int | None, optional
-        :return: Extended attention mask
-        :rtype: torch.Tensor
+        Args:
+            attention_mask (torch.Tensor): Attention mask for the input sequence.
+            input_shape (Tuple[int, ...]): Shape of the input sequence.
+            device (torch.device | None): Device to move the attention mask to. Defaults to None.
+            dtype (torch.dtype | None): Data type of the attention mask. Defaults to None.
+            num_docs (Sequence[int] | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+            Returns:
+                torch.Tensor: Extended attention mask.
         """
         if num_docs is not None:
             eye = (1 - torch.eye(self.config.depth, device=device)).long()
@@ -113,10 +111,10 @@ class SetEncoderModel(MonoModel):
         """Computes contextualized embeddings for the joint query-document input sequence and computes a relevance
         score.
 
-        :param encoding: Tokenizer encoding for the joint query-document input sequence
-        :type encoding: BatchEncoding
-        :return: Output of the model
-        :rtype: CrossEncoderOutput
+        Args:
+            encoding (BatchEncoding): Tokenizer encoding for the joint query-document input sequence.
+        Returns:
+            CrossEncoderOutput: Output of the model.
         """
         num_docs = encoding.pop("num_docs", None)
         self.get_extended_attention_mask = partial(self.get_extended_attention_mask, num_docs=num_docs)
@@ -137,22 +135,18 @@ class SetEncoderModel(MonoModel):
     ) -> Tuple[torch.Tensor]:
         """Performs the attention forward pass for the SetEncoder model.
 
-        :param _self: Reference to the SetEncoder instance
-        :type _self: SetEncoderModel
-        :param self: Reference to the attention module
-        :type self: torch.nn.Module
-        :param hidden_states: Hidden states from the previous layer
-        :type hidden_states: torch.Tensor
-        :param attention_mask: Attention mask for the input sequence, defaults to None
-        :type attention_mask: torch.FloatTensor | None, optional
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int, optional
-        :return: Contextualized embeddings
-        :rtype: Tuple[torch.Tensor]
+        Args:
+            _self (SetEncoderModel): Reference to the SetEncoder instance.
+            self (torch.nn.Module): Reference to the attention module.
+            hidden_states (torch.Tensor): Hidden states from the previous layer.
+            attention_mask (torch.FloatTensor | None): Attention mask for the input sequence.
+            num_docs (Sequence[int]): Specifies how many documents are passed per query. If a sequence of integers,
+                `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the number of
+                documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries.
+        Returns:
+            Tuple[torch.Tensor]: Contextualized embeddings.
         """
         key_value_hidden_states = hidden_states
         if num_docs is not None:
@@ -181,16 +175,15 @@ class SetEncoderModel(MonoModel):
     ) -> torch.Tensor:
         """Concatenates the hidden states of other documents to the hidden states of the query and documents.
 
-        :param hidden_states: Hidden states of the query and documents
-        :type hidden_states: torch.Tensor
-        :param num_docs: Specifies how many documents are passed per query. If a sequence of integers, `len(num_doc)`
-            should be equal to the number of queries and `sum(num_docs)` equal to the number of documents, i.e., the
-            sequence contains one value per query specifying the number of documents for that query. If an integer,
-            assumes an equal number of documents per query. If None, tries to infer the number of documents by dividing
-            the number of documents by the number of queries, defaults to None
-        :type num_docs: Sequence[int] | int, optional
-        :return: Concatenated hidden states of the query and documents
-        :rtype: torch.Tensor
+        Args:
+            hidden_states (torch.Tensor): Hidden states of the query and documents.
+            num_docs (Sequence[int]): Specifies how many documents are passed per query. If a sequence of integers,
+                `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the number of
+                documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries.
+        Returns:
+            torch.Tensor: Concatenated hidden states of the query and documents.
         """
         idx = 1 if self.config.add_extra_token else 0
         split_other_doc_hidden_states = torch.split(hidden_states[:, idx], list(num_docs))
@@ -226,12 +219,10 @@ class SetEncoderTokenizer(CrossEncoderTokenizer):
     ):
         """Initializes a SetEncoder tokenizer.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
-        :param add_extra_token: Whether to add an extra interaction token, defaults to False
-        :type add_extra_token: bool, optional
+        Args:
+            query_length (int): Maximum query length. Defaults to 32.
+            doc_length (int): Maximum document length. Defaults to 512.
+            add_extra_token (bool): Whether to add an extra interaction token. Defaults to False.
         """
         super().__init__(
             *args, query_length=query_length, doc_length=doc_length, add_extra_token=add_extra_token, **kwargs

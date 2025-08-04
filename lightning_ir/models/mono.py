@@ -38,7 +38,17 @@ class MonoConfig(CrossEncoderConfig):
         tokenizer_pattern: str | None = None,
         **kwargs,
     ):
-        """Initialize the configuration for mono cross-encoder models."""
+        """Initialize the configuration for mono cross-encoder models.
+
+        Args:
+            query_length (int): Maximum query length. Defaults to 32.
+            doc_length (int): Maximum document length. Defaults to 512.
+            pooling_strategy (Literal["first", "mean", "max", "sum", "bert_pool"]): Pooling strategy for the
+                embeddings. Defaults to "first".
+            linear_bias (bool): Whether to use bias in the final linear layer. Defaults to False.
+            scoring_strategy (Literal["mono", "rank"]): Scoring strategy to use. Defaults to "rank".
+            tokenizer_pattern (str | None): Optional pattern for tokenization. Defaults to None.
+        """
         self._bert_pool = False
         if pooling_strategy == "bert_pool":
             self._bert_pool = True
@@ -62,8 +72,8 @@ class MonoModel(CrossEncoderModel):
         """A cross-encoder model that jointly encodes a query and document(s). The contextualized embeddings are
         aggragated into a single vector and fed to a linear layer which computes a final relevance score.
 
-        :param config: Configuration for the cross-encoder model
-        :type config: CrossEncoderConfig
+        Args:
+            config (MonoConfig): Configuration for the mono cross-encoder model.
         """
         super().__init__(config, *args, **kwargs)
 
@@ -92,10 +102,10 @@ class MonoModel(CrossEncoderModel):
         """Computes contextualized embeddings for the joint query-document input sequence and computes a relevance
         score.
 
-        :param encoding: Tokenizer encoding for the joint query-document input sequence
-        :type encoding: BatchEncoding
-        :return: Output of the model
-        :rtype: CrossEncoderOutput
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the joint query-document input sequence.
+        Returns:
+            CrossEncoderOutput: Output of the model.
         """
         if hasattr(self, "decoder"):
             # NOTE hack to make T5 cross-encoders work. other encoder-decoder models may not have `decoder` as their
