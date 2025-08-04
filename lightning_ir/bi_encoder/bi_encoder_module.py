@@ -14,7 +14,8 @@ from transformers import BatchEncoding
 
 from ..base import LightningIRModule, LightningIROutput
 from ..data import IndexBatch, RankBatch, SearchBatch, TrainBatch
-from ..loss.loss import EmbeddingLossFunction, InBatchLossFunction, LossFunction, ScoringLossFunction
+from ..loss.base import EmbeddingLossFunction, LossFunction, ScoringLossFunction
+from ..loss.in_batch import InBatchLossFunction
 from .bi_encoder_config import BiEncoderConfig
 from .bi_encoder_model import BiEncoderEmbedding, BiEncoderModel, BiEncoderOutput
 from .bi_encoder_tokenizer import BiEncoderTokenizer
