@@ -107,9 +107,8 @@ class MonoModel(CrossEncoderModel):
         Returns:
             CrossEncoderOutput: Output of the model.
         """
-        if hasattr(self, "decoder"):
-            # NOTE hack to make T5 cross-encoders work. other encoder-decoder models may not have `decoder` as their
-            # attribute. maybe find a better way to check for this?
+        if self.config.is_encoder_decoder:
+            # NOTE encoder-decoder models other than t5 might not use 0 as the sos token id
             decoder_input_ids = torch.zeros(
                 (encoding["input_ids"].shape[0], 1), device=encoding["input_ids"].device, dtype=torch.long
             )

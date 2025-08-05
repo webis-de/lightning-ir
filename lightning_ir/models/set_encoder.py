@@ -151,9 +151,23 @@ class SetEncoderModel(MonoModel):
         key_value_hidden_states = hidden_states
         if num_docs is not None:
             key_value_hidden_states = _self.cat_other_doc_hidden_states(hidden_states, num_docs)
-        query = self.transpose_for_scores(self.query(hidden_states))
-        key = self.transpose_for_scores(self.key(key_value_hidden_states))
-        value = self.transpose_for_scores(self.value(key_value_hidden_states))
+
+        batch_size = hidden_states.shape[0]
+        query = (
+            self.query(hidden_states)
+            .view(batch_size, -1, self.num_attention_heads, self.attention_head_size)
+            .transpose(1, 2)
+        )
+        key = (
+            self.key(key_value_hidden_states)
+            .view(batch_size, -1, self.num_attention_heads, self.attention_head_size)
+            .transpose(1, 2)
+        )
+        value = (
+            self.value(key_value_hidden_states)
+            .view(batch_size, -1, self.num_attention_heads, self.attention_head_size)
+            .transpose(1, 2)
+        )
 
         context = torch.nn.functional.scaled_dot_product_attention(
             query,
