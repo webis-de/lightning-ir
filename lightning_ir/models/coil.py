@@ -13,6 +13,10 @@ from ..bi_encoder import BiEncoderEmbedding, MultiVectorBiEncoderConfig, MultiVe
 
 @dataclass
 class CoilEmbedding(BiEncoderEmbedding):
+    """Dataclass containing embeddings and the encoding for COIL models."""
+
+    embeddings: torch.Tensor
+    """Raw embeddings of the COIL model. Should not be used directly for scoring."""
     token_embeddings: torch.Tensor | None = None
     """Token embeddings of the COIL model."""
     cls_embeddings: torch.Tensor | None = None
