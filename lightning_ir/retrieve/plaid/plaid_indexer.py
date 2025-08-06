@@ -1,3 +1,5 @@
+"""Plaid Indexer for Lightning IR Framework"""
+
 import warnings
 from array import array
 from pathlib import Path

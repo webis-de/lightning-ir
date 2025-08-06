@@ -1,3 +1,5 @@
+"""FAISS-based searcher for approximate nearest neighbor retrieval in the Lightning IR framework."""
+
 from __future__ import annotations
 
 from pathlib import Path

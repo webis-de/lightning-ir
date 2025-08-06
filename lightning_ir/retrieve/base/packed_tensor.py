@@ -1,3 +1,5 @@
+"""PackedTensor class for handling tensors with variable segment lengths."""
+
 from typing import Sequence, Tuple
 
 import torch

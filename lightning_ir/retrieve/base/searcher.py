@@ -1,3 +1,5 @@
+"""Base searcher class and configuration for retrieval tasks."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

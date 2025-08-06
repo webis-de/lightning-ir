@@ -1,3 +1,5 @@
+"""Base indexer class and configuration for retrieval tasks."""
+
 from __future__ import annotations
 
 import array
