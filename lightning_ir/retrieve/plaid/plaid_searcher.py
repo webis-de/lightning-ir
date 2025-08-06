@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Literal, Tuple, Type
+from typing import TYPE_CHECKING, List, Tuple
 
 import torch
 
-from ...bi_encoder.model import BiEncoderEmbedding
+from ...bi_encoder.bi_encoder_model import BiEncoderEmbedding
+from ...models import ColConfig
 from ..base.packed_tensor import PackedTensor
 from ..base.searcher import SearchConfig, Searcher
 from .plaid_indexer import PlaidIndexConfig
@@ -21,20 +22,22 @@ class PlaidSearcher(Searcher):
     ) -> None:
         super().__init__(index_dir, search_config, module, use_gpu)
         self.residual_codec = ResidualCodec.from_pretrained(
-            PlaidIndexConfig.from_pretrained(self.index_dir), self.index_dir
+            PlaidIndexConfig.from_pretrained(self.index_dir), self.index_dir, device=self.device
         )
 
-        self.codes = torch.load(self.index_dir / "codes.pt")
-        self.residuals = torch.load(self.index_dir / "residuals.pt").view(self.codes.shape[0], -1)
-        self.packed_codes = PackedTensor(self.codes, lengths=self.doc_lengths.tolist())
-        self.packed_residuals = PackedTensor(self.residuals, lengths=self.doc_lengths.tolist())
+        self.codes = torch.load(self.index_dir / "codes.pt", weights_only=True).to(self.device)
+        self.residuals = (
+            torch.load(self.index_dir / "residuals.pt", weights_only=True).view(self.codes.shape[0], -1).to(self.device)
+        )
+        self.packed_codes = PackedTensor(self.codes, lengths=self.doc_lengths.tolist()).to(self.device)
+        self.packed_residuals = PackedTensor(self.residuals, lengths=self.doc_lengths.tolist()).to(self.device)
 
         # code_idx to embedding_idcs mapping
         sorted_codes, embedding_idcs = self.codes.sort()
         num_embeddings_per_code = torch.bincount(sorted_codes, minlength=self.residual_codec.num_centroids).tolist()
 
         # code_idx to doc_idcs mapping
-        embedding_idx_to_doc_idx = torch.arange(self.num_docs).repeat_interleave(self.doc_lengths)
+        embedding_idx_to_doc_idx = torch.arange(self.num_docs, device=self.device).repeat_interleave(self.doc_lengths)
         full_doc_ivf = embedding_idx_to_doc_idx[embedding_idcs]
         doc_ivf_lengths = []
         unique_doc_idcs = []
@@ -45,8 +48,8 @@ class PlaidSearcher(Searcher):
 
         # doc_idx to code_idcs mapping
         sorted_doc_idcs, doc_idx_to_code_idx = torch.sort(self.code_to_doc_ivf)
-        code_idcs = torch.arange(self.residual_codec.num_centroids).repeat_interleave(
-            torch.tensor(self.code_to_doc_ivf.lengths)
+        code_idcs = torch.arange(self.residual_codec.num_centroids, device=self.device).repeat_interleave(
+            torch.tensor(self.code_to_doc_ivf.lengths, device=self.device)
         )[doc_idx_to_code_idx]
         num_codes_per_doc = torch.bincount(sorted_doc_idcs, minlength=self.num_docs)
         self.doc_to_code_ivf = PackedTensor(code_idcs, lengths=num_codes_per_doc.tolist())
@@ -59,7 +62,7 @@ class PlaidSearcher(Searcher):
         centroid_scores = (
             query_embeddings.embeddings.to(self.residual_codec.centroids)
             @ self.residual_codec.centroids.transpose(0, 1)[None]
-        )
+        ).to(self.device)
         query_scoring_mask = query_embeddings.scoring_mask
         centroid_scores = centroid_scores.masked_fill(~query_scoring_mask[..., None], 0)
         _, codes = torch.topk(centroid_scores, self.search_config.n_cells, dim=-1, sorted=False)
@@ -103,7 +106,7 @@ class PlaidSearcher(Searcher):
         # `num_docs x num_query_vecs x num_centroids + 1`
         # NOTE we pad values such that the codes with -1 padding index 0 values
         expanded_centroid_scores = torch.nn.functional.pad(
-            centroid_scores.repeat_interleave(torch.tensor(doc_idcs.lengths), dim=0), (0, 1)
+            centroid_scores.repeat_interleave(torch.tensor(doc_idcs.lengths, device=self.device), dim=0), (0, 1)
         )
 
         # grab codes for each document
@@ -125,7 +128,7 @@ class PlaidSearcher(Searcher):
         # padded_codes: `num_docs x max_num_query_vecs x max_num_codes_per_doc`
         # approx_similarity: `num_docs x max_num_query_vecs x max_num_codes_per_doc`
         approx_similarity = torch.gather(input=expanded_centroid_scores, dim=-1, index=padded_codes)
-        approx_scores = self.module.scoring_function.aggregate_similarity(
+        approx_scores = self.module.model.aggregate_similarity(
             approx_similarity,
             query_scoring_mask=query_scoring_mask,
             doc_scoring_mask=mask[:, None],
@@ -154,7 +157,7 @@ class PlaidSearcher(Searcher):
 
         # compute scores
         doc_embeddings = self._reconstruct_doc_embeddings(candidate_idcs)
-        scores = self.module.scoring_function.forward(query_embeddings, doc_embeddings, num_docs)
+        scores = self.module.model.score(query_embeddings, doc_embeddings, num_docs)
 
         scores, doc_idcs = self._filter_and_sort(PackedTensor(scores, lengths=candidate_idcs.lengths), candidate_idcs)
         doc_ids = [
@@ -165,7 +168,8 @@ class PlaidSearcher(Searcher):
 
 class PlaidSearchConfig(SearchConfig):
 
-    search_class: Type[Searcher] = PlaidSearcher
+    search_class = PlaidSearcher
+    SUPPORTED_MODELS = {ColConfig.model_type}
 
     def __init__(
         self,

@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
+from ...modeling_utils.batching import _batch_pairwise_scoring
+from ...models import SpladeConfig
 from ..base.searcher import ExactSearchConfig, ExactSearcher
 from .sparse_indexer import TorchSparseIndexConfig
 
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
 
 class TorchSparseIndex:
     def __init__(self, index_dir: Path, similarity_function: Literal["dot", "cosine"], use_gpu: bool = False) -> None:
-        self.index = torch.load(index_dir / "index.pt")
+        self.index = torch.load(index_dir / "index.pt", weights_only=True)
         self.config = TorchSparseIndexConfig.from_pretrained(index_dir)
         if similarity_function == "dot":
             self.similarity_function = self.dot_similarity
@@ -33,10 +35,16 @@ class TorchSparseIndex:
     def num_embeddings(self) -> int:
         return self.index.shape[0]
 
-    def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return self.dot_similarity(x, y) / (torch.norm(x, dim=-1)[:, None] * torch.norm(y, dim=-1)[None])
+    @staticmethod
+    @_batch_pairwise_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
+    def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return y.matmul(x.T).T / (torch.norm(x, dim=-1)[:, None] * torch.norm(y, dim=-1)[None])
 
-    def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    @_batch_pairwise_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
+    def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return y.matmul(x.T).T
 
     def to_gpu(self) -> None:
@@ -61,10 +69,14 @@ class TorchSparseSearcher(ExactSearcher):
         self.index.to_gpu()
 
     def _score(self, query_embeddings: BiEncoderEmbedding) -> torch.Tensor:
-        embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
+        if query_embeddings.scoring_mask is None:
+            embeddings = query_embeddings.embeddings[:, 0]
+        else:
+            embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
         scores = self.index.score(embeddings)
         return scores
 
 
 class TorchSparseSearchConfig(ExactSearchConfig):
     search_class = TorchSparseSearcher
+    SUPPORTED_MODELS = {SpladeConfig.model_type}

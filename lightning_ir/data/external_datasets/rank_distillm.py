@@ -1,50 +1,63 @@
-from ir_datasets.formats.trec import TrecScoredDocs
+from ir_datasets.util import GzipExtract
 
-from .ir_datasets_utils import register_msmarco
+from .ir_datasets_utils import ParquetScoredDocs, register_new_dataset
 
 
 def register_rank_distillm():
-    base_id = "msmarco-passage"
-    split_id = "train"
-    file_id = "rank-distillm/rankzephyr"
-    cache_path = "rank-distillm-rankzephyr.run"
+
+    base_url = "https://zenodo.org/records/15753974/files/"
+
     dlc_contents = {
-        "url": (
-            "https://zenodo.org/records/12528410/files/__rankzephyr-colbert-10000-"
-            "sampled-100__msmarco-passage-train-judged.run?download=1"
-        ),
+        "url": f"{base_url}__rankzephyr-colbert-10000-" "sampled-100__msmarco-passage-train-judged.run?download=1",
         "expected_md5": "49f8dbf2c1ee7a2ca1fe517eda528af6",
-        "cache_path": cache_path,
+        "cache_path": "msmarco-passage/train/rank-distillm-rankzephyr.run",
     }
-    file_name = f"{file_id}.run"
-    register_msmarco(
-        base_id,
-        split_id,
-        file_id,
-        cache_path,
-        dlc_contents,
-        file_name,
-        TrecScoredDocs,
+    register_new_dataset(
+        "msmarco-passage/train/rank-distillm-rankzephyr",
+        docs="msmarco-passage",
+        queries="msmarco-passage/train",
+        qrels="msmarco-passage/train",
+        scoreddocs=dlc_contents,
     )
 
-    file_id = "rank-distillm/set-encoder"
-    cache_path = "rank-distillm-set-encoder.run.gz"
     dlc_contents = {
-        "url": (
-            "https://zenodo.org/records/12528410/files/__set-encoder-colbert__"
-            "msmarco-passage-train-judged.run.gz?download=1"
-        ),
+        "url": f"{base_url}__set-encoder-colbert__" "msmarco-passage-train-judged.run.gz?download=1",
         "expected_md5": "1f069d0daa9842a54a858cc660149e1a",
-        "cache_path": cache_path,
+        "cache_path": "msmarco-passage/train/rank-distillm-set-encoder.run",
+        "extractors": [GzipExtract],
     }
-    file_name = f"{file_id}.run"
-    register_msmarco(
-        base_id,
-        split_id,
-        file_id,
-        cache_path,
-        dlc_contents,
-        file_name,
-        TrecScoredDocs,
-        extract=True,
+    register_new_dataset(
+        "msmarco-passage/train/rank-distillm-set-encoder",
+        docs="msmarco-passage",
+        queries="msmarco-passage/train",
+        qrels="msmarco-passage/train",
+        scoreddocs=dlc_contents,
+    )
+
+    dlc_contents = {
+        "url": f"{base_url}__monoelectra-colbert__" "msmarco-passage-train-judged.run.gz?download=1",
+        "expected_md5": "5abc9a6c2cdf986c0aedcea853f0b34c",
+        "cache_path": "msmarco-passage/train/rank-distillm-monoelectra.run",
+        "extractors": [GzipExtract],
+    }
+    register_new_dataset(
+        "msmarco-passage/train/rank-distillm-monoelectra",
+        docs="msmarco-passage",
+        queries="msmarco-passage/train",
+        qrels="msmarco-passage/train",
+        scoreddocs=dlc_contents,
+    )
+
+    dlc_contents = {
+        "url": f"{base_url}__colbert__msmarco-passage-train-judged.parquet?download=1",
+        "expected_md5": "1e927d52af085516bf5a3de2865809d5",
+        "cache_path": "msmarco-passage/train/rank-distillm-colbert.parquet",
+    }
+    register_new_dataset(
+        "msmarco-passage/train/rank-distillm-colbert",
+        docs="msmarco-passage",
+        queries="msmarco-passage/train",
+        qrels="msmarco-passage/train",
+        scoreddocs=dlc_contents,
+        ScoreddocsType=ParquetScoredDocs,
     )

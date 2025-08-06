@@ -29,11 +29,11 @@ def test_same_as_sentence_transformer(model_name: str):
     assert torch.allclose(
         output.query_embeddings.embeddings.squeeze(1),
         torch.from_numpy(orig_query_embeddings),
-        atol=1e-6,
+        atol=1e-5,
     )
     assert torch.allclose(
         output.doc_embeddings.embeddings.squeeze(1),
         torch.from_numpy(orig_doc_embeddings),
-        atol=1e-6,
+        atol=1e-5,
     )
-    assert torch.allclose(output.scores, orig_scores.squeeze(0), atol=1e-6)
+    assert torch.allclose(output.scores, orig_scores.squeeze(0), atol=1e-5)

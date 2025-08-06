@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Literal
 
 import torch
 
+from ...modeling_utils.batching import _batch_pairwise_scoring
+from ...models import ColConfig, DprConfig
 from ..base.searcher import ExactSearchConfig, ExactSearcher
 from .dense_indexer import TorchDenseIndexConfig
 
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
 
 class TorchDenseIndex:
     def __init__(self, index_dir: Path, similarity_function: Literal["dot", "cosine"], use_gpu: bool = False) -> None:
-        self.index = torch.load(index_dir / "index.pt")
+        self.index = torch.load(index_dir / "index.pt", weights_only=True)
         self.config = TorchDenseIndexConfig.from_pretrained(index_dir)
         if similarity_function == "dot":
             self.similarity_function = self.dot_similarity
@@ -26,17 +28,23 @@ class TorchDenseIndex:
 
     def score(self, embeddings: torch.Tensor) -> torch.Tensor:
         embeddings = embeddings.to(self.device)
-        similarity = self.similarity_function(embeddings, self.index).to_dense()
+        similarity = self.similarity_function(embeddings, self.index)
         return similarity
 
     @property
     def num_embeddings(self) -> int:
         return self.index.shape[0]
 
-    def cosine_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    @_batch_pairwise_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
+    def cosine_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.nn.functional.cosine_similarity(x[:, None], y[None], dim=-1)
 
-    def dot_similarity(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    @_batch_pairwise_scoring
+    @torch.autocast(device_type="cuda", enabled=False)
+    def dot_similarity(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         return torch.matmul(x, y.T)
 
     def to_gpu(self) -> None:
@@ -61,10 +69,14 @@ class TorchDenseSearcher(ExactSearcher):
         self.index.to_gpu()
 
     def _score(self, query_embeddings: BiEncoderEmbedding) -> torch.Tensor:
-        embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
+        if query_embeddings.scoring_mask is None:
+            embeddings = query_embeddings.embeddings[:, 0]
+        else:
+            embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
         scores = self.index.score(embeddings)
         return scores
 
 
 class TorchDenseSearchConfig(ExactSearchConfig):
     search_class = TorchDenseSearcher
+    SUPPORTED_MODELS = {ColConfig.model_type, DprConfig.model_type}

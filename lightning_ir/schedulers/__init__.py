@@ -1,7 +1,8 @@
 """
-Module containing utility classes and functions for PyTorch Lightning.
+Schedulers for adjusting lr and generic values during fine-tuning.
 
-This module provides callbacks .
+This module provides schedulers for adjusting the learning rate or generic schedulers to adjust any arbitrary values
+while fine-tuning models.
 """
 
 from .lr_schedulers import ConstantLRSchedulerWithLinearWarmup, LinearLRSchedulerWithLinearWarmup, WarmupLRScheduler

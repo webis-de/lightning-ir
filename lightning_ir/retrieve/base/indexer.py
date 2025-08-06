@@ -4,12 +4,12 @@ import array
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Type
+from typing import TYPE_CHECKING, List, Set, Type
 
 import torch
 
 if TYPE_CHECKING:
-    from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+    from ...bi_encoder import BiEncoderModule, BiEncoderOutput
     from ...data import IndexBatch
 
 
@@ -18,12 +18,12 @@ class Indexer(ABC):
         self,
         index_dir: Path,
         index_config: IndexConfig,
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
         self.index_dir = index_dir
         self.index_config = index_config
-        self.bi_encoder_config = bi_encoder_config
+        self.module = module
         self.doc_ids: List[str] = []
         self.doc_lengths = array.array("I")
         self.num_embeddings = 0
@@ -41,7 +41,8 @@ class Indexer(ABC):
 
 
 class IndexConfig:
-    indexer_class: Type[Indexer] = Indexer
+    indexer_class: Type[Indexer]
+    SUPPORTED_MODELS: Set[str]
 
     @classmethod
     def from_pretrained(cls, index_dir: Path | str) -> "IndexConfig":

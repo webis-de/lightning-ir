@@ -1,0 +1,37 @@
+Model Name,Native,NanoBEIR
+".. centered:: *Bi-Encoders*",,,,
+"`webis/bert-bi-encoder <https://huggingface.co/webis/bert-bi-encoder>`_",|c|,".. collapse:: 0.549
+
+    .. csv-table::
+       :file: ./nanobeir_details_bienc.csv
+       :header-rows: 0"
+"`sentence-transformers/msmarco-bert-base-dot-v5 <https://huggingface.co/sentence-transformers/msmarco-bert-base-dot-v5>`_",|x|,".. collapse:: 0.574
+
+    .. csv-table::
+       :file: ./nanobeir_details_external_bienc.csv
+       :header-rows: 0"
+"`webis/colbert <https://huggingface.co/webis/colbert>`_",|c|,".. collapse:: 0.635
+
+    .. csv-table::
+       :file: ./nanobeir_details_colbert.csv
+       :header-rows: 0"
+"`colbert-ir/colbertv2.0 <https://huggingface.co/colbert-ir/colbertv2.0>`_",|x|,".. collapse:: 0.613
+    
+    .. csv-table::
+       :file: ./nanobeir_details_external_colbert.csv
+       :header-rows: 0"
+"`lightonai/GTE-ModernColBERT-v1 <https://huggingface.co/lightonai/GTE-ModernColBERT-v1>`_",|x|,".. collapse:: 0.697
+
+    .. csv-table::
+       :file: ./nanobeir_details_external_moderncol.csv
+       :header-rows: 0"
+"`webis/splade <https://huggingface.co/webis/splade>`_",|c|,".. collapse:: 0.619
+
+    .. csv-table::
+       :file: ./nanobeir_details_splade.csv
+       :header-rows: 0"
+"`naver/splade-v3 <https://huggingface.co/naver/splade-v3>`_",|x|,".. collapse:: 0.635
+
+    .. csv-table::
+       :file: ./nanobeir_details_external_splade.csv
+       :header-rows: 0"

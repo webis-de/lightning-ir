@@ -1,10 +1,10 @@
 from lightning_ir import (
     BiEncoderModule,
     DocDataset,
-    FaissFlatIndexConfig,
     IndexCallback,
     LightningIRDataModule,
     LightningIRTrainer,
+    TorchDenseIndexConfig,
 )
 
 # Define the model
@@ -21,11 +21,11 @@ data_module = LightningIRDataModule(
 # Define the index callback
 callback = IndexCallback(
     index_dir="./msmarco-passage-index",
-    index_config=FaissFlatIndexConfig(),
+    index_config=TorchDenseIndexConfig(),
 )
 
 # Define the trainer
-trainer = LightningIRTrainer(callbacks=[callback])
+trainer = LightningIRTrainer(callbacks=[callback], logger=False, enable_checkpointing=False)
 
 # Index the data
 trainer.index(module, data_module)

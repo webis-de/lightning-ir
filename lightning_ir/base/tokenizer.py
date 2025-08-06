@@ -6,7 +6,7 @@ This module contains the main tokenizer class for the Lightning IR library.
 
 import json
 from os import PathLike
-from typing import Dict, Sequence, Tuple, Type
+from typing import Dict, Self, Sequence, Tuple, Type
 
 from transformers import TOKENIZER_MAPPING, BatchEncoding, PreTrainedTokenizerBase
 
@@ -29,12 +29,11 @@ https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreT
     def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
         """Initializes the tokenizer.
 
-        :param query_length: Maximum number of tokens per query, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum number of tokens per document, defaults to 512
-        :type doc_length: int, optional
+        Args:
+            query_length (int, optional): Maximum number of tokens per query. Defaults to 32.
+            doc_length (int, optional): Maximum number of tokens per document. Defaults to 512.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(*args, query_length=query_length, doc_length=doc_length, **kwargs)
         self.query_length = query_length
         self.doc_length = doc_length
 
@@ -43,18 +42,18 @@ https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreT
     ) -> Dict[str, BatchEncoding]:
         """Tokenizes queries and documents.
 
-        :param queries: Queries to tokenize, defaults to None
-        :type queries: str | Sequence[str] | None, optional
-        :param docs: Documents to tokenize, defaults to None
-        :type docs: str | Sequence[str] | None, optional
-        :raises NotImplementedError: Must be implemented by the derived class
-        :return: Dictionary of tokenized queries and documents
-        :rtype: Dict[str, BatchEncoding]
+        Args:
+            queries (str | Sequence[str] | None): Queries to tokenize. Defaults to None.
+            docs (str | Sequence[str] | None): Documents to tokenize. Defaults to None.
+        Returns:
+            Dict[str, BatchEncoding]: Dictionary containing tokenized queries and documents.
+        Raises:
+            NotImplementedError: Must be implemented by the derived class.
         """
         raise NotImplementedError
 
     @classmethod
-    def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> "LightningIRTokenizer":
+    def from_pretrained(cls, model_name_or_path: str, *args, **kwargs) -> Self:
         """Loads a pretrained tokenizer. Wraps the transformers.PreTrainedTokenizer.from_pretrained_ method to return a
         derived LightningIRTokenizer class. See :class:`.LightningIRTokenizerClassFactory` for more details.
 
@@ -73,39 +72,42 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
             ...
             <class 'lightning_ir.base.class_factory.BiEncoderBertTokenizerFast'>
 
-        :param model_name_or_path: Name or path of the pretrained tokenizer
-        :type model_name_or_path: str
-        :raises ValueError: If called on the abstract class :class:`LightningIRTokenizer` and no config is passed
-        :return: A derived LightningIRTokenizer consisting of a backbone tokenizer and a LightningIRTokenizer mixin
-        :rtype: LightningIRTokenizer
+        Args:
+            model_name_or_path (str): Name or path of the pretrained tokenizer.
+        Returns:
+            Self: A derived LightningIRTokenizer consisting of a backbone tokenizer and a LightningIRTokenizer mixin.
+        Raises:
+            ValueError: If called on the abstract class `LightningIRTokenizer` and no config is passed.
         """
         # provides AutoTokenizer.from_pretrained support
-        config = kwargs.pop("config", None)
-        if config is not None:
-            kwargs.update(config.to_tokenizer_dict())
+        config = kwargs.get("config", None)
         if cls is LightningIRTokenizer or all(issubclass(base, LightningIRTokenizer) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir tokenizer based on backbone model
             if config is not None:
-                Config = config.__class__
+                ConfigClass = config.__class__
             elif model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]
-                Config = _config.__class__
-                kwargs.update(_config.to_tokenizer_dict())
+                ConfigClass = _config.__class__
+                if config is None:
+                    kwargs["config"] = _config
             elif cls is not LightningIRTokenizer and hasattr(cls, "config_class"):
-                Config = cls.config_class
+                ConfigClass = cls.config_class
             else:
-                Config = LightningIRTokenizerClassFactory.get_lightning_ir_config(model_name_or_path)
-                if Config is None:
+                ConfigClass = LightningIRTokenizerClassFactory.get_lightning_ir_config(model_name_or_path)
+                if ConfigClass is None:
                     raise ValueError("Pass a config to `from_pretrained`.")
-            Config = getattr(Config, "mixin_config", Config)
-            BackboneConfig = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
-            BackboneTokenizers = TOKENIZER_MAPPING[BackboneConfig]
+            ConfigClass = getattr(ConfigClass, "mixin_config", ConfigClass)
+            backbone_config = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
+            BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
             if kwargs.get("use_fast", True):
                 BackboneTokenizer = BackboneTokenizers[1]
             else:
                 BackboneTokenizer = BackboneTokenizers[0]
-            cls = LightningIRTokenizerClassFactory(Config).from_backbone_class(BackboneTokenizer)
+            cls = LightningIRTokenizerClassFactory(ConfigClass).from_backbone_class(BackboneTokenizer)
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
+        config = kwargs.pop("config", None)
+        if config is not None:
+            kwargs.update(config.get_tokenizer_kwargs(cls))
         return super(LightningIRTokenizer, cls).from_pretrained(model_name_or_path, *args, **kwargs)
 
     def _save_pretrained(

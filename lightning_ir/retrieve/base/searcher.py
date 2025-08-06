@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Literal, Tuple, Type
+from typing import TYPE_CHECKING, List, Literal, Set, Tuple, Type
 
 import torch
 
-from ...bi_encoder.model import BiEncoderEmbedding
+from ...bi_encoder.bi_encoder_model import BiEncoderEmbedding, SingleVectorBiEncoderConfig
 from .packed_tensor import PackedTensor
 
 if TYPE_CHECKING:
@@ -31,7 +31,7 @@ class Searcher(ABC):
         self.device = torch.device("cuda") if use_gpu and torch.cuda.is_available() else torch.device("cpu")
 
         self.doc_ids = (self.index_dir / "doc_ids.txt").read_text().split()
-        self.doc_lengths = torch.load(self.index_dir / "doc_lengths.pt")
+        self.doc_lengths = torch.load(self.index_dir / "doc_lengths.pt", weights_only=True)
 
         self.to_gpu()
 
@@ -40,7 +40,9 @@ class Searcher(ABC):
         self.num_embeddings = int(self.cumulative_doc_lengths[-1].item())
 
         self.doc_is_single_vector = self.num_docs == self.num_embeddings
-        self.query_is_single_vector = module.config.query_pooling_strategy in {"first", "mean", "min", "max"}
+        self.query_is_single_vector = isinstance(module.config, SingleVectorBiEncoderConfig) or getattr(
+            module.config, "query_pooling_strategy", None
+        ) in {"first", "mean", "min", "max"}
 
         if self.doc_lengths.shape[0] != self.num_docs or self.doc_lengths.sum() != self.num_embeddings:
             raise ValueError("doc_lengths do not match index")
@@ -79,8 +81,6 @@ class ExactSearcher(Searcher):
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
         query_embeddings = query_embeddings.to(self.device)
 
-        query_lengths = query_embeddings.scoring_mask.sum(-1)
-
         scores = self._score(query_embeddings)
 
         # aggregate doc token scores
@@ -95,6 +95,9 @@ class ExactSearcher(Searcher):
 
         # aggregate query token scores
         if not self.query_is_single_vector:
+            if query_embeddings.scoring_mask is None:
+                raise ValueError("Expected scoring_mask in multi-vector query_embeddings")
+            query_lengths = query_embeddings.scoring_mask.sum(-1)
             query_token_idcs = torch.arange(query_lengths.shape[0]).to(query_lengths).repeat_interleave(query_lengths)
             scores = torch.scatter_reduce(
                 torch.zeros(query_lengths.shape[0], self.num_docs, device=scores.device),
@@ -186,10 +189,8 @@ class ApproximateSearcher(Searcher):
             # reconstruct the doc embeddings and re-compute the scores
             imputation_values = torch.empty_like(unpacked_scores)
             doc_embeddings = self._reconstruct_doc_embeddings(doc_idcs)
-            similarity = self.module.scoring_function.compute_similarity(
-                query_embeddings, doc_embeddings, doc_idcs.lengths
-            )
-            unpacked_scores = self.module.scoring_function._aggregate(
+            similarity = self.module.model.compute_similarity(query_embeddings, doc_embeddings, doc_idcs.lengths)
+            unpacked_scores = self.module.model._aggregate(
                 similarity, doc_embeddings.scoring_mask, "max", dim=-1
             ).squeeze(-1)
         elif self.search_config.imputation_strategy == "min":
@@ -219,7 +220,7 @@ class ApproximateSearcher(Searcher):
             return scores
         query_scoring_mask = query_embeddings.scoring_mask.repeat_interleave(torch.tensor(scores.lengths), dim=0)
         scores = PackedTensor(
-            self.module.scoring_function._aggregate(
+            self.module.model._aggregate(
                 scores, query_scoring_mask, self.module.config.query_aggregation_function, dim=1
             ).squeeze(-1),
             lengths=scores.lengths,
@@ -241,10 +242,10 @@ class ApproximateSearcher(Searcher):
     def _gather_doc_embeddings(self, idcs: torch.Tensor) -> torch.Tensor:
         """Reconstructs embeddings from indices.
 
-        :param doc_idcs: Indices
-        :type doc_idcs: PackedTensor
-        :return: Reconstructed embeddings
-        :rtype: BiEncoderEmbedding
+        Args:
+            idcs (torch.Tensor): Indices of the document embeddings to gather.
+        Returns:
+            BiEncoderEmbedding: Reconstructed embeddings.
         """
         ...
 
@@ -272,7 +273,9 @@ class ApproximateSearcher(Searcher):
 
 
 class SearchConfig:
-    search_class: Type[Searcher] = Searcher
+    search_class: Type[Searcher]
+
+    SUPPORTED_MODELS: Set[str]
 
     def __init__(self, k: int = 10) -> None:
         self.k = k

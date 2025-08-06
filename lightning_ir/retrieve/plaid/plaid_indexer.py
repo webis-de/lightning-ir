@@ -4,8 +4,9 @@ from pathlib import Path
 
 import torch
 
-from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
+from ...models import ColConfig
 from ..base import IndexConfig, Indexer
 from .residual_codec import ResidualCodec
 
@@ -16,19 +17,15 @@ class PlaidIndexer(Indexer):
         self,
         index_dir: Path,
         index_config: "PlaidIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
-        try:
-            import faiss
-        except ImportError:
-            raise ImportError("faiss is required for PlaidIndexer")
+        super().__init__(index_dir, index_config, module, verbose)
 
         self.index_config: PlaidIndexConfig
 
         self._train_embeddings: torch.Tensor | None = torch.full(
-            (self.index_config.num_train_embeddings, self.bi_encoder_config.embedding_dim),
+            (self.index_config.num_train_embeddings, self.module.config.embedding_dim),
             torch.nan,
             dtype=torch.float32,
         )
@@ -40,8 +37,15 @@ class PlaidIndexer(Indexer):
         doc_embeddings = output.doc_embeddings
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
-        doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
-        embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
+
+        if doc_embeddings.scoring_mask is None:
+            doc_lengths = torch.ones(
+                doc_embeddings.embeddings.shape[0], device=doc_embeddings.device, dtype=torch.int32
+            )
+            embeddings = doc_embeddings.embeddings[:, 0]
+        else:
+            doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
+            embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
         doc_ids = index_batch.doc_ids
         embeddings = self.process_embeddings(embeddings)
 
@@ -55,7 +59,7 @@ class PlaidIndexer(Indexer):
         self.num_embeddings += embeddings.shape[0]
         self.num_docs += len(doc_ids)
 
-        self.doc_lengths.extend(doc_lengths.cpu().tolist())
+        self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
         self.doc_ids.extend(doc_ids)
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
@@ -108,13 +112,20 @@ class PlaidIndexer(Indexer):
 
 class PlaidIndexConfig(IndexConfig):
     indexer_class = PlaidIndexer
+    SUPPORTED_MODELS = {ColConfig.model_type}
 
     def __init__(
-        self, num_centroids: int, num_train_embeddings: int, k_means_iters: int = 4, n_bits: int = 2, seed: int = 42
+        self,
+        num_centroids: int,
+        num_train_embeddings: int | None = None,
+        k_means_iters: int = 4,
+        n_bits: int = 2,
+        seed: int = 42,
     ) -> None:
         super().__init__()
+        max_points_per_centroid = 256
         self.num_centroids = num_centroids
-        self.num_train_embeddings = num_train_embeddings
+        self.num_train_embeddings = num_train_embeddings or num_centroids * max_points_per_centroid
         self.k_means_iters = k_means_iters
         self.n_bits = n_bits
         self.seed = seed

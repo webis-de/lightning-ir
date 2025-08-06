@@ -1,23 +1,26 @@
 from __future__ import annotations
 
-import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Literal, Tuple
+from typing import TYPE_CHECKING, Literal, Tuple
 
+import numpy as np
 import torch
-
-from lightning_ir.retrieve.base.packed_tensor import PackedTensor
 
 try:
     _seismic_available = True
-    from seismic import PySeismicIndex
-except ImportError:
-    _seismic_available = False
-    PySeismicIndex = None
+    import seismic
+    from seismic import SeismicIndex
 
-from ...bi_encoder.model import BiEncoderEmbedding
+    STRING_TYPE = seismic.get_seismic_string()
+except ImportError:
+    STRING_TYPE = None
+    _seismic_available = False
+    SeismicIndex = None
+
+from ...bi_encoder.bi_encoder_model import BiEncoderEmbedding
+from ...models import SpladeConfig
+from ..base.packed_tensor import PackedTensor
 from ..base.searcher import ApproximateSearchConfig, ApproximateSearcher
-from .seismic_format import SeismicFormatConverter
 
 if TYPE_CHECKING:
     from ...bi_encoder import BiEncoderModule
@@ -38,21 +41,32 @@ class SeismicSearcher(ApproximateSearcher):
                 "Instructions can be found at "
                 "https://github.com/TusKANNy/seismic?tab=readme-ov-file#using-the-python-interface"
             )
-        assert PySeismicIndex is not None
-        self.index = PySeismicIndex.load(str(self.index_dir / ".index.seismic"))
+        assert SeismicIndex is not None
+        self.index = SeismicIndex.load(str(self.index_dir / ".index.seismic"))
+        self.inverse_doc_ids = {doc_id: idx for idx, doc_id in enumerate(self.doc_ids)}
 
         self.search_config: SeismicSearchConfig
 
     def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> Tuple[PackedTensor, PackedTensor]:
-        embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
+        if query_embeddings.scoring_mask is None:
+            embeddings = query_embeddings.embeddings[:, 0]
+        else:
+            embeddings = query_embeddings.embeddings[query_embeddings.scoring_mask]
 
-        tmp_file = tempfile.NamedTemporaryFile("wb", delete_on_close=False)
-        tmp_file.write((embeddings.shape[0]).to_bytes(4, byteorder="little", signed=False))
-        tmp_file.write(SeismicFormatConverter.convert_to_seismic_format(embeddings))
-        tmp_file.close()
+        query_components = []
+        query_values = []
+
+        for idx in range(embeddings.shape[0]):
+            non_zero = embeddings[idx].nonzero().view(-1)
+            values = embeddings[idx][non_zero].float().numpy(force=True)
+            tokens = np.array(self.module.tokenizer.convert_ids_to_tokens(non_zero), dtype=STRING_TYPE)
+            query_components.append(tokens)
+            query_values.append(values)
 
         results = self.index.batch_search(
-            tmp_file.name,
+            queries_ids=np.array(range(len(query_components)), dtype=STRING_TYPE),
+            query_components=query_components,
+            query_values=query_values,
             k=self.search_config.k,
             query_cut=self.search_config.query_cut,
             heap_factor=self.search_config.heap_factor,
@@ -63,7 +77,8 @@ class SeismicSearcher(ApproximateSearcher):
         candidate_idcs_list = []
         num_docs = []
         for result in results:
-            for score, doc_idx in result:
+            for _, score, doc_id in result:
+                doc_idx = self.inverse_doc_ids[doc_id]
                 scores_list.append(score)
                 candidate_idcs_list.append(doc_idx)
             num_docs.append(len(result))
@@ -80,6 +95,7 @@ class SeismicSearcher(ApproximateSearcher):
 class SeismicSearchConfig(ApproximateSearchConfig):
 
     search_class = SeismicSearcher
+    SUPPORTED_MODELS = {SpladeConfig.model_type}
 
     def __init__(
         self,

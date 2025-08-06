@@ -1,6 +1,6 @@
-.. _howto-dataset:
-
 .. _ir_datasets: https://ir-datasets.com/
+
+.. _howto-dataset:
 
 ====================
 Use a Custom Dataset
@@ -34,7 +34,7 @@ Integrating your own run files is as simple as providing the run file to the :py
 Registering a Local Dataset
 ---------------------------
 
-To integrate a custom dataset it needs to be locally registered with the `ir_datasets`_. Lightning IR provides a :py:class:`~lightning_ir.lightning_utils.callbacks.RegisterLocalDatasetCallback` class to make registering datasets easy. This function takes a dataset id, and optional paths to local files or already valid `ir_datasets`_ dataset ids.
+To integrate a custom dataset it needs to be locally registered with the `ir_datasets`_. Lightning IR provides a :py:class:`~lightning_ir.callbacks.callbacks.RegisterLocalDatasetCallback` class to make registering datasets easy. This function takes a dataset id, and optional paths to local files or already valid `ir_datasets`_ dataset ids.
 
 Let's look at an example. Say we wanted to register a new set of training triples for the MS MARCO passage dataset. Our triples file is named ``msmarco-passage-train-triples.tsv`` and has the following format:
 

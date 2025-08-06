@@ -1,10 +1,12 @@
 import warnings
 from pathlib import Path
+from typing import Type
 
 import torch
 
-from ...bi_encoder import BiEncoderConfig, BiEncoderOutput
+from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
+from ...models import ColConfig, DprConfig
 from ..base import IndexConfig, Indexer
 
 
@@ -15,13 +17,13 @@ class FaissIndexer(Indexer):
         self,
         index_dir: Path,
         index_config: "FaissIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
         import faiss
 
-        similarity_function = bi_encoder_config.similarity_function
+        similarity_function = self.module.config.similarity_function
         if similarity_function in ("cosine", "dot"):
             self.metric_type = faiss.METRIC_INNER_PRODUCT
         else:
@@ -30,7 +32,7 @@ class FaissIndexer(Indexer):
         index_factory = self.INDEX_FACTORY.format(**index_config.to_dict())
         if similarity_function == "cosine":
             index_factory = "L2norm," + index_factory
-        self.index = faiss.index_factory(self.bi_encoder_config.embedding_dim, index_factory, self.metric_type)
+        self.index = faiss.index_factory(self.module.config.embedding_dim, index_factory, self.metric_type)
 
         self.set_verbosity()
 
@@ -64,8 +66,14 @@ class FaissIndexer(Indexer):
         doc_embeddings = output.doc_embeddings
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
-        doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
-        embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
+        if doc_embeddings.scoring_mask is None:
+            doc_lengths = torch.ones(
+                doc_embeddings.embeddings.shape[0], device=doc_embeddings.device, dtype=torch.int32
+            )
+            embeddings = doc_embeddings.embeddings[:, 0]
+        else:
+            doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
+            embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
         doc_ids = index_batch.doc_ids
         embeddings = self.process_embeddings(embeddings)
 
@@ -75,7 +83,7 @@ class FaissIndexer(Indexer):
         self.num_embeddings += embeddings.shape[0]
         self.num_docs += len(doc_ids)
 
-        self.doc_lengths.extend(doc_lengths.cpu().tolist())
+        self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
         self.doc_ids.extend(doc_ids)
 
 
@@ -86,10 +94,10 @@ class FaissFlatIndexer(FaissIndexer):
         self,
         index_dir: Path,
         index_config: "FaissFlatIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
         self.index_config: FaissFlatIndexConfig
 
     def to_gpu(self) -> None:
@@ -107,16 +115,16 @@ class _FaissTrainIndexer(FaissIndexer):
         self,
         index_dir: Path,
         index_config: "_FaissTrainIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
         if index_config.num_train_embeddings is None:
             raise ValueError("num_train_embeddings must be set")
         self.num_train_embeddings = index_config.num_train_embeddings
 
         self._train_embeddings: torch.Tensor | None = torch.full(
-            (self.num_train_embeddings, self.bi_encoder_config.embedding_dim), torch.nan, dtype=torch.float32
+            (self.num_train_embeddings, self.module.config.embedding_dim), torch.nan, dtype=torch.float32
         )
 
     def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
@@ -165,7 +173,7 @@ class FaissIVFIndexer(_FaissTrainIndexer):
         self,
         index_dir: Path,
         index_config: "FaissIVFIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
         # default faiss values
@@ -174,7 +182,7 @@ class FaissIVFIndexer(_FaissTrainIndexer):
         index_config.num_train_embeddings = (
             index_config.num_train_embeddings or index_config.num_centroids * max_points_per_centroid
         )
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
 
         import faiss
 
@@ -191,7 +199,7 @@ class FaissIVFIndexer(_FaissTrainIndexer):
         # clustering_index overrides the index used during clustering but leaves the quantizer on the gpu
         # https://faiss.ai/cpp_api/namespace/namespacefaiss_1_1gpu.html
         clustering_index = faiss.index_cpu_to_all_gpus(
-            faiss.IndexFlat(self.bi_encoder_config.embedding_dim, self.metric_type)
+            faiss.IndexFlat(self.module.config.embedding_dim, self.metric_type)
         )
         clustering_index.verbose = self.verbose
         index_ivf = faiss.extract_index_ivf(self.index)
@@ -227,10 +235,10 @@ class FaissPQIndexer(_FaissTrainIndexer):
         self,
         index_dir: Path,
         index_config: "FaissPQIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
         self.index_config: FaissPQIndexConfig
 
     def to_gpu(self) -> None:
@@ -247,12 +255,12 @@ class FaissIVFPQIndexer(FaissIVFIndexer):
         self,
         index_dir: Path,
         index_config: "FaissIVFPQIndexConfig",
-        bi_encoder_config: BiEncoderConfig,
+        module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
         import faiss
 
-        super().__init__(index_dir, index_config, bi_encoder_config, verbose)
+        super().__init__(index_dir, index_config, module, verbose)
         self.index_config: FaissIVFPQIndexConfig
 
         index_ivf = faiss.extract_index_ivf(self.index)
@@ -272,7 +280,8 @@ class FaissIVFPQIndexer(FaissIVFIndexer):
 
 
 class FaissIndexConfig(IndexConfig):
-    indexer_class = FaissIndexer
+    SUPPORTED_MODELS = {ColConfig.model_type, DprConfig.model_type}
+    indexer_class: Type[Indexer] = FaissIndexer
 
 
 class FaissFlatIndexConfig(FaissIndexConfig):

@@ -6,13 +6,19 @@ a Lightning IR model. The configuration class acts as a mixin for the `transform
 class from the Hugging Face Transformers library.
 """
 
+from __future__ import annotations
+
+import inspect
 from pathlib import Path
-from typing import Any, Dict, Set
+from typing import TYPE_CHECKING, Any, Dict, Type
 
 from transformers import PretrainedConfig
 
 from .class_factory import LightningIRConfigClassFactory
 from .external_model_hub import CHECKPOINT_MAPPING
+
+if TYPE_CHECKING:
+    from .tokenizer import LightningIRTokenizer
 
 
 class LightningIRConfig(PretrainedConfig):
@@ -28,38 +34,27 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
     backbone_model_type: str | None = None
     """Backbone model type for the configuration. Set by :func:`LightningIRModelClassFactory`."""
 
-    TOKENIZER_ARGS: Set[str] = {"query_length", "doc_length"}
-    """Arguments for the tokenizer."""
-    ADDED_ARGS: Set[str] = TOKENIZER_ARGS
-    """Arguments added to the configuration."""
-
     def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
         """Initializes the configuration.
 
-        :param query_length: Maximum query length, defaults to 32
-        :type query_length: int, optional
-        :param doc_length: Maximum document length, defaults to 512
-        :type doc_length: int, optional
+        Args:
+            query_length (int, optional): Maximum query length. Defaults to 32.
+            doc_length (int, optional): Maximum document length. Defaults to 512.
         """
         super().__init__(*args, **kwargs)
         self.query_length = query_length
         self.doc_length = doc_length
 
-    def to_added_args_dict(self) -> Dict[str, Any]:
-        """Outputs a dictionary of the added arguments.
+    def get_tokenizer_kwargs(self, Tokenizer: Type[LightningIRTokenizer]) -> Dict[str, Any]:
+        """Returns the keyword arguments for the tokenizer. This method is used to pass the configuration
+        parameters to the tokenizer.
 
-        :return: Added arguments
-        :rtype: Dict[str, Any]
+        Args:
+            Tokenizer (Type[LightningIRTokenizer]): Class of the tokenizer to be used.
+        Returns:
+            Dict[str, Any]: Keyword arguments for the tokenizer.
         """
-        return {arg: getattr(self, arg) for arg in self.ADDED_ARGS if hasattr(self, arg)}
-
-    def to_tokenizer_dict(self) -> Dict[str, Any]:
-        """Outputs a dictionary of the tokenizer arguments.
-
-        :return: Tokenizer arguments
-        :rtype: Dict[str, Any]
-        """
-        return {arg: getattr(self, arg) for arg in self.TOKENIZER_ARGS}
+        return {k: getattr(self, k) for k in inspect.signature(Tokenizer.__init__).parameters if hasattr(self, k)}
 
     def to_dict(self) -> Dict[str, Any]:
         """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments and the backbone
@@ -68,10 +63,10 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         .. _transformers.PretrainedConfig.to_dict: \
 https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.to_dict
 
-        :return: Configuration dictionary
-        :rtype: Dict[str, Any]
+        Returns:
+            Dict[str, Any]: Configuration dictionary.
         """
-        output = getattr(super(), "to_dict")()
+        output = super().to_dict()
         if self.backbone_model_type is not None:
             output["backbone_model_type"] = self.backbone_model_type
         return output
@@ -83,28 +78,29 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         .. _transformers.PretrainedConfig.from_pretrained: \
 https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.from_pretrained
 
-        :param pretrained_model_name_or_path: Pretrained model name or path
-        :type pretrained_model_name_or_path: str | Path
-        :raises ValueError: If `pre_trained_model_name_or_path` is not a Lightning IR model and no
-            :py:class:`LightningIRConfig` is passed
-        :return: Derived LightningIRConfig class
-        :rtype: LightningIRConfig
+        Args:
+            pretrained_model_name_or_path (str | Path): Pretrained model name or path.
+        Returns:
+            LightningIRConfig: Derived LightningIRConfig class.
+        Raises:
+            ValueError: If `pretrained_model_name_or_path` is not a Lightning IR model and no
+                :py:class:`LightningIRConfig` is passed.
         """
         # provides AutoConfig.from_pretrained support
         if cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__):
-            # no backbone config found, create dervied lightning-ir config based on backbone config
+            # no backbone config found, create derived lightning-ir config based on backbone config
             config = None
             if pretrained_model_name_or_path in CHECKPOINT_MAPPING:
                 config = CHECKPOINT_MAPPING[pretrained_model_name_or_path]
-                config_class = config.__class__
+                ConfigClass = config.__class__
             elif cls is not LightningIRConfig:
-                config_class = cls
+                ConfigClass = cls
             else:
-                config_class = LightningIRConfigClassFactory.get_lightning_ir_config(pretrained_model_name_or_path)
-                if config_class is None:
+                ConfigClass = type(LightningIRConfigClassFactory.get_lightning_ir_config(pretrained_model_name_or_path))
+                if ConfigClass is None:
                     raise ValueError("Pass a config to `from_pretrained`.")
-            BackboneConfig = LightningIRConfigClassFactory.get_backbone_config(pretrained_model_name_or_path)
-            cls = LightningIRConfigClassFactory(config_class).from_backbone_class(BackboneConfig)
+            backbone_config = LightningIRConfigClassFactory.get_backbone_config(pretrained_model_name_or_path)
+            cls = LightningIRConfigClassFactory(ConfigClass).from_backbone_class(type(backbone_config))
             if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
                 derived_config = cls.from_pretrained(pretrained_model_name_or_path, config=config)
                 derived_config.update(config.to_dict())

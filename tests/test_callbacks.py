@@ -8,6 +8,7 @@ from _pytest.fixtures import SubRequest
 
 from lightning_ir import BiEncoderModule, LightningIRDataModule, LightningIRModule, LightningIRTrainer, RunDataset
 from lightning_ir.callbacks import IndexCallback, RegisterLocalDatasetCallback, ReRankCallback, SearchCallback
+from lightning_ir.models import DprConfig
 from lightning_ir.retrieve import (
     FaissFlatIndexConfig,
     FaissIVFIndexConfig,
@@ -56,6 +57,12 @@ def test_index_callback(
     index_config: IndexConfig,
     # devices: int,
 ):
+    if bi_encoder_module.config.model_type not in index_config.SUPPORTED_MODELS:
+        pytest.skip(
+            f"Indexing not supported for {bi_encoder_module.config.__class__.__name__} model "
+            f"and {index_config.__class__.__name__} indexer"
+        )
+
     index_dir = tmp_path / "index"
     index_callback = IndexCallback(index_config=index_config, index_dir=index_dir)
 
@@ -65,7 +72,7 @@ def test_index_callback(
         enable_checkpointing=False,
         callbacks=[index_callback],
     )
-    trainer.test(bi_encoder_module, datamodule=doc_datamodule)
+    trainer.index(bi_encoder_module, datamodule=doc_datamodule)
 
     assert doc_datamodule.inference_datasets is not None
     assert index_callback.indexer.num_embeddings and index_callback.indexer.num_docs
@@ -93,7 +100,6 @@ def get_index(
     search_config: SearchConfig,
 ) -> Path:
     index_config: IndexConfig
-    num_vecs = "multi" if bi_encoder_module.config.query_pooling_strategy is None else "single"
     if isinstance(search_config, FaissSearchConfig):
         index_type = "faiss"
         index_config = FaissFlatIndexConfig()
@@ -111,7 +117,11 @@ def get_index(
         index_config = SeismicIndexConfig(num_postings=32)
     else:
         raise ValueError("Unknown search_config type")
-    index_dir = DATA_DIR / "indexes" / f"{index_type}-{num_vecs}-vector-{bi_encoder_module.config.similarity_function}"
+    index_dir = (
+        DATA_DIR
+        / "indexes"
+        / f"{index_type}-{bi_encoder_module.config.model_type}-{bi_encoder_module.config.similarity_function}"
+    )
     if index_dir.exists():
         return index_dir
 
@@ -145,6 +155,13 @@ def test_search_callback(
     doc_datamodule: LightningIRDataModule,
     search_config: SearchConfig,
 ):
+
+    if bi_encoder_module.config.model_type not in search_config.SUPPORTED_MODELS:
+        pytest.skip(
+            f"Searching not supported for {bi_encoder_module.config.__class__.__name__} model and "
+            f"{search_config.__class__.__name__} searcher"
+        )
+
     index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)
     save_dir = tmp_path / "runs"
     search_callback = SearchCallback(search_config=search_config, index_dir=index_dir, save_dir=save_dir, use_gpu=False)
@@ -190,7 +207,7 @@ def test_rerank_callback(tmp_path: Path, module: LightningIRModule, inference_da
         assert run_df["query_id"].nunique() == len(dataset)
 
 
-def test_register_local_dataset_callback(module: LightningIRModule):
+def test_register_local_dataset_callback(model_name_or_path: str):
     callback = RegisterLocalDatasetCallback(
         dataset_id="test",
         docs=str(CORPUS_DIR / "docs.tsv"),
@@ -198,6 +215,7 @@ def test_register_local_dataset_callback(module: LightningIRModule):
         qrels=str(CORPUS_DIR / "qrels.tsv"),
         docpairs=str(CORPUS_DIR / "docpairs.tsv"),
     )
+    module = LightningIRModule(model_name_or_path=model_name_or_path, config=DprConfig(embedding_dim=4))
     datamodule = LightningIRDataModule(train_dataset=RunDataset("test"), train_batch_size=2)
 
     trainer = LightningIRTrainer(logger=False, enable_checkpointing=False, callbacks=[callback])
