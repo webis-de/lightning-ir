@@ -1,3 +1,10 @@
+"""
+Lightning IR data module.
+
+This module provides the classes and configurations for dense and sparse indexing and searching using PyTorch in the
+Lightning IR framework.
+"""
+
 from .dense_indexer import TorchDenseIndexConfig, TorchDenseIndexer
 from .dense_searcher import TorchDenseSearchConfig, TorchDenseSearcher
 from .sparse_indexer import TorchSparseIndexConfig, TorchSparseIndexer

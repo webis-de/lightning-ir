@@ -1,3 +1,9 @@
+"""
+Lightning IR module for native models.
+
+This module provides the classes, configurations and tokenizer for various models in the Lightning IR framework.
+"""
+
 from .coil import CoilConfig, CoilEmbedding, CoilModel
 from .col import ColConfig, ColModel, ColTokenizer
 from .dpr import DprConfig, DprModel
