@@ -57,7 +57,7 @@ def _map_rank_t5_weights(model: LightningIRModel) -> LightningIRModel:
 
 def _map_coil_weights(model: LightningIRModel) -> LightningIRModel:
     path = hf_hub_download(model.config.name_or_path, filename="model.pt")
-    state_dict = torch.load(path)
+    state_dict = torch.load(path, map_location="cpu")
     state_dict["token_projection.weight"] = state_dict.pop("tok_proj.weight")
     state_dict["token_projection.bias"] = state_dict.pop("tok_proj.bias")
     state_dict["cls_projection.weight"] = state_dict.pop("cls_proj.weight")
