@@ -3,6 +3,8 @@ from transformers import AutoConfig, AutoModel, AutoTokenizer
 from .bi_encoder import BiEncoderConfig, BiEncoderTokenizer
 from .cross_encoder import CrossEncoderConfig, CrossEncoderTokenizer
 from .models import (
+    CoilConfig,
+    CoilModel,
     ColConfig,
     ColModel,
     ColTokenizer,
@@ -21,6 +23,9 @@ from .models import (
 def _register_internal_models():
     AutoTokenizer.register(BiEncoderConfig, BiEncoderTokenizer)
     AutoTokenizer.register(CrossEncoderConfig, CrossEncoderTokenizer)
+    AutoConfig.register(CoilConfig.model_type, CoilConfig)
+    AutoModel.register(CoilConfig, CoilModel)
+    AutoTokenizer.register(CoilConfig, BiEncoderTokenizer)
     AutoConfig.register(ColConfig.model_type, ColConfig)
     AutoModel.register(ColConfig, ColModel)
     AutoTokenizer.register(ColConfig, ColTokenizer)

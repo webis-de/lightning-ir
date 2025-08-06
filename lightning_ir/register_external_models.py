@@ -1,10 +1,11 @@
 import warnings
 
+import torch
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
 from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from .models import ColConfig, DprConfig, MonoConfig, SpladeConfig
+from .models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -27,7 +28,7 @@ def _map_moderncolbert_marker_tokens(model: LightningIRModel) -> LightningIRMode
     embeddings[query_token_id] = embeddings[50368]  # [unused0]
     embeddings[doc_token_id] = embeddings[50369]  # [unused1]
 
-    path = hf_hub_download("lightonai/GTE-ModernColBERT-v1", filename="model.safetensors", subfolder="1_Dense")
+    path = hf_hub_download(model.config.name_or_path, filename="model.safetensors", subfolder="1_Dense")
     state_dict = load_file(path)
     state_dict["weight"] = state_dict.pop("linear.weight")
     model.projection.load_state_dict(state_dict)
@@ -51,6 +52,17 @@ def _map_rank_t5_weights(model: LightningIRModel) -> LightningIRModel:
         "The weights are initialized separately."
     )
     model.linear.weight.data = model.shared.weight.data[[32089]]
+    return model
+
+
+def _map_coil_weights(model: LightningIRModel) -> LightningIRModel:
+    path = hf_hub_download(model.config.name_or_path, filename="model.pt")
+    state_dict = torch.load(path)
+    state_dict["token_projection.weight"] = state_dict.pop("tok_proj.weight")
+    state_dict["token_projection.bias"] = state_dict.pop("tok_proj.bias")
+    state_dict["cls_projection.weight"] = state_dict.pop("cls_proj.weight")
+    state_dict["cls_projection.bias"] = state_dict.pop("cls_proj.bias")
+    model.load_state_dict(state_dict, strict=False)
     return model
 
 
@@ -105,6 +117,7 @@ def _register_external_models():
             "castorini/monobert-large-msmarco": MonoConfig(
                 scoring_strategy="mono", linear_bias=True, pooling_strategy="bert_pool"
             ),
+            "fschlatt/coil-with-hn": CoilConfig(),
         }
     )
     STATE_DICT_KEY_MAPPING.update(
@@ -137,5 +150,6 @@ def _register_external_models():
             "Soyoung97/RankT5-base": _map_rank_t5_weights,
             "Soyoung97/RankT5-large": _map_rank_t5_weights,
             "Soyoung97/RankT5-3b": _map_rank_t5_weights,
+            "fschlatt/coil-with-hn": _map_coil_weights,
         }
     )
