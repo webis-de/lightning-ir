@@ -1,3 +1,5 @@
+"""Residual Codec for Plaid Indexing and Retrieval"""
+
 from __future__ import annotations
 
 import pathlib

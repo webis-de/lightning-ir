@@ -1,3 +1,5 @@
+"""FAISS Indexer for Lightning IR Framework"""
+
 import warnings
 from pathlib import Path
 from typing import Type

@@ -1,3 +1,5 @@
+"""Plaid Searcher for Lightning IR Framework"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -204,7 +206,8 @@ class PlaidSearchConfig(SearchConfig):
             k (int): Number of top documents to retrieve.
             candidate_k (int): Number of candidate documents to consider for scoring. Defaults to 256.
             n_cells (int): Number of cells to use for centroid retrieval. Defaults to 1.
-            centroid_score_threshold (float): Threshold for filtering candidates based on centroid scores. Defaults to 0.5.
+            centroid_score_threshold (float): Threshold for filtering candidates based on centroid scores.
+                Defaults to 0.5.
         """
         super().__init__(k)
         self.candidate_k = candidate_k
