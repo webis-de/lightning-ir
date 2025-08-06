@@ -1,5 +1,5 @@
 """
-Lightning IR data module.
+Module for indexing and searching using Seismic.
 
 This module provides the classes and configurations for indexing and searching using Seismic in the Lightning IR
 framework.

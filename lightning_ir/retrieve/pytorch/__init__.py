@@ -1,5 +1,5 @@
 """
-Lightning IR data module.
+Module for dense and sparseindexing and searching using PyTorch.
 
 This module provides the classes and configurations for dense and sparse indexing and searching using PyTorch in the
 Lightning IR framework.

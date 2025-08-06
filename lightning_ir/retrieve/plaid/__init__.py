@@ -1,5 +1,5 @@
 """
-Lightning IR data module.
+Module for indexing and searching using PLAID.
 
 This module provides classes and configurations for indexing and searching using PLAID in the Lightning IR framework.
 
