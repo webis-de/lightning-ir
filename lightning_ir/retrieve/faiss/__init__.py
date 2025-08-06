@@ -1,3 +1,6 @@
+"""FAISS: `The Faiss library
+<https://arxiv.org/abs/2401.08281>`_"""
+
 from .faiss_indexer import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
