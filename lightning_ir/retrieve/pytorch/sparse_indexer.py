@@ -1,3 +1,5 @@
+"""Torch-based Sparse Indexer for Lightning IR Framework"""
+
 import array
 from pathlib import Path
 
@@ -10,6 +12,8 @@ from ..base import IndexConfig, Indexer
 
 
 class TorchSparseIndexer(Indexer):
+    """Sparse indexer for bi-encoder models using PyTorch."""
+
     def __init__(
         self,
         index_dir: Path,
@@ -17,6 +21,14 @@ class TorchSparseIndexer(Indexer):
         module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
+        """Initialize the TorchSparseIndexer.
+
+        Args:
+            index_dir (Path): Directory to store the index.
+            index_config (TorchSparseIndexConfig): Configuration for the sparse index.
+            module (BiEncoderModule): The bi-encoder module to use for indexing.
+            verbose (bool): Whether to print verbose output. Defaults to False.
+        """
         super().__init__(index_dir, index_config, module, verbose)
         self.crow_indices = array.array("L")
         self.crow_indices.append(0)
@@ -24,6 +36,14 @@ class TorchSparseIndexer(Indexer):
         self.values = array.array("f")
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
+        """Add embeddings to the sparse index.
+
+        Args:
+            index_batch (IndexBatch): The batch containing the embeddings to index.
+            output (BiEncoderOutput): The output from the bi-encoder model containing embeddings.
+        Raises:
+            ValueError: If doc_embeddings are not present in the output.
+        """
         doc_embeddings = output.doc_embeddings
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
@@ -55,18 +75,29 @@ class TorchSparseIndexer(Indexer):
     def to_sparse_csr(
         embeddings: torch.Tensor,
     ) -> torch.Tensor:
+        """Convert embeddings to sparse CSR format.
+
+        Args:
+            embeddings (torch.Tensor): The embeddings tensor to convert.
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Crow indices, column indices, and values of the sparse
+                matrix.
+        """
         token_idcs, dim_idcs = torch.nonzero(embeddings, as_tuple=True)
         crow_indices = (token_idcs + 1).bincount().cumsum(0)
         values = embeddings[token_idcs, dim_idcs]
         return crow_indices, dim_idcs, values
 
     def to_gpu(self) -> None:
+        """Move the index to GPU if available."""
         pass
 
     def to_cpu(self) -> None:
+        """Move the index to CPU."""
         pass
 
     def save(self) -> None:
+        """Save the sparse index to disk."""
         super().save()
         index = torch.sparse_csr_tensor(
             torch.frombuffer(self.crow_indices, dtype=torch.int64),
@@ -78,5 +109,7 @@ class TorchSparseIndexer(Indexer):
 
 
 class TorchSparseIndexConfig(IndexConfig):
+    """Configuration for the Torch-based sparse indexer."""
+
     indexer_class = TorchSparseIndexer
     SUPPORTED_MODELS = {SpladeConfig.model_type}
