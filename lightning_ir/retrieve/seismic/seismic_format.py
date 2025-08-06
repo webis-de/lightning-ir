@@ -1,11 +1,23 @@
+"""SeismicFormatConverter class for converting embeddings to a seismic format."""
+
 import numpy as np
 import torch
 
 
 class SeismicFormatConverter:
+    """Converter for embeddings to a seismic format."""
 
     @staticmethod
     def convert_to_seismic_format(embeddings: torch.Tensor) -> bytes:
+        """Convert embeddings to a seismic format.
+
+        Args:
+            embeddings (torch.Tensor): The embeddings to convert.
+        Returns:
+            bytes: The converted embeddings in seismic format.
+        Raises:
+            ValueError: If the embeddings are not 2D.
+        """
         if embeddings.ndim != 2:
             raise ValueError("Expected 2D tensor")
         batch_idcs, term_idcs = embeddings.nonzero(as_tuple=True)

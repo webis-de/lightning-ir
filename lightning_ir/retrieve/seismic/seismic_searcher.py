@@ -1,3 +1,5 @@
+"""Seismic Searcher for Lightning IR Framework"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -27,6 +29,8 @@ if TYPE_CHECKING:
 
 
 class SeismicSearcher(ApproximateSearcher):
+    """Seismic Searcher for efficient retrieval using Seismic indexing."""
+
     def __init__(
         self,
         index_dir: Path | str,
@@ -34,6 +38,16 @@ class SeismicSearcher(ApproximateSearcher):
         module: BiEncoderModule,
         use_gpu: bool = False,
     ) -> None:
+        """Initialize the SeismicSearcher.
+
+        Args:
+            index_dir (Path | str): Directory where the Seismic index is stored.
+            search_config (SeismicSearchConfig): Configuration for the Seismic searcher.
+            module (BiEncoderModule): The BiEncoder module used for searching.
+            use_gpu (bool): Whether to use GPU for searching. Defaults to False.
+        Raises:
+            ImportError: If the seismic package is not available.
+        """
         super().__init__(index_dir, search_config, module, use_gpu)
         if not _seismic_available:
             raise ImportError(
@@ -93,6 +107,7 @@ class SeismicSearcher(ApproximateSearcher):
 
 
 class SeismicSearchConfig(ApproximateSearchConfig):
+    """Configuration for SeismicSearcher."""
 
     search_class = SeismicSearcher
     SUPPORTED_MODELS = {SpladeConfig.model_type}
@@ -106,6 +121,19 @@ class SeismicSearchConfig(ApproximateSearchConfig):
         heap_factor: float = 0.7,
         num_threads: int = 1,
     ) -> None:
+        """Initialize the SeismicSearchConfig.
+
+        Args:
+            k (int): Number of top candidates to retrieve. Defaults to 10.
+            candidate_k (int): Number of candidates to consider for each query. Defaults to 100.
+            imputation_strategy (Literal["min", "gather", "zero"]): Strategy for handling missing values.
+                Defaults to "min".
+            query_cut (int): Maximum number of components per query. Defaults to 10.
+            heap_factor (float): Factor to control the size of the heap used in the search. Defaults to 0.7.
+            num_threads (int): Number of threads to use for parallel processing. Defaults to 1.
+        Raises:
+            ValueError: If imputation_strategy is "gather", as it is not supported for SeismicSearcher.
+        """
         if imputation_strategy == "gather":
             raise ValueError("Imputation strategy 'gather' is not supported for SeismicSearcher")
         super().__init__(k=k, candidate_k=candidate_k, imputation_strategy=imputation_strategy)
