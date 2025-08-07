@@ -16,7 +16,7 @@ Datasets
 Doc Dataset
 -----------
 
-A :py:class:`~lightning_ir.data.dataset.DocDataset` provides access to a set of documents. This is useful for indexing with a :py:class:`~lightning_ir.bi_encoder.model.BiEncoderModel` where the embeddings of each document are stored in an index that can be used for retrieval. The snippet below demonstrates how to use a :py:class:`~lightning_ir.data.dataset.DocDataset` with an `ir-datasets <https://ir-datasets.com/>`_ dataset.
+A :py:class:`~lightning_ir.data.dataset.DocDataset` provides access to a set of documents. This is useful for indexing with a :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel` where the embeddings of each document are stored in an index that can be used for retrieval. The snippet below demonstrates how to use a :py:class:`~lightning_ir.data.dataset.DocDataset` with an `ir-datasets <https://ir-datasets.com/>`_ dataset.
 
 .. literalinclude:: ../../examples/doc_dataset.py
     :language: python
@@ -24,7 +24,7 @@ A :py:class:`~lightning_ir.data.dataset.DocDataset` provides access to a set of 
 Query Dataset
 -------------
 
-A :py:class:`~lightning_ir.data.dataset.QueryDataset` provides access to a set of queries. This is useful for retrieval with a :py:class:`~lightning_ir.bi_encoder.model.BiEncoderModel` where the top-k documents are retrieved for each query. The snippet below demonstrates how to use a :py:class:`~lightning_ir.data.dataset.QueryDataset` with an `ir-datasets <https://ir-datasets.com/>`_ dataset.
+A :py:class:`~lightning_ir.data.dataset.QueryDataset` provides access to a set of queries. This is useful for retrieval with a :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel` where the top-k documents are retrieved for each query. The snippet below demonstrates how to use a :py:class:`~lightning_ir.data.dataset.QueryDataset` with an `ir-datasets <https://ir-datasets.com/>`_ dataset.
 
 .. literalinclude:: ../../examples/query_dataset.py
     :language: python
@@ -32,7 +32,7 @@ A :py:class:`~lightning_ir.data.dataset.QueryDataset` provides access to a set o
 Tuple Dataset
 -------------
 
-A :py:class:`~lightning_ir.data.dataset.QueryDataset` provides access to samples consisting of a query and an n-tuple of documents, with each document in a sample also having a corresponding target score. Target scores are relevance assessments and, for example, could have been heuristically sampled, manually assessed, derived from other ranking models for distillation. A :py:class:`~lightning_ir.data.dataset.QueryDataset` dataset is useful for fine-tuning :py:class:`~lightning_ir.bi_encoder.model.BiEncoderModel` and :py:class:`~lightning_ir.cross_encoder.model.CrossEncoderModel`. The snippet below demonstrates how to use a :py:class:`~lightning_ir.data.dataset.TupleDataset` with an `ir-datasets <https://ir-datasets.com/>`_ dataset.
+A :py:class:`~lightning_ir.data.dataset.QueryDataset` provides access to samples consisting of a query and an n-tuple of documents, with each document in a sample also having a corresponding target score. Target scores are relevance assessments and, for example, could have been heuristically sampled, manually assessed, derived from other ranking models for distillation. A :py:class:`~lightning_ir.data.dataset.QueryDataset` dataset is useful for fine-tuning :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel` and :py:class:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel`. The snippet below demonstrates how to use a :py:class:`~lightning_ir.data.dataset.TupleDataset` with an `ir-datasets <https://ir-datasets.com/>`_ dataset.
 
 .. literalinclude:: ../../examples/tuple_dataset.py
     :language: python
@@ -40,7 +40,7 @@ A :py:class:`~lightning_ir.data.dataset.QueryDataset` provides access to samples
 Run Dataset
 -----------
 
-A :py:class:`~lightning_ir.data.dataset.RunDataset` provides access to a run. A run consists of samples of a query and a list of documents ranked by a relevance score. The dataset may include manual relevance assessments (qrels) which are used to evaluate the effectiveness of retrieval models. This dataset is useful for re-ranking with a :py:class:`~lightning_ir.cross_encoder.model.CrossEncoderModel`. It can also be used for fine-tuning :py:class:`~lightning_ir.bi_encoder.model.BiEncoderModel` and :py:class:`~lightning_ir.cross_encoder.model.CrossEncoderModel` by sampling tuples from the run. The snippet below demonstrates how to use a :py:class:`~lightning_ir.data.dataset.RunDataset` with an `ir-datasets <https://ir-datasets.com/>`_ dataset.
+A :py:class:`~lightning_ir.data.dataset.RunDataset` provides access to a run. A run consists of samples of a query and a list of documents ranked by a relevance score. The dataset may include manual relevance assessments (qrels) which are used to evaluate the effectiveness of retrieval models. This dataset is useful for re-ranking with a :py:class:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel`. It can also be used for fine-tuning :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel` and :py:class:`~lightning_ir.cross_encoder.cross_encoder_model.CrossEncoderModel` by sampling tuples from the run. The snippet below demonstrates how to use a :py:class:`~lightning_ir.data.dataset.RunDataset` with an `ir-datasets <https://ir-datasets.com/>`_ dataset.
 
 .. literalinclude:: ../../examples/run_dataset.py
     :language: python

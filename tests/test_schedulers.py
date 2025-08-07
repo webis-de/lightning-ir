@@ -5,12 +5,12 @@ import torch
 from lightning import LightningDataModule, LightningModule, Trainer
 from torch.utils.data import DataLoader, Dataset
 
-from lightning_ir.lightning_utils.lr_schedulers import (
+from lightning_ir.schedulers.lr_schedulers import (
     ConstantLRSchedulerWithLinearWarmup,
     LinearLRSchedulerWithLinearWarmup,
     WarmupLRScheduler,
 )
-from lightning_ir.lightning_utils.schedulers import (
+from lightning_ir.schedulers.schedulers import (
     GenericConstantSchedulerWithLinearWarmup,
     GenericConstantSchedulerWithQuadraticWarmup,
     GenericLinearSchedulerWithLinearWarmup,
@@ -117,7 +117,7 @@ def test_scheduler(
         callbacks = []
     elif issubclass(Scheduler, GenericScheduler):
         module = DummyModule()
-        callbacks = [Scheduler(["dummy_object.value"], **kwargs)]
+        callbacks = [Scheduler(keys=["dummy_object.value"], **kwargs)]
         callbacks[0].on_train_end = lambda x, y: None
     else:
         raise ValueError("Invalid scheduler")
@@ -144,7 +144,7 @@ def test_scheduler(
         callbacks = []
     elif issubclass(Scheduler, GenericScheduler):
         module = DummyModule()
-        callbacks = [Scheduler(["dummy_object.value"], **kwargs)]
+        callbacks = [Scheduler(keys=["dummy_object.value"], **kwargs)]
         callbacks[0].on_train_end = lambda x, y: None
     else:
         raise ValueError("Invalid scheduler")

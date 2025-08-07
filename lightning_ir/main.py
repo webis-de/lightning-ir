@@ -11,7 +11,7 @@ from lightning.pytorch.loggers import WandbLogger
 from typing_extensions import override
 
 import lightning_ir  # noqa: F401
-from lightning_ir.lightning_utils.lr_schedulers import LR_SCHEDULERS, WarmupLRScheduler
+from lightning_ir.schedulers.lr_schedulers import LR_SCHEDULERS, WarmupLRScheduler
 
 if torch.cuda.is_available():
     torch.set_float32_matmul_precision("medium")
@@ -35,7 +35,7 @@ class LightningIRWandbLogger(WandbLogger):
         """Gets the save directory.
 
         Returns:
-            The path to the save directory.
+            str | None: The directory where the experiment logs are saved, or None if not available.
 
         """
         if isinstance(self.experiment, DummyExperiment):

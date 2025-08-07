@@ -15,7 +15,16 @@ from lightning import LightningDataModule
 from torch.utils.data import DataLoader, IterableDataset
 
 from .data import IndexBatch, RankBatch, SearchBatch, TrainBatch
-from .dataset import DocDataset, DocSample, QueryDataset, QuerySample, RankSample, RunDataset, TupleDataset
+from .dataset import (
+    DocDataset,
+    DocSample,
+    QueryDataset,
+    QuerySample,
+    RankSample,
+    RunDataset,
+    TupleDataset,
+    _DummyIterableDataset,
+)
 
 
 class LightningIRDataModule(LightningDataModule):
@@ -30,19 +39,14 @@ class LightningIRDataModule(LightningDataModule):
     ) -> None:
         """Initializes a new Lightning IR DataModule.
 
-        :param train_dataset: A training dataset, defaults to None
-        :type train_dataset: RunDataset | TupleDataset | None, optional
-        :param train_batch_size: Batch size to use for training, defaults to None
-        :type train_batch_size: int | None, optional
-        :param shuffle_train: Whether to shuffle the training data, defaults to True
-        :type shuffle_train: bool, optional
-        :param inference_datasets: List of datasets to use for inference (indexing, searching, and re-ranking),
-            defaults to None
-        :type inference_datasets: Sequence[RunDataset  |  TupleDataset  |  QueryDataset  |  DocDataset] | None, optional
-        :param inference_batch_size: Batch size to use for inference, defaults to None
-        :type inference_batch_size: int | None, optional
-        :param num_workers: Number of workers for loading data in parallel, defaults to 0
-        :type num_workers: int, optional
+        Args:
+            train_dataset (RunDataset | TupleDataset | None): A training dataset. Defaults to None.
+            train_batch_size (int | None): Batch size to use for training. Defaults to None.
+            shuffle_train (bool): Whether to shuffle the training data. Defaults to True.
+            inference_datasets (Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None): List of
+                datasets to use for inference (indexing, searching, and re-ranking). Defaults to None.
+            inference_batch_size (int | None): Batch size to use for inference. Defaults to None.
+            num_workers (int): Number of workers for loading data in parallel. Defaults to 0.
         """
         super().__init__()
         self.num_workers = num_workers
@@ -50,13 +54,13 @@ class LightningIRDataModule(LightningDataModule):
         self.train_dataset = train_dataset
         self.train_batch_size = train_batch_size
         self.shuffle_train = shuffle_train
-        self.inference_datasets = inference_datasets
+        self.inference_datasets = None if inference_datasets is None else list(inference_datasets)
         self.inference_batch_size = inference_batch_size
 
         if (self.train_batch_size is not None) != (self.train_dataset is not None):
             raise ValueError("Both train_batch_size and train_dataset must be provided.")
         if (self.inference_batch_size is not None) != (self.inference_datasets is not None):
-            raise ValueError("Both train_batch_size and train_dataset must be provided.")
+            raise ValueError("Both inference_batch_size and inference_dataset must be provided.")
 
     def _setup_inference(self, stage: Literal["validate", "test"]) -> None:
         if self.inference_datasets is None:
@@ -75,12 +79,21 @@ class LightningIRDataModule(LightningDataModule):
                     "Inference Dataset must be of type RunDataset, TupleDataset, QueryDataset, or DocDataset."
                 )
 
+    def prepare_data(self) -> None:
+        """Downloads the data using ir_datasets if needed."""
+        if self.train_dataset is not None:
+            self.train_dataset.prepare_data()
+        if self.inference_datasets is not None:
+            for inference_dataset in self.inference_datasets:
+                inference_dataset.prepare_data()
+
     def setup(self, stage: Literal["fit", "validate", "test"]) -> None:
         """Sets up the data module for a given stage.
 
-        :param stage: Stage to set up the data module for
-        :type stage: Literal['fit', 'validate', 'test']
-        :raises ValueError: If the stage is `fit` and no training dataset is provided
+        Args:
+            stage (Literal["fit", "validate", "test"]): Stage to set up the data module for.
+        Raises:
+            ValueError: If the stage is `fit` and no training dataset is provided.
         """
         if stage == "fit":
             if self.train_dataset is None:
@@ -92,9 +105,10 @@ class LightningIRDataModule(LightningDataModule):
     def train_dataloader(self) -> DataLoader:
         """Returns a dataloader for training.
 
-        :raises ValueError: If no training dataset is found
-        :return: Dataloader for training
-        :rtype: DataLoader
+        Returns:
+            DataLoader: Dataloader for training.
+        Raises:
+            ValueError: If no training dataset is found.
         """
         if self.train_dataset is None:
             raise ValueError("No training dataset found.")
@@ -110,27 +124,35 @@ class LightningIRDataModule(LightningDataModule):
     def val_dataloader(self) -> List[DataLoader]:
         """Returns a list of dataloaders for validation.
 
-        :return: Dataloaders for validation
-        :rtype: List[DataLoader]
+        Returns:
+            List[DataLoader]: Dataloaders for validation.
         """
         return self.inference_dataloader()
 
     def test_dataloader(self) -> List[DataLoader]:
         """Returns a list of dataloaders for testing.
 
-        :return: Dataloaders for testing
-        :rtype: List[DataLoader]
+        Returns:
+            List[DataLoader]: Dataloaders for testing.
+        """
+        return self.inference_dataloader()
+
+    def predict_dataloader(self) -> Any:
+        """Returns a list of dataloaders for predicting.
+
+        Returns:
+            List[DataLoader]: Dataloaders for predicting.
         """
         return self.inference_dataloader()
 
     def inference_dataloader(self) -> List[DataLoader]:
-        """Returns a list of dataloaders for inference (testing or validation).
+        """Returns a list of dataloaders for inference (validation, testing, or predicting).
 
-        :return: Dataloaders for inference
-        :rtype: List[DataLoader]
+        Returns:
+            List[DataLoader]: Dataloaders for inference.
         """
         inference_datasets = self.inference_datasets or []
-        return [
+        dataloaders = [
             DataLoader(
                 dataset,
                 batch_size=self.inference_batch_size,
@@ -139,7 +161,11 @@ class LightningIRDataModule(LightningDataModule):
                 prefetch_factor=16 if self.num_workers > 0 else None,
             )
             for dataset in inference_datasets
+            if not dataset._SKIP
         ]
+        if not dataloaders:
+            dataloaders = [DataLoader(_DummyIterableDataset())]
+        return dataloaders
 
     def _aggregate_samples(self, samples: Sequence[RankSample | QuerySample | DocSample]) -> Dict[str, Any]:
         aggregated = defaultdict(list)

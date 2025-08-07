@@ -1,10 +1,10 @@
 from lightning_ir import (
     BiEncoderModule,
-    FaissSearchConfig,
     LightningIRDataModule,
     LightningIRTrainer,
     QueryDataset,
     SearchCallback,
+    TorchDenseSearchConfig,
 )
 
 # Define the model
@@ -25,12 +25,12 @@ data_module = LightningIRDataModule(
 # Define the search callback
 callback = SearchCallback(
     index_dir="./msmarco-passage-index",
-    search_config=FaissSearchConfig(k=100),
+    search_config=TorchDenseSearchConfig(k=100),
     save_dir="./runs",
 )
 
 # Define the trainer
-trainer = LightningIRTrainer(callbacks=[callback])
+trainer = LightningIRTrainer(callbacks=[callback], logger=False, enable_checkpointing=False)
 
 # Retrieve relevant documents
 trainer.search(module, data_module)

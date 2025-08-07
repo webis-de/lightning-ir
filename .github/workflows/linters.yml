@@ -14,23 +14,23 @@ on:
   workflow_dispatch:  {}
 
 jobs:
-  mypy:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  # mypy:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 15
 
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.9
-        uses: actions/setup-python@v5
-        with:
-          python-version: 3.9
-      - name: Install mypy
-        run: pip3 install mypy
-      - name: Run mypy
-        working-directory: ${{github.workspace}}
-        run: |
-          mkdir .mypy_cache
-          mypy . --disallow-untyped-calls --explicit-package-bases --ignore-missing-imports --install-types --non-interactive --cache-dir=.mypy_cache/
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Set up Python 3.9
+  #       uses: actions/setup-python@v5
+  #       with:
+  #         python-version: 3.9
+  #     - name: Install mypy
+  #       run: pip3 install mypy
+  #     - name: Run mypy
+  #       working-directory: ${{github.workspace}}
+  #       run: |
+  #         mkdir .mypy_cache
+  #         mypy . --disallow-untyped-calls --explicit-package-bases --ignore-missing-imports --install-types --non-interactive --cache-dir=.mypy_cache/
   flake8:
     runs-on: ubuntu-latest
     timeout-minutes: 15

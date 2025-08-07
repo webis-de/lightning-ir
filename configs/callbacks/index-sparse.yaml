@@ -3,5 +3,5 @@ trainer:
   - class_path: IndexCallback
     init_args:
       index_config:
-        class_path: SparseIndexConfig
+        class_path: TorchSparseIndexConfig
 

@@ -2,26 +2,18 @@ import pytest
 import torch
 
 from lightning_ir.base.model import LightningIROutput
-from lightning_ir.bi_encoder.model import BiEncoderEmbedding, BiEncoderOutput
+from lightning_ir.bi_encoder.bi_encoder_model import BiEncoderEmbedding, BiEncoderOutput
 from lightning_ir.data.data import TrainBatch
-from lightning_ir.loss.loss import (
-    ApproxMRR,
-    ApproxNDCG,
-    ApproxRankMSE,
-    ConstantMarginMSE,
+from lightning_ir.loss.approximate import ApproxMRR, ApproxNDCG, ApproxRankMSE
+from lightning_ir.loss.base import ScoringLossFunction
+from lightning_ir.loss.in_batch import InBatchCrossEntropy, InBatchLossFunction, ScoreBasedInBatchCrossEntropy
+from lightning_ir.loss.listwise import InfoNCE, KLDivergence, PearsonCorrelation
+from lightning_ir.loss.pairwise import ConstantMarginMSE, RankNet, SupervisedMarginMSE
+from lightning_ir.loss.regularization import (
     FLOPSRegularization,
-    InBatchCrossEntropy,
-    InBatchLossFunction,
-    KLDivergence,
     L1Regularization,
     L2Regularization,
-    LocalizedContrastiveEstimation,
-    RankNet,
     RegularizationLossFunction,
-    ScoreBasedInBatchCrossEntropy,
-    ScoringLossFunction,
-    SupervisedMarginMSE,
-    MVRLocalLoss,
 )
 from lightning_ir.models.mvr.model import MVROutput
 
@@ -82,9 +74,10 @@ def batch(batch_size: int, depth: int, targets: torch.Tensor) -> TrainBatch:
         ApproxRankMSE(),
         ConstantMarginMSE(),
         KLDivergence(),
-        LocalizedContrastiveEstimation(),
+        InfoNCE(),
         RankNet(),
         SupervisedMarginMSE(),
+        PearsonCorrelation(),
     ],
     ids=[
         "ApproxMRR",
@@ -92,9 +85,10 @@ def batch(batch_size: int, depth: int, targets: torch.Tensor) -> TrainBatch:
         "ApproxRankMSE",
         "ConstantMarginMSE",
         "KLDivergence",
-        "LocalizedContrastiveEstimation",
+        "InfoNCE",
         "RankNet",
         "SupervisedMarginMSE",
+        "PearsonCorrelation",
     ],
 )
 def test_loss_func(output: LightningIROutput, batch: TrainBatch, loss_func: ScoringLossFunction):
@@ -127,7 +121,9 @@ def test_in_batch_loss_func(loss_func: InBatchLossFunction, output: LightningIRO
 def test_regularization_loss_func(loss_func: RegularizationLossFunction, embeddings: torch.Tensor):
     loss = loss_func.compute_loss(
         BiEncoderOutput(
-            None, BiEncoderEmbedding(embeddings, torch.empty(0)), BiEncoderEmbedding(embeddings, torch.empty(0))
+            None,
+            BiEncoderEmbedding(embeddings, torch.empty(0), None),
+            BiEncoderEmbedding(embeddings, torch.empty(0), None),
         )
     )
     assert loss >= 0

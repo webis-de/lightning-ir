@@ -1,4 +1,5 @@
-from .faiss_indexer import (
+from .base import IndexConfig, Indexer, SearchConfig, Searcher
+from .faiss import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
     FaissIVFIndexConfig,
@@ -7,12 +8,21 @@ from .faiss_indexer import (
     FaissIVFPQIndexer,
     FaissPQIndexConfig,
     FaissPQIndexer,
+    FaissSearchConfig,
+    FaissSearcher,
 )
-from .faiss_searcher import FaissSearchConfig, FaissSearcher
-from .indexer import IndexConfig, Indexer
-from .searcher import SearchConfig, Searcher
-from .sparse_indexer import SparseIndexConfig, SparseIndexer
-from .sparse_searcher import SparseSearchConfig, SparseSearcher
+from .plaid import PlaidIndexConfig, PlaidIndexer, PlaidSearchConfig, PlaidSearcher
+from .pytorch import (
+    TorchDenseIndexConfig,
+    TorchDenseIndexer,
+    TorchDenseSearchConfig,
+    TorchDenseSearcher,
+    TorchSparseIndexConfig,
+    TorchSparseIndexer,
+    TorchSparseSearchConfig,
+    TorchSparseSearcher,
+)
+from .seismic import SeismicIndexConfig, SeismicIndexer, SeismicSearchConfig, SeismicSearcher
 
 __all__ = [
     "FaissFlatIndexConfig",
@@ -27,10 +37,22 @@ __all__ = [
     "FaissSearcher",
     "IndexConfig",
     "Indexer",
+    "PlaidIndexConfig",
+    "PlaidIndexer",
+    "PlaidSearchConfig",
+    "PlaidSearcher",
     "SearchConfig",
     "Searcher",
-    "SparseIndexConfig",
-    "SparseIndexer",
-    "SparseSearcher",
-    "SparseSearchConfig",
+    "SeismicIndexConfig",
+    "SeismicIndexer",
+    "SeismicSearchConfig",
+    "SeismicSearcher",
+    "TorchDenseIndexConfig",
+    "TorchDenseIndexer",
+    "TorchDenseSearchConfig",
+    "TorchDenseSearcher",
+    "TorchSparseIndexConfig",
+    "TorchSparseIndexer",
+    "TorchSparseSearchConfig",
+    "TorchSparseSearcher",
 ]

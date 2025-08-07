@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath("../"))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "lightning-ir"
-copyright = "2024, Webis"
+copyright = "2025, Webis"
 author = "Webis"
 
 # -- General configuration ---------------------------------------------------
@@ -32,11 +32,11 @@ extensions = [
     "sphinx.ext.napoleon",
 ]
 
-# autodoc_mock_imports = ['torch', 'transformers', 'lightning']
+# autodoc_mock_imports = ["torch", "transformers", "lightning"]
 
-doctest_global_setup = """
-from argparse import Namespace
-"""
+# doctest_global_setup = """
+# from argparse import Namespace
+# """
 
 
 todo_include_todos = True
@@ -95,8 +95,6 @@ html_theme_options: Dict[str, Any] = {
 }
 
 html_permalinks_icon = Icons.permalinks_icon
-
-autodoc_inherit_docstrings = False
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,

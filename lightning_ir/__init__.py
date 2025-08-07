@@ -1,6 +1,3 @@
-from transformers import AutoConfig, AutoModel, AutoTokenizer
-
-from ._register_external_models import _register_external_models
 from .base import (
     LightningIRClassFactory,
     LightningIRConfig,
@@ -19,8 +16,12 @@ from .bi_encoder import (
     BiEncoderModule,
     BiEncoderOutput,
     BiEncoderTokenizer,
-    ScoringFunction,
+    MultiVectorBiEncoderConfig,
+    MultiVectorBiEncoderModel,
+    SingleVectorBiEncoderConfig,
+    SingleVectorBiEncoderModel,
 )
+from .callbacks import IndexCallback, RankCallback, RegisterLocalDatasetCallback, ReRankCallback, SearchCallback
 from .cross_encoder import (
     CrossEncoderConfig,
     CrossEncoderModel,
@@ -35,24 +36,14 @@ from .data import (
     LightningIRDataModule,
     QueryDataset,
     QuerySample,
+    RankBatch,
     RankSample,
     RunDataset,
     SearchBatch,
     TrainBatch,
     TupleDataset,
 )
-from .lightning_utils import (
-    ConstantLRSchedulerWithLinearWarmup,
-    GenericConstantSchedulerWithLinearWarmup,
-    GenericConstantSchedulerWithQuadraticWarmup,
-    GenericLinearSchedulerWithLinearWarmup,
-    IndexCallback,
-    LinearLRSchedulerWithLinearWarmup,
-    RankCallback,
-    ReRankCallback,
-    SearchCallback,
-    WarmupLRScheduler,
-)
+from .data.external_datasets import _register_external_datasets
 from .loss import (
     ApproxMRR,
     ApproxNDCG,
@@ -60,32 +51,20 @@ from .loss import (
     ConstantMarginMSE,
     FLOPSRegularization,
     InBatchCrossEntropy,
+    InfoNCE,
     KLDivergence,
     L1Regularization,
     L2Regularization,
-    LocalizedContrastiveEstimation,
+    MVRLocalLoss,
+    PearsonCorrelation,
     RankNet,
     ScoreBasedInBatchCrossEntropy,
     ScoreBasedInBatchLossFunction,
     SupervisedMarginMSE,
-    MVRLocalLoss,
 )
 from .main import LightningIRTrainer, LightningIRWandbLogger
-from .models import (
-    ColConfig,
-    ColModel,
-    SpladeConfig,
-    SpladeModel,
-    T5CrossEncoderConfig,
-    T5CrossEncoderModel,
-    T5CrossEncoderTokenizer,
-    XTRConfig,
-    XTRModel,
-    MVRConfig,
-    MVRModel,
-    MVRTokenizer,
-    MVRModule,
-)
+from .register_external_models import _register_external_models
+from .register_internal_models import _register_internal_models
 from .retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
@@ -101,37 +80,33 @@ from .retrieve import (
     Indexer,
     SearchConfig,
     Searcher,
-    SparseIndexConfig,
-    SparseIndexer,
-    SparseSearchConfig,
-    SparseSearcher,
+    SeismicIndexConfig,
+    SeismicIndexer,
+    SeismicSearchConfig,
+    SeismicSearcher,
+    TorchDenseIndexConfig,
+    TorchDenseIndexer,
+    TorchDenseSearchConfig,
+    TorchDenseSearcher,
+    TorchSparseIndexConfig,
+    TorchSparseIndexer,
+    TorchSparseSearchConfig,
+    TorchSparseSearcher,
+)
+from .schedulers import (
+    ConstantLRSchedulerWithLinearWarmup,
+    GenericConstantSchedulerWithLinearWarmup,
+    GenericConstantSchedulerWithQuadraticWarmup,
+    GenericLinearSchedulerWithLinearWarmup,
+    LinearLRSchedulerWithLinearWarmup,
+    WarmupLRScheduler,
 )
 
-AutoConfig.register(BiEncoderConfig.model_type, BiEncoderConfig)
-AutoModel.register(BiEncoderConfig, BiEncoderModel)
-AutoTokenizer.register(BiEncoderConfig, BiEncoderTokenizer)
-AutoConfig.register(CrossEncoderConfig.model_type, CrossEncoderConfig)
-AutoModel.register(CrossEncoderConfig, CrossEncoderModel)
-AutoTokenizer.register(CrossEncoderConfig, CrossEncoderTokenizer)
-AutoConfig.register(ColConfig.model_type, ColConfig)
-AutoModel.register(ColConfig, ColModel)
-AutoTokenizer.register(ColConfig, BiEncoderTokenizer)
-AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
-AutoModel.register(SpladeConfig, SpladeModel)
-AutoTokenizer.register(SpladeConfig, BiEncoderTokenizer)
-AutoConfig.register(T5CrossEncoderConfig.model_type, T5CrossEncoderConfig)
-AutoModel.register(T5CrossEncoderConfig, T5CrossEncoderModel)
-AutoTokenizer.register(T5CrossEncoderConfig, T5CrossEncoderTokenizer)
-AutoConfig.register(XTRConfig.model_type, XTRConfig)
-AutoModel.register(XTRConfig, XTRModel)
-AutoTokenizer.register(XTRConfig, BiEncoderTokenizer)
-AutoConfig.register(MVRConfig.model_type, MVRConfig)
-AutoModel.register(MVRConfig, MVRModel)
-AutoTokenizer.register(MVRConfig, MVRTokenizer)
-
+_register_internal_models()
 _register_external_models()
+_register_external_datasets()
 
-__version__ = "0.0.2"
+__version__ = "0.0.4"
 
 __all__ = [
     "ApproxMRR",
@@ -143,7 +118,6 @@ __all__ = [
     "BiEncoderModule",
     "BiEncoderOutput",
     "BiEncoderTokenizer",
-    "ColConfig",
     "ConstantLRSchedulerWithLinearWarmup",
     "ConstantMarginMSE",
     "CrossEncoderConfig",
@@ -172,6 +146,7 @@ __all__ = [
     "IndexCallback",
     "IndexConfig",
     "Indexer",
+    "InfoNCE",
     "KLDivergence",
     "L1Regularization",
     "L2Regularization",
@@ -188,37 +163,40 @@ __all__ = [
     "LightningIRTrainer",
     "LightningIRWandbLogger",
     "LinearLRSchedulerWithLinearWarmup",
-    "LocalizedContrastiveEstimation",
-    "MVRLocalLoss",
+    "MultiVectorBiEncoderConfig",
+    "MultiVectorBiEncoderModel",
+    "PearsonCorrelation",
     "QueryDataset",
     "QuerySample",
+    "RankBatch",
     "RankCallback",
     "RankNet",
     "RankSample",
+    "RegisterLocalDatasetCallback",
     "ReRankCallback",
     "RunDataset",
     "ScoreBasedInBatchCrossEntropy",
     "ScoreBasedInBatchLossFunction",
-    "ScoringFunction",
     "SearchBatch",
     "SearchCallback",
     "SearchConfig",
     "Searcher",
-    "SparseIndexConfig",
-    "SparseIndexer",
-    "SparseSearchConfig",
-    "SparseSearcher",
+    "SeismicIndexConfig",
+    "SeismicIndexer",
+    "SeismicSearchConfig",
+    "SeismicSearcher",
+    "SingleVectorBiEncoderConfig",
+    "SingleVectorBiEncoderModel",
     "SupervisedMarginMSE",
-    "T5CrossEncoderConfig",
-    "T5CrossEncoderModel",
-    "T5CrossEncoderTokenizer",
+    "TorchDenseIndexConfig",
+    "TorchDenseIndexer",
+    "TorchDenseSearchConfig",
+    "TorchDenseSearcher",
+    "TorchSparseIndexConfig",
+    "TorchSparseIndexer",
+    "TorchSparseSearchConfig",
+    "TorchSparseSearcher",
     "TrainBatch",
     "TupleDataset",
     "WarmupLRScheduler",
-    "XTRConfig",
-    "XTRModel",
-    "MVRConfig",
-    "MVRTokenizer",
-    "MVRModel",
-    "MVRModule",
 ]

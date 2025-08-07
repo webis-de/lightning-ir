@@ -6,18 +6,28 @@ This module contains the main model class and output class for the Lightning IR 
 
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import partial, wraps
+from functools import wraps
 from pathlib import Path
-from typing import Any, Literal, Mapping, Protocol, Sequence, Type, TypeVar
+from typing import Any, Literal, Mapping, Protocol, Self, Sequence, Type, TypeVar
 
 import torch
-from transformers import MODEL_MAPPING, BatchEncoding, BertModel
+from transformers import BatchEncoding, BertModel, PreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 
-from ..flash import FLASH_ATTENTION_MAP
-from .class_factory import LightningIRModelClassFactory
+from .class_factory import LightningIRModelClassFactory, _get_model_class
 from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
+
+
+def _update_config_with_kwargs(config: LightningIRConfig, **kwargs):
+    config.update(kwargs)
+
+    used_keys = set(config.to_dict().keys()) & set(kwargs.keys())
+
+    for key in used_keys:
+        kwargs.pop(key)
+
+    return config, kwargs
 
 
 @dataclass
@@ -26,19 +36,24 @@ class LightningIROutput(ModelOutput):
 
     .. _transformers.ModelOutput: https://huggingface.co/transformers/main_classes/output.html#transformers.ModelOutput
 
-    :param scores: Output relevance scores for query--document pairs, defaults to None
-    :type scores: torch.Tensor | None, optional
+    Attributes:
+        scores (torch.Tensor | None): Output relevance scores for query--document pairs. Defaults to None.
     """
 
     scores: torch.Tensor | None = None
 
 
-class LightningIRModel:
+class LightningIRModel(PreTrainedModel):
     """Base class for Lightning IR models. Derived classes implement the forward method for handling query
     and document embeddings. It acts as mixin for a transformers.PreTrainedModel_ backbone model.
 
     .. _transformers.PreTrainedModel: \
 https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel
+
+    Attributes:
+        config_class (Type[LightningIRConfig]): Configuration class for the model.
+        ALLOW_SUB_BATCHING (bool): Flag to allow mini batches of documents for a single query.
+            Set to false for listwise models to ensure correctness.
     """
 
     config_class: Type[LightningIRConfig] = LightningIRConfig
@@ -51,27 +66,20 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
     def __init__(self, config: LightningIRConfig, *args, **kwargs) -> None:
         """Initializes the model.
 
-        :param config: Configuration class for the model
-        :type config: LightningIRConfig
+        Args:
+            config(LightningIRConfig): Configuration class for the model
         """
         super().__init__(config, *args, **kwargs)
         self.config = config
 
         self._sub_batch_size: int | None = None
 
-        if self.config.backbone_model_type is not None:
-            flash_attn = FLASH_ATTENTION_MAP.get(self.config.backbone_model_type, None)
-            if flash_attn is not None:
-                flash_attn_forward, self_attn_pattern = flash_attn
-                for name, module in self.named_modules():
-                    if name.endswith(self_attn_pattern):
-                        module.forward = partial(flash_attn_forward, module)
-
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
         :class:`~lightning_ir.base.class_factory.LightningIRModelClassFactory`.
 
-        :raises NotImplementedError: If not overridden in the derived class
+        Raises:
+            NotImplementedError: If not overridden in the derived class
         """
         raise NotImplementedError
 
@@ -79,19 +87,19 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         """Forward method of the model. Must be implemented by the derived class."""
         raise NotImplementedError
 
-    def _sparsification(
+    def sparsification(
         self, embeddings: torch.Tensor, sparsification_strategy: Literal["relu", "relu_log"] | None = None
     ) -> torch.Tensor:
         """Helper method to apply sparsification to the embeddings.
 
-        :param embeddings: Query or document embeddings
-        :type embeddings: torch.Tensor
-        :param sparsification_strategy: The sparsification strategy. No sparsification is applied if None,
-        defaults to None
-        :type sparsification_strategy: Literal['relu', 'relu_log'] | None, optional
-        :raises ValueError: If an unknown sparsification strategy is passed
-        :return: (Optionally) sparsified embeddings
-        :rtype: torch.Tensor
+        Args:
+            embeddings(torch.Tensor): Query or document embeddings
+            sparsification_strategy(Literal['relu', 'relu_log'] | None): The sparsification strategy. No
+                sparsification is applied if None. Defaults to None.
+        Returns:
+            torch.Tensor: (Optionally) sparsified embeddings.
+        Raises:
+            ValueError: If an unknown sparsification strategy is passed.
         """
         if sparsification_strategy is None:
             return embeddings
@@ -101,7 +109,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             return torch.log1p(torch.relu(embeddings))
         raise ValueError(f"Unknown sparsification strategy: {sparsification_strategy}")
 
-    def _pooling(
+    def pooling(
         self,
         embeddings: torch.Tensor,
         attention_mask: torch.Tensor | None,
@@ -109,22 +117,22 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
     ) -> torch.Tensor:
         """Helper method to apply pooling to the embeddings.
 
-        :param embeddings: Query or document embeddings
-        :type embeddings: torch.Tensor
-        :param attention_mask: Query or document attention mask
-        :type attention_mask: torch.Tensor | None
-        :param pooling_strategy: The pooling strategy. No pooling is applied if None.
-        :type pooling_strategy: Literal['first', 'mean', 'max', 'sum'] | None
-        :raises ValueError: If an unknown pooling strategy is passed
-        :return: (Optionally) pooled embeddings
-        :rtype: torch.Tensor
+        Args:
+            embeddings (torch.Tensor): Query or document embeddings
+            attention_mask (torch.Tensor | None): Query or document attention mask
+            pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | None):
+                The pooling strategy. No pooling is applied if None.
+        Returns:
+            torch.Tensor: (Optionally) pooled embeddings.
+        Raises:
+            ValueError: If an unknown pooling strategy is passed.
         """
         if pooling_strategy is None:
             return embeddings
         if pooling_strategy == "first_n":
             return embeddings[:, :8]
         if pooling_strategy == "first":
-            return embeddings[:, [0]]
+            return embeddings.index_select(1, torch.tensor(0, device=embeddings.device))
         if pooling_strategy in ("sum", "mean"):
             if attention_mask is not None:
                 embeddings = embeddings * attention_mask.unsqueeze(-1)
@@ -135,41 +143,17 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             return embeddings
         if pooling_strategy == "max":
             if attention_mask is not None:
-                embeddings = embeddings.masked_fill(~attention_mask.bool().unsqueeze(-1), -1e9)
-            return embeddings.max(dim=1, keepdim=True).values
-        raise ValueError(f"Unknown pooling strategy: {self.pooling_strategy}")
+                embeddings = embeddings.masked_fill(~attention_mask.bool().unsqueeze(-1), float("-inf"))
+            return embeddings.amax(dim=1, keepdim=True)
+        raise ValueError(f"Unknown pooling strategy: {pooling_strategy}")
 
     @classmethod
-    def _load_pretrained_model(
-        cls, model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
-    ):
-        if pretrained_model_name_or_path in STATE_DICT_KEY_MAPPING:
-            map_keys = STATE_DICT_KEY_MAPPING[pretrained_model_name_or_path]
-            for orig_key, new_key in map_keys:
-                if orig_key is not None:
-                    state_dict[new_key] = state_dict.pop(orig_key)
-                    loaded_keys[loaded_keys.index(orig_key)] = new_key
-                else:
-                    loaded_keys.append(new_key)
-        model, *out = super()._load_pretrained_model(
-            model, state_dict, loaded_keys, resolved_archive_file, pretrained_model_name_or_path, *args, **kwargs
-        )
-        if pretrained_model_name_or_path in POST_LOAD_CALLBACKS:
-            model = POST_LOAD_CALLBACKS[pretrained_model_name_or_path](model)
-        return (model, *out)
-
-    @classmethod
-    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> "LightningIRModel":
-        """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method and to return a
+    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> Self:
+        """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method to return a
         derived LightningIRModel. See :class:`LightningIRModelClassFactory` for more details.
 
-        .. _transformers.PreTrainedModel.from_pretrained: https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained # noqa
-
-        :param model_name_or_path: Name or path of the pretrained model
-        :type model_name_or_path: str | Path
-        :raises ValueError: If called on the abstract class :class:`LightningIRModel` and no config is passed
-        :return: A derived LightningIRModel consisting of a backbone model and a LightningIRModel mixin
-        :rtype: LightningIRModel
+.. _transformers.PreTrainedModel.from_pretrained: \
+    https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel.from_pretrained
 
         .. ::doctest
         .. highlight:: python
@@ -181,35 +165,56 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             >>> # Loading using base class and backbone checkpoint
             >>> type(LightningIRModel.from_pretrained("bert-base-uncased", config=CrossEncoderConfig()))
             <class 'lightning_ir.base.class_factory.CrossEncoderBertModel'>
+
+        Args:
+            model_name_or_path (str | Path): Name or path of the pretrained model.
+        Raises:
+            ValueError: If called on the abstract class `LightningIRModel` and no config is passed.
+        Returns:
+            LightningIRModel: A derived `LightningIRModel` consisting of a backbone model
+            and a `LightningIRModel` mixin.
         """
         # provides AutoModel.from_pretrained support
         config = kwargs.get("config", None)
         if cls is LightningIRModel or all(issubclass(base, LightningIRModel) for base in cls.__bases__):
             # no backbone models found, create derived lightning-ir model based on backbone model
             if config is not None:
-                config_class = config.__class__
+                ConfigClass = config.__class__
             elif model_name_or_path in CHECKPOINT_MAPPING:
                 _config = CHECKPOINT_MAPPING[model_name_or_path]
-                config_class = _config.__class__
+                ConfigClass = _config.__class__
                 if config is None:
                     config = _config
             elif cls is not LightningIRModel:
-                config_class = cls.config_class
+                ConfigClass = cls.config_class
             else:
-                config_class = LightningIRModelClassFactory.get_lightning_ir_config(model_name_or_path)
-                if config_class is None:
+                ConfigClass = type(LightningIRModelClassFactory.get_lightning_ir_config(model_name_or_path))
+                if ConfigClass is None:
                     raise ValueError("Pass a config to `from_pretrained`.")
-            BackboneConfig = LightningIRModelClassFactory.get_backbone_config(model_name_or_path)
-            BackboneModel = MODEL_MAPPING[BackboneConfig]
-            cls = LightningIRModelClassFactory(config_class).from_backbone_class(BackboneModel)
-            if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
-                derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)
-                derived_config.update(config.to_dict())
-                kwargs["config"] = derived_config
+            backbone_config = LightningIRModelClassFactory.get_backbone_config(model_name_or_path).from_pretrained(
+                model_name_or_path
+            )
+            BackboneModel = _get_model_class(backbone_config)
+            cls = LightningIRModelClassFactory(ConfigClass).from_backbone_class(BackboneModel)
+            if config is not None:
+                if all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
+                    derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)
+                    derived_config.update(config.to_diff_dict())
+                    config = derived_config
+                    kwargs["config"] = config
+                # NOTE 'config' is contained in kwargs, so we can update it
+                config, kwargs = _update_config_with_kwargs(**kwargs)
+                kwargs["config"] = config
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         if issubclass(cls, BertModel):
             kwargs["add_pooling_layer"] = False
-        return super(LightningIRModel, cls).from_pretrained(model_name_or_path, *args, **kwargs)
+        key_mapping = kwargs.pop("key_mapping", {})
+        if model_name_or_path in STATE_DICT_KEY_MAPPING:
+            key_mapping.update(STATE_DICT_KEY_MAPPING[str(model_name_or_path)])
+        model = super().from_pretrained(model_name_or_path, *args, key_mapping=key_mapping, **kwargs)
+        if model_name_or_path in POST_LOAD_CALLBACKS:
+            model = POST_LOAD_CALLBACKS[str(model_name_or_path)](model)
+        return model
 
 
 T = TypeVar("T")
@@ -218,7 +223,14 @@ T = TypeVar("T")
 def _cat_outputs(
     outputs: Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None], OutputClass: Type[T] | None
 ) -> torch.Tensor | T | None:
-    """Helper method to concatenate outputs of the model."""
+    """Helper method to concatenate outputs of the model.
+
+    Args:
+        outputs (Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None]): Outputs from the model.
+        OutputClass (Type[T] | None): Class to return the concatenated output as.
+    Returns:
+        torch.Tensor | T | None: Concatenated output.
+    """
     if len(outputs) == 1:
         return outputs[0]
     if len(outputs) == 0 or outputs[0] is None or OutputClass is None:
@@ -231,7 +243,10 @@ def _cat_outputs(
         for key, value in output.items():
             agg[key].append(value)
             types[key] = type(value)
-    return OutputClass(**{key: _cat_outputs(value, types[key]) for key, value in agg.items()})
+    kwargs = {key: _cat_outputs(value, types[key]) for key, value in agg.items()}
+    if OutputClass is BatchEncoding:
+        return OutputClass(kwargs)
+    return OutputClass(**kwargs)
 
 
 class BatchEncodingWrapper(Protocol):
@@ -242,12 +257,13 @@ def batch_encoding_wrapper(func: BatchEncodingWrapper) -> BatchEncodingWrapper:
     """Decorator to enable sub-batching for models that support it. Lowers the batch size of the input batch encoding
     if the model runs out of memory.
 
-    :param func: Function to wrap that takes a batch encoding
-    :type func: BatchEncodingWrapper
-    :raises e: If CUDA runs out of memory even after lowering the batch size to 1
-    :raises ValueError: If no output was generated
-    :return: Wrapped function
-    :rtype: BatchEncodingWrapper
+    Args:
+        func (BatchEncodingWrapper): Function to wrap that takes a batch encoding.
+    Returns:
+        BatchEncodingWrapper: Wrapped function that handles sub-batching.
+    Raises:
+        RuntimeError: If CUDA runs out of memory and the batch size cannot be lowered further.
+        ValueError: If no output was generated.
     """
 
     @wraps(func)

@@ -18,7 +18,8 @@ from lightning_ir import (
     RankNet,
     RunDataset,
 )
-from lightning_ir.data.ir_datasets_utils import _register_local_dataset
+from lightning_ir.data.external_datasets.ir_datasets_utils import register_new_dataset
+from lightning_ir.models import ColConfig, DprConfig, MonoConfig, SetEncoderConfig, SpladeConfig
 
 DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
@@ -26,7 +27,7 @@ RUNS_DIR = DATA_DIR / "runs"
 
 CONFIGS = Union[BiEncoderConfig, CrossEncoderConfig]
 
-_register_local_dataset(
+register_new_dataset(
     dataset_id="lightning-ir",
     docs=str(CORPUS_DIR / "docs.tsv"),
     queries=str(CORPUS_DIR / "queries.tsv"),
@@ -55,20 +56,19 @@ DATA_DIR = Path(__file__).parent / "data"
 
 GLOBAL_KWARGS: Dict[str, Any] = dict(query_length=8, doc_length=8)
 
-BI_ENCODER_GLOBAL_KWARGS = dict(embedding_dim=4)
+BI_ENCODER_GLOBAL_KWARGS: Dict[str, Any] = dict(embedding_dim=4)
 
 BI_ENCODER_CONFIGS = {
-    "MultiVectorBiEncoder": BiEncoderConfig(
-        query_pooling_strategy=None,
-        doc_pooling_strategy=None,
-        **GLOBAL_KWARGS,
-        **BI_ENCODER_GLOBAL_KWARGS,
-    ),
-    "SingleVectorBiEncoder": BiEncoderConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
+    "ColModel": ColConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
+    "DprModel": DprConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
+    "SpladeModel": SpladeConfig(**GLOBAL_KWARGS),
 }
 
 
-CROSS_ENCODER_CONFIGS = {"CrossEncoder": CrossEncoderConfig(**GLOBAL_KWARGS)}
+CROSS_ENCODER_CONFIGS = {
+    "Mono": MonoConfig(**GLOBAL_KWARGS),
+    "SetEncoder": SetEncoderConfig(**GLOBAL_KWARGS),
+}
 
 ALL_CONFIGS = {**BI_ENCODER_CONFIGS, **CROSS_ENCODER_CONFIGS}
 
@@ -83,7 +83,7 @@ def config(request: SubRequest) -> CONFIGS:
     params=list(BI_ENCODER_CONFIGS.values()),
     ids=list(BI_ENCODER_CONFIGS.keys()),
 )
-def bi_encoder_config(request: SubRequest) -> CONFIGS:
+def bi_encoder_config(request: SubRequest) -> BiEncoderConfig:
     return request.param
 
 
@@ -92,7 +92,7 @@ def bi_encoder_config(request: SubRequest) -> CONFIGS:
     params=list(CROSS_ENCODER_CONFIGS.values()),
     ids=list(CROSS_ENCODER_CONFIGS.keys()),
 )
-def cross_encoder_config(request: SubRequest) -> CONFIGS:
+def cross_encoder_config(request: SubRequest) -> CrossEncoderConfig:
     return request.param
 
 
@@ -106,12 +106,13 @@ def cross_encoder_config(request: SubRequest) -> CONFIGS:
 )
 def train_module(config: CONFIGS, model_name_or_path: str, request: SubRequest) -> LightningIRModule:
     loss_function = request.param
-    kwargs = dict(
+    kwargs: Dict[str, Any] = dict(
         model_name_or_path=model_name_or_path,
         config=config,
         loss_functions=[loss_function],
         evaluation_metrics=["loss", "nDCG@10"],
     )
+    module: LightningIRModule
     if isinstance(config, CrossEncoderConfig):
         module = CrossEncoderModule(**kwargs)
     elif isinstance(config, BiEncoderConfig):
@@ -123,11 +124,12 @@ def train_module(config: CONFIGS, model_name_or_path: str, request: SubRequest) 
 
 @pytest.fixture(scope="module")
 def module(config: CONFIGS, model_name_or_path: str) -> LightningIRModule:
-    kwargs = dict(
+    kwargs: Dict[str, Any] = dict(
         model_name_or_path=model_name_or_path,
         config=config,
         evaluation_metrics=["loss", "nDCG@10", "MRR@10"],
     )
+    module: LightningIRModule
     if isinstance(config, CrossEncoderConfig):
         module = CrossEncoderModule(**kwargs)
     elif isinstance(config, BiEncoderConfig):
@@ -139,7 +141,7 @@ def module(config: CONFIGS, model_name_or_path: str) -> LightningIRModule:
 
 @pytest.fixture(scope="module")
 def bi_encoder_module(bi_encoder_config: BiEncoderConfig, model_name_or_path: str) -> LightningIRModule:
-    kwargs = dict(
+    kwargs: Dict[str, Any] = dict(
         model_name_or_path=model_name_or_path,
         config=bi_encoder_config,
         evaluation_metrics=["loss", "nDCG@10"],
@@ -150,7 +152,7 @@ def bi_encoder_module(bi_encoder_config: BiEncoderConfig, model_name_or_path: st
 
 @pytest.fixture(scope="module")
 def cross_encoder_module(cross_encoder_config: CrossEncoderConfig, model_name_or_path: str) -> LightningIRModule:
-    kwargs = dict(
+    kwargs: Dict[str, Any] = dict(
         model_name_or_path=model_name_or_path,
         config=cross_encoder_config,
         evaluation_metrics=["loss", "nDCG@10"],
