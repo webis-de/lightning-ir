@@ -1,3 +1,5 @@
+"""Plaid Searcher for Lightning IR Framework"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,9 +19,19 @@ if TYPE_CHECKING:
 
 
 class PlaidSearcher(Searcher):
+    """Searcher for Plaid, a residual-based search method for efficient retrieval."""
+
     def __init__(
         self, index_dir: Path | str, search_config: PlaidSearchConfig, module: BiEncoderModule, use_gpu: bool = False
     ) -> None:
+        """Initialize the PlaidSearcher.
+
+        Args:
+            index_dir (Path | str): Directory where the Plaid index is stored.
+            search_config (PlaidSearchConfig): Configuration for the Plaid searcher.
+            module (BiEncoderModule): The BiEncoder module used for searching.
+            use_gpu (bool): Whether to use GPU for searching. Defaults to False.
+        """
         super().__init__(index_dir, search_config, module, use_gpu)
         self.residual_codec = ResidualCodec.from_pretrained(
             PlaidIndexConfig.from_pretrained(self.index_dir), self.index_dir, device=self.device
@@ -147,6 +159,15 @@ class PlaidSearcher(Searcher):
         return BiEncoderEmbedding(padded_doc_embeddings, doc_scoring_mask, None)
 
     def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
+        """Search for relevant documents using the Plaid index.
+
+        Args:
+            output (BiEncoderOutput): The output from the BiEncoder module containing query embeddings.
+        Returns:
+            Tuple[PackedTensor, List[List[str]]]: A tuple containing the scores and the corresponding document IDs.
+        Raises:
+            ValueError: If the output does not contain query embeddings.
+        """
         query_embeddings = output.query_embeddings
         if query_embeddings is None:
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
@@ -167,6 +188,7 @@ class PlaidSearcher(Searcher):
 
 
 class PlaidSearchConfig(SearchConfig):
+    """Configuration class for Plaid searchers in the Lightning IR framework."""
 
     search_class = PlaidSearcher
     SUPPORTED_MODELS = {ColConfig.model_type}
@@ -178,6 +200,15 @@ class PlaidSearchConfig(SearchConfig):
         n_cells: int = 1,
         centroid_score_threshold: float = 0.5,
     ) -> None:
+        """Initialize the PlaidSearchConfig.
+
+        Args:
+            k (int): Number of top documents to retrieve.
+            candidate_k (int): Number of candidate documents to consider for scoring. Defaults to 256.
+            n_cells (int): Number of cells to use for centroid retrieval. Defaults to 1.
+            centroid_score_threshold (float): Threshold for filtering candidates based on centroid scores.
+                Defaults to 0.5.
+        """
         super().__init__(k)
         self.candidate_k = candidate_k
         self.n_cells = n_cells

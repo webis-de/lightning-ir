@@ -1,3 +1,5 @@
+"""Base searcher class and configuration for retrieval tasks."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -14,15 +16,35 @@ if TYPE_CHECKING:
 
 
 def cat_arange(arange_starts: torch.Tensor, arange_ends: torch.Tensor) -> torch.Tensor:
+    """Concatenates arange tensors into a single tensor.
+
+    Args:
+        arange_starts (torch.Tensor): The start indices of the ranges.
+        arange_ends (torch.Tensor): The end indices of the ranges.
+    Returns:
+        torch.Tensor: A tensor containing the concatenated ranges.
+    """
     arange_lengths = arange_ends - arange_starts
     offsets = torch.cumsum(arange_lengths, dim=0) - arange_lengths - arange_starts
     return torch.arange(arange_lengths.sum()) - torch.repeat_interleave(offsets, arange_lengths)
 
 
 class Searcher(ABC):
+    """Base class for searchers in the Lightning IR framework."""
+
     def __init__(
         self, index_dir: Path | str, search_config: SearchConfig, module: BiEncoderModule, use_gpu: bool = True
     ) -> None:
+        """Initialize the Searcher.
+
+        Args:
+            index_dir (Path | str): The directory containing the index files.
+            search_config (SearchConfig): The configuration for the search.
+            module (BiEncoderModule): The bi-encoder module to use for scoring.
+            use_gpu (bool): Whether to use GPU for computations. Defaults to True.
+        Raises:
+            ValueError: If the document lengths do not match the index.
+        """
         super().__init__()
         self.index_dir = Path(index_dir)
         self.search_config = search_config
@@ -48,11 +70,22 @@ class Searcher(ABC):
             raise ValueError("doc_lengths do not match index")
 
     def to_gpu(self) -> None:
+        """Move the searcher to the GPU if available."""
         self.doc_lengths = self.doc_lengths.to(self.device)
 
     def _filter_and_sort(
         self, doc_scores: PackedTensor, doc_idcs: PackedTensor, k: int | None = None
     ) -> Tuple[PackedTensor, PackedTensor]:
+        """Filter and sort the document scores and indices.
+
+        Args:
+            doc_scores (PackedTensor): The document scores.
+            doc_idcs (PackedTensor): The document indices.
+            k (int | None): The number of top documents to return. If None, use the configured k from search_config.
+                Defaults to None.
+        Returns:
+            Tuple[PackedTensor, PackedTensor]: The filtered and sorted document scores and indices.
+        """
         k = k or self.search_config.k
         per_query_doc_scores = torch.split(doc_scores, doc_scores.lengths)
         per_query_doc_idcs = torch.split(doc_idcs, doc_idcs.lengths)
@@ -70,12 +103,28 @@ class Searcher(ABC):
         )
 
     @abstractmethod
-    def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]: ...
+    def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
+        """Search for documents based on the output of the bi-encoder model.
+
+        Args:
+            output (BiEncoderOutput): The output from the bi-encoder model containing query and document embeddings.
+        Returns:
+            Tuple[PackedTensor, List[List[str]]]: The top-k scores and corresponding document IDs.
+        """
+        ...
 
 
 class ExactSearcher(Searcher):
+    """Searcher that retrieves documents using exact matching of query embeddings."""
 
     def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
+        """Search for documents based on the output of the bi-encoder model.
+
+        Args:
+            output (BiEncoderOutput): The output from the bi-encoder model containing query and document embeddings.
+        Returns:
+            Tuple[PackedTensor, List[List[str]]]: The top-k scores and corresponding document IDs.
+        """
         query_embeddings = output.query_embeddings
         if query_embeddings is None:
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
@@ -112,6 +161,11 @@ class ExactSearcher(Searcher):
 
     @property
     def doc_token_idcs(self) -> torch.Tensor:
+        """Get the document token indices for scoring.
+
+        Returns:
+            torch.Tensor: The document token indices.
+        """
         if not hasattr(self, "_doc_token_idcs"):
             self._doc_token_idcs = (
                 torch.arange(self.doc_lengths.shape[0])
@@ -127,6 +181,13 @@ class ExactSearcher(Searcher):
 class ApproximateSearcher(Searcher):
 
     def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
+        """Search for documents based on the output of the bi-encoder model.
+
+        Args:
+            output (BiEncoderOutput): The output from the bi-encoder model containing query and document embeddings.
+        Returns:
+            Tuple[PackedTensor, List[List[str]]]: The top-k scores and corresponding document IDs.
+        """
         query_embeddings = output.query_embeddings
         if query_embeddings is None:
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
@@ -233,23 +294,32 @@ class ApproximateSearcher(Searcher):
         indices of shape `num_query_vecs x candidate_k` (packed). Candidate indices are None if all doc vectors are
         scored.
 
-        :return: Candidate scores and candidate vector indices
-        :rtype: Tuple[PackedTensor, PackedTensor]
+        Args:
+            query_embeddings (BiEncoderEmbedding): The query embeddings to use for candidate retrieval.
+        Returns:
+            Tuple[PackedTensor, PackedTensor]: The candidate scores and candidate vector indices.
         """
         ...
 
     @abstractmethod
     def _gather_doc_embeddings(self, idcs: torch.Tensor) -> torch.Tensor:
-        """Reconstructs embeddings from indices.
+        """Gather document embeddings based on the provided indices.
 
         Args:
-            idcs (torch.Tensor): Indices of the document embeddings to gather.
+            idcs (torch.Tensor): The indices of the document embeddings to gather.
         Returns:
-            BiEncoderEmbedding: Reconstructed embeddings.
+            torch.Tensor: The gathered document embeddings.
         """
         ...
 
     def _reconstruct_doc_embeddings(self, doc_idcs: PackedTensor) -> BiEncoderEmbedding:
+        """Reconstruct document embeddings based on the provided document indices.
+
+        Args:
+            doc_idcs (PackedTensor): The packed tensor containing document indices.
+        Returns:
+            BiEncoderEmbedding: The reconstructed document embeddings.
+        """
         # unique doc_idcs per query
         unique_doc_idcs, inverse_idcs = torch.unique(doc_idcs, return_inverse=True)
 
@@ -273,24 +343,43 @@ class ApproximateSearcher(Searcher):
 
 
 class SearchConfig:
+    """Configuration class for searchers in the Lightning IR framework."""
+
     search_class: Type[Searcher]
 
     SUPPORTED_MODELS: Set[str]
 
     def __init__(self, k: int = 10) -> None:
+        """Initialize the SearchConfig.
+
+        Args:
+            k (int): The number of top documents to retrieve. Defaults to 10.
+        """
         self.k = k
 
 
 class ExactSearchConfig(SearchConfig):
+    """Configuration class for exact searchers in the Lightning IR framework."""
+
     search_class = ExactSearcher
 
 
 class ApproximateSearchConfig(SearchConfig):
+    """Configuration class for approximate searchers in the Lightning IR framework."""
+
     search_class = ApproximateSearcher
 
     def __init__(
         self, k: int = 10, candidate_k: int = 100, imputation_strategy: Literal["min", "gather", "zero"] = "gather"
     ) -> None:
+        """Initialize the ApproximateSearchConfig.
+
+        Args:
+            k (int): The number of top documents to retrieve. Defaults to 10.
+            candidate_k (int): The number of candidate documents to consider for scoring. Defaults to 100.
+            imputation_strategy (Literal["min", "gather", "zero"]): Strategy for imputing missing scores. Defaults to
+                "gather".
+        """
         super().__init__(k)
         self.k = k
         self.candidate_k = candidate_k

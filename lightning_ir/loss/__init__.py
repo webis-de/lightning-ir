@@ -1,3 +1,10 @@
+"""
+Lightning IR module for loss functions.
+
+This module provides various loss functions used in the Lightning IR framework, including in-batch losses, pairwise
+losses, listwise losses, approximate losses, and regularization techniques.
+"""
+
 from .approximate import ApproxMRR, ApproxNDCG, ApproxRankMSE
 from .in_batch import InBatchCrossEntropy, ScoreBasedInBatchCrossEntropy, ScoreBasedInBatchLossFunction
 from .listwise import InfoNCE, KLDivergence, PearsonCorrelation

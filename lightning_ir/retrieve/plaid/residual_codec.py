@@ -1,3 +1,5 @@
+"""Residual Codec for Plaid Indexing and Retrieval"""
+
 from __future__ import annotations
 
 import pathlib
@@ -16,6 +18,7 @@ if TYPE_CHECKING:
 
 
 class ResidualCodec:
+    """Residual Codec for Plaid, a residual-based search method for efficient retrieval."""
 
     def __init__(
         self,
@@ -25,6 +28,15 @@ class ResidualCodec:
         bucket_weights: torch.Tensor,
         verbose: bool = False,
     ) -> None:
+        """Initialize the ResidualCodec.
+
+        Args:
+            index_config (PlaidIndexConfig): Configuration for the Plaid indexer.
+            centroids (torch.Tensor): The centroids used for indexing.
+            bucket_cutoffs (torch.Tensor): The cutoffs for the residual buckets.
+            bucket_weights (torch.Tensor): The weights for the residual buckets.
+            verbose (bool): Whether to print verbose output. Defaults to False.
+        """
         self.index_config = index_config
         self.verbose = verbose
 
@@ -53,16 +65,27 @@ class ResidualCodec:
 
     @property
     def dim(self) -> int:
+        """Get the dimensionality of the centroids."""
         return self.centroids.shape[-1]
 
     @property
     def num_centroids(self) -> int:
+        """Get the number of centroids."""
         return self.centroids.shape[0]
 
     @classmethod
     def train(
         cls, index_config: PlaidIndexConfig, train_embeddings: torch.Tensor, verbose: bool = False
     ) -> "ResidualCodec":
+        """Train the ResidualCodec using the provided training embeddings.
+
+        Args:
+            index_config (PlaidIndexConfig): Configuration for the Plaid indexer.
+            train_embeddings (torch.Tensor): The embeddings to use for training the codec.
+            verbose (bool): Whether to print verbose output. Defaults to False.
+        Returns:
+            ResidualCodec: An instance of the ResidualCodec trained on the provided embeddings.
+        """
         train_embeddings = train_embeddings[torch.randperm(train_embeddings.shape[0])]
         num_hold_out_embeddings = int(min(0.05 * train_embeddings.shape[0], 2**15))
         train_embeddings, holdout_embeddings = train_embeddings.split(
@@ -142,6 +165,12 @@ class ResidualCodec:
 
     @classmethod
     def try_load_torch_extensions(cls, use_gpu):
+        """Load the necessary C++ extensions for the ResidualCodec.
+
+        Args:
+            cls: The class to load the extensions for.
+            use_gpu (bool): Whether to use GPU for the extensions.
+        """
         if hasattr(cls, "loaded_extensions") or not use_gpu:
             return
 
@@ -160,6 +189,15 @@ class ResidualCodec:
     def from_pretrained(
         cls, index_config: PlaidIndexConfig, index_dir: Path, device: torch.device | None = None
     ) -> "ResidualCodec":
+        """Load a ResidualCodec from the specified directory.
+
+        Args:
+            index_config (PlaidIndexConfig): Configuration for the Plaid indexer.
+            index_dir (Path): Directory containing the saved codec files.
+            device (torch.device | None): Device to load the codec onto. Defaults to None, which uses the CPU.
+        Returns:
+            ResidualCodec: An instance of the ResidualCodec loaded from the specified directory.
+        """
         centroids_path = index_dir / "centroids.pt"
         buckets_path = index_dir / "buckets.pt"
 
@@ -178,6 +216,13 @@ class ResidualCodec:
         )
 
     def save(self, index_dir: Path):
+        """Save the ResidualCodec to the specified directory.
+
+        Args:
+            index_dir (Path): Directory to save the codec files.
+        Raises:
+            ValueError: If residual_codec is None.
+        """
         index_dir.mkdir(parents=True, exist_ok=True)
         centroids_path = index_dir / "centroids.pt"
         buckets_path = index_dir / "buckets.pt"
@@ -195,9 +240,23 @@ class ResidualCodec:
         return torch.cat(codes)
 
     def compress_into_codes(self, embeddings: torch.Tensor) -> torch.Tensor:
+        """Compress embeddings into codes using the centroids.
+
+        Args:
+            embeddings (torch.Tensor): The embeddings to compress.
+        Returns:
+            torch.Tensor: The compressed codes.
+        """
         return self._compress_into_codes(self.centroids, embeddings)
 
     def compress(self, embeddings: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Compress embeddings into codes and residuals.
+
+        Args:
+            embeddings (torch.Tensor): The embeddings to compress.
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: A tuple containing the compressed codes and residuals.
+        """
         embeddings = embeddings.to(self.centroids.device)
         codes = self.compress_into_codes(embeddings)
         centroids = self.centroids[codes]
@@ -205,6 +264,13 @@ class ResidualCodec:
         return codes, residuals
 
     def binarize(self, residuals: torch.Tensor) -> torch.Tensor:
+        """Binarize the residuals using the bucket cutoffs and weights.
+
+        Args:
+            residuals (torch.Tensor): The residuals to binarize.
+        Returns:
+            torch.Tensor: The binarized residuals.
+        """
         buckets = torch.bucketize(residuals.float(), self.bucket_cutoffs).to(dtype=torch.uint8)
         buckets_expanded = buckets.unsqueeze(-1).expand(*buckets.size(), self.index_config.n_bits)
         bucket_bits = buckets_expanded >> self.arange_bits  # divide by 2^bit for each bit position
@@ -216,6 +282,14 @@ class ResidualCodec:
         return residuals_packed
 
     def decompress(self, codes: PackedTensor, compressed_residuals: PackedTensor) -> PackedTensor:
+        """Decompress the codes and residuals into embeddings.
+
+        Args:
+            codes (PackedTensor): The packed tensor containing the codes.
+            compressed_residuals (PackedTensor): The packed tensor containing the compressed residuals.
+        Returns:
+            PackedTensor: The decompressed embeddings.
+        """
         centroids = self.centroids[codes]
         residuals = self.reversed_bit_map[compressed_residuals.long().view(-1)].view_as(compressed_residuals)
         residuals = self.decompression_lookup_table[residuals.long()]

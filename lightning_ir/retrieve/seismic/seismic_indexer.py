@@ -1,3 +1,5 @@
+"""SeismicIndexer class for indexing documents using the Seismic library."""
+
 import os
 from pathlib import Path
 
@@ -23,6 +25,8 @@ from ..base import IndexConfig, Indexer
 
 
 class SeismicIndexer(Indexer):
+    """Indexer for Seismic, a residual-based indexing method for efficient retrieval."""
+
     def __init__(
         self,
         index_dir: Path,
@@ -30,6 +34,16 @@ class SeismicIndexer(Indexer):
         module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
+        """Initialize the SeismicIndexer.
+
+        Args:
+            index_dir (Path): Directory where the index will be stored.
+            index_config (SeismicIndexConfig): Configuration for the Seismic indexer.
+            module (BiEncoderModule): The BiEncoder module used for indexing.
+            verbose (bool): Whether to print verbose output during indexing. Defaults to False.
+        Raises:
+            ImportError: If the seismic package is not available.
+        """
         super().__init__(index_dir, index_config, module, verbose)
         if _seismic_available is False:
             raise ImportError(
@@ -42,6 +56,14 @@ class SeismicIndexer(Indexer):
         self.seismic_dataset = SeismicDataset()
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
+        """Add embeddings from the index batch to the Seismic index.
+
+        Args:
+            index_batch (IndexBatch): Batch of data containing embeddings to be indexed.
+            output (BiEncoderOutput): Output from the BiEncoder module containing embeddings.
+        Raises:
+            ValueError: If the output does not contain document embeddings.
+        """
         doc_embeddings = output.doc_embeddings
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
@@ -68,6 +90,7 @@ class SeismicIndexer(Indexer):
             self.seismic_dataset.add_document(doc_id, tokens, values)
 
     def save(self) -> None:
+        """Save the Seismic index to disk."""
         super().save()
 
         assert SeismicIndex is not None
@@ -85,6 +108,8 @@ class SeismicIndexer(Indexer):
 
 
 class SeismicIndexConfig(IndexConfig):
+    """Configuration for the Seismic indexer."""
+
     indexer_class = SeismicIndexer
     SUPPORTED_MODELS = {SpladeConfig.model_type}
 
@@ -98,6 +123,17 @@ class SeismicIndexConfig(IndexConfig):
         batch_size: int | None = None,
         num_threads: int = 0,
     ) -> None:
+        """Initialize the SeismicIndexConfig.
+
+        Args:
+            num_postings (int): Number of postings to keep in the index. Defaults to 3500.
+            centroid_fraction (float): Fraction of centroids to keep. Defaults to 0.1.
+            min_cluster_size (int): Minimum size of clusters. Defaults to 2.
+            summary_energy (float): Energy threshold for summaries. Defaults to 0.4.
+            num_k_nearest_neighbors (int): Number of nearest neighbors to consider. Defaults to 0.
+            batch_size (int | None): Batch size for indexing. Defaults to None.
+            num_threads (int): Number of threads to use for indexing. Defaults to 0.
+        """
         super().__init__()
         self.num_postings = num_postings
         self.centroid_fraction = centroid_fraction
