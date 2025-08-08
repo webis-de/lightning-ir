@@ -7,47 +7,14 @@ to prevent overfitting and improve generalization.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Tuple
+from typing import TYPE_CHECKING
 
 import torch
 
-from .base import EmbeddingLossFunction
+from .base import RegularizationLossFunction
 
 if TYPE_CHECKING:
     from ..bi_encoder import BiEncoderOutput
-
-
-class RegularizationLossFunction(EmbeddingLossFunction):
-    """Base class for regularization loss functions that operate on embeddings."""
-
-    def __init__(self, query_weight: float = 1e-4, doc_weight: float = 1e-4) -> None:
-        """Initialize the RegularizationLossFunction.
-
-        Args:
-            query_weight (float): Weight for the query embeddings regularization. Defaults to 1e-4.
-            doc_weight (float): Weight for the document embeddings regularization. Defaults to 1e-4.
-        """
-        self.query_weight = query_weight
-        self.doc_weight = doc_weight
-
-    def process_embeddings(self, output: BiEncoderOutput) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Process the embeddings from the output.
-
-        Args:
-            output (BiEncoderOutput): The output from the model containing query and document embeddings.
-        Returns:
-            Tuple[torch.Tensor, torch.Tensor]: The processed query and document embeddings.
-        Raises:
-            ValueError: If query_embeddings are not present in the output.
-            ValueError: If doc_embeddings are not present in the output.
-        """
-        query_embeddings = output.query_embeddings
-        doc_embeddings = output.doc_embeddings
-        if query_embeddings is None:
-            raise ValueError("Expected query_embeddings in BiEncoderOutput")
-        if doc_embeddings is None:
-            raise ValueError("Expected doc_embeddings in BiEncoderOutput")
-        return query_embeddings.embeddings, doc_embeddings.embeddings
 
 
 class L2Regularization(RegularizationLossFunction):

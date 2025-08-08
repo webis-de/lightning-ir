@@ -19,7 +19,7 @@ from lightning_ir import (
     RunDataset,
 )
 from lightning_ir.data.external_datasets.ir_datasets_utils import register_new_dataset
-from lightning_ir.models import ColConfig, DprConfig, MonoConfig, SetEncoderConfig, SpladeConfig
+from lightning_ir.models import CoilConfig, ColConfig, DprConfig, MonoConfig, MvrConfig, SetEncoderConfig, SpladeConfig
 
 DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
@@ -59,8 +59,10 @@ GLOBAL_KWARGS: Dict[str, Any] = dict(query_length=8, doc_length=8)
 BI_ENCODER_GLOBAL_KWARGS: Dict[str, Any] = dict(embedding_dim=4)
 
 BI_ENCODER_CONFIGS = {
+    "CoilModel": CoilConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
     "ColModel": ColConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
     "DprModel": DprConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
+    "MvrModel": MvrConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
     "SpladeModel": SpladeConfig(**GLOBAL_KWARGS),
 }
 

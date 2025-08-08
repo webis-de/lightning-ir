@@ -4,18 +4,27 @@ import torch
 from lightning_ir.base.model import LightningIROutput
 from lightning_ir.bi_encoder.bi_encoder_model import BiEncoderEmbedding, BiEncoderOutput
 from lightning_ir.data.data import TrainBatch
-from lightning_ir.loss.approximate import ApproxMRR, ApproxNDCG, ApproxRankMSE
-from lightning_ir.loss.base import ScoringLossFunction
-from lightning_ir.loss.in_batch import InBatchCrossEntropy, InBatchLossFunction, ScoreBasedInBatchCrossEntropy
-from lightning_ir.loss.listwise import InfoNCE, KLDivergence, PearsonCorrelation
-from lightning_ir.loss.pairwise import ConstantMarginMSE, RankNet, SupervisedMarginMSE
-from lightning_ir.loss.regularization import (
+from lightning_ir.loss import (
+    ApproxMRR,
+    ApproxNDCG,
+    ApproxRankMSE,
+    ConstantMarginMSE,
+    ContrastiveLocalLoss,
+    EmbeddingLossFunction,
     FLOPSRegularization,
+    InBatchCrossEntropy,
+    InBatchLossFunction,
+    InfoNCE,
+    KLDivergence,
     L1Regularization,
     L2Regularization,
+    PearsonCorrelation,
+    RankNet,
     RegularizationLossFunction,
+    ScoreBasedInBatchCrossEntropy,
+    ScoringLossFunction,
+    SupervisedMarginMSE,
 )
-from lightning_ir.models.mvr.model import MVROutput
 
 torch.manual_seed(42)
 
@@ -130,14 +139,15 @@ def test_regularization_loss_func(loss_func: RegularizationLossFunction, embeddi
     assert loss.requires_grad
 
 
-@pytest.mark.parametrize("loss_func", [MVRLocalLoss()], ids=["MVRLocalLoss"])
-def test_MVRLocalLoss(loss_func: MVRLocalLoss, embeddings: torch.Tensor):
+@pytest.mark.parametrize("loss_func", [ContrastiveLocalLoss()], ids=["ContrastiveLocalLoss"])
+def test_embedding_loss_func(loss_func: EmbeddingLossFunction, embeddings: torch.Tensor):
+    similarity = embeddings @ embeddings.transpose(1, 2)
     loss = loss_func.compute_loss(
-        MVROutput(
-            None,
-            BiEncoderEmbedding(embeddings, torch.empty(0)),
-            BiEncoderEmbedding(embeddings, torch.empty(0)),
-            embeddings,
+        BiEncoderOutput(
+            scores=None,
+            query_embeddings=BiEncoderEmbedding(embeddings, torch.empty(0), None),
+            doc_embeddings=BiEncoderEmbedding(embeddings, torch.empty(0), None),
+            similarity=similarity,
         )
     )
     assert loss >= 0

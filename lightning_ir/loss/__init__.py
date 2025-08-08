@@ -6,6 +6,14 @@ losses, listwise losses, approximate losses, and regularization techniques.
 """
 
 from .approximate import ApproxMRR, ApproxNDCG, ApproxRankMSE
+from .base import (
+    EmbeddingLossFunction,
+    InBatchLossFunction,
+    LossFunction,
+    RegularizationLossFunction,
+    ScoringLossFunction,
+)
+from .embedding import ContrastiveLocalLoss
 from .in_batch import InBatchCrossEntropy, ScoreBasedInBatchCrossEntropy, ScoreBasedInBatchLossFunction
 from .listwise import InfoNCE, KLDivergence, PearsonCorrelation
 from .pairwise import ConstantMarginMSE, RankNet, SupervisedMarginMSE
@@ -16,16 +24,21 @@ __all__ = [
     "ApproxNDCG",
     "ApproxRankMSE",
     "ConstantMarginMSE",
+    "ContrastiveLocalLoss",
+    "EmbeddingLossFunction",
     "FLOPSRegularization",
     "InBatchCrossEntropy",
+    "InBatchLossFunction",
     "InfoNCE",
     "KLDivergence",
     "L1Regularization",
     "L2Regularization",
+    "LossFunction",
     "PearsonCorrelation",
     "RankNet",
+    "RegularizationLossFunction",
     "ScoreBasedInBatchCrossEntropy",
     "ScoreBasedInBatchLossFunction",
+    "ScoringLossFunction",
     "SupervisedMarginMSE",
-    "MVRLocalLoss",
 ]
