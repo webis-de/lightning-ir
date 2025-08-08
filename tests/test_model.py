@@ -9,6 +9,7 @@ from lightning_ir.cross_encoder import CrossEncoderModule
 from lightning_ir.data import LightningIRDataModule, RunDataset, TupleDataset
 from lightning_ir.loss.in_batch import InBatchLossFunction
 from lightning_ir.main import LightningIRTrainer
+from lightning_ir.models import CoilConfig
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -28,6 +29,10 @@ def tuples_datamodule(module: LightningIRModule, inference_datasets: Sequence[Ru
 def test_training_step(train_module: LightningIRModule, inference_datasets: Sequence[RunDataset]):
     if train_module.loss_functions is None:
         pytest.skip("Loss function is not set")
+    if isinstance(train_module.config, CoilConfig) and any(
+        isinstance(loss_func[0], InBatchLossFunction) for loss_func in train_module.loss_functions
+    ):
+        pytest.skip("COIL models do not support in-batch loss functions")
     datamodule = tuples_datamodule(train_module, inference_datasets)
     dataloader = datamodule.train_dataloader()
     batch = next(iter(dataloader))

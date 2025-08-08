@@ -61,7 +61,7 @@ class BiEncoderModule(LightningIRModule):
         self.model: BiEncoderModel
         self.config: BiEncoderConfig
         self.tokenizer: BiEncoderTokenizer
-        if self.config.add_marker_tokens and len(self.tokenizer) > self.config.vocab_size:
+        if len(self.tokenizer) > self.config.vocab_size:
             self.model.resize_token_embeddings(len(self.tokenizer), 8)
         self._searcher = None
         self.search_config = search_config
@@ -164,7 +164,11 @@ class BiEncoderModule(LightningIRModule):
             if isinstance(loss_function, InBatchLossFunction):
                 pos_idcs, neg_idcs = loss_function.get_ib_idcs(output, batch)
                 ib_doc_embeddings = self._get_ib_doc_embeddings(output.doc_embeddings, pos_idcs, neg_idcs, num_queries)
-                ib_scores = self.model.score(output.query_embeddings, ib_doc_embeddings)
+                ib_scores = self.model.score(
+                    BiEncoderOutput(query_embeddings=output.query_embeddings, doc_embeddings=ib_doc_embeddings)
+                ).scores
+                if ib_scores is None:
+                    raise ValueError("In-batch scores cannot be None")
                 ib_scores = ib_scores.view(num_queries, -1)
                 losses.append(loss_function.compute_loss(LightningIROutput(ib_scores)))
             elif isinstance(loss_function, EmbeddingLossFunction):

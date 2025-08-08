@@ -178,7 +178,11 @@ class PlaidSearcher(Searcher):
 
         # compute scores
         doc_embeddings = self._reconstruct_doc_embeddings(candidate_idcs)
-        scores = self.module.model.score(query_embeddings, doc_embeddings, num_docs)
+        output.doc_embeddings = doc_embeddings
+        output = self.module.model.score(output, num_docs)
+        scores = output.scores
+        if scores is None:
+            raise ValueError("Expected scores in BiEncoderOutput")
 
         scores, doc_idcs = self._filter_and_sort(PackedTensor(scores, lengths=candidate_idcs.lengths), candidate_idcs)
         doc_ids = [

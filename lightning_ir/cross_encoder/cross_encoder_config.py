@@ -26,8 +26,8 @@ class CrossEncoderConfig(LightningIRConfig):
         Args:
             query_length (int): Maximum query length. Defaults to 32.
             doc_length (int): Maximum document length. Defaults to 512.
-            pooling_strategy (Literal['first', 'mean', 'max', 'sum']): Pooling strategy to aggregate the contextualized
-                embeddings into a single vector for computing a relevance score. Defaults to "first".
+            pooling_strategy (Literal['first', 'mean', 'max', 'sum']): Pooling strategy to aggregate the
+                contextualized embeddings into a single vector for computing a relevance score. Defaults to "first".
             linear_bias (bool): Whether to use a bias in the prediction linear layer. Defaults to False.
         """
         super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)

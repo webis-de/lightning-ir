@@ -12,6 +12,9 @@ from .models import (
     DprModel,
     MonoConfig,
     MonoModel,
+    MvrConfig,
+    MvrModel,
+    MvrTokenizer,
     SetEncoderConfig,
     SetEncoderModel,
     SetEncoderTokenizer,
@@ -35,6 +38,9 @@ def _register_internal_models():
     AutoConfig.register(MonoConfig.model_type, MonoConfig)
     AutoModel.register(MonoConfig, MonoModel)
     AutoTokenizer.register(MonoConfig, CrossEncoderTokenizer)
+    AutoConfig.register(MvrConfig.model_type, MvrConfig)
+    AutoModel.register(MvrConfig, MvrModel)
+    AutoTokenizer.register(MvrConfig, MvrTokenizer)
     AutoConfig.register(SetEncoderConfig.model_type, SetEncoderConfig)
     AutoModel.register(SetEncoderConfig, SetEncoderModel)
     AutoTokenizer.register(SetEncoderConfig, SetEncoderTokenizer)

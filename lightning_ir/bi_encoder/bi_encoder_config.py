@@ -4,7 +4,7 @@ Configuration module for bi-encoder models.
 This module defines the configuration class used to instantiate bi-encoder models.
 """
 
-from typing import Literal, Sequence
+from typing import Any, Literal, Sequence
 
 from ..base import LightningIRConfig
 
@@ -47,6 +47,19 @@ class BiEncoderConfig(LightningIRConfig):
         self.add_marker_tokens = add_marker_tokens
         self.embedding_dim: int | None = getattr(self, "hidden_size", None)
 
+    def to_diff_dict(self) -> dict[str, Any]:
+        """
+        Removes all attributes from the configuration that correspond to the default config attributes for
+        better readability, while always retaining the `config` attribute from the class. Serializes to a
+        Python dictionary.
+
+        Returns:
+            dict[str, Any]: Dictionary of all the attributes that make up this configuration instance.
+        """
+        diff_dict = super().to_diff_dict()
+        diff_dict.pop("embedding_dim", None)  # Exclude embedding_dim from diff_dict
+        return diff_dict
+
 
 class SingleVectorBiEncoderConfig(BiEncoderConfig):
     """Configuration class for a single-vector bi-encoder model."""
@@ -79,9 +92,9 @@ class SingleVectorBiEncoderConfig(BiEncoderConfig):
                 Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
-            query_pooling_strategy (Literal['first', 'mean', 'max', 'sum']): Whether and how to pool the query
+            query_pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | str): How to pool the query
                 token embeddings. Defaults to "mean".
-            doc_pooling_strategy (Literal['first', 'mean', 'max', 'sum']): Whether and how to pool document
+            doc_pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | str): How to pool document
                 token embeddings. Defaults to "mean".
         """
         super().__init__(
