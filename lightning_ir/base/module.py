@@ -6,7 +6,7 @@ This module contains the main module class deriving from a LightningModule_.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Self, Sequence, Tuple, Type
+from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
 
 import pandas as pd
 import torch
@@ -120,7 +120,9 @@ class LightningIRModule(LightningModule):
             raise ValueError("Optimizer is not set. Call `set_optimizer`.")
         return self._optimizer
 
-    def set_optimizer(self, optimizer: Type[torch.optim.Optimizer], **optimizer_kwargs: Dict[str, Any]) -> Self:
+    def set_optimizer(
+        self, optimizer: Type[torch.optim.Optimizer], **optimizer_kwargs: Dict[str, Any]
+    ) -> "LightningIRModule":
         """Sets the optimizer for the model. Necessary for fine-tuning when not using the CLI.
 
         Args:
