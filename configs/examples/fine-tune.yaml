@@ -2,12 +2,10 @@ trainer:
   max_steps: 100_000
 model:
   class_path: lightning_ir.BiEncoderModule
-  # class_path: lightning_ir.CrossEncoderModule
   init_args:
     model_name_or_path: bert-base-uncased
     config:
-      class_path: lightning_ir.BiEncoderConfig
-      # class_path: lightning_ir.CrossEncoderConfig
+      class_path: lightning_ir.models.DprConfig
     loss_functions:
     - lightning_ir.RankNet
 data:

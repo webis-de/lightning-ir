@@ -9,9 +9,8 @@ from typing import Literal, Type
 import torch
 from transformers import BatchEncoding
 
-from ..base.model import batch_encoding_wrapper
-from ..cross_encoder.cross_encoder_config import CrossEncoderConfig
-from ..cross_encoder.cross_encoder_model import CrossEncoderModel, CrossEncoderOutput
+from ...base.model import batch_encoding_wrapper
+from ...cross_encoder import CrossEncoderConfig, CrossEncoderModel, CrossEncoderOutput
 
 
 class ScaleLinear(torch.nn.Linear):
