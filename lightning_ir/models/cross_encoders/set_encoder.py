@@ -11,7 +11,7 @@ import torch
 from tokenizers.processors import TemplateProcessing
 from transformers import BatchEncoding
 
-from ..cross_encoder import CrossEncoderOutput, CrossEncoderTokenizer
+from ...cross_encoder import CrossEncoderOutput, CrossEncoderTokenizer
 from .mono import MonoConfig, MonoModel
 
 

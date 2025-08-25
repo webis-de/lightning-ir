@@ -10,7 +10,7 @@ from typing import Literal
 import torch
 from transformers import BatchEncoding
 
-from ..bi_encoder import BiEncoderEmbedding, SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel
+from ...bi_encoder import BiEncoderEmbedding, SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel
 
 
 class DprConfig(SingleVectorBiEncoderConfig):

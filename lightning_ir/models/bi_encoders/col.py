@@ -9,7 +9,7 @@ from typing import Literal, Sequence
 import torch
 from transformers import BatchEncoding
 
-from ..bi_encoder import BiEncoderEmbedding, BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
+from ...bi_encoder import BiEncoderEmbedding, BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
 
 
 class ColConfig(MultiVectorBiEncoderConfig):

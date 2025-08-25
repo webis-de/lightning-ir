@@ -1,26 +1,14 @@
 from torch.optim import AdamW
 
-from lightning_ir import (
-    BiEncoderConfig,
-    BiEncoderModule,
-    LightningIRDataModule,
-    LightningIRTrainer,
-    RankNet,
-    TupleDataset,
-)
+from lightning_ir import BiEncoderModule, LightningIRDataModule, LightningIRTrainer, RankNet, TupleDataset
+from lightning_ir.models import DprConfig
 
 # Define the model
 module = BiEncoderModule(
     model_name_or_path="bert-base-uncased",  # backbone model
-    config=BiEncoderConfig(),
-    loss_functions=[RankNet()],  # or other loss functions
+    config=DprConfig(),
+    loss_functions=[RankNet()],
 )
-# or
-# module = CrossEncoderModule(
-#    model_name_or_path="bert-base-uncased", # backbone model
-#    config=CrossEncoderConfig()
-#    loss_functions=[RankNet()] # or other loss functions
-# )
 module.set_optimizer(AdamW, lr=1e-5)
 
 # Define the data module

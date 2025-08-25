@@ -11,7 +11,7 @@ from transformers import BatchEncoding
 
 from lightning_ir.bi_encoder.bi_encoder_model import BiEncoderEmbedding
 
-from ..bi_encoder import BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
+from ...bi_encoder import BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
 
 
 class MvrConfig(MultiVectorBiEncoderConfig):

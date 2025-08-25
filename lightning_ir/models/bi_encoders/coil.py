@@ -8,7 +8,7 @@ from typing import Literal, Sequence
 import torch
 from transformers import BatchEncoding
 
-from ..bi_encoder import BiEncoderEmbedding, BiEncoderOutput, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
+from ...bi_encoder import BiEncoderEmbedding, BiEncoderOutput, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
 
 
 @dataclass

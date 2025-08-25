@@ -10,8 +10,8 @@ from typing import Literal, Self
 import torch
 from transformers import BatchEncoding
 
-from ..bi_encoder import BiEncoderEmbedding, SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel
-from ..modeling_utils.mlm_head import (
+from ...bi_encoder import BiEncoderEmbedding, SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel
+from ...modeling_utils.mlm_head import (
     MODEL_TYPE_TO_KEY_MAPPING,
     MODEL_TYPE_TO_LM_HEAD,
     MODEL_TYPE_TO_OUTPUT_EMBEDDINGS,
