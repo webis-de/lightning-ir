@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, Type
 
 from transformers import PretrainedConfig
 
@@ -39,31 +39,16 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
     backbone_model_type: str | None = None
     """Backbone model type for the configuration. Set by :func:`LightningIRModelClassFactory`."""
 
-    def __init__(
-        self, 
-        *args, 
-        query_length: int = 32, 
-        doc_length: int = 512, 
-        use_adapter: bool = False,
-        adapter_config: Optional["LoraConfig"] = None,
-        **kwargs
-    ):
+    def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
         """Initializes the configuration.
 
         Args:
             query_length (int, optional): Maximum query length. Defaults to 32.
             doc_length (int, optional): Maximum document length. Defaults to 512.
-            use_adapter (bool, optional): Whether to use LoRA adapters. Defaults to False.
-            adapter_config (Optional[LoraConfig], optional): Configuration for LoRA adapters.
-                Only used if use_adapter is True. Defaults to None.
-            adapter_name_or_path (Optional[Union[str, Path]], optional): 
-                Path to load existing adapter weights from. Defaults to None.
         """
         super().__init__(*args, **kwargs)
         self.query_length = query_length
         self.doc_length = doc_length
-        self.use_adapter = use_adapter
-        self.adapter_config = adapter_config
 
     def get_tokenizer_kwargs(self, Tokenizer: Type[LightningIRTokenizer]) -> Dict[str, Any]:
         """Returns the keyword arguments for the tokenizer. This method is used to pass the configuration
