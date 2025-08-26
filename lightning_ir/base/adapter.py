@@ -16,11 +16,7 @@ except ImportError:
 
 
 class LightningIRAdapterMixin:
-    """Mixin class that adds LoRA adapter functionality to Lightning IR models.
-    
-    This mixin provides methods to enable, disable, save, and load LoRA adapters
-    for parameter-efficient fine-tuning.
-    """
+    """Mixin class that adds LoRA adapter functionality to Lightning IR models."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -79,14 +75,3 @@ class LightningIRAdapterMixin:
             self.enable_adapter_layers()
         elif hasattr(self, 'enable_adapter'):
             self.enable_adapter()
-
-    @property
-    def adapter_enabled(self) -> bool:
-        """Whether LoRA adapters are currently enabled."""
-        return self._adapter_enabled
-
-    @property
-    def adapter_config(self) -> LoraConfig | None:
-        """The current adapter configuration."""
-        return self._adapter_config
-
