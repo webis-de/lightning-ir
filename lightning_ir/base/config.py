@@ -57,8 +57,6 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
             use_adapter (bool, optional): Whether to use LoRA adapters. Defaults to False.
             adapter_config (Optional[LoraConfig], optional): Configuration for LoRA adapters.
                 Only used if use_adapter is True. Defaults to None.
-            adapter_name_or_path (Optional[Union[str, Path]], optional):
-                Path to load existing adapter weights from. Defaults to None.
         """
         super().__init__(*args, **kwargs)
         self.query_length = query_length
