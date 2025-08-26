@@ -109,6 +109,7 @@ _register_external_datasets()
 __version__ = "0.0.5"
 
 __all__ = [
+    "LightningIRAdapterMixin",
     "ApproxMRR",
     "ApproxNDCG",
     "ApproxRankMSE",

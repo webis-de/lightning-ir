@@ -17,6 +17,7 @@ from transformers.modeling_outputs import ModelOutput
 from .class_factory import LightningIRModelClassFactory, _get_model_class
 from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
+from .adapter import LightningIRAdapterMixin
 
 
 def _update_config_with_kwargs(config: LightningIRConfig, **kwargs):
@@ -43,7 +44,7 @@ class LightningIROutput(ModelOutput):
     scores: torch.Tensor | None = None
 
 
-class LightningIRModel(PreTrainedModel):
+class LightningIRModel(LightningIRAdapterMixin, PreTrainedModel):
     """Base class for Lightning IR models. Derived classes implement the forward method for handling query
     and document embeddings. It acts as mixin for a transformers.PreTrainedModel_ backbone model.
 
@@ -73,6 +74,19 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         self.config = config
 
         self._sub_batch_size: int | None = None
+
+    def _initialize_adapters(self) -> None:
+        """Initialize adapters based on configuration."""
+        if not self.config.use_adapter:
+            return
+        
+        # Enable adapters if configuration is provided
+        if self.config.adapter_config is not None:
+            self.init_adapters(self.config.adapter_config)
+
+        # Load adapter weights if path is provided
+        if self.config.adapter_name_or_path is not None:
+            self.load_adapter(self.config.adapter_name_or_path)
 
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
@@ -130,7 +144,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         if pooling_strategy is None:
             return embeddings
         if pooling_strategy == "first":
-            return embeddings.index_select(1, torch.tensor(0, device=embeddings.device))
+            return embeddings.index_select(1, torch.tensor([0], device=embeddings.device))
         if pooling_strategy in ("sum", "mean"):
             if attention_mask is not None:
                 embeddings = embeddings * attention_mask.unsqueeze(-1)
@@ -212,6 +226,10 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         model = super().from_pretrained(model_name_or_path, *args, key_mapping=key_mapping, **kwargs)
         if model_name_or_path in POST_LOAD_CALLBACKS:
             model = POST_LOAD_CALLBACKS[str(model_name_or_path)](model)
+        
+        # Initialize adapters after model is fully loaded
+        model._initialize_adapters()
+        
         return model
 
 
