@@ -85,8 +85,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             self.init_adapters(self.config.adapter_config)
 
         # Load adapter weights if path is provided
-        if self.config.adapter_name_or_path is not None:
-            self.load_adapter(self.config.adapter_name_or_path)
+        if self.config.pretrained_adapter_name_or_path is not None:
+            self.load_adapter(self.config.pretrained_adapter_name_or_path)
 
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
