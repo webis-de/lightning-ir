@@ -47,6 +47,7 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         doc_length: int = 512,
         use_adapter: bool = False,
         adapter_config: Optional["LoraConfig"] = None,
+        pretrained_adapter_name_or_path: Optional[str] = None,
         **kwargs
     ):
         """Initializes the configuration.
@@ -57,12 +58,15 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
             use_adapter (bool, optional): Whether to use LoRA adapters. Defaults to False.
             adapter_config (Optional[LoraConfig], optional): Configuration for LoRA adapters.
                 Only used if use_adapter is True. Defaults to None.
+            pretrained_adapter_name_or_path (Optional[str], optional): The path to a pretrained adapter to load. 
+                Defaults to None.
         """
         super().__init__(*args, **kwargs)
         self.query_length = query_length
         self.doc_length = doc_length
         self.use_adapter = use_adapter
         self.adapter_config = adapter_config
+        self.pretrained_adapter_name_or_path = pretrained_adapter_name_or_path
 
     def get_tokenizer_kwargs(self, Tokenizer: Type[LightningIRTokenizer]) -> Dict[str, Any]:
         """Returns the keyword arguments for the tokenizer. This method is used to pass the configuration
