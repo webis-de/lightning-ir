@@ -20,10 +20,8 @@ class LightningIRAdapterMixin:
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._adapter_initialized = False
         self._adapter_enabled = False
-        self._adapter_config = None
-        self._is_peft_model = False
+        self._hf_peft_config_loaded = False
 
     def init_adapters(self, adapter_config: LoraConfig) -> None:
         """Enable LoRA adapters on the model.
@@ -41,10 +39,9 @@ class LightningIRAdapterMixin:
                 "Install it with: pip install lightning-ir[adapters]"
             )
 
-        if self._adapter_enabled:
+        if self._hf_peft_config_loaded:
             raise ValueError("Adapters are already enabled on this model")
 
-        self._adapter_config = adapter_config
         peft_model = get_peft_model(self, adapter_config)
 
         for name, module in peft_model.named_children():
@@ -53,9 +50,8 @@ class LightningIRAdapterMixin:
                 if original_module is not module:  # Only set if it's actually different
                     setattr(self, name, module)
 
-        self._adapter_initialized = True
         self._adapter_enabled = True
-        self._is_peft_model = True
+        self._hf_peft_config_loaded = True
 
 
     def disable_adapters(self) -> None:
