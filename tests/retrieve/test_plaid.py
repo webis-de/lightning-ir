@@ -10,7 +10,7 @@ from tests.conftest import CORPUS_DIR, DATA_DIR
 
 
 def test_plaid():
-    model_name = "lightonai/GTE-ModernColBERT-v1"
+    model_name = "colbert-ir/colbertv2.0"
     query = "What is the capital of France?"
 
     pylate_model = models.ColBERT(
@@ -83,14 +83,16 @@ def test_plaid():
     lightning_query_embedding = module(search_batch)
     lightning_scores = lightning_searcher.search(lightning_query_embedding)
 
-    pylate_top_scores = np.array([doc["score"] for doc in pylate_scores[0][:5]])
-    lightning_top_scores = lightning_scores[0][:5].detach().cpu().numpy()
+    lightning_top_scores = lightning_scores[0]
+    lightning_top_ids = lightning_scores[1][0]
 
-    pylate_top_ids = [doc["id"] for doc in pylate_scores[0][:5]]
-    lightning_top_ids = [documents_ids[i] for i in np.argsort(-lightning_scores[0].detach().cpu().numpy())[:5]]
+    number_top_scores = len(lightning_top_scores)
+    pylate_top_scores = np.array([doc["score"] for doc in pylate_scores[0][:number_top_scores]])
+
+    pylate_top_ids = [doc["id"] for doc in pylate_scores[0][:number_top_scores]]
     assert pylate_top_ids == lightning_top_ids, "Top document IDs do not match between pylate and lightning_ir"
     assert np.allclose(
-        pylate_top_scores, lightning_top_scores, atol=0.5
+        pylate_top_scores, lightning_top_scores, atol=0.1
     ), "Top scores do not match closely between pylate and lightning_ir"
 
 
