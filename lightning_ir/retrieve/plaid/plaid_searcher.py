@@ -1,13 +1,15 @@
 """Plaid Searcher using fast-plaid library for Lightning IR Framework"""
 
 from pathlib import Path
+from typing import List, Tuple
 
 from fast_plaid import search
 import torch
 
 from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...models import ColConfig
-from ..base import SearchConfig, Searcher
+from ..base.packed_tensor import PackedTensor
+from ..base.searcher import SearchConfig, Searcher
 
 
 class PlaidSearcher(Searcher):
@@ -46,7 +48,7 @@ class PlaidSearcher(Searcher):
         """Load the Plaid index from the specified directory."""
         self.index = search.FastPlaid(index=str(self.index_dir))
 
-    def search(self, output: BiEncoderOutput):
+    def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
         """Search for relevant documents using the Plaid index.
 
         Args:
@@ -68,7 +70,9 @@ class PlaidSearcher(Searcher):
             top_k=self.search_config.k,
         )
 
-        return scores
+        doc_ids, scores = zip(*scores[0])
+
+        return PackedTensor(torch.tensor(scores), lengths=[len([s]) for s in scores]), list(doc_ids)
 
 
 class PlaidSearchConfig(SearchConfig):
