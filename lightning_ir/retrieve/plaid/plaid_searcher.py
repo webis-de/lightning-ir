@@ -20,6 +20,14 @@ class PlaidSearcher(Searcher):
         module: BiEncoderModule,
         use_gpu: bool = False,
     ) -> None:
+        """Initialize the PlaidSearcher.
+
+        Args:
+            index_dir (Path | str): Directory where the Plaid index is stored.
+            search_config (PlaidSearchConfig): Configuration for the Plaid searcher.
+            module (BiEncoderModule): The BiEncoder module used for searching.
+            use_gpu (bool): Whether to use GPU for searching. Defaults to False.
+        """
         # super().__init__(index_dir, search_config, module, use_gpu)
         self.index_dir = index_dir
         self.search_config = search_config
@@ -35,9 +43,20 @@ class PlaidSearcher(Searcher):
         # super().to_gpu()
 
     def load(self) -> None:
+        """Load the Plaid index from the specified directory."""
         self.index = search.FastPlaid(index=str(self.index_dir))
 
     def search(self, output: BiEncoderOutput):
+        """Search for relevant documents using the Plaid index.
+
+        Args:
+            output (BiEncoderOutput): The output from the BiEncoder module containing query embeddings.
+        Returns:
+            Tuple[PackedTensor, List[List[str]]]: A tuple containing the scores and the corresponding document IDs.
+        Raises:
+            ValueError: If the output does not contain query embeddings.
+            ValueError: If the index is not loaded. Call load() before searching.
+        """
         if output.query_embeddings is None:
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
 

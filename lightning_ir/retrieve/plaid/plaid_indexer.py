@@ -19,11 +19,27 @@ class PlaidIndexer(Indexer):
         module: BiEncoderModule,
         verbose: bool = False,
     ) -> None:
+        """Initialize the PlaidIndexer.
+
+        Args:
+            index_dir (Path): Directory where the index will be stored.
+            index_config (PlaidIndexConfig): Configuration for the Plaid indexer.
+            module (BiEncoderModule): The BiEncoder module used for indexing.
+            verbose (bool): Whether to print verbose output during indexing. Defaults to False.
+        """
         super().__init__(index_dir, index_config, module, verbose)
         self.index_config: PlaidIndexConfig
         self.index = None
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
+        """Add embeddings from the index batch to the Plaid index.
+
+        Args:
+            index_batch (IndexBatch): Batch of data containing embeddings to be indexed.
+            output (BiEncoderOutput): Output from the BiEncoder module containing embeddings.
+        Raises:
+            ValueError: If the output does not contain document embeddings.≤”#
+        """
         doc_embeddings = output.doc_embeddings.embeddings.detach()
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
