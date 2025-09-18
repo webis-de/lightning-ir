@@ -11,7 +11,7 @@ import numpy as np
 import torch
 from torch.utils.cpp_extension import load
 
-from ..base.packed_tensor import PackedTensor
+from ...base.packed_tensor import PackedTensor
 
 if TYPE_CHECKING:
     from .plaid_indexer import PlaidIndexConfig

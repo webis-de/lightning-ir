@@ -1,194 +1,55 @@
-"""Plaid Searcher for Lightning IR Framework"""
-
-from __future__ import annotations
+"""Plaid Searcher using fast-plaid library for Lightning IR Framework"""
 
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Tuple
 
+from fast_plaid import search
 import torch
 
-from ...bi_encoder.bi_encoder_model import BiEncoderEmbedding
+from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...models import ColConfig
-from ..base.packed_tensor import PackedTensor
-from ..base.searcher import SearchConfig, Searcher
-from .plaid_indexer import PlaidIndexConfig
-from .residual_codec import ResidualCodec
-
-if TYPE_CHECKING:
-    from ...bi_encoder import BiEncoderModule, BiEncoderOutput
+from ..base import SearchConfig, Searcher
 
 
 class PlaidSearcher(Searcher):
-    """Searcher for Plaid, a residual-based search method for efficient retrieval."""
+    """Searcher for Plaid using fast-plaid library."""
 
     def __init__(
-        self, index_dir: Path | str, search_config: PlaidSearchConfig, module: BiEncoderModule, use_gpu: bool = False
-    ) -> None:
-        """Initialize the PlaidSearcher.
-
-        Args:
-            index_dir (Path | str): Directory where the Plaid index is stored.
-            search_config (PlaidSearchConfig): Configuration for the Plaid searcher.
-            module (BiEncoderModule): The BiEncoder module used for searching.
-            use_gpu (bool): Whether to use GPU for searching. Defaults to False.
-        """
-        super().__init__(index_dir, search_config, module, use_gpu)
-        self.residual_codec = ResidualCodec.from_pretrained(
-            PlaidIndexConfig.from_pretrained(self.index_dir), self.index_dir, device=self.device
-        )
-
-        self.codes = torch.load(self.index_dir / "codes.pt", weights_only=True).to(self.device)
-        self.residuals = (
-            torch.load(self.index_dir / "residuals.pt", weights_only=True).view(self.codes.shape[0], -1).to(self.device)
-        )
-        self.packed_codes = PackedTensor(self.codes, lengths=self.doc_lengths.tolist()).to(self.device)
-        self.packed_residuals = PackedTensor(self.residuals, lengths=self.doc_lengths.tolist()).to(self.device)
-
-        # code_idx to embedding_idcs mapping
-        sorted_codes, embedding_idcs = self.codes.sort()
-        num_embeddings_per_code = torch.bincount(sorted_codes, minlength=self.residual_codec.num_centroids).tolist()
-
-        # code_idx to doc_idcs mapping
-        embedding_idx_to_doc_idx = torch.arange(self.num_docs, device=self.device).repeat_interleave(self.doc_lengths)
-        full_doc_ivf = embedding_idx_to_doc_idx[embedding_idcs]
-        doc_ivf_lengths = []
-        unique_doc_idcs = []
-        for doc_idcs in full_doc_ivf.split(num_embeddings_per_code):
-            unique_doc_idcs.append(doc_idcs.unique())
-            doc_ivf_lengths.append(unique_doc_idcs[-1].shape[0])
-        self.code_to_doc_ivf = PackedTensor(torch.cat(unique_doc_idcs), lengths=doc_ivf_lengths)
-
-        # doc_idx to code_idcs mapping
-        sorted_doc_idcs, doc_idx_to_code_idx = torch.sort(self.code_to_doc_ivf)
-        code_idcs = torch.arange(self.residual_codec.num_centroids, device=self.device).repeat_interleave(
-            torch.tensor(self.code_to_doc_ivf.lengths, device=self.device)
-        )[doc_idx_to_code_idx]
-        num_codes_per_doc = torch.bincount(sorted_doc_idcs, minlength=self.num_docs)
-        self.doc_to_code_ivf = PackedTensor(code_idcs, lengths=num_codes_per_doc.tolist())
-
-        self.search_config: PlaidSearchConfig
-
-    def _centroid_candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> Tuple[PackedTensor, PackedTensor]:
-        # grab top `n_cells` neighbor cells for all query embeddings
-        # `num_queries x query_length x num_centroids`
-        centroid_scores = (
-            query_embeddings.embeddings.to(self.residual_codec.centroids)
-            @ self.residual_codec.centroids.transpose(0, 1)[None]
-        ).to(self.device)
-        query_scoring_mask = query_embeddings.scoring_mask
-        centroid_scores = centroid_scores.masked_fill(~query_scoring_mask[..., None], 0)
-        _, codes = torch.topk(centroid_scores, self.search_config.n_cells, dim=-1, sorted=False)
-        packed_codes = codes[query_embeddings.scoring_mask].view(-1)
-        code_lengths = (query_embeddings.scoring_mask.sum(-1) * self.search_config.n_cells).tolist()
-
-        # grab document idcs for all cells
-        packed_doc_idcs = self.code_to_doc_ivf.lookup(packed_codes, code_lengths, unique=True)
-
-        # NOTE no idea why we do two filter steps (the first with a threshold, the second without)
-        # filter step 1
-        _, filtered_doc_idcs = self._filter_candidates(
-            centroid_scores=centroid_scores,
-            doc_idcs=packed_doc_idcs,
-            threshold=self.search_config.centroid_score_threshold,
-            k=self.search_config.candidate_k,
-            query_scoring_mask=query_scoring_mask,
-        )
-        # filter step 2
-        filtered_scores, filtered_doc_idcs = self._filter_candidates(
-            centroid_scores=centroid_scores,
-            doc_idcs=filtered_doc_idcs,
-            threshold=None,
-            k=self.search_config.candidate_k // 4,
-            query_scoring_mask=query_scoring_mask,
-        )
-        return filtered_scores, filtered_doc_idcs
-
-    def _filter_candidates(
         self,
-        centroid_scores: torch.Tensor,
-        doc_idcs: PackedTensor,
-        threshold: float | None,
-        k: int,
-        query_scoring_mask: torch.Tensor,
-    ) -> Tuple[PackedTensor, PackedTensor]:
-        num_query_vecs = centroid_scores.shape[1]
-        num_centroids = centroid_scores.shape[-1]
+        index_dir: Path,
+        search_config: "PlaidSearchConfig",
+        module: BiEncoderModule,
+        use_gpu: bool = False,
+    ) -> None:
+        # super().__init__(index_dir, search_config, module, use_gpu)
+        self.index_dir = index_dir
+        self.search_config = search_config
+        self.search_config: PlaidSearchConfig
+        self.index = None
+        self.use_gpu = use_gpu
+        self.module = module
+        self.device = torch.device("cuda") if use_gpu and torch.cuda.is_available() else torch.device("cpu")
 
-        # repeat query centroid scores for each document
-        # `num_docs x num_query_vecs x num_centroids + 1`
-        # NOTE we pad values such that the codes with -1 padding index 0 values
-        expanded_centroid_scores = torch.nn.functional.pad(
-            centroid_scores.repeat_interleave(torch.tensor(doc_idcs.lengths, device=self.device), dim=0), (0, 1)
-        )
+        # with open(self.index_dir / "doclens.0.json", "r") as doc_lens_f:
+        #     self.doc_lengths = json.load(doc_lens_f)
 
-        # grab codes for each document
-        code_idcs = self.doc_to_code_ivf.lookup(doc_idcs, 1)
-        # `num_docs x max_num_codes_per_doc`
-        padded_codes = code_idcs.to_padded_tensor(pad_value=num_centroids)
-        mask = padded_codes != num_centroids
-        # `num_docs x max_num_query_vecs x max_num_codes_per_doc`
-        padded_codes = padded_codes[:, None].expand(-1, num_query_vecs, -1)
+        # super().to_gpu()
 
-        # apply pruning threshold
-        if threshold is not None and threshold:
-            expanded_centroid_scores = expanded_centroid_scores.masked_fill(
-                expanded_centroid_scores.amax(1, keepdim=True) < threshold, 0
-            )
+    def load(self) -> None:
+        self.index = search.FastPlaid(index=str(self.index_dir))
 
-        # NOTE this is colbert scoring, but instead of using the doc embeddings we use the centroid scores
-        # expanded_centroid_scores: `num_docs x max_num_query_vecs x num_centroids + 1 `
-        # padded_codes: `num_docs x max_num_query_vecs x max_num_codes_per_doc`
-        # approx_similarity: `num_docs x max_num_query_vecs x max_num_codes_per_doc`
-        approx_similarity = torch.gather(input=expanded_centroid_scores, dim=-1, index=padded_codes)
-        approx_scores = self.module.model.aggregate_similarity(
-            approx_similarity,
-            query_scoring_mask=query_scoring_mask,
-            doc_scoring_mask=mask[:, None],
-            num_docs=doc_idcs.lengths,
-        )
-        packed_approx_scores = PackedTensor(approx_scores, lengths=doc_idcs.lengths)
-        filtered_scores, filtered_doc_idcs = self._filter_and_sort(packed_approx_scores, doc_idcs, k)
-        return filtered_scores, filtered_doc_idcs
-
-    def _reconstruct_doc_embeddings(self, candidate_doc_idcs: PackedTensor) -> BiEncoderEmbedding:
-        doc_embedding_codes = self.packed_codes.lookup(candidate_doc_idcs, 1)
-        doc_embedding_residuals = self.packed_residuals.lookup(candidate_doc_idcs, 1)
-        doc_embeddings = self.residual_codec.decompress(doc_embedding_codes, doc_embedding_residuals)
-        padded_doc_embeddings = doc_embeddings.to_padded_tensor()
-        doc_scoring_mask = padded_doc_embeddings[..., 0] != 0
-        return BiEncoderEmbedding(padded_doc_embeddings, doc_scoring_mask, None)
-
-    def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
-        """Search for relevant documents using the Plaid index.
-
-        Args:
-            output (BiEncoderOutput): The output from the BiEncoder module containing query embeddings.
-        Returns:
-            Tuple[PackedTensor, List[List[str]]]: A tuple containing the scores and the corresponding document IDs.
-        Raises:
-            ValueError: If the output does not contain query embeddings.
-        """
-        query_embeddings = output.query_embeddings
-        if query_embeddings is None:
+    def search(self, output: BiEncoderOutput):
+        if output.query_embeddings is None:
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
-        query_embeddings = query_embeddings.to(self.device)
 
-        _, candidate_idcs = self._centroid_candidate_retrieval(query_embeddings)
-        num_docs = candidate_idcs.lengths
+        if not self.index:
+            raise ValueError("Index not loaded. Call load() before searching.")
 
-        # compute scores
-        doc_embeddings = self._reconstruct_doc_embeddings(candidate_idcs)
-        output.doc_embeddings = doc_embeddings
-        output = self.module.model.score(output, num_docs)
-        scores = output.scores
-        if scores is None:
-            raise ValueError("Expected scores in BiEncoderOutput")
+        scores = self.index.search(
+            queries_embeddings=output.query_embeddings.embeddings.detach(),
+            top_k=self.search_config.k,
+        )
 
-        scores, doc_idcs = self._filter_and_sort(PackedTensor(scores, lengths=candidate_idcs.lengths), candidate_idcs)
-        doc_ids = [
-            [self.doc_ids[doc_idx] for doc_idx in _doc_ids.tolist()] for _doc_ids in doc_idcs.split(doc_idcs.lengths)
-        ]
-        return scores, doc_ids
+        return scores
 
 
 class PlaidSearchConfig(SearchConfig):

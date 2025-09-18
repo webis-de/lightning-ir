@@ -2,13 +2,13 @@ from pathlib import Path
 import torch
 
 from lightning_ir import BiEncoderModule, IndexBatch, SearchBatch
-from lightning_ir.retrieve.plaid.plaid_indexer_fastplaid import PlaidIndexConfig, PlaidIndexerFastPlaid
-from lightning_ir.retrieve.plaid.plaid_searcher_fastplaid import PlaidSearchConfig, PlaidSearcherFastPlaid
+from lightning_ir.retrieve.plaid.plaid_indexer import PlaidIndexConfig, PlaidIndexer
+from lightning_ir.retrieve.plaid.plaid_searcher import PlaidSearchConfig, PlaidSearcher
 from tests.conftest import CORPUS_DIR, DATA_DIR
 
 
 def test_plaid_fastplaid():
-    lightning_index = PlaidIndexerFastPlaid(
+    lightning_index = PlaidIndexer(
         index_dir=Path(DATA_DIR) / "indexes" / "lightning-ir-plaid-fastplaid",
         index_config=PlaidIndexConfig(
             num_centroids=256,
@@ -34,7 +34,7 @@ def test_plaid_fastplaid():
         output,
     )
 
-    lightning_searcher = PlaidSearcherFastPlaid(
+    lightning_searcher = PlaidSearcher(
         index_dir=Path(DATA_DIR) / "indexes" / "lightning-ir-plaid-fastplaid",
         search_config=PlaidSearchConfig(k=10),
         module=lightning_index.module,
