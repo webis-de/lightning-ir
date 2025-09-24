@@ -14,10 +14,10 @@ import torch
 from transformers import BatchEncoding, BertModel, PreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 
+from .adapter import LightningIRAdapterMixin
 from .class_factory import LightningIRModelClassFactory, _get_model_class
 from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
-from .adapter import LightningIRAdapterMixin
 
 
 def _update_config_with_kwargs(config: LightningIRConfig, **kwargs):
@@ -79,7 +79,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         """Initialize adapters based on configuration."""
         if not self.config.use_adapter:
             return
-        
+
         # Enable adapters if configuration is provided
         if self.config.adapter_config is not None:
             self.init_adapters(self.config.adapter_config)
@@ -226,10 +226,10 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         model = super().from_pretrained(model_name_or_path, *args, key_mapping=key_mapping, **kwargs)
         if model_name_or_path in POST_LOAD_CALLBACKS:
             model = POST_LOAD_CALLBACKS[str(model_name_or_path)](model)
-        
+
         # Initialize adapters after model is fully loaded
         model._initialize_adapters()
-        
+
         return model
 
 

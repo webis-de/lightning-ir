@@ -5,22 +5,19 @@ Example demonstrating LoRA adapter usage with Lightning IR models.
 Note: This example requires the 'adapters' extra dependency:
 pip install lightning-ir[adapters]
 """
+from peft import LoraConfig
 from torch.optim import AdamW
 
 from lightning_ir import BiEncoderModule, LightningIRDataModule, LightningIRTrainer, RankNet, TupleDataset
 from lightning_ir.models import DprConfig
-from peft import LoraConfig
 
 # Define the model
 module = BiEncoderModule(
     model_name_or_path="bert-base-uncased",  # backbone model
     config=DprConfig(
-        use_adapter=True, # Enable adapter use
-        adapter_config=LoraConfig( # Specify the adapter config
-            r=16,
-            lora_alpha=32,
-            target_modules=["query", "key", "value"],
-            lora_dropout=0.1
+        use_adapter=True,  # Enable adapter use
+        adapter_config=LoraConfig(  # Specify the adapter config
+            r=16, lora_alpha=32, target_modules=["query", "key", "value"], lora_dropout=0.1
         ),
     ),
     loss_functions=[RankNet()],
@@ -38,4 +35,3 @@ trainer = LightningIRTrainer(max_steps=100_000)
 
 # Fine-tune the model
 trainer.fit(module, data_module)
-
