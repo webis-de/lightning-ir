@@ -56,10 +56,10 @@ class COIL(torch.nn.Module):
         return tok_scores
 
 
-@pytest.mark.parametrize("model_name", ["fschlatt/coil-with-hn"])
-def test_same_as_coil(model_name: str):
-    orig_model = COIL(model_name).eval()
-    orig_tokenizer = AutoTokenizer.from_pretrained(model_name)
+@pytest.mark.parametrize("hf_model", ["fschlatt/coil-with-hn"], indirect=True)
+def test_same_as_coil(hf_model: str):
+    orig_model = COIL(hf_model).eval()
+    orig_tokenizer = AutoTokenizer.from_pretrained(hf_model)
 
     query = "What is the capital of France?"
     docs = [
@@ -80,7 +80,7 @@ def test_same_as_coil(model_name: str):
     orig_qry_reps = orig_qry_reps[:, 1:]
     orig_doc_reps = orig_doc_reps[:, 1:]
 
-    module = BiEncoderModule(model_name_or_path=model_name).eval()
+    module = BiEncoderModule(model_name_or_path=hf_model).eval()
     output = module.score(query, docs)
 
     assert torch.allclose(output.query_embeddings.cls_embeddings[0].expand_as(orig_qry_cls), orig_qry_cls, atol=1e-4)

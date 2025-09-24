@@ -1,7 +1,8 @@
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, Generator, List, Union
 
+import huggingface_hub
 import pytest
 from _pytest.fixtures import SubRequest
 
@@ -19,7 +20,15 @@ from lightning_ir import (
     RunDataset,
 )
 from lightning_ir.data.external_datasets.ir_datasets_utils import register_new_dataset
-from lightning_ir.models import CoilConfig, ColConfig, DprConfig, MonoConfig, MvrConfig, SetEncoderConfig, SpladeConfig
+from lightning_ir.models import (
+    CoilConfig,
+    ColConfig,
+    DprConfig,
+    MonoConfig,
+    MvrConfig,
+    SetEncoderConfig,
+    SpladeConfig,
+)
 
 DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
@@ -50,6 +59,15 @@ def inference_datasets() -> List[RunDataset]:
         for run_path in ["run.jsonl", "lightning-ir.tsv"]
     ]
     return inference_datasets
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--remove-hf-models",
+        action="store_true",
+        default=False,
+        help="remove Hugging Face models after tests",
+    )
 
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -183,3 +201,14 @@ def doc_datamodule() -> LightningIRDataModule:
     )
     datamodule.setup(stage="test")
     return datamodule
+
+
+@pytest.fixture()
+def hf_model(request: SubRequest) -> Generator[str, None, None]:
+    model_id = request.param
+    yield model_id
+    if request.config.getoption("--remove-hf-models"):
+        cache_info = huggingface_hub.scan_cache_dir()
+        for repo in cache_info.repos:
+            if repo.repo_id == model_id:
+                cache_info.delete_revisions(*(rev.commit_hash for rev in repo.revisions)).execute()

@@ -1,9 +1,11 @@
+import pytest
 import torch
 
 from lightning_ir import CrossEncoderModule
 
 
-def test_set_encoder():
+@pytest.mark.parametrize("hf_model", ["webis/set-encoder-base"], indirect=True)
+def test_set_encoder(hf_model: str):
     query = "What is the capital of France?"
     documents = [
         "Paris is the capital of France.",
@@ -11,8 +13,7 @@ def test_set_encoder():
         "The Eiffel Tower is in Paris.",
     ]
 
-    model_name = "webis/set-encoder-base"
-    module = CrossEncoderModule(model_name).eval()
+    module = CrossEncoderModule(hf_model).eval()
     with torch.inference_mode():
         output = module.score(query, documents)
 
