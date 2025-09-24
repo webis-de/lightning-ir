@@ -28,4 +28,4 @@ jobs:
         working-directory: ${{github.workspace}}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: pytest tests
+        run: pytest --remove-hf-models tests
