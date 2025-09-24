@@ -2,14 +2,10 @@ name: Tests
 on:
   push:
     branches:
-      - master
       - main
   pull_request:
     branches:
-      - master
       - main
-    types:
-      - ready_for_review
   workflow_dispatch: {}
 
 jobs:
@@ -32,4 +28,4 @@ jobs:
         working-directory: ${{github.workspace}}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: pytest tests
+        run: pytest --remove-hf-models tests

@@ -1,13 +1,14 @@
+import pytest
 import torch
 
 from lightning_ir import BiEncoderModule
 from lightning_ir.models import MvrConfig
 
 
-def test_mvr():
-    model_name = "bert-base-uncased"
+@pytest.mark.parametrize("hf_model", ["bert-base-uncased"], indirect=True)
+def test_mvr(hf_model: str):
     config = MvrConfig()
-    model = BiEncoderModule(model_name, config=config).eval()
+    model = BiEncoderModule(hf_model, config=config).eval()
 
     query = "What is the capital of France"
     docs = ["The Capital of France is Paris", "Marseille is the capital of France"]

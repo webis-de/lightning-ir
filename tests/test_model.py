@@ -79,6 +79,7 @@ def test_seralize_deserialize(module: LightningIRModule, tmp_path: Path):
         for key, value in model.config.__dict__.items():
             if key in (
                 "torch_dtype",
+                "dtype",
                 "_name_or_path",
                 "_commit_hash",
                 "transformers_version",
