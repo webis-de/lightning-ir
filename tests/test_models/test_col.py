@@ -63,6 +63,7 @@ def test_same_as_modern_colbert():
     doc_embedding = output.doc_embeddings
 
     orig_model = models.ColBERT(model_name_or_path=model_name)
+    orig_model.do_query_expansion = True
     orig_query = orig_model.encode([query], is_query=True)
     orig_docs = orig_model.encode([documents], is_query=False)
     orig_scores = rank.rerank(
