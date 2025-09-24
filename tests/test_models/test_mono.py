@@ -50,11 +50,9 @@ def test_same_as_t5(hf_model: str):
         "The Eiffel Tower is in Paris.",
     ]
 
-    mode = "monot5" if "monot5" in module.config.model_type else "rankt5"
-
-    if mode == "monot5":
+    if module.config.scoring_strategy == "mono":
         input_texts = [f"Query: {query} Document: {doc} Relevant:" for doc in docs]
-    elif mode == "rankt5":
+    elif module.config.scoring_strategy == "rank":
         input_texts = [f"Query: {query} Document: {doc}" for doc in docs]
     else:
         raise ValueError("unknown model type")
@@ -66,8 +64,10 @@ def test_same_as_t5(hf_model: str):
             **orig_encoded, max_length=2, return_dict_in_generate=True, output_scores=True
         )
         output = module.score(queries=query, docs=docs)
-    if mode == "monot5":
+    if module.config.scoring_strategy == "mono":
         scores = torch.nn.functional.log_softmax(orig_output.scores[0][:, [6136, 1176]], dim=-1)[:, 1]
-    elif mode == "rankt5":
+    elif module.config.scoring_strategy == "rank":
         scores = orig_output.scores[0][:, 32089]
+    else:
+        raise ValueError("unknown model type")
     assert torch.allclose(output.scores, scores, atol=1e-4)
