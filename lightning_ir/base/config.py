@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Type, Optional
+from typing import TYPE_CHECKING, Any, Dict, Optional, Type
 
 from transformers import PretrainedConfig
 
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     try:
         from peft import LoraConfig
     except ImportError:
+
         class LoraConfig:
             pass
 
@@ -48,7 +49,7 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         use_adapter: bool = False,
         adapter_config: Optional["LoraConfig"] = None,
         pretrained_adapter_name_or_path: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ):
         """Initializes the configuration.
 
@@ -58,7 +59,7 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
             use_adapter (bool, optional): Whether to use LoRA adapters. Defaults to False.
             adapter_config (Optional[LoraConfig], optional): Configuration for LoRA adapters.
                 Only used if use_adapter is True. Defaults to None.
-            pretrained_adapter_name_or_path (Optional[str], optional): The path to a pretrained adapter to load. 
+            pretrained_adapter_name_or_path (Optional[str], optional): The path to a pretrained adapter to load.
                 Defaults to None.
         """
         super().__init__(*args, **kwargs)
