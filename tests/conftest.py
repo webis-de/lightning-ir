@@ -20,15 +20,7 @@ from lightning_ir import (
     RunDataset,
 )
 from lightning_ir.data.external_datasets.ir_datasets_utils import register_new_dataset
-from lightning_ir.models import (
-    CoilConfig,
-    ColConfig,
-    DprConfig,
-    MonoConfig,
-    MvrConfig,
-    SetEncoderConfig,
-    SpladeConfig,
-)
+from lightning_ir.models import CoilConfig, ColConfig, DprConfig, MonoConfig, MvrConfig, SetEncoderConfig, SpladeConfig
 
 DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
@@ -212,3 +204,5 @@ def hf_model(request: SubRequest) -> Generator[str, None, None]:
         for repo in cache_info.repos:
             if repo.repo_id == model_id:
                 cache_info.delete_revisions(*(rev.commit_hash for rev in repo.revisions)).execute()
+                os.sync()
+                break
