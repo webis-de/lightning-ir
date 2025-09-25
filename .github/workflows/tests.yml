@@ -24,6 +24,7 @@ jobs:
           # Since splade makes problems otherwise:
           pip3 install "splade@git+https://github.com/naver/splade.git" pylate --no-deps
           pip3 install .[test,dev]
+          pip3 cache purge
       - name: Run tests
         working-directory: ${{github.workspace}}
         env:
