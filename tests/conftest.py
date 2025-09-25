@@ -1,8 +1,8 @@
 import os
+import shutil
 from pathlib import Path
 from typing import Any, Dict, Generator, List, Union
 
-import huggingface_hub
 import pytest
 from _pytest.fixtures import SubRequest
 
@@ -200,9 +200,5 @@ def hf_model(request: SubRequest) -> Generator[str, None, None]:
     model_id = request.param
     yield model_id
     if request.config.getoption("--remove-hf-models"):
-        cache_info = huggingface_hub.scan_cache_dir()
-        for repo in cache_info.repos:
-            if repo.repo_id == model_id:
-                cache_info.delete_revisions(*(rev.commit_hash for rev in repo.revisions)).execute()
-                os.sync()
-                break
+        hf_cache = os.environ.get("HF_HOME", os.path.join(Path.home(), ".cache/huggingface"))
+        shutil.rmtree(hf_cache)
