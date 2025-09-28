@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from fast_plaid import search
+import torch
 
 from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
@@ -30,6 +31,8 @@ class PlaidIndexer(Indexer):
         super().__init__(index_dir, index_config, module, verbose)
         self.index_config: PlaidIndexConfig
         self.index = None
+        self._train_embeddings = None
+        self._num_buffered = 0
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
         """Add embeddings from the index batch to the Plaid index.
@@ -38,20 +41,46 @@ class PlaidIndexer(Indexer):
             index_batch (IndexBatch): Batch of data containing embeddings to be indexed.
             output (BiEncoderOutput): Output from the BiEncoder module containing embeddings.
         Raises:
-            ValueError: If the output does not contain document embeddings.≤”#
+            ValueError: If the output does not contain document embeddings.
         """
         doc_embeddings = output.doc_embeddings.embeddings.detach()
         if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
 
-        if not self.index:
+        num_train = self.index_config.num_train_embeddings
+
+        if self.index is None:
+            if self._train_embeddings is None:
+                self._train_embeddings = doc_embeddings.new_full(
+                    (num_train, doc_embeddings.shape[1], doc_embeddings.shape[2]), float("nan")
+                )
+                self._num_buffered = 0
+
+            n = doc_embeddings.shape[0]
+            start = self._num_buffered
+            end = min(num_train, start + n)
+            length = end - start
+            self._train_embeddings[start:end] = doc_embeddings[:length]
+            self._num_buffered += length
+
+            if self._num_buffered < num_train:
+                return
+
+            train_embs = self._train_embeddings
+            if torch.isnan(train_embs).any():
+                train_embs = train_embs[~torch.isnan(train_embs).any(dim=1)]
+
             self.index = search.FastPlaid(index=str(self.index_dir))
             self.index.create(
-                documents_embeddings=doc_embeddings,
+                documents_embeddings=train_embs,
                 kmeans_niters=self.index_config.k_means_iters,
                 nbits=self.index_config.n_bits,
-                n_samples_kmeans=self.index_config.num_train_embeddings,
+                n_samples_kmeans=num_train,
             )
+
+            if length < n:
+                self.index.update(documents_embeddings=doc_embeddings[length:])
+            self._train_embeddings = None
         else:
             self.index.update(documents_embeddings=doc_embeddings)
 
