@@ -1,8 +1,10 @@
 """Plaid Indexer using fast-plaid library for Lightning IR Framework"""
 
 from pathlib import Path
+
 from fast_plaid import search
 import torch
+import warnings
 
 from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
@@ -83,6 +85,33 @@ class PlaidIndexer(Indexer):
             self._train_embeddings = None
         else:
             self.index.update(documents_embeddings=doc_embeddings)
+
+    def finalize(self):
+        """Finalize index creation with buffered embeddings if not enough were provided."""
+        if self.index is not None:
+            return
+        if self._train_embeddings is None:
+            return
+
+        num_train = self.index_config.num_train_embeddings
+        if self._num_buffered < num_train:
+            warnings.warn(
+                f"Not enough doc_embeddings provided for Plaid index creation: "
+                f"expected {num_train}, got {self._num_buffered}. Index will be created with fewer embeddings."
+            )
+        train_embs = self._train_embeddings
+        if hasattr(train_embs, "any") and hasattr(train_embs, "shape"):
+            if torch.isnan(train_embs).any():
+                mask = ~torch.isnan(train_embs).any(dim=tuple(range(1, train_embs.ndim)))
+                train_embs = train_embs[mask]
+        self.index = search.FastPlaid(index=str(self.index_dir))
+        self.index.create(
+            documents_embeddings=train_embs,
+            kmeans_niters=self.index_config.k_means_iters,
+            nbits=self.index_config.n_bits,
+            n_samples_kmeans=num_train,
+        )
+        self._train_embeddings = None
 
 
 class PlaidIndexConfig(IndexConfig):

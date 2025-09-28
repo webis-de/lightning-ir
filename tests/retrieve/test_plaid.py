@@ -38,6 +38,7 @@ def test_plaid_fastplaid():
         IndexBatch(docs=documents, doc_ids=documents_ids),
         output,
     )
+    lightning_index.finalize()
 
     lightning_searcher = PlaidSearcher(
         index_dir=Path(DATA_DIR) / "indexes" / "lightning-ir-plaid",
