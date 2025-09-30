@@ -45,9 +45,9 @@ class PlaidIndexer(Indexer):
         Raises:
             ValueError: If the output does not contain document embeddings.
         """
-        doc_embeddings = output.doc_embeddings.embeddings.detach()
-        if doc_embeddings is None:
+        if output.doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
+        doc_embeddings = output.doc_embeddings.embeddings.detach()
 
         num_train = self.index_config.num_train_embeddings
 
