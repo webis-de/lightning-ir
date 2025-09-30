@@ -78,6 +78,7 @@ class PlaidIndexer(Indexer):
                 kmeans_niters=self.index_config.k_means_iters,
                 nbits=self.index_config.n_bits,
                 n_samples_kmeans=num_train,
+                seed=self.index_config.seed,
             )
 
             if length < n:
@@ -110,6 +111,7 @@ class PlaidIndexer(Indexer):
             kmeans_niters=self.index_config.k_means_iters,
             nbits=self.index_config.n_bits,
             n_samples_kmeans=num_train,
+            seed=self.index_config.seed,
         )
         self._train_embeddings = None
 

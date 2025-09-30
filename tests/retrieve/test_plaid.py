@@ -61,7 +61,11 @@ def test_plaid_fastplaid():
     fast_plaid.create(
         documents_embeddings=module(
             IndexBatch(docs=documents, doc_ids=documents_ids)
-        ).doc_embeddings.embeddings.detach()
+        ).doc_embeddings.embeddings.detach(),
+        seed=index_config.seed,
+        kmeans_niters=index_config.k_means_iters,
+        nbits=index_config.n_bits,
+        n_samples_kmeans=index_config.num_train_embeddings,
     )
 
     fast_plaid_scores = fast_plaid.search(
