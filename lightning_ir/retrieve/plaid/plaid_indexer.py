@@ -113,6 +113,12 @@ class PlaidIndexer(Indexer):
         )
         self._train_embeddings = None
 
+    def save(self) -> None:
+        """Save the index configuration and document IDs to the index directory."""
+        super().save()
+        if self.index is None:
+            self.finalize()
+
 
 class PlaidIndexConfig(IndexConfig):
     """Configuration class for Plaid indexers in the Lightning IR framework."""
