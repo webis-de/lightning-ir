@@ -3,8 +3,8 @@
 from pathlib import Path
 from typing import List, Tuple
 
-from fast_plaid import search
 import torch
+from fast_plaid import search
 
 from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...models import ColConfig

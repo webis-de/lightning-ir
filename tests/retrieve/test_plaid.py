@@ -1,8 +1,8 @@
 from pathlib import Path
 
 import torch
-
 from fast_plaid import search
+
 from lightning_ir import BiEncoderModule, IndexBatch, SearchBatch
 from lightning_ir.retrieve.plaid.plaid_indexer import PlaidIndexConfig, PlaidIndexer
 from lightning_ir.retrieve.plaid.plaid_searcher import PlaidSearchConfig, PlaidSearcher

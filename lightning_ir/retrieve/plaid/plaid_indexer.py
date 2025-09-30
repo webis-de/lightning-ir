@@ -1,10 +1,10 @@
 """Plaid Indexer using fast-plaid library for Lightning IR Framework"""
 
+import warnings
 from pathlib import Path
 
-from fast_plaid import search
 import torch
-import warnings
+from fast_plaid import search
 
 from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
