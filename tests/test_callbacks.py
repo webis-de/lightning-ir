@@ -83,7 +83,7 @@ def test_index_callback(
     assert (
         (index_dir / "index.faiss").exists()  # faiss
         or (index_dir / "index.pt").exists()  # sparse
-        or (index_dir / "centroids.pt").exists()  # plaid
+        or (index_dir / "centroids.npy").exists()  # plaid
         or (index_dir / ".index.seismic").exists()  # seismic
     )
     assert (index_dir / "doc_ids.txt").exists()
