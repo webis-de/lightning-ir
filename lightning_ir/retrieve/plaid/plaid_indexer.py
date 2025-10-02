@@ -45,24 +45,35 @@ class PlaidIndexer(Indexer):
         Raises:
             ValueError: If the output does not contain document embeddings.
         """
+        doc_embeddings = output.doc_embeddings
         if output.doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
-        doc_embeddings = output.doc_embeddings.embeddings.detach()
+        # doc_embeddings = output.doc_embeddings.embeddings.detach()
 
         num_train = self.index_config.num_train_embeddings
 
+        if doc_embeddings.scoring_mask is None:
+            doc_lengths = torch.ones(
+                doc_embeddings.embeddings.shape[0], device=doc_embeddings.device, dtype=torch.int32
+            )
+            embeddings = doc_embeddings.embeddings[:, 0]
+        else:
+            doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
+            embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
+        doc_ids = index_batch.doc_ids
+
         if self.index is None:
             if self._train_embeddings is None:
-                self._train_embeddings = doc_embeddings.new_full(
-                    (num_train, doc_embeddings.shape[1], doc_embeddings.shape[2]), float("nan")
+                self._train_embeddings = embeddings.new_full(
+                    (num_train, doc_embeddings.embeddings.shape[1], doc_embeddings.embeddings.shape[2]), float("nan")
                 )
                 self._num_buffered = 0
 
-            n = doc_embeddings.shape[0]
+            n = doc_embeddings.embeddings.shape[0]
             start = self._num_buffered
             end = min(num_train, start + n)
             length = end - start
-            self._train_embeddings[start:end] = doc_embeddings[:length]
+            self._train_embeddings[start:end] = doc_embeddings.embeddings[:length]
             self._num_buffered += length
 
             if self._num_buffered < num_train:
@@ -74,7 +85,7 @@ class PlaidIndexer(Indexer):
 
             self.index = search.FastPlaid(index=str(self.index_dir))
             self.index.create(
-                documents_embeddings=train_embs,
+                documents_embeddings=train_embs.detach(),
                 kmeans_niters=self.index_config.k_means_iters,
                 nbits=self.index_config.n_bits,
                 n_samples_kmeans=num_train,
@@ -82,10 +93,13 @@ class PlaidIndexer(Indexer):
             )
 
             if length < n:
-                self.index.update(documents_embeddings=doc_embeddings[length:])
+                self.index.update(documents_embeddings=doc_embeddings.embeddings[length:].detach())
             self._train_embeddings = None
         else:
-            self.index.update(documents_embeddings=doc_embeddings)
+            self.index.update(documents_embeddings=doc_embeddings.embeddings.detach())
+
+        self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
+        self.doc_ids.extend(doc_ids)
 
     def finalize(self):
         """Finalize index creation with buffered embeddings if not enough were provided."""
@@ -107,7 +121,7 @@ class PlaidIndexer(Indexer):
                 train_embs = train_embs[mask]
         self.index = search.FastPlaid(index=str(self.index_dir))
         self.index.create(
-            documents_embeddings=train_embs,
+            documents_embeddings=train_embs.detach(),
             kmeans_niters=self.index_config.k_means_iters,
             nbits=self.index_config.n_bits,
             n_samples_kmeans=num_train,
