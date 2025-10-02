@@ -34,10 +34,11 @@ class PlaidSearcher(Searcher):
         self.index_dir = index_dir
         self.search_config = search_config
         self.search_config: PlaidSearchConfig
-        self.index = None
         self.use_gpu = use_gpu
         self.module = module
         self.device = torch.device("cuda") if use_gpu and torch.cuda.is_available() else torch.device("cpu")
+
+        self.load()
 
         # with open(self.index_dir / "doclens.0.json", "r") as doc_lens_f:
         #     self.doc_lengths = json.load(doc_lens_f)

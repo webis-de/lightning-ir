@@ -48,8 +48,6 @@ def test_plaid_fastplaid():
         use_gpu=torch.cuda.is_available(),
     )
 
-    lightning_searcher.load()
-
     output = lightning_index.module(SearchBatch(queries=[query], query_ids=["q1"]))
 
     scores = lightning_searcher.search(output)
