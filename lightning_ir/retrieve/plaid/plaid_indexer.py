@@ -121,7 +121,7 @@ class PlaidIndexer(Indexer):
                 train_embs = train_embs[mask]
         self.index = search.FastPlaid(index=str(self.index_dir))
         self.index.create(
-            documents_embeddings=train_embs.detach(),
+            documents_embeddings=train_embs.detach().cpu(),
             kmeans_niters=self.index_config.k_means_iters,
             nbits=self.index_config.n_bits,
             n_samples_kmeans=num_train,
