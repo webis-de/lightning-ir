@@ -62,6 +62,9 @@ class PlaidIndexer(Indexer):
             embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
         doc_ids = index_batch.doc_ids
 
+        self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
+        self.doc_ids.extend(doc_ids)
+
         if self.index is None:
             if self._train_embeddings is None:
                 self._train_embeddings = embeddings.new_full(
@@ -97,9 +100,6 @@ class PlaidIndexer(Indexer):
             self._train_embeddings = None
         else:
             self.index.update(documents_embeddings=doc_embeddings.embeddings.detach())
-
-        self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
-        self.doc_ids.extend(doc_ids)
 
     def finalize(self):
         """Finalize index creation with buffered embeddings if not enough were provided."""
