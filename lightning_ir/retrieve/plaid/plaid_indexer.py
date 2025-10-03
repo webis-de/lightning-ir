@@ -62,6 +62,9 @@ class PlaidIndexer(Indexer):
             embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
         doc_ids = index_batch.doc_ids
 
+        self.num_embeddings += embeddings.shape[0]
+        self.num_docs += len(doc_ids)
+
         self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
         self.doc_ids.extend(doc_ids)
 
@@ -86,6 +89,8 @@ class PlaidIndexer(Indexer):
             if torch.isnan(train_embs).any():
                 train_embs = train_embs[~torch.isnan(train_embs).any(dim=1)]
 
+            config_path = self.index_dir / "config.json"
+            config_bytes = config_path.read_bytes() if config_path.exists() else None
             self.index = search.FastPlaid(index=str(self.index_dir))
             self.index.create(
                 documents_embeddings=train_embs.detach(),
@@ -94,6 +99,8 @@ class PlaidIndexer(Indexer):
                 n_samples_kmeans=num_train,
                 seed=self.index_config.seed,
             )
+            if config_bytes is not None and not config_path.exists():
+                config_path.write_bytes(config_bytes)
 
             if length < n:
                 self.index.update(documents_embeddings=doc_embeddings.embeddings[length:].detach())
@@ -115,11 +122,11 @@ class PlaidIndexer(Indexer):
                 f"expected {num_train}, got {self._num_buffered}. Index will be created with fewer embeddings."
             )
         train_embs = self._train_embeddings
-        if hasattr(train_embs, "any") and hasattr(train_embs, "shape"):
-            if torch.isnan(train_embs).any():
-                mask = ~torch.isnan(train_embs).any(dim=tuple(range(1, train_embs.ndim)))
-                train_embs = train_embs[mask]
+
+        config_path = self.index_dir / "config.json"
+        config_bytes = config_path.read_bytes() if config_path.exists() else None
         self.index = search.FastPlaid(index=str(self.index_dir))
+
         self.index.create(
             documents_embeddings=train_embs.detach().cpu(),
             kmeans_niters=self.index_config.k_means_iters,
@@ -127,6 +134,9 @@ class PlaidIndexer(Indexer):
             n_samples_kmeans=num_train,
             seed=self.index_config.seed,
         )
+
+        if config_bytes is not None and not config_path.exists():
+            config_path.write_bytes(config_bytes)
         self._train_embeddings = None
 
     def save(self) -> None:
