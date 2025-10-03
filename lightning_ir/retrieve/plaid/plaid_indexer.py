@@ -123,6 +123,11 @@ class PlaidIndexer(Indexer):
             )
         train_embs = self._train_embeddings
 
+        if hasattr(train_embs, "any") and hasattr(train_embs, "shape"):
+            if torch.isnan(train_embs).any():
+                mask = ~torch.isnan(train_embs).any(dim=tuple(range(1, train_embs.ndim)))
+                train_embs = train_embs[mask]
+
         config_path = self.index_dir / "config.json"
         config_bytes = config_path.read_bytes() if config_path.exists() else None
         self.index = search.FastPlaid(index=str(self.index_dir))
