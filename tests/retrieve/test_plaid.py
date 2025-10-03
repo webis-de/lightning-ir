@@ -9,7 +9,7 @@ from lightning_ir.retrieve.plaid.plaid_searcher import PlaidSearchConfig, PlaidS
 from tests.conftest import CORPUS_DIR, DATA_DIR
 
 
-def test_plaid_fastplaid():
+def test_plaid():
     query = "What is the capital of France?"
     module = BiEncoderModule(model_name_or_path="colbert-ir/colbertv2.0")
     index_config = PlaidIndexConfig(
@@ -33,11 +33,11 @@ def test_plaid_fastplaid():
     documents_ids = list(documents_ids)
     documents = list(documents)
 
-    output = lightning_index.module(IndexBatch(docs=documents, doc_ids=documents_ids))
+    doc_output = lightning_index.module(IndexBatch(docs=documents, doc_ids=documents_ids))
 
     lightning_index.add(
         IndexBatch(docs=documents, doc_ids=documents_ids),
-        output,
+        doc_output,
     )
     lightning_index.finalize()
 
@@ -48,9 +48,9 @@ def test_plaid_fastplaid():
         use_gpu=torch.cuda.is_available(),
     )
 
-    output = lightning_index.module(SearchBatch(queries=[query], query_ids=["q1"]))
+    query_output = lightning_index.module(SearchBatch(queries=[query], query_ids=["q1"]))
 
-    scores = lightning_searcher.search(output)
+    scores = lightning_searcher.search(query_output)
 
     assert scores is not None
 
