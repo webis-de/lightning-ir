@@ -9,22 +9,23 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  run-tests:
+  run-model-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.13"]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
       - name: Install self
         working-directory: ${{github.workspace}}
         run: |
-          # Since splade makes problems otherwise:
-          pip3 install "splade@git+https://github.com/naver/splade.git" pylate --no-deps
           pip3 install .[test,dev]
           pip3 cache purge
-      - name: Run tests
+      - name: Run model tests
         working-directory: ${{github.workspace}}
-        run: pytest --ignore-models tests
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        if: ${{matrix.python-version}} == "3.13" # only run once
+        run: pytest --remove-hf-models tests/test_models

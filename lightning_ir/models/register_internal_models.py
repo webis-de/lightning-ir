@@ -1,8 +1,8 @@
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-from .bi_encoder import BiEncoderConfig, BiEncoderTokenizer
-from .cross_encoder import CrossEncoderConfig, CrossEncoderTokenizer
-from .models import (
+from ..bi_encoder import BiEncoderConfig, BiEncoderTokenizer
+from ..cross_encoder import CrossEncoderConfig, CrossEncoderTokenizer
+from . import (
     CoilConfig,
     CoilModel,
     ColConfig,
@@ -20,6 +20,7 @@ from .models import (
     SetEncoderTokenizer,
     SpladeConfig,
     SpladeModel,
+    SpladeTokenizer,
 )
 
 
@@ -46,4 +47,4 @@ def _register_internal_models():
     AutoTokenizer.register(SetEncoderConfig, SetEncoderTokenizer)
     AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
     AutoModel.register(SpladeConfig, SpladeModel)
-    AutoTokenizer.register(SpladeConfig, BiEncoderTokenizer)
+    AutoTokenizer.register(SpladeConfig, SpladeTokenizer)

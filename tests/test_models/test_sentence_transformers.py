@@ -11,7 +11,7 @@ from lightning_ir import BiEncoderModule
         "sentence-transformers/msmarco-bert-base-dot-v5",
         "sentence-transformers/msmarco-MiniLM-L-6-v3",
     ],
-    ids=["bert", "minilm"],
+    indirect=True,
 )
 def test_same_as_sentence_transformer(hf_model: str):
     query = "This is an example query"

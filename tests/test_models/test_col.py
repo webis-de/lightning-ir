@@ -65,14 +65,15 @@ def test_same_as_modern_colbert(hf_model: str):
     doc_embedding = output.doc_embeddings
 
     orig_model = models.ColBERT(model_name_or_path=hf_model)
-    orig_model.do_query_expansion = True
     orig_query = orig_model.encode([query], is_query=True)
     orig_docs = orig_model.encode([documents], is_query=False)
     orig_scores = rank.rerank(
         queries_embeddings=orig_query, documents_embeddings=orig_docs, documents_ids=[list(range(len(documents)))]
     )
 
-    assert torch.allclose(query_embedding.embeddings, torch.tensor(orig_query[0]), atol=1e-6)
+    assert torch.allclose(
+        query_embedding.embeddings[query_embedding.scoring_mask], torch.tensor(orig_query[0]), atol=1e-6
+    )
     assert torch.allclose(
         doc_embedding.embeddings[doc_embedding.scoring_mask],
         torch.cat([torch.from_numpy(d) for doc in orig_docs for d in doc]),
