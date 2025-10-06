@@ -20,7 +20,31 @@ from lightning_ir import (
     RunDataset,
 )
 from lightning_ir.data.external_datasets.ir_datasets_utils import register_new_dataset
-from lightning_ir.models import CoilConfig, ColConfig, DprConfig, MonoConfig, MvrConfig, SetEncoderConfig, SpladeConfig
+from lightning_ir.models import (
+    CoilConfig,
+    ColConfig,
+    DprConfig,
+    MonoConfig,
+    MvrConfig,
+    SetEncoderConfig,
+    SpladeConfig,
+)
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--remove-hf-models",
+        action="store_true",
+        default=False,
+        help="remove Hugging Face models after tests",
+    )
+    parser.addoption(
+        "--ignore-models",
+        action="store_true",
+        default=False,
+        help="run tests that require downloading models from Hugging Face",
+    )
+
 
 DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
@@ -51,15 +75,6 @@ def inference_datasets() -> List[RunDataset]:
         for run_path in ["run.jsonl", "lightning-ir.tsv"]
     ]
     return inference_datasets
-
-
-def pytest_addoption(parser):
-    parser.addoption(
-        "--remove-hf-models",
-        action="store_true",
-        default=False,
-        help="remove Hugging Face models after tests",
-    )
 
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -197,6 +212,8 @@ def doc_datamodule() -> LightningIRDataModule:
 
 @pytest.fixture()
 def hf_model(request: SubRequest) -> Generator[str, None, None]:
+    if request.config.getoption("--ignore-models"):
+        pytest.skip("Skipping tests that require downloading models")
     model_id = request.param
     yield model_id
     if request.config.getoption("--remove-hf-models"):
