@@ -91,7 +91,7 @@ def _register_external_models():
                 doc_length=296,
                 add_marker_tokens=True,
                 normalization="l2",
-                query_expansion=True,
+                query_expansion=False,
                 projection="linear_no_bias",
                 doc_mask_scoring_tokens="punctuation",
             ),
