@@ -8,7 +8,12 @@ from typing import Literal, Sequence
 import torch
 from transformers import BatchEncoding
 
-from ...bi_encoder import BiEncoderEmbedding, BiEncoderOutput, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
+from ...bi_encoder import (
+    BiEncoderEmbedding,
+    BiEncoderOutput,
+    MultiVectorBiEncoderConfig,
+    MultiVectorBiEncoderModel,
+)
 
 
 @dataclass
@@ -44,7 +49,7 @@ class CoilConfig(MultiVectorBiEncoderConfig):
         query_length: int = 32,
         doc_length: int = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalize: bool = False,
+        normalization: Literal["l2"] | None = None,
         add_marker_tokens: bool = False,
         token_embedding_dim: int = 32,
         cls_embedding_dim: int = 768,
@@ -59,7 +64,7 @@ class CoilConfig(MultiVectorBiEncoderConfig):
             doc_length (int, optional): Maximum document length in number of tokens. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalize (bool): Whether to normalize query and document embeddings. Defaults to False.
+            normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
             add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             token_embedding_dim (int, optional): The output embedding dimension for tokens. Defaults to 32.
@@ -71,7 +76,7 @@ class CoilConfig(MultiVectorBiEncoderConfig):
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
-            normalize=normalize,
+            normalization=normalization,
             add_marker_tokens=add_marker_tokens,
             **kwargs,
         )
@@ -119,7 +124,7 @@ class CoilModel(MultiVectorBiEncoderModel):
         cls_embeddings = self.cls_projection(embeddings[:, [0]])
         token_embeddings = self.token_projection(embeddings[:, 1:])
 
-        if self.config.normalize:
+        if self.config.normalization == "l2":
             cls_embeddings = torch.nn.functional.normalize(cls_embeddings, dim=-1)
             token_embeddings = torch.nn.functional.normalize(token_embeddings, dim=-1)
 
