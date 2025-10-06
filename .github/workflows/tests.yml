@@ -21,8 +21,8 @@ jobs:
       - name: Install self
         working-directory: ${{github.workspace}}
         run: |
-          # Since splade makes problems otherwise:
-          pip3 install "splade@git+https://github.com/naver/splade.git" pylate --no-deps
+          # Since pylate makes problems otherwise:
+          pip3 install pylate --no-deps
           pip3 install .[test,dev]
           pip3 cache purge
       - name: Run tests
