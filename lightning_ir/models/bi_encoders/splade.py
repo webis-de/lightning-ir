@@ -234,7 +234,7 @@ class SpladeTokenizer(BiEncoderTokenizer):
         super().__init__(
             *args, query_length=query_length, doc_length=doc_length, add_marker_tokens=add_marker_tokens, **kwargs
         )
-        """Initializes a SPLADE model's tokenizer. Encodes queries and documents separately. Optionally adds 
+        """Initializes a SPLADE model's tokenizer. Encodes queries and documents separately. Optionally adds
         marker tokens to encoded input sequences.
 
         Args:
