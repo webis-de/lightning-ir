@@ -48,7 +48,7 @@ class CustomBiEncoderModel(BiEncoderModel):
             embeddings = self.projection(embeddings)
         embeddings = self._sparsification(embeddings, self.config.sparsification)
         embeddings = self._pooling(embeddings, encoding["attention_mask"], pooling_strategy)
-        if self.config.normalize:
+        if self.config.normalization == "l2":
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self.scoring_mask(
             encoding["input_ids"],
