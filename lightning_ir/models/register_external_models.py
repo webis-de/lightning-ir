@@ -4,8 +4,13 @@ import torch
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
-from ..base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from . import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
+from .base import (
+    CHECKPOINT_MAPPING,
+    POST_LOAD_CALLBACKS,
+    STATE_DICT_KEY_MAPPING,
+    LightningIRModel,
+)
+from .models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -77,7 +82,7 @@ def _register_external_models():
                 query_length=32,
                 doc_length=184,
                 add_marker_tokens=True,
-                normalize=True,
+                normalization="l2",
                 query_expansion=True,
                 doc_mask_scoring_tokens="punctuation",
             ),
@@ -85,7 +90,7 @@ def _register_external_models():
                 query_length=32,
                 doc_length=296,
                 add_marker_tokens=True,
-                normalize=True,
+                normalization="l2",
                 query_expansion=True,
                 projection="linear_no_bias",
                 doc_mask_scoring_tokens="punctuation",

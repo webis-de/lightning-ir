@@ -157,4 +157,4 @@ class ParquetScoredDocs(BaseScoredDocs):
 
     def scoreddocs_iter(self):
         for d in parquet_iter(self._scoreddocs_dlc.path()):
-            yield GenericScoredDoc(d["query-id"], d["corpus-id"], 1)
+            yield GenericScoredDoc(str(d["qid"]), str(d["docno"]), float(d["score"]))
