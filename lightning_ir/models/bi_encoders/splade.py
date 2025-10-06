@@ -12,9 +12,9 @@ from transformers import BatchEncoding
 
 from ...bi_encoder import BiEncoderEmbedding, SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel
 from ...modeling_utils.mlm_head import (
-    MODEL_TYPE_TO_KEY_MAPPING,
     MODEL_TYPE_TO_LM_HEAD,
     MODEL_TYPE_TO_OUTPUT_EMBEDDINGS,
+    MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING,
     MODEL_TYPE_TO_TIED_WEIGHTS_KEYS,
 )
 
@@ -144,8 +144,8 @@ class SpladeModel(SingleVectorBiEncoderModel):
         config = cls.config_class
         # map mlm projection keys
         model_type = config.backbone_model_type or config.model_type
-        if model_type in MODEL_TYPE_TO_KEY_MAPPING:
-            key_mapping.update(MODEL_TYPE_TO_KEY_MAPPING[model_type])
+        if model_type in MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING:
+            key_mapping.update(MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING[model_type])
         if not key_mapping:
             warnings.warn(
                 f"No mlm key mappings for model_type {model_type} were provided. "

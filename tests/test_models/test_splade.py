@@ -6,7 +6,7 @@ from splade.models.models_utils import get_model
 from lightning_ir import BiEncoderModule
 
 
-@pytest.mark.parametrize("hf_model", ["naver/splade-v3"], indirect=True)
+@pytest.mark.parametrize("hf_model", ["naver/splade-v3", "naver/splade-v3-distilbert"], indirect=True)
 def test_same_as_splade(hf_model: str):
     query = "What is the capital of France?"
     documents = [

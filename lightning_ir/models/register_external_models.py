@@ -91,6 +91,7 @@ def _register_external_models():
                 doc_mask_scoring_tokens="punctuation",
             ),
             "naver/splade-v3": SpladeConfig(),
+            "naver/splade-v3-distilbert": SpladeConfig(),
             "sentence-transformers/msmarco-bert-base-dot-v5": DprConfig(
                 projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
             ),
