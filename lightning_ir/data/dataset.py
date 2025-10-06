@@ -491,14 +491,7 @@ class RunDataset(IRDataset, Dataset):
 
     @staticmethod
     def _load_parquet(path: Path) -> pd.DataFrame:
-        return pd.read_parquet(path).rename(
-            {
-                "qid": "query_id",
-                "docid": "doc_id",
-                "docno": "doc_id",
-            },
-            axis=1,
-        )
+        return pd.read_parquet(path)
 
     @staticmethod
     def _load_json(path: Path) -> pd.DataFrame:
@@ -506,17 +499,7 @@ class RunDataset(IRDataset, Dataset):
         if ".jsonl" in path.suffixes:
             kwargs["lines"] = True
             kwargs["orient"] = "records"
-        run = pd.read_json(
-            path,
-            **kwargs,
-            dtype={
-                "query_id": str,
-                "qid": str,
-                "doc_id": str,
-                "docid": str,
-                "docno": str,
-            },
-        )
+        run = pd.read_json(path, **kwargs)
         return run
 
     def _get_run_path(self) -> Path | None:
@@ -543,7 +526,7 @@ class RunDataset(IRDataset, Dataset):
             run = run.drop("text", axis=1)
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]
-        dtypes = {"rank": np.int32}
+        dtypes = {"rank": np.int32, "query_id": str, "doc_id": str}
         if "score" in run.columns:
             dtypes["score"] = np.float32
         run = run.astype(dtypes)
