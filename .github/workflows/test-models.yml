@@ -28,4 +28,4 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         if: ${{matrix.python-version}} == "3.13" # only run once
-        run: pytest --remove-hf-models tests
+        run: pytest --remove-hf-models tests/test_models
