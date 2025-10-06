@@ -4,8 +4,8 @@ import torch
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
-from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from .models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
+from ..base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
+from . import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:

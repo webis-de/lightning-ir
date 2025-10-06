@@ -1,8 +1,8 @@
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
-from .bi_encoder import BiEncoderConfig, BiEncoderTokenizer
-from .cross_encoder import CrossEncoderConfig, CrossEncoderTokenizer
-from .models import (
+from ..bi_encoder import BiEncoderConfig, BiEncoderTokenizer
+from ..cross_encoder import CrossEncoderConfig, CrossEncoderTokenizer
+from . import (
     CoilConfig,
     CoilModel,
     ColConfig,
