@@ -20,6 +20,7 @@ from . import (
     SetEncoderTokenizer,
     SpladeConfig,
     SpladeModel,
+    SpladeTokenizer,
 )
 
 
@@ -46,4 +47,4 @@ def _register_internal_models():
     AutoTokenizer.register(SetEncoderConfig, SetEncoderTokenizer)
     AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
     AutoModel.register(SpladeConfig, SpladeModel)
-    AutoTokenizer.register(SpladeConfig, BiEncoderTokenizer)
+    AutoTokenizer.register(SpladeConfig, SpladeTokenizer)

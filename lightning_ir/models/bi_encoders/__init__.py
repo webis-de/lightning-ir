@@ -8,7 +8,7 @@ from .coil import CoilConfig, CoilEmbedding, CoilModel
 from .col import ColConfig, ColModel, ColTokenizer
 from .dpr import DprConfig, DprModel
 from .mvr import MvrConfig, MvrModel, MvrTokenizer
-from .splade import SpladeConfig, SpladeModel
+from .splade import SpladeConfig, SpladeModel, SpladeTokenizer
 
 __all__ = [
     "CoilConfig",
@@ -24,4 +24,5 @@ __all__ = [
     "MvrTokenizer",
     "SpladeConfig",
     "SpladeModel",
+    "SpladeTokenizer",
 ]

@@ -4,13 +4,13 @@ import torch
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
-from .base import (
+from ..base import (
     CHECKPOINT_MAPPING,
     POST_LOAD_CALLBACKS,
     STATE_DICT_KEY_MAPPING,
     LightningIRModel,
 )
-from .models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
+from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -97,6 +97,8 @@ def _register_external_models():
             ),
             "naver/splade-v3": SpladeConfig(),
             "naver/splade-v3-distilbert": SpladeConfig(),
+            "naver/splade-v3-doc": SpladeConfig(query_expansion=False, query_weighting=False),
+            "naver/splade-v3-lexical": SpladeConfig(query_expansion=False),
             "sentence-transformers/msmarco-bert-base-dot-v5": DprConfig(
                 projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
             ),
