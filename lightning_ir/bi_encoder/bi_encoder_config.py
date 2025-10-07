@@ -21,7 +21,7 @@ class BiEncoderConfig(LightningIRConfig):
         doc_length: int = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         normalization: Literal["l2"] | None = None,
-        sparsification: Literal["relu", "relu_log"] | None = None,
+        sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = None,
         add_marker_tokens: bool = False,
         **kwargs,
     ):
@@ -35,8 +35,8 @@ class BiEncoderConfig(LightningIRConfig):
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
-            sparsification (Literal['relu', 'relu_log'] | None): Whether and which sparsification function to apply.
-                Defaults to None.
+            sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
+                function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
         """
@@ -73,7 +73,7 @@ class SingleVectorBiEncoderConfig(BiEncoderConfig):
         doc_length: int = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         normalization: Literal["l2"] | None = None,
-        sparsification: Literal["relu", "relu_log"] | None = None,
+        sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = None,
         add_marker_tokens: bool = False,
         query_pooling_strategy: Literal["first", "mean", "max", "sum"] = "mean",
         doc_pooling_strategy: Literal["first", "mean", "max", "sum"] = "mean",
@@ -88,8 +88,8 @@ class SingleVectorBiEncoderConfig(BiEncoderConfig):
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
-            sparsification (Literal['relu', 'relu_log'] | None): Whether and which sparsification function to apply.
-                Defaults to None.
+            sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
+                function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             query_pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | str): How to pool the query
@@ -122,7 +122,7 @@ class MultiVectorBiEncoderConfig(BiEncoderConfig):
         doc_length: int = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         normalization: Literal["l2"] | None = None,
-        sparsification: None | Literal["relu", "relu_log"] = None,
+        sparsification: None | Literal["relu", "relu_log", "relu_2xlog"] = None,
         add_marker_tokens: bool = False,
         query_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
@@ -140,8 +140,8 @@ class MultiVectorBiEncoderConfig(BiEncoderConfig):
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
-            sparsification (Literal['relu', 'relu_log'] | None): Whether and which sparsification function to apply.
-                Defaults to None.
+            sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
+                function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             query_mask_scoring_tokens (Sequence[str] | Literal['punctuation'] | None): Whether and which query tokens

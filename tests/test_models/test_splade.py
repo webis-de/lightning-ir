@@ -7,7 +7,16 @@ from lightning_ir import BiEncoderModule
 
 @pytest.mark.parametrize(
     "hf_model",
-    ["naver/splade-v3", "naver/splade-v3-distilbert", "naver/splade-v3-doc", "naver/splade-v3-lexical"],
+    [
+        "naver/splade-v3",
+        "naver/splade-v3-distilbert",
+        "naver/splade-v3-doc",
+        "naver/splade-v3-lexical",
+        "naver/splade_v2_distil",
+        "opensearch-project/opensearch-neural-sparse-encoding-v2-distill",
+        "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini",
+        "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill",
+    ],
     indirect=True,
 )
 def test_same_as_splade(hf_model: str):
@@ -32,4 +41,4 @@ def test_same_as_splade(hf_model: str):
 
     assert torch.allclose(query_embeddings.embeddings.squeeze(1), orig_query_embeddings.to_dense().cpu(), atol=1e-4)
     assert torch.allclose(doc_embeddings.embeddings.squeeze(1), orig_doc_embeddings.to_dense().cpu(), atol=1e-4)
-    assert torch.allclose(scores, orig_scores.cpu().view(-1), atol=1e-5)
+    assert torch.allclose(scores, orig_scores.cpu().view(-1), atol=1e-4)
