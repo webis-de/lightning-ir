@@ -20,15 +20,7 @@ from lightning_ir import (
     RunDataset,
 )
 from lightning_ir.data.external_datasets.ir_datasets_utils import register_new_dataset
-from lightning_ir.models import (
-    CoilConfig,
-    ColConfig,
-    DprConfig,
-    MonoConfig,
-    MvrConfig,
-    SetEncoderConfig,
-    SpladeConfig,
-)
+from lightning_ir.models import CoilConfig, ColConfig, DprConfig, MonoConfig, MvrConfig, SetEncoderConfig, SpladeConfig
 
 
 def pytest_addoption(parser):
@@ -218,4 +210,4 @@ def hf_model(request: SubRequest) -> Generator[str, None, None]:
     yield model_id
     if request.config.getoption("--remove-hf-models"):
         hf_cache = os.environ.get("HF_HOME", os.path.join(Path.home(), ".cache/huggingface"))
-        shutil.rmtree(hf_cache)
+        shutil.rmtree(hf_cache, ignore_errors=True)
