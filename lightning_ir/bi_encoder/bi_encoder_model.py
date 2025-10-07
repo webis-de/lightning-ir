@@ -367,8 +367,8 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
         if aggregation_function == "max":
             scores = scores.masked_fill(~mask, float("-inf"))
             return scores.amax(dim, keepdim=True)
+        scores = scores.masked_fill(~mask, 0)
         if aggregation_function == "sum":
-            scores = scores.masked_fill(~mask, 0)
             return scores.sum(dim, keepdim=True)
         num_non_masked = mask.sum(dim, keepdim=True)
         if aggregation_function == "mean":
