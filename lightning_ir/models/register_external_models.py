@@ -4,13 +4,8 @@ import torch
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
-from ..base import (
-    CHECKPOINT_MAPPING,
-    POST_LOAD_CALLBACKS,
-    STATE_DICT_KEY_MAPPING,
-    LightningIRModel,
-)
-from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
+from ..base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
+from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig, UniCoilConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -71,6 +66,15 @@ def _map_coil_weights(model: LightningIRModel) -> LightningIRModel:
     return model
 
 
+# def _map_unicoil_weights(model: LightningIRModel) -> LightningIRModel:
+#     path = hf_hub_download(model.config.name_or_path, filename="model.pt")
+#     state_dict = torch.load(path, map_location="cpu")
+#     state_dict["token_projection.weight"] = state_dict.pop("tok_proj.weight")
+#     state_dict["token_projection.bias"] = state_dict.pop("tok_proj.bias")
+#     model.load_state_dict(state_dict, strict=False)
+#     return model
+
+
 MONO_T5_PATTERN = "Query: {query} Document: {doc} Relevant:"
 RANK_T5_PATTERN = "Query: {query} Document: {doc}"
 
@@ -126,6 +130,7 @@ def _register_external_models():
                 scoring_strategy="mono", linear_bias=True, pooling_strategy="bert_pool"
             ),
             "fschlatt/coil-with-hn": CoilConfig(),
+            "castorini/unicoil-noexp-msmarco-passage": UniCoilConfig(projection="linear"),
         }
     )
     STATE_DICT_KEY_MAPPING.update(
@@ -142,6 +147,10 @@ def _register_external_models():
                 ("classifier.bias", "bert.linear.bias"),
                 ("bert.pooler.dense.weight", "bert.bert_pool.0.weight"),
                 ("bert.pooler.dense.bias", "bert.bert_pool.0.bias"),
+            ],
+            "castorini/unicoil-noexp-msmarco-passage": [
+                ("coil_encoder.bert.", ""),
+                ("coil_encoder.tok_proj", "token_projection"),
             ],
         }
     )

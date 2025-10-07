@@ -19,14 +19,10 @@ from .bi_encoders import (
     SpladeConfig,
     SpladeModel,
     SpladeTokenizer,
+    UniCoilConfig,
+    UniCoilModel,
 )
-from .cross_encoders import (
-    MonoConfig,
-    MonoModel,
-    SetEncoderConfig,
-    SetEncoderModel,
-    SetEncoderTokenizer,
-)
+from .cross_encoders import MonoConfig, MonoModel, SetEncoderConfig, SetEncoderModel, SetEncoderTokenizer
 
 __all__ = [
     "CoilConfig",
@@ -48,4 +44,6 @@ __all__ = [
     "SpladeConfig",
     "SpladeModel",
     "SpladeTokenizer",
+    "UniCoilConfig",
+    "UniCoilModel",
 ]
