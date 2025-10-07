@@ -69,7 +69,7 @@ Normalization normalizes the embedding vector(s). It can be either ``True`` or `
 Scoring
 -------
 
-After embedding both the query and document embeddings, the model computes a relevance score using a scoring function. First, the similarity (either ``dot`` product or ``cosine``) between all query and document embeddings vectors is computed. If pooling was applied, the query and document embeddings consist only of a single vector and their similarity is the final relevance score. If no pooling is applied, the similarity scores are aggregated. First, the scoring function computes the maximum similarity over all document embedding vectors per query embedding vector. Finally, the operator to aggregate over the maximum similarities per query embedding vector is parameterizable in the ``query_aggregation_function`` option. Four options are available: ``sum``, ``mean``, ``max``, and ``harmonic_mean``.
+After embedding both the query and document embeddings, the model computes a relevance score using a scoring function. First, the similarity (either ``dot`` product or ``cosine``) between all query and document embeddings vectors is computed. If pooling was applied, the query and document embeddings consist only of a single vector and their similarity is the final relevance score. If no pooling is applied, the similarity scores are aggregated. First, the scoring function computes the maximum similarity over all document embedding vectors per query embedding vector. Finally, the operator to aggregate over the maximum similarities per query embedding vector is parameterizable in the ``query_aggregation_function`` option. Three options are available: ``sum``, ``mean``, and ``max``.
 
 .. _cross-encoder:
 

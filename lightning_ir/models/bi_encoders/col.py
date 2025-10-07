@@ -9,12 +9,7 @@ from typing import Literal, Sequence
 import torch
 from transformers import BatchEncoding
 
-from ...bi_encoder import (
-    BiEncoderEmbedding,
-    BiEncoderTokenizer,
-    MultiVectorBiEncoderConfig,
-    MultiVectorBiEncoderModel,
-)
+from ...bi_encoder import BiEncoderEmbedding, BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
 
 
 class ColConfig(MultiVectorBiEncoderConfig):
@@ -32,8 +27,8 @@ class ColConfig(MultiVectorBiEncoderConfig):
         add_marker_tokens: bool = False,
         query_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
-        query_aggregation_function: Literal["sum", "mean", "max", "harmonic_mean"] = "sum",
-        doc_aggregation_function: Literal["sum", "mean", "max", "harmonic_mean"] = "max",
+        query_aggregation_function: Literal["sum", "mean", "max"] = "sum",
+        doc_aggregation_function: Literal["sum", "mean", "max"] = "max",
         embedding_dim: int = 128,
         projection: Literal["linear", "linear_no_bias"] = "linear",
         query_expansion: bool = False,
@@ -60,9 +55,9 @@ class ColConfig(MultiVectorBiEncoderConfig):
                 to ignore during scoring. Defaults to None.
             doc_mask_scoring_tokens (Sequence[str] | Literal["punctuation"] | None): Whether and which document tokens
                 to ignore during scoring. Defaults to None.
-            query_aggregation_function (Literal["sum", "mean", "max", "harmonic_mean"]): How to aggregate
+            query_aggregation_function (Literal["sum", "mean", "max"]): How to aggregate
                 similarity scores over query tokens. Defaults to "sum".
-            doc_aggregation_function (Literal["sum", "mean", "max", "harmonic_mean"]): How to aggregate
+            doc_aggregation_function (Literal["sum", "mean", "max"]): How to aggregate
                 similarity scores over document tokens. Defaults to "max".
             embedding_dim (int): The output embedding dimension. Defaults to 128.
             projection (Literal["linear", "linear_no_bias"]): Whether and how to project the output embeddings.
