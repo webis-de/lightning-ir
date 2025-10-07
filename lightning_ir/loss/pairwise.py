@@ -85,6 +85,14 @@ class RankNet(PairwiseLossFunction):
     <https://dl.acm.org/doi/10.1145/1102351.1102363>`_
     """
 
+    def __init__(self, temperature: float = 1) -> None:
+        super().__init__()
+        """Initialize the RankNet loss function.
+        Args:
+            temperature (float): Temperature parameter for scaling the scores.
+        """
+        self.temperature = temperature
+
     def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
         """Compute the RankNet loss.
 
@@ -94,7 +102,7 @@ class RankNet(PairwiseLossFunction):
         Returns:
             torch.Tensor: The computed loss.
         """
-        scores = self.process_scores(output)
+        scores = self.process_scores(output) * self.temperature
         targets = self.process_targets(scores, batch)
         query_idcs, pos_idcs, neg_idcs = self.get_pairwise_idcs(targets)
         pos = scores[query_idcs, pos_idcs]
