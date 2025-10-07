@@ -263,9 +263,9 @@ class SpladeTokenizer(BiEncoderTokenizer):
             doc_expansion (bool): Whether to expand documents with mask tokens. Defaults to False.
             attend_to_doc_expanded_tokens (bool): Whether to allow document tokens to attend to mask expanded document
                 tokens. Defaults to False.
-            query_weighting (Literal["contextualized", "static"]): Whether to apply weighting to query tokens. 
+            query_weighting (Literal["contextualized", "static"]): Whether to apply weighting to query tokens.
                 Defaults to "contextualized".
-            doc_weighting (Literal["contextualized", "static"]): Whether to apply weighting to document tokens. 
+            doc_weighting (Literal["contextualized", "static"]): Whether to apply weighting to document tokens.
                 Defaults to "contextualized".
         Raises:
             ValueError: If `add_marker_tokens` is True and a non-supported tokenizer is used.
