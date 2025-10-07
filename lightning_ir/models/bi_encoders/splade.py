@@ -35,12 +35,12 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
         query_length: int = 32,
         doc_length: int = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        sparsification: Literal["relu", "relu_log"] | None = "relu_log",
+        sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = "relu_log",
         query_pooling_strategy: Literal["first", "mean", "max", "sum"] = "max",
-        query_weighting: bool = True,
+        query_weighting: Literal["contextualized", "static"] | None = "contextualized",
         query_expansion: bool = True,
         doc_pooling_strategy: Literal["first", "mean", "max", "sum"] = "max",
-        doc_weighting: bool = True,
+        doc_weighting: Literal["contextualized", "static"] | None = "contextualized",
         doc_expansion: bool = True,
         **kwargs,
     ) -> None:
@@ -54,15 +54,17 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
             doc_length (int): Maximum document length. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            sparsification (Literal["relu", "relu_log"] | None): Sparsification function to apply.
-                Defaults to "relu_log".
-            query_weighting (bool): Whether to reweight query embeddings. Defaults to True.
+            sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
+                function to apply. Defaults to None.
+            query_weighting (Literal["contextualized", "static"] | None): Whether to reweight query embeddings.
+                Defaults to "contextualized".
             query_expansion (bool): Whether to allow query expansion. Defaults to True.
             query_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query embeddings.
                 Defaults to "max".
             doc_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for document embeddings.
                 Defaults to "max".
-            doc_weighting (bool): Whether to reweight document embeddings. Defaults to True.
+            doc_weighting (Literal["contextualized", "static"] | None): Whether to reweight document embeddings.
+                Defaults to "contextualized".
             doc_expansion (bool): Whether to allow document expansion. Defaults to True.
         """
         super().__init__(
@@ -117,6 +119,12 @@ class SpladeModel(SingleVectorBiEncoderModel):
             for key in MODEL_TYPE_TO_TIED_WEIGHTS_KEYS[config.backbone_model_type or config.model_type]
         ]
         setattr(self, "_tied_weights_keys", tied_weight_keys)
+        self.query_weights = None
+        if config.query_weighting == "static":
+            self.query_weights = torch.nn.Embedding(config.vocab_size, 1)
+        self.doc_weights = None
+        if config.doc_weighting == "static":
+            self.doc_weights = torch.nn.Embedding(config.vocab_size, 1)
 
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
@@ -131,16 +139,23 @@ class SpladeModel(SingleVectorBiEncoderModel):
         weighting = getattr(self.config, f"{input_type}_weighting")
         expansion = getattr(self.config, f"{input_type}_expansion")
         token_mask = None
-        if not weighting or not expansion:
+        if weighting is None or weighting == "static" or not expansion:
             token_mask = torch.zeros(
                 encoding["input_ids"].shape[0],
                 self.config.embedding_dim,
                 device=encoding["input_ids"].device,
                 dtype=torch.float32,
             )
-            token_mask.scatter_(1, encoding["input_ids"], encoding["attention_mask"].to(token_mask))
-            if not weighting:
+            if weighting == "static":
+                weights = getattr(self, f"{input_type}_weights")(encoding["input_ids"]).squeeze(-1)
+            else:
+                weights = encoding["attention_mask"].to(token_mask)
+            weights = weights.masked_fill(~(encoding["attention_mask"].bool()), 0.0)
+            token_mask = token_mask.scatter(1, encoding["input_ids"], weights)
+            if weighting is None or weighting == "static":
+                # inference free
                 return BiEncoderEmbedding(token_mask[:, None], None, encoding)
+
         embeddings = self._backbone_forward(**encoding).last_hidden_state
         embeddings = self.projection(embeddings)
         embeddings = self.sparsification(embeddings, self.config.sparsification)
@@ -227,8 +242,8 @@ class SpladeTokenizer(BiEncoderTokenizer):
         query_length: int = 32,
         doc_length: int = 512,
         add_marker_tokens: bool = False,
-        query_weighting: bool = True,
-        doc_weighting: bool = True,
+        query_weighting: Literal["contextualized", "static"] = "contextualized",
+        doc_weighting: Literal["contextualized", "static"] = "contextualized",
         **kwargs,
     ):
         super().__init__(
@@ -248,8 +263,10 @@ class SpladeTokenizer(BiEncoderTokenizer):
             doc_expansion (bool): Whether to expand documents with mask tokens. Defaults to False.
             attend_to_doc_expanded_tokens (bool): Whether to allow document tokens to attend to mask expanded document
                 tokens. Defaults to False.
-            query_weighting (bool): Whether to apply weighting to query tokens. Defaults to True.
-            doc_weighting (bool): Whether to apply weighting to document tokens. Defaults to True.
+            query_weighting (Literal["contextualized", "static"]): Whether to apply weighting to query tokens. 
+                Defaults to "contextualized".
+            doc_weighting (Literal["contextualized", "static"]): Whether to apply weighting to document tokens. 
+                Defaults to "contextualized".
         Raises:
             ValueError: If `add_marker_tokens` is True and a non-supported tokenizer is used.
         """
@@ -278,7 +295,8 @@ class SpladeTokenizer(BiEncoderTokenizer):
         """
         post_processer = getattr(self, f"{input_type}_post_processor")
         kwargs["max_length"] = getattr(self, f"{input_type}_length")
-        if not getattr(self, f"{input_type}_weighting"):
+        weighting = getattr(self, f"{input_type}_weighting")
+        if weighting is None or weighting == "static":
             kwargs["add_special_tokens"] = False
         if "padding" not in kwargs:
             kwargs["truncation"] = True

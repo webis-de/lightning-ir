@@ -66,13 +66,14 @@ def _map_coil_weights(model: LightningIRModel) -> LightningIRModel:
     return model
 
 
-# def _map_unicoil_weights(model: LightningIRModel) -> LightningIRModel:
-#     path = hf_hub_download(model.config.name_or_path, filename="model.pt")
-#     state_dict = torch.load(path, map_location="cpu")
-#     state_dict["token_projection.weight"] = state_dict.pop("tok_proj.weight")
-#     state_dict["token_projection.bias"] = state_dict.pop("tok_proj.bias")
-#     model.load_state_dict(state_dict, strict=False)
-#     return model
+def _map_opensearch_splade_weights(model: LightningIRModel) -> LightningIRModel:
+    path = hf_hub_download(
+        model.config.name_or_path, filename="model.safetensors", subfolder="query_0_SparseStaticEmbedding"
+    )
+    state_dict = load_file(path)
+    state_dict["weight"] = state_dict.pop("weight").unsqueeze(-1)
+    model.query_weights.load_state_dict(state_dict)
+    return model
 
 
 MONO_T5_PATTERN = "Query: {query} Document: {doc} Relevant:"
@@ -101,8 +102,17 @@ def _register_external_models():
             ),
             "naver/splade-v3": SpladeConfig(),
             "naver/splade-v3-distilbert": SpladeConfig(),
-            "naver/splade-v3-doc": SpladeConfig(query_expansion=False, query_weighting=False),
+            "naver/splade-v3-doc": SpladeConfig(query_expansion=False, query_weighting=None),
             "naver/splade-v3-lexical": SpladeConfig(query_expansion=False),
+            "naver/splade_v2_distil": SpladeConfig(),
+            "opensearch-project/opensearch-neural-sparse-encoding-v2-distill": SpladeConfig(),
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini": SpladeConfig(
+                query_expansion=False,
+                query_weighting="static",
+            ),
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill": SpladeConfig(
+                query_expansion=False, query_weighting="static", sparsification="relu_2xlog"
+            ),
             "sentence-transformers/msmarco-bert-base-dot-v5": DprConfig(
                 projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
             ),
@@ -168,5 +178,8 @@ def _register_external_models():
             "Soyoung97/RankT5-large": _map_rank_t5_weights,
             "Soyoung97/RankT5-3b": _map_rank_t5_weights,
             "fschlatt/coil-with-hn": _map_coil_weights,
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini": _map_opensearch_splade_weights,
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill": _map_opensearch_splade_weights,
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-gte": _map_opensearch_splade_weights,
         }
     )

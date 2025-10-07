@@ -102,13 +102,13 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         raise NotImplementedError
 
     def sparsification(
-        self, embeddings: torch.Tensor, sparsification_strategy: Literal["relu", "relu_log"] | None = None
+        self, embeddings: torch.Tensor, sparsification_strategy: Literal["relu", "relu_log", "relu_2xlog"] | None = None
     ) -> torch.Tensor:
         """Helper method to apply sparsification to the embeddings.
 
         Args:
             embeddings(torch.Tensor): Query or document embeddings
-            sparsification_strategy(Literal['relu', 'relu_log'] | None): The sparsification strategy. No
+            sparsification_strategy(Literal['relu', 'relu_log', 'relu_2xlog'] | None): The sparsification strategy. No
                 sparsification is applied if None. Defaults to None.
         Returns:
             torch.Tensor: (Optionally) sparsified embeddings.
@@ -121,6 +121,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             return torch.relu(embeddings)
         if sparsification_strategy == "relu_log":
             return torch.log1p(torch.relu(embeddings))
+        if sparsification_strategy == "relu_2xlog":
+            return torch.log1p(torch.log1p(torch.relu(embeddings)))
         raise ValueError(f"Unknown sparsification strategy: {sparsification_strategy}")
 
     def pooling(
