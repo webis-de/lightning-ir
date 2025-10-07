@@ -21,6 +21,8 @@ from . import (
     SpladeConfig,
     SpladeModel,
     SpladeTokenizer,
+    UniCoilConfig,
+    UniCoilModel,
 )
 
 
@@ -48,3 +50,6 @@ def _register_internal_models():
     AutoConfig.register(SpladeConfig.model_type, SpladeConfig)
     AutoModel.register(SpladeConfig, SpladeModel)
     AutoTokenizer.register(SpladeConfig, SpladeTokenizer)
+    AutoConfig.register(UniCoilConfig.model_type, UniCoilConfig)
+    AutoModel.register(UniCoilConfig, UniCoilModel)
+    AutoTokenizer.register(UniCoilConfig, BiEncoderTokenizer)
