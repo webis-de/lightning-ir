@@ -161,7 +161,7 @@ class SpladeModel(SingleVectorBiEncoderModel):
         embeddings = self.sparsification(embeddings, self.config.sparsification)
         embeddings = self.pooling(embeddings, encoding["attention_mask"], pooling_strategy)
         if token_mask is not None:
-            embeddings = embeddings * token_mask
+            embeddings = embeddings * token_mask[:, None]
         return BiEncoderEmbedding(embeddings, None, encoding)
 
     @classmethod
