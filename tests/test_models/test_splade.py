@@ -14,6 +14,7 @@ from lightning_ir import BiEncoderModule
         "naver/splade-v3-lexical",
         "naver/splade_v2_distil",
         "opensearch-project/opensearch-neural-sparse-encoding-v2-distill",
+        "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-distill",
         "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini",
         "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill",
     ],

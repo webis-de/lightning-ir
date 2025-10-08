@@ -106,6 +106,9 @@ def _register_external_models():
             "naver/splade-v3-lexical": SpladeConfig(query_expansion=False),
             "naver/splade_v2_distil": SpladeConfig(),
             "opensearch-project/opensearch-neural-sparse-encoding-v2-distill": SpladeConfig(),
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-distill": SpladeConfig(
+                query_expansion=False, query_weighting="static"
+            ),
             "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini": SpladeConfig(
                 query_expansion=False,
                 query_weighting="static",
@@ -178,8 +181,8 @@ def _register_external_models():
             "Soyoung97/RankT5-large": _map_rank_t5_weights,
             "Soyoung97/RankT5-3b": _map_rank_t5_weights,
             "fschlatt/coil-with-hn": _map_coil_weights,
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-distill": _map_opensearch_splade_weights,
             "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini": _map_opensearch_splade_weights,
             "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill": _map_opensearch_splade_weights,
-            "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-gte": _map_opensearch_splade_weights,
         }
     )
