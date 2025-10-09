@@ -47,7 +47,7 @@ class TorchDenseIndex:
         Returns:
             torch.Tensor: The scores for the embeddings.
         """
-        embeddings = embeddings.to(self.device)
+        embeddings = embeddings.to(self.index)
         similarity = self.similarity_function(embeddings, self.index)
         return similarity
 
