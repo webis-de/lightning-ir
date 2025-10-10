@@ -30,13 +30,8 @@ class PlaidSearcher(Searcher):
             module (BiEncoderModule): The BiEncoder module used for searching.
             use_gpu (bool): Whether to use GPU for searching. Defaults to False.
         """
-        # super().__init__(index_dir, search_config, module, use_gpu)
-        self.index_dir = index_dir
-        self.search_config = search_config
+        super().__init__(index_dir, search_config, module, use_gpu)
         self.search_config: PlaidSearchConfig
-        self.use_gpu = use_gpu
-        self.module = module
-        self.device = torch.device("cuda") if use_gpu and torch.cuda.is_available() else torch.device("cpu")
 
         self.load()
 
@@ -68,10 +63,17 @@ class PlaidSearcher(Searcher):
             queries_embeddings=output.query_embeddings.embeddings.detach(),
             top_k=self.search_config.k,
         )
+        all_doc_ids = []
+        all_scores = []
+        for result in scores:
+            doc_indices, doc_scores = zip(*result)
+            doc_ids = [self.doc_ids[idx] for idx in doc_indices]
+            all_doc_ids.append(doc_ids)
+            all_scores.append(list(doc_scores))
 
-        doc_ids, scores = zip(*scores[0])
-
-        return PackedTensor(torch.tensor(scores), lengths=[len([s]) for s in scores]), list(doc_ids)
+        lengths = [len(doc_scores) for doc_scores in all_scores]
+        flat_scores = [score for sublist in all_scores for score in sublist]
+        return PackedTensor(torch.tensor(flat_scores), lengths=lengths), all_doc_ids
 
 
 class PlaidSearchConfig(SearchConfig):
