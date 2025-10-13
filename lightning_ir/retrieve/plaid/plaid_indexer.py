@@ -1,20 +1,19 @@
-"""Plaid Indexer for Lightning IR Framework"""
+"""Plaid Indexer using fast-plaid library for Lightning IR Framework"""
 
 import warnings
-from array import array
 from pathlib import Path
 
 import torch
+from fast_plaid import search
 
 from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
 from ...models import ColConfig
 from ..base import IndexConfig, Indexer
-from .residual_codec import ResidualCodec
 
 
 class PlaidIndexer(Indexer):
-    """Indexer for Plaid, a residual-based indexing method for efficient retrieval."""
+    """Indexer for Plaid using fast-plaid library."""
 
     def __init__(
         self,
@@ -32,17 +31,10 @@ class PlaidIndexer(Indexer):
             verbose (bool): Whether to print verbose output during indexing. Defaults to False.
         """
         super().__init__(index_dir, index_config, module, verbose)
-
         self.index_config: PlaidIndexConfig
-
-        self._train_embeddings: torch.Tensor | None = torch.full(
-            (self.index_config.num_train_embeddings, self.module.config.embedding_dim),
-            torch.nan,
-            dtype=torch.float32,
-        )
-        self.residual_codec: ResidualCodec | None = None
-        self.codes = array("l")
-        self.residuals = array("B")
+        self.index = None
+        self._train_embeddings = None
+        self._num_buffered = 0
 
     def add(self, index_batch: IndexBatch, output: BiEncoderOutput) -> None:
         """Add embeddings from the index batch to the Plaid index.
@@ -52,11 +44,13 @@ class PlaidIndexer(Indexer):
             output (BiEncoderOutput): Output from the BiEncoder module containing embeddings.
         Raises:
             ValueError: If the output does not contain document embeddings.
-            ValueError: If the residual codec is not trained.
         """
         doc_embeddings = output.doc_embeddings
-        if doc_embeddings is None:
+        if output.doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
+        # doc_embeddings = output.doc_embeddings.embeddings.detach()
+
+        num_train = self.index_config.num_train_embeddings
 
         if doc_embeddings.scoring_mask is None:
             doc_lengths = torch.ones(
@@ -67,14 +61,6 @@ class PlaidIndexer(Indexer):
             doc_lengths = doc_embeddings.scoring_mask.sum(dim=1)
             embeddings = doc_embeddings.embeddings[doc_embeddings.scoring_mask]
         doc_ids = index_batch.doc_ids
-        embeddings = self.process_embeddings(embeddings)
-
-        if embeddings.shape[0]:
-            if self.residual_codec is None:
-                raise ValueError("Residual codec not trained")
-            codes, residuals = self.residual_codec.compress(embeddings)
-            self.codes.extend(codes.numpy(force=True))
-            self.residuals.extend(residuals.view(-1).numpy(force=True))
 
         self.num_embeddings += embeddings.shape[0]
         self.num_docs += len(doc_ids)
@@ -82,64 +68,87 @@ class PlaidIndexer(Indexer):
         self.doc_lengths.extend(doc_lengths.int().cpu().tolist())
         self.doc_ids.extend(doc_ids)
 
-    def process_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
-        """Process embeddings before indexing.
+        if self.index is None:
+            if self._train_embeddings is None:
+                self._train_embeddings = embeddings.new_full(
+                    (num_train, doc_embeddings.embeddings.shape[1], doc_embeddings.embeddings.shape[2]), float("nan")
+                )
+                self._num_buffered = 0
 
-        Args:
-            embeddings (torch.Tensor): The embeddings to be processed.
-        Returns:
-            torch.Tensor: The processed embeddings.
-        """
-        embeddings = self._grab_train_embeddings(embeddings)
-        self._train()
-        return embeddings
-
-    def _grab_train_embeddings(self, embeddings: torch.Tensor) -> torch.Tensor:
-        if self._train_embeddings is not None:
-            # save training embeddings until num_train_embeddings is reached
-            # if num_train_embeddings overflows, save the remaining embeddings
-            start = self.num_embeddings
-            end = min(self.index_config.num_train_embeddings, start + embeddings.shape[0])
+            n = doc_embeddings.embeddings.shape[0]
+            start = self._num_buffered
+            end = min(num_train, start + n)
             length = end - start
-            self._train_embeddings[start:end] = embeddings[:length]
-            self.num_embeddings += length
-            embeddings = embeddings[length:]
-        return embeddings
+            self._train_embeddings[start:end] = doc_embeddings.embeddings[:length]
+            self._num_buffered += length
 
-    def _train(self, force: bool = False) -> None:
+            if self._num_buffered < num_train:
+                return
+
+            train_embs = self._train_embeddings
+            if torch.isnan(train_embs).any():
+                train_embs = train_embs[~torch.isnan(train_embs).any(dim=1)]
+
+            config_path = self.index_dir / "config.json"
+            config_bytes = config_path.read_bytes() if config_path.exists() else None
+            self.index = search.FastPlaid(index=str(self.index_dir))
+            self.index.create(
+                documents_embeddings=train_embs.detach(),
+                kmeans_niters=self.index_config.k_means_iters,
+                nbits=self.index_config.n_bits,
+                n_samples_kmeans=num_train,
+                seed=self.index_config.seed,
+            )
+            if config_bytes is not None and not config_path.exists():
+                config_path.write_bytes(config_bytes)
+
+            if length < n:
+                self.index.update(documents_embeddings=doc_embeddings.embeddings[length:].detach())
+            self._train_embeddings = None
+        else:
+            self.index.update(documents_embeddings=doc_embeddings.embeddings.detach())
+
+    def finalize(self):
+        """Finalize index creation with buffered embeddings if not enough were provided."""
+        if self.index is not None:
+            return
         if self._train_embeddings is None:
             return
-        if not force and self.num_embeddings < self.index_config.num_train_embeddings:
-            return
 
-        if torch.isnan(self._train_embeddings).any():
-            warnings.warn("Corpus contains less tokens/documents than num_train_embeddings. Removing NaN embeddings.")
-            self._train_embeddings = self._train_embeddings[~torch.isnan(self._train_embeddings).any(dim=1)]
+        num_train = self.index_config.num_train_embeddings
+        if self._num_buffered < num_train:
+            warnings.warn(
+                f"Not enough doc_embeddings provided for Plaid index creation: "
+                f"expected {num_train}, got {self._num_buffered}. Index will be created with fewer embeddings."
+            )
+        train_embs = self._train_embeddings
 
-        self.residual_codec = ResidualCodec.train(self.index_config, self._train_embeddings, self.verbose)
-        codes, residuals = self.residual_codec.compress(self._train_embeddings)
-        self.codes.extend(codes.numpy(force=True))
-        self.residuals.extend(residuals.view(-1).numpy(force=True))
+        if hasattr(train_embs, "any") and hasattr(train_embs, "shape"):
+            if torch.isnan(train_embs).any():
+                mask = ~torch.isnan(train_embs).any(dim=tuple(range(1, train_embs.ndim)))
+                train_embs = train_embs[mask]
 
+        config_path = self.index_dir / "config.json"
+        config_bytes = config_path.read_bytes() if config_path.exists() else None
+        self.index = search.FastPlaid(index=str(self.index_dir))
+
+        self.index.create(
+            documents_embeddings=train_embs.detach().cpu(),
+            kmeans_niters=self.index_config.k_means_iters,
+            nbits=self.index_config.n_bits,
+            n_samples_kmeans=num_train,
+            seed=self.index_config.seed,
+        )
+
+        if config_bytes is not None and not config_path.exists():
+            config_path.write_bytes(config_bytes)
         self._train_embeddings = None
 
     def save(self) -> None:
-        """Save the Plaid index to the specified directory.
-
-        Raises:
-            ValueError: If residual_codec is None.
-        """
-        if self.residual_codec is None:
-            self._train(force=True)
-        if self.residual_codec is None:
-            raise ValueError("No residual codec to save")
+        """Save the index configuration and document IDs to the index directory."""
         super().save()
-
-        codes = torch.frombuffer(self.codes, dtype=torch.long)
-        residuals = torch.frombuffer(self.residuals, dtype=torch.uint8)
-        torch.save(codes, self.index_dir / "codes.pt")
-        torch.save(residuals, self.index_dir / "residuals.pt")
-        self.residual_codec.save(self.index_dir)
+        if self.index is None:
+            self.finalize()
 
 
 class PlaidIndexConfig(IndexConfig):
