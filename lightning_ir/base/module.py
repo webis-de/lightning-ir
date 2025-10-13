@@ -189,7 +189,7 @@ class LightningIRModule(LightningModule):
         """Computes the losses for a training batch."""
         raise NotImplementedError
 
-    def training_step(self, batch: TrainBatch, batch_idx: int) -> torch.Tensor:
+    def training_step(self, batch: TrainBatch, batch_idx: int) -> Dict[str, Any]:
         """Handles the training step for the model.
 
         Args:
@@ -210,7 +210,7 @@ class LightningIRModule(LightningModule):
             self.log(loss_function.__class__.__name__, loss)
             total_loss = total_loss + loss * loss_weight
         self.log("loss", total_loss, prog_bar=True)
-        return total_loss
+        return {"loss": total_loss, "output": output}
 
     def validation_step(
         self, batch: TrainBatch | RankBatch | SearchBatch, batch_idx: int, dataloader_idx: int = 0
