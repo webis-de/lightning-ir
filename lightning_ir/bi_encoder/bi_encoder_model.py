@@ -359,27 +359,21 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
         self,
         scores: torch.Tensor,
         mask: torch.Tensor,
-        query_aggregation_function: Literal["max", "sum", "mean", "harmonic_mean"],
+        aggregation_function: Literal["max", "sum", "mean"],
         dim: int,
     ) -> torch.Tensor:
         """Helper function to aggregate similarity scores over query and document embeddings."""
         mask = self._expand_mask(scores.shape, mask, dim)
-        if query_aggregation_function == "max":
+        if aggregation_function == "max":
             scores = scores.masked_fill(~mask, float("-inf"))
             return scores.amax(dim, keepdim=True)
-        if query_aggregation_function == "sum":
-            scores = scores.masked_fill(~mask, 0)
+        scores = scores.masked_fill(~mask, 0)
+        if aggregation_function == "sum":
             return scores.sum(dim, keepdim=True)
         num_non_masked = mask.sum(dim, keepdim=True)
-        if query_aggregation_function == "mean":
-            return torch.where(num_non_masked == 0, 0, scores.sum(dim, keepdim=True) / num_non_masked)
-        if query_aggregation_function == "harmonic_mean":
-            return torch.where(
-                num_non_masked == 0,
-                0,
-                num_non_masked / (1 / scores).sum(dim, keepdim=True),
-            )
-        raise ValueError(f"Unknown aggregation {query_aggregation_function}")
+        if aggregation_function == "mean":
+            return scores.masked_fill(num_non_masked == 0, 0).sum(dim, keepdim=True) / num_non_masked.clamp(min=1)
+        raise ValueError(f"Unknown aggregation {aggregation_function}")
 
     def scoring_mask(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> torch.Tensor:
         """Computes a scoring mask for batched tokenized text sequences which is used in the scoring function to mask

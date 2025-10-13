@@ -8,7 +8,14 @@ from typing import Literal, Sequence
 import torch
 from transformers import BatchEncoding
 
-from ...bi_encoder import BiEncoderEmbedding, BiEncoderOutput, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
+from ...bi_encoder import (
+    BiEncoderEmbedding,
+    BiEncoderOutput,
+    MultiVectorBiEncoderConfig,
+    MultiVectorBiEncoderModel,
+    SingleVectorBiEncoderConfig,
+    SingleVectorBiEncoderModel,
+)
 
 
 @dataclass
@@ -44,7 +51,6 @@ class CoilConfig(MultiVectorBiEncoderConfig):
         query_length: int = 32,
         doc_length: int = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalize: bool = False,
         add_marker_tokens: bool = False,
         token_embedding_dim: int = 32,
         cls_embedding_dim: int = 768,
@@ -59,7 +65,6 @@ class CoilConfig(MultiVectorBiEncoderConfig):
             doc_length (int, optional): Maximum document length in number of tokens. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalize (bool): Whether to normalize query and document embeddings. Defaults to False.
             add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             token_embedding_dim (int, optional): The output embedding dimension for tokens. Defaults to 32.
@@ -71,7 +76,6 @@ class CoilConfig(MultiVectorBiEncoderConfig):
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
-            normalize=normalize,
             add_marker_tokens=add_marker_tokens,
             **kwargs,
         )
@@ -118,10 +122,6 @@ class CoilModel(MultiVectorBiEncoderModel):
 
         cls_embeddings = self.cls_projection(embeddings[:, [0]])
         token_embeddings = self.token_projection(embeddings[:, 1:])
-
-        if self.config.normalize:
-            cls_embeddings = torch.nn.functional.normalize(cls_embeddings, dim=-1)
-            token_embeddings = torch.nn.functional.normalize(token_embeddings, dim=-1)
 
         scoring_mask = self.scoring_mask(encoding, input_type)
         return CoilEmbedding(
@@ -183,3 +183,86 @@ class CoilModel(MultiVectorBiEncoderModel):
 
         output.scores = cls_scores + token_scores
         return output
+
+
+class UniCoilConfig(SingleVectorBiEncoderConfig):
+    """Configuration class for UniCOIL models."""
+
+    model_type = "unicoil"
+    """Model type for UniCOIL models."""
+
+    def __init__(
+        self,
+        query_length: int = 32,
+        doc_length: int = 512,
+        similarity_function: Literal["cosine", "dot"] = "dot",
+        projection: Literal["linear", "linear_no_bias"] = "linear",
+        **kwargs,
+    ) -> None:
+        """A UniCOIL model encodes queries and documents separately, and computes a similarity score using the maximum
+        similarity of token embeddings between query and document.
+
+        Args:
+            query_length (int, optional): Maximum query length in number of tokens. Defaults to 32.
+            doc_length (int, optional): Maximum document length in number of tokens. Defaults to 512.
+            similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
+                document embeddings. Defaults to "dot".
+            projection (Literal["linear", "linear_no_bias"], optional): Whether and how to project the embeddings.
+                Defaults to "linear".
+        """
+        super().__init__(
+            query_length=query_length,
+            doc_length=doc_length,
+            similarity_function=similarity_function,
+            **kwargs,
+        )
+        self.projection = projection
+
+    @property
+    def embedding_dim(self) -> int:
+        vocab_size = getattr(self, "vocab_size", None)
+        if vocab_size is None:
+            raise ValueError("Unable to determine embedding dimension.")
+        return vocab_size
+
+    @embedding_dim.setter
+    def embedding_dim(self, value: int) -> None:
+        pass
+
+
+class UniCoilModel(SingleVectorBiEncoderModel):
+    """Single-vector UniCOIL model. See :class:`.UniCoilConfig` for configuration options."""
+
+    config_class = UniCoilConfig
+    """Configuration class for UniCOIL models."""
+
+    def __init__(self, config: UniCoilConfig, *args, **kwargs) -> None:
+        """Initializes a UniCOIL model given a :class:`.UniCoilConfig` configuration.
+
+        Args:
+            config (UniCoilConfig): Configuration for the UniCOIL model.
+        """
+        super().__init__(config, *args, **kwargs)
+        self.config: UniCoilConfig
+        self.token_projection = torch.nn.Linear(
+            self.config.hidden_size, 1, bias="no_bias" not in self.config.projection
+        )
+
+    def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
+        """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
+
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+        Returns:
+            BiEncoderEmbedding: Embeddings and scoring mask.
+        """
+        contextualized_embeddings = self._backbone_forward(**encoding).last_hidden_state
+
+        token_weights = self.token_projection(contextualized_embeddings).squeeze(-1)
+        if encoding["attention_mask"] is not None:
+            token_weights = token_weights.masked_fill(~(encoding["attention_mask"].bool()), 0)
+        token_weights = torch.relu(token_weights)
+        embeddings = torch.zeros(encoding.input_ids.shape[0], self.config.vocab_size, device=token_weights.device)
+        embeddings = embeddings.scatter(1, encoding.input_ids, token_weights)
+        return BiEncoderEmbedding(embeddings[:, None], None, encoding)

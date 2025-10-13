@@ -10,7 +10,7 @@ model:
         query_expansion: true
         query_length: 32
         doc_length: 256
-        normalize: true
+        normalization: l2
         add_marker_tokens: true
         embedding_dim: 128
         projection: linear_no_bias

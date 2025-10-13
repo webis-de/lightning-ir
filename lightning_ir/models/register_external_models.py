@@ -4,8 +4,8 @@ import torch
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
-from .base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from .models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig
+from ..base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
+from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig, UniCoilConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -66,6 +66,16 @@ def _map_coil_weights(model: LightningIRModel) -> LightningIRModel:
     return model
 
 
+def _map_opensearch_splade_weights(model: LightningIRModel) -> LightningIRModel:
+    path = hf_hub_download(
+        model.config.name_or_path, filename="model.safetensors", subfolder="query_0_SparseStaticEmbedding"
+    )
+    state_dict = load_file(path)
+    state_dict["weight"] = state_dict.pop("weight").unsqueeze(-1)
+    model.query_weights.load_state_dict(state_dict)
+    return model
+
+
 MONO_T5_PATTERN = "Query: {query} Document: {doc} Relevant:"
 RANK_T5_PATTERN = "Query: {query} Document: {doc}"
 
@@ -77,7 +87,7 @@ def _register_external_models():
                 query_length=32,
                 doc_length=184,
                 add_marker_tokens=True,
-                normalize=True,
+                normalization="l2",
                 query_expansion=True,
                 doc_mask_scoring_tokens="punctuation",
             ),
@@ -85,12 +95,27 @@ def _register_external_models():
                 query_length=32,
                 doc_length=296,
                 add_marker_tokens=True,
-                normalize=True,
-                query_expansion=True,
+                normalization="l2",
+                query_expansion=False,
                 projection="linear_no_bias",
                 doc_mask_scoring_tokens="punctuation",
             ),
             "naver/splade-v3": SpladeConfig(),
+            "naver/splade-v3-distilbert": SpladeConfig(),
+            "naver/splade-v3-doc": SpladeConfig(query_expansion=False, query_weighting=None),
+            "naver/splade-v3-lexical": SpladeConfig(query_expansion=False),
+            "naver/splade_v2_distil": SpladeConfig(),
+            "opensearch-project/opensearch-neural-sparse-encoding-v2-distill": SpladeConfig(),
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-distill": SpladeConfig(
+                query_expansion=False, query_weighting="static"
+            ),
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini": SpladeConfig(
+                query_expansion=False,
+                query_weighting="static",
+            ),
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill": SpladeConfig(
+                query_expansion=False, query_weighting="static", sparsification="relu_2xlog"
+            ),
             "sentence-transformers/msmarco-bert-base-dot-v5": DprConfig(
                 projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
             ),
@@ -118,6 +143,7 @@ def _register_external_models():
                 scoring_strategy="mono", linear_bias=True, pooling_strategy="bert_pool"
             ),
             "fschlatt/coil-with-hn": CoilConfig(),
+            "castorini/unicoil-noexp-msmarco-passage": UniCoilConfig(projection="linear"),
         }
     )
     STATE_DICT_KEY_MAPPING.update(
@@ -135,6 +161,10 @@ def _register_external_models():
                 ("bert.pooler.dense.weight", "bert.bert_pool.0.weight"),
                 ("bert.pooler.dense.bias", "bert.bert_pool.0.bias"),
             ],
+            "castorini/unicoil-noexp-msmarco-passage": [
+                ("coil_encoder.bert.", ""),
+                ("coil_encoder.tok_proj", "token_projection"),
+            ],
         }
     )
     POST_LOAD_CALLBACKS.update(
@@ -151,5 +181,8 @@ def _register_external_models():
             "Soyoung97/RankT5-large": _map_rank_t5_weights,
             "Soyoung97/RankT5-3b": _map_rank_t5_weights,
             "fschlatt/coil-with-hn": _map_coil_weights,
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-distill": _map_opensearch_splade_weights,
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini": _map_opensearch_splade_weights,
+            "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill": _map_opensearch_splade_weights,
         }
     )

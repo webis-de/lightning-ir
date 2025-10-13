@@ -58,8 +58,8 @@ Next, we need to subclass the :py:class:`~lightning_ir.bi_encoder.bi_encoder_mod
                 embeddings = self.projection(embeddings)
             embeddings = self._sparsification(embeddings, self.config.sparsification)
             embeddings = self._pooling(embeddings, encoding["attention_mask"], pooling_strategy)
-            if self.config.normalize:
-                embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
+            if self.config.normalization == "l2":
+                embeddings = torch.nn.functional.normalization(embeddings, dim=-1)
             scoring_mask = self.scoring_mask(
                 encoding["input_ids"],
                 encoding["attention_mask"],

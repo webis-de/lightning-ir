@@ -14,6 +14,7 @@ import torch
 from transformers import BatchEncoding, BertModel, PreTrainedModel
 from transformers.modeling_outputs import ModelOutput
 
+from .adapter import LightningIRAdapterMixin
 from .class_factory import LightningIRModelClassFactory, _get_model_class
 from .config import LightningIRConfig
 from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
@@ -43,7 +44,7 @@ class LightningIROutput(ModelOutput):
     scores: torch.Tensor | None = None
 
 
-class LightningIRModel(PreTrainedModel):
+class LightningIRModel(LightningIRAdapterMixin, PreTrainedModel):
     """Base class for Lightning IR models. Derived classes implement the forward method for handling query
     and document embeddings. It acts as mixin for a transformers.PreTrainedModel_ backbone model.
 
@@ -74,6 +75,19 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
         self._sub_batch_size: int | None = None
 
+    def _initialize_adapters(self) -> None:
+        """Initialize adapters based on configuration."""
+        if not self.config.use_adapter:
+            return
+
+        # Enable adapters if configuration is provided
+        if self.config.adapter_config is not None:
+            self.init_adapters(self.config.adapter_config)
+
+        # Load adapter weights if path is provided
+        if self.config.pretrained_adapter_name_or_path is not None:
+            self.load_adapter(self.config.pretrained_adapter_name_or_path)
+
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
         :class:`~lightning_ir.base.class_factory.LightningIRModelClassFactory`.
@@ -88,13 +102,13 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         raise NotImplementedError
 
     def sparsification(
-        self, embeddings: torch.Tensor, sparsification_strategy: Literal["relu", "relu_log"] | None = None
+        self, embeddings: torch.Tensor, sparsification_strategy: Literal["relu", "relu_log", "relu_2xlog"] | None = None
     ) -> torch.Tensor:
         """Helper method to apply sparsification to the embeddings.
 
         Args:
             embeddings(torch.Tensor): Query or document embeddings
-            sparsification_strategy(Literal['relu', 'relu_log'] | None): The sparsification strategy. No
+            sparsification_strategy(Literal['relu', 'relu_log', 'relu_2xlog'] | None): The sparsification strategy. No
                 sparsification is applied if None. Defaults to None.
         Returns:
             torch.Tensor: (Optionally) sparsified embeddings.
@@ -107,6 +121,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             return torch.relu(embeddings)
         if sparsification_strategy == "relu_log":
             return torch.log1p(torch.relu(embeddings))
+        if sparsification_strategy == "relu_2xlog":
+            return torch.log1p(torch.log1p(torch.relu(embeddings)))
         raise ValueError(f"Unknown sparsification strategy: {sparsification_strategy}")
 
     def pooling(
@@ -130,7 +146,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         if pooling_strategy is None:
             return embeddings
         if pooling_strategy == "first":
-            return embeddings.index_select(1, torch.tensor(0, device=embeddings.device))
+            return embeddings.index_select(1, torch.tensor([0], device=embeddings.device))
         if pooling_strategy in ("sum", "mean"):
             if attention_mask is not None:
                 embeddings = embeddings * attention_mask.unsqueeze(-1)
@@ -212,6 +228,10 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         model = super().from_pretrained(model_name_or_path, *args, key_mapping=key_mapping, **kwargs)
         if model_name_or_path in POST_LOAD_CALLBACKS:
             model = POST_LOAD_CALLBACKS[str(model_name_or_path)](model)
+
+        # Initialize adapters after model is fully loaded
+        model._initialize_adapters()
+
         return model
 
 

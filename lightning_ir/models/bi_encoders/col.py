@@ -23,12 +23,12 @@ class ColConfig(MultiVectorBiEncoderConfig):
         query_length: int = 32,
         doc_length: int = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalize: bool = False,
+        normalization: Literal["l2"] | None = None,
         add_marker_tokens: bool = False,
         query_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
-        query_aggregation_function: Literal["sum", "mean", "max", "harmonic_mean"] = "sum",
-        doc_aggregation_function: Literal["sum", "mean", "max", "harmonic_mean"] = "max",
+        query_aggregation_function: Literal["sum", "mean", "max"] = "sum",
+        doc_aggregation_function: Literal["sum", "mean", "max"] = "max",
         embedding_dim: int = 128,
         projection: Literal["linear", "linear_no_bias"] = "linear",
         query_expansion: bool = False,
@@ -48,16 +48,16 @@ class ColConfig(MultiVectorBiEncoderConfig):
             doc_length (int): Maximum document length in number of tokens. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalize (bool): Whether to normalize query and document embeddings. Defaults to False.
+            normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
             add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             query_mask_scoring_tokens (Sequence[str] | Literal["punctuation"] | None): Whether and which query tokens
                 to ignore during scoring. Defaults to None.
             doc_mask_scoring_tokens (Sequence[str] | Literal["punctuation"] | None): Whether and which document tokens
                 to ignore during scoring. Defaults to None.
-            query_aggregation_function (Literal["sum", "mean", "max", "harmonic_mean"]): How to aggregate
+            query_aggregation_function (Literal["sum", "mean", "max"]): How to aggregate
                 similarity scores over query tokens. Defaults to "sum".
-            doc_aggregation_function (Literal["sum", "mean", "max", "harmonic_mean"]): How to aggregate
+            doc_aggregation_function (Literal["sum", "mean", "max"]): How to aggregate
                 similarity scores over document tokens. Defaults to "max".
             embedding_dim (int): The output embedding dimension. Defaults to 128.
             projection (Literal["linear", "linear_no_bias"]): Whether and how to project the output embeddings.
@@ -73,6 +73,7 @@ class ColConfig(MultiVectorBiEncoderConfig):
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
+            normalization=normalization,
             add_marker_tokens=add_marker_tokens,
             query_mask_scoring_tokens=query_mask_scoring_tokens,
             doc_mask_scoring_tokens=doc_mask_scoring_tokens,
@@ -86,8 +87,6 @@ class ColConfig(MultiVectorBiEncoderConfig):
         self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
         self.doc_expansion = doc_expansion
         self.attend_to_doc_expanded_tokens = attend_to_doc_expanded_tokens
-        self.normalize = normalize
-        self.add_marker_tokens = add_marker_tokens
 
 
 class ColModel(MultiVectorBiEncoderModel):
@@ -145,7 +144,7 @@ class ColModel(MultiVectorBiEncoderModel):
         """
         embeddings = self._backbone_forward(**encoding).last_hidden_state
         embeddings = self.projection(embeddings)
-        if self.config.normalize:
+        if self.config.normalization == "l2":
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self.scoring_mask(encoding, input_type)
         return BiEncoderEmbedding(embeddings, scoring_mask, encoding)
