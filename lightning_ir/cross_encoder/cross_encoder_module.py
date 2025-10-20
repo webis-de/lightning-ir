@@ -4,9 +4,10 @@ Module module for cross-encoder models.
 This module defines the Lightning IR module class used to implement cross-encoder models.
 """
 
-from typing import Any, List, Mapping, Sequence, Tuple
+from typing import Any, List, Mapping, Sequence, Tuple, Type
 
 import torch
+from transformers import PreTrainedModel
 
 from ..base.module import LightningIRModule
 from ..data import RankBatch, SearchBatch, TrainBatch
@@ -22,6 +23,7 @@ class CrossEncoderModule(LightningIRModule):
         model_name_or_path: str | None = None,
         config: CrossEncoderConfig | None = None,
         model: CrossEncoderModel | None = None,
+        BackboneModel: Type[PreTrainedModel] | None = None,
         loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
         model_kwargs: Mapping[str, Any] | None = None,
@@ -37,6 +39,8 @@ class CrossEncoderModule(LightningIRModule):
             config (CrossEncoderConfig | None): CrossEncoderConfig to apply when loading from backbone model.
                 Defaults to None.
             model (CrossEncoderModel | None): Already instantiated CrossEncoderModel. Defaults to None.
+            BackboneModel (Type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
+                instead of the default AutoModel. Defaults to None.
             loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
                 Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function.
                 Defaults to None.
@@ -45,7 +49,15 @@ class CrossEncoderModule(LightningIRModule):
             model_kwargs (Mapping[str, Any] | None): Additional keyword arguments to pass to `from_pretrained` when
                 loading a model. Defaults to None.
         """
-        super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics, model_kwargs)
+        super().__init__(
+            model_name_or_path=model_name_or_path,
+            config=config,
+            model=model,
+            BackboneModel=BackboneModel,
+            loss_functions=loss_functions,
+            evaluation_metrics=evaluation_metrics,
+            model_kwargs=model_kwargs,
+        )
         self.model: CrossEncoderModel
         self.config: CrossEncoderConfig
         self.tokenizer: CrossEncoderTokenizer
