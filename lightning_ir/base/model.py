@@ -162,7 +162,9 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         raise ValueError(f"Unknown pooling strategy: {pooling_strategy}")
 
     @classmethod
-    def from_pretrained(cls, model_name_or_path: str | Path, *args, **kwargs) -> Self:
+    def from_pretrained(
+        cls, model_name_or_path: str | Path, *args, BackboneModel: Type[PreTrainedModel] | None = None, **kwargs
+    ) -> Self:
         """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method to return a
         derived LightningIRModel. See :class:`LightningIRModelClassFactory` for more details.
 
@@ -182,6 +184,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
         Args:
             model_name_or_path (str | Path): Name or path of the pretrained model.
+            BackboneModel (Type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
+                instead of the default AutoModel. Defaults to None.
         Raises:
             ValueError: If called on the abstract class `LightningIRModel` and no config is passed.
         Returns:
@@ -205,10 +209,14 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
                 ConfigClass = type(LightningIRModelClassFactory.get_lightning_ir_config(model_name_or_path))
                 if ConfigClass is None:
                     raise ValueError("Pass a config to `from_pretrained`.")
-            backbone_config = LightningIRModelClassFactory.get_backbone_config(model_name_or_path).from_pretrained(
-                model_name_or_path
-            )
-            BackboneModel = _get_model_class(backbone_config)
+            if BackboneModel is None:
+                if model_name_or_path in BACKBONE_MAPPING:
+                    BackboneModel = BACKBONE_MAPPING[str(model_name_or_path)]
+                else:
+                    backbone_config = LightningIRModelClassFactory.get_backbone_config(model_name_or_path).from_pretrained(
+                        model_name_or_path
+                    )
+                    BackboneModel = _get_model_class(backbone_config)
             cls = LightningIRModelClassFactory(ConfigClass).from_backbone_class(BackboneModel)
             if config is not None:
                 if all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):

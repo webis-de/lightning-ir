@@ -7,10 +7,10 @@ This module defines the Lightning IR module class used to implement bi-encoder m
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Mapping, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, List, Mapping, Sequence, Tuple, Type
 
 import torch
-from transformers import BatchEncoding
+from transformers import BatchEncoding, PreTrainedModel
 
 from ..base import LightningIRModule, LightningIROutput
 from ..data import IndexBatch, RankBatch, SearchBatch, TrainBatch
@@ -30,6 +30,7 @@ class BiEncoderModule(LightningIRModule):
         model_name_or_path: str | None = None,
         config: BiEncoderConfig | None = None,
         model: BiEncoderModel | None = None,
+        BackboneModel: Type[PreTrainedModel] | None = None,
         loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
         index_dir: Path | None = None,
@@ -47,6 +48,8 @@ class BiEncoderModule(LightningIRModule):
             config (BiEncoderConfig | None): BiEncoderConfig to apply when loading from backbone model.
                 Defaults to None.
             model (BiEncoderModel | None): Already instantiated BiEncoderModel. Defaults to None.
+            BackboneModel (Type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
+                instead of the default AutoModel. Defaults to None.
             loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
                 Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function
                 Defaults to None.
@@ -57,7 +60,15 @@ class BiEncoderModule(LightningIRModule):
             model_kwargs (Mapping[str, Any] | None): Additional keyword arguments to pass to `from_pretrained`
                 when loading a model. Defaults to None.
         """
-        super().__init__(model_name_or_path, config, model, loss_functions, evaluation_metrics, model_kwargs)
+        super().__init__(
+            model_name_or_path=model_name_or_path,
+            config=config,
+            model=model,
+            BackboneModel=BackboneModel,
+            loss_functions=loss_functions,
+            evaluation_metrics=evaluation_metrics,
+            model_kwargs=model_kwargs,
+        )
         self.model: BiEncoderModel
         self.config: BiEncoderConfig
         self.tokenizer: BiEncoderTokenizer
