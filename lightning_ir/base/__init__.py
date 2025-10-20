@@ -18,6 +18,7 @@ from .module import LightningIRModule
 from .tokenizer import LightningIRTokenizer
 
 __all__ = [
+    "BACKBONE_MAPPING",
     "CHECKPOINT_MAPPING",
     "LightningIRClassFactory",
     "LightningIRConfigClassFactory",
