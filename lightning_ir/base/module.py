@@ -12,7 +12,7 @@ import pandas as pd
 import torch
 from lightning import LightningModule
 from lightning.pytorch.trainer.states import RunningStage
-from transformers import BatchEncoding
+from transformers import BatchEncoding, PreTrainedModel
 
 from ..data import IRDataset, RankBatch, RunDataset, SearchBatch, TrainBatch
 from ..loss import InBatchLossFunction, LossFunction
@@ -35,6 +35,7 @@ class LightningIRModule(LightningModule):
         model_name_or_path: str | None = None,
         config: LightningIRConfig | None = None,
         model: LightningIRModel | None = None,
+        BackboneModel: Type[PreTrainedModel] | None = None,
         loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
         model_kwargs: Mapping[str, Any] | None = None,
@@ -49,6 +50,8 @@ class LightningIRModule(LightningModule):
             config (LightningIRConfig | None): LightningIRConfig to apply when loading from backbone model.
                 Defaults to None.
             model (LightningIRModel | None): Already instantiated Lightning IR model. Defaults to None.
+            BackboneModel (Type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
+                instead of the default AutoModel. Defaults to None.
             loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
                 Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function
                 Defaults to None.
@@ -68,7 +71,9 @@ class LightningIRModule(LightningModule):
         if model is None:
             if model_name_or_path is None:
                 raise ValueError("Either model or model_name_or_path must be provided.")
-            model = LightningIRModel.from_pretrained(model_name_or_path, config=config, **model_kwargs)
+            model = LightningIRModel.from_pretrained(
+                model_name_or_path, config=config, BackboneModel=BackboneModel, **model_kwargs
+            )
 
         self.model: LightningIRModel = model
         self.config = self.model.config

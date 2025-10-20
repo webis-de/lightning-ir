@@ -5,6 +5,7 @@ This module contains mappings and callbacks for external model checkpoints used 
 
 Attributes:
     CHECKPOINT_MAPPING (Dict[str, LightningIRConfig]): Mapping of model checkpoint identifiers to their configurations.
+    BACKBONE_MAPPING (Dict[str, type]): Mapping of model checkpoint identifiers to their backbone model classes.
     STATE_DICT_KEY_MAPPING (Dict[str, List[Tuple[str | None, str]]]): Mapping of state dictionary keys for model
         checkpoints.
     POST_LOAD_CALLBACKS (Dict[str, Callable[[LightningIRModel], LightningIRModel]]): Callbacks to be executed after
@@ -20,5 +21,6 @@ if TYPE_CHECKING:
     from .model import LightningIRModel
 
 CHECKPOINT_MAPPING: Dict[str, LightningIRConfig] = {}
+BACKBONE_MAPPING: Dict[str, type] = {}
 STATE_DICT_KEY_MAPPING: Dict[str, List[Tuple[str | None, str]]] = {}
 POST_LOAD_CALLBACKS: Dict[str, Callable[[LightningIRModel], LightningIRModel]] = {}

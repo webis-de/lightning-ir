@@ -4,7 +4,7 @@ import torch
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 
-from ..base import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
+from ..base import BACKBONE_MAPPING, CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
 from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig, UniCoilConfig
 
 
@@ -146,6 +146,7 @@ def _register_external_models():
             "castorini/unicoil-noexp-msmarco-passage": UniCoilConfig(projection="linear"),
         }
     )
+    BACKBONE_MAPPING.update({})
     STATE_DICT_KEY_MAPPING.update(
         {
             "colbert-ir/colbertv2.0": [("linear.weight", "bert.projection.weight")],
