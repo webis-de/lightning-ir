@@ -17,7 +17,7 @@ from transformers.modeling_outputs import ModelOutput
 from .adapter import LightningIRAdapterMixin
 from .class_factory import LightningIRModelClassFactory, _get_model_class
 from .config import LightningIRConfig
-from .external_model_hub import CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
+from .external_model_hub import BACKBONE_MAPPING, CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
 
 
 def _update_config_with_kwargs(config: LightningIRConfig, **kwargs):
@@ -213,9 +213,9 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
                 if model_name_or_path in BACKBONE_MAPPING:
                     BackboneModel = BACKBONE_MAPPING[str(model_name_or_path)]
                 else:
-                    backbone_config = LightningIRModelClassFactory.get_backbone_config(model_name_or_path).from_pretrained(
+                    backbone_config = LightningIRModelClassFactory.get_backbone_config(
                         model_name_or_path
-                    )
+                    ).from_pretrained(model_name_or_path)
                     BackboneModel = _get_model_class(backbone_config)
             cls = LightningIRModelClassFactory(ConfigClass).from_backbone_class(BackboneModel)
             if config is not None:
