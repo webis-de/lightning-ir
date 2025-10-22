@@ -70,7 +70,7 @@ class _IndexDirMixin:
                 raise ValueError("No index_dir provided and model_name_or_path is not a path")
         index_dir = Path(index_dir)
         if self.index_name is None:
-            index_dir = index_dir / dataset.docs_dataset_id
+            index_dir = index_dir / dataset.dashed_docs_dataset_id
         else:
             index_dir = index_dir / self.index_name
         return index_dir
