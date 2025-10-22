@@ -78,6 +78,15 @@ class IRDataset:
         return ir_datasets.docs_parent_id(self.dataset_id)
 
     @property
+    def dashed_docs_dataset_id(self) -> str:
+        """Dataset id with dashes instead of slashes for the documents dataset.
+
+        Returns:
+            str: Document dataset id with dashes.
+        """
+        return self.docs_dataset_id.replace("/", "-")
+
+    @property
     def ir_dataset(self) -> ir_datasets.Dataset | None:
         """Instance of ir_datasets.Dataset.
 
