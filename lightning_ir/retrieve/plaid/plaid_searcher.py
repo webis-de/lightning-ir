@@ -40,7 +40,10 @@ class PlaidSearcher(Searcher):
 
     def load(self) -> None:
         """Load the Plaid index from the specified directory."""
-        self.index = search.FastPlaid(index=str(self.index_dir), device=self.device.type)
+
+        self.index = search.FastPlaid(
+            index=str(self.index_dir), device=self.device.type, preload_index=self.search_config.preload_index
+        )
 
     def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
         """Search for relevant documents using the Plaid index.
@@ -88,6 +91,7 @@ class PlaidSearchConfig(SearchConfig):
         candidate_k: int = 256,
         n_cells: int = 1,
         centroid_score_threshold: float = 0.5,
+        preload_index: bool = True,
     ) -> None:
         """Initialize the PlaidSearchConfig.
 
@@ -102,3 +106,4 @@ class PlaidSearchConfig(SearchConfig):
         self.candidate_k = candidate_k
         self.n_cells = n_cells
         self.centroid_score_threshold = centroid_score_threshold
+        self.preload_index = preload_index
