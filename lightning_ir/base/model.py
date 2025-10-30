@@ -146,7 +146,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         if pooling_strategy is None:
             return embeddings
         if pooling_strategy == "first":
-            return embeddings.index_select(1, torch.tensor([0], device=embeddings.device))
+            return embeddings[:, [0]]
         if pooling_strategy in ("sum", "mean"):
             if attention_mask is not None:
                 embeddings = embeddings * attention_mask.unsqueeze(-1)
