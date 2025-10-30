@@ -56,14 +56,15 @@ class PlaidSearcher(Searcher):
             ValueError: If the output does not contain query embeddings.
             ValueError: If the index is not loaded. Call load() before searching.
         """
-        if output.query_embeddings is None:
+        query_embeddings = output.query_embeddings
+        if query_embeddings is None:
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
 
         if not self.index:
             raise ValueError("Index not loaded. Call load() before searching.")
 
         scores = self.index.search(
-            queries_embeddings=output.query_embeddings.embeddings.detach(),
+            queries_embeddings=query_embeddings.embeddings.detach(),
             top_k=self.search_config.k,
         )
         all_doc_ids = []
