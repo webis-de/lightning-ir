@@ -47,7 +47,7 @@ class PlaidIndexer(Indexer):
         from fast_plaid import search
 
         doc_embeddings = output.doc_embeddings
-        if output.doc_embeddings is None:
+        if doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
 
         num_train = self.index_config.num_train_embeddings
