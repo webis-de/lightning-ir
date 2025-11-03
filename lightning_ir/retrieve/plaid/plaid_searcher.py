@@ -33,15 +33,10 @@ class PlaidSearcher(Searcher):
         super().__init__(index_dir, search_config, module, use_gpu)
         self.search_config: PlaidSearchConfig
 
-        self.load()
+        self.index = search.FastPlaid(index=str(self.index_dir), device=self.device.type, preload_index=True)
 
         # with open(self.index_dir / "doclens.0.json", "r") as doc_lens_f:
         #     self.doc_lengths = json.load(doc_lens_f)
-
-    def load(self) -> None:
-        """Load the Plaid index from the specified directory."""
-
-        self.index = search.FastPlaid(index=str(self.index_dir), device=self.device.type, preload_index=True)
 
     def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
         """Search for relevant documents using the Plaid index.
@@ -57,9 +52,6 @@ class PlaidSearcher(Searcher):
         query_embeddings = output.query_embeddings
         if query_embeddings is None:
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
-
-        if not self.index:
-            raise ValueError("Index not loaded. Call load() before searching.")
 
         scores = self.index.search(
             queries_embeddings=query_embeddings.embeddings.detach(),
