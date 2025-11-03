@@ -4,7 +4,6 @@ import warnings
 from pathlib import Path
 
 import torch
-from fast_plaid import search
 
 from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...data import IndexBatch
@@ -45,10 +44,11 @@ class PlaidIndexer(Indexer):
         Raises:
             ValueError: If the output does not contain document embeddings.
         """
+        from fast_plaid import search
+
         doc_embeddings = output.doc_embeddings
         if output.doc_embeddings is None:
             raise ValueError("Expected doc_embeddings in BiEncoderOutput")
-        # doc_embeddings = output.doc_embeddings.embeddings.detach()
 
         num_train = self.index_config.num_train_embeddings
 
@@ -110,6 +110,8 @@ class PlaidIndexer(Indexer):
 
     def finalize(self):
         """Finalize index creation with buffered embeddings if not enough were provided."""
+        from fast_plaid import search
+
         if self.index is not None:
             return
         if self._train_embeddings is None:
