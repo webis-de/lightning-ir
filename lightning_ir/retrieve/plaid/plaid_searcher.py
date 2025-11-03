@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import List, Tuple
 
 import torch
-from fast_plaid import search
 
 from ...bi_encoder import BiEncoderModule, BiEncoderOutput
 from ...models import ColConfig
@@ -30,6 +29,8 @@ class PlaidSearcher(Searcher):
             module (BiEncoderModule): The BiEncoder module used for searching.
             use_gpu (bool): Whether to use GPU for searching. Defaults to False.
         """
+        from fast_plaid import search
+
         super().__init__(index_dir, search_config, module, use_gpu)
         self.search_config: PlaidSearchConfig
 
@@ -51,7 +52,7 @@ class PlaidSearcher(Searcher):
             raise ValueError("Expected query_embeddings in BiEncoderOutput")
 
         scores = self.index.search(
-            queries_embeddings=query_embeddings.embeddings.detach(),
+            queries_embeddings=query_embeddings.embeddings,
             top_k=self.search_config.k,
         )
         all_doc_ids = []
