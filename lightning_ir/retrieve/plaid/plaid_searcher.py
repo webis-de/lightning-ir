@@ -35,9 +35,6 @@ class PlaidSearcher(Searcher):
 
         self.index = search.FastPlaid(index=str(self.index_dir), device=self.device.type, preload_index=True)
 
-        # with open(self.index_dir / "doclens.0.json", "r") as doc_lens_f:
-        #     self.doc_lengths = json.load(doc_lens_f)
-
     def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
         """Search for relevant documents using the Plaid index.
 
