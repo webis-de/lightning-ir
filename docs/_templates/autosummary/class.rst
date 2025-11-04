@@ -5,7 +5,6 @@
 .. autoclass:: {{ objname }}
    :members:
    :show-inheritance:
-   :inherited-members: None, Callback, LightningCLI, LightningDataModule, LightningModule, Module, PretrainedConfig, PreTrainedModel, PreTrainedTokenizerBase, PushToHubMixin, SaveConfigCallback, SpecialTokensMixin, Tensor, Trainer, WandbLogger
 
    {% block methods %}
    {%- if '__init__' not in inherited_members %}
