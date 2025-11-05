@@ -32,8 +32,8 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
 
     def __init__(
         self,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = "relu_log",
         query_pooling_strategy: Literal["first", "mean", "max", "sum"] = "max",
@@ -50,8 +50,8 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
         embedding for the query and document.
 
         Args:
-            query_length (int): Maximum query length. Defaults to 32.
-            doc_length (int): Maximum document length. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
@@ -239,8 +239,8 @@ class SpladeTokenizer(BiEncoderTokenizer):
     def __init__(
         self,
         *args,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         add_marker_tokens: bool = False,
         query_weighting: Literal["contextualized", "static"] = "contextualized",
         doc_weighting: Literal["contextualized", "static"] = "contextualized",
@@ -253,8 +253,8 @@ class SpladeTokenizer(BiEncoderTokenizer):
         marker tokens to encoded input sequences.
 
         Args:
-            query_length (int): Maximum query length in number of tokens. Defaults to 32.
-            doc_length (int): Maximum document length in number of tokens. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             query_expansion (bool): Whether to expand queries with mask tokens. Defaults to False.

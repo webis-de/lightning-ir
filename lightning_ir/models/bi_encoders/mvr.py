@@ -11,11 +11,7 @@ from transformers import BatchEncoding
 
 from lightning_ir.bi_encoder.bi_encoder_model import BiEncoderEmbedding
 
-from ...bi_encoder import (
-    BiEncoderTokenizer,
-    MultiVectorBiEncoderConfig,
-    MultiVectorBiEncoderModel,
-)
+from ...bi_encoder import BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
 
 
 class MvrConfig(MultiVectorBiEncoderConfig):
@@ -26,8 +22,8 @@ class MvrConfig(MultiVectorBiEncoderConfig):
 
     def __init__(
         self,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         normalization: Literal["l2"] | None = None,
         add_marker_tokens: bool = False,
@@ -43,8 +39,8 @@ class MvrConfig(MultiVectorBiEncoderConfig):
         between the query vector and the viewer token vectors is used to compute the relevance score.
 
         Args:
-            query_length (int): Maximum query length. Defaults to 32.
-            doc_length (int): Maximum document length. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
@@ -142,8 +138,8 @@ class MvrTokenizer(BiEncoderTokenizer):
     def __init__(
         self,
         *args,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         add_marker_tokens: bool = False,
         num_viewer_tokens: int = 8,
         **kwargs,

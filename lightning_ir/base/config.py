@@ -44,8 +44,8 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
     def __init__(
         self,
         *args,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         use_adapter: bool = False,
         adapter_config: Optional["LoraConfig"] = None,
         pretrained_adapter_name_or_path: Optional[str] = None,
@@ -54,8 +54,8 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         """Initializes the configuration.
 
         Args:
-            query_length (int, optional): Maximum query length. Defaults to 32.
-            doc_length (int, optional): Maximum document length. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             use_adapter (bool, optional): Whether to use LoRA adapters. Defaults to False.
             adapter_config (Optional[LoraConfig], optional): Configuration for LoRA adapters.
                 Only used if use_adapter is True. Defaults to None.
