@@ -21,8 +21,8 @@ class DprConfig(SingleVectorBiEncoderConfig):
 
     def __init__(
         self,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         normalize: bool = False,
         sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = None,
@@ -38,8 +38,8 @@ class DprConfig(SingleVectorBiEncoderConfig):
         Optionally, the pooled embeddings can be projected using a linear layer.
 
         Args:
-            query_length (int): Maximum query length. Defaults to 32.
-            doc_length (int): Maximum document length. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             normalize (bool): Whether to normalize the embeddings. Defaults to False.

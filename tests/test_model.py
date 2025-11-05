@@ -76,6 +76,7 @@ def test_seralize_deserialize(module: LightningIRModule, tmp_path: Path):
         AutoModel.from_pretrained(save_dir),
     ]
     for new_model in new_models:
+        assert new_model.__class__.__name__ == model.__class__.__name__
         for key, value in model.config.__dict__.items():
             if key in (
                 "torch_dtype",

@@ -6,10 +6,40 @@ This module contains the tokenizer class cross-encoder models.
 
 from typing import Dict, List, Sequence, Tuple, Type
 
+from tokenizers.processors import TemplateProcessing
 from transformers import BatchEncoding
 
-from ..base import LightningIRTokenizer
+from ..base import LightningIRTokenizer, LightningIRTokenizerClassFactory
 from .cross_encoder_config import CrossEncoderConfig
+
+SCORING_STRATEGY_POST_PROCESSOR_MAPPING = {
+    "t5": {
+        "mono": {
+            "pattern": "pre que col $A doc col $B rel1 rel2 col eos",
+            "special_tokens": [
+                ("pre", "▁"),
+                ("que", "Query"),
+                ("col", ":"),
+                ("doc", "▁Document"),
+                ("rel1", "▁Relevan"),
+                ("rel2", "t"),
+                ("eos", "</s>"),
+            ],
+        },
+        "rank": {
+            "pattern": "pre que col $A doc col $B eos",
+            "special_tokens": [
+                ("pre", "▁"),
+                ("que", "Query"),
+                ("col", ":"),
+                ("doc", "▁Document"),
+                ("rel1", "▁Relevan"),
+                ("rel2", "t"),
+                ("eos", "</s>"),
+            ],
+        },
+    },
+}
 
 
 class CrossEncoderTokenizer(LightningIRTokenizer):
@@ -18,22 +48,44 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
     """Configuration class for the tokenizer."""
 
     def __init__(
-        self, *args, query_length: int = 32, doc_length: int = 512, tokenizer_pattern: str | None = None, **kwargs
+        self,
+        *args,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
+        scoring_strategy: str | None = None,
+        **kwargs,
     ):
         """:class:`.LightningIRTokenizer` for cross-encoder models. Encodes queries and documents jointly and ensures
         that the input sequences are of the correct length.
 
         Args:
-            query_length (int): Maximum number of tokens per query. Defaults to 32.
-            doc_length (int): Maximum number of tokens per document. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
         """
         super().__init__(
-            *args, query_length=query_length, doc_length=doc_length, tokenizer_pattern=tokenizer_pattern, **kwargs
+            *args, query_length=query_length, doc_length=doc_length, scoring_strategy=scoring_strategy, **kwargs
         )
-        self.tokenizer_pattern = tokenizer_pattern
+        self.scoring_strategy = scoring_strategy
+        backbone_model_type = LightningIRTokenizerClassFactory.get_backbone_model_type(self.name_or_path)
+        self.post_processor: TemplateProcessing | None = None
+        if backbone_model_type in SCORING_STRATEGY_POST_PROCESSOR_MAPPING:
+            mapping = SCORING_STRATEGY_POST_PROCESSOR_MAPPING[backbone_model_type]
+            if scoring_strategy is not None and scoring_strategy in mapping:
+                pattern = mapping[scoring_strategy]["pattern"]
+                special_tokens = [
+                    (placeholder, self.convert_tokens_to_ids(token))
+                    for (placeholder, token) in mapping[scoring_strategy]["special_tokens"]
+                ]
+                self.post_processor = TemplateProcessing(
+                    single=None,
+                    pair=pattern,
+                    special_tokens=special_tokens,
+                )
 
-    def _truncate(self, text: Sequence[str], max_length: int) -> List[str]:
+    def _truncate(self, text: Sequence[str], max_length: int | None) -> List[str]:
         """Encodes a list of texts, truncates them to a maximum number of tokens and decodes them to strings."""
+        if max_length is None:
+            return text
         return self.batch_decode(
             self(
                 text,
@@ -109,10 +161,13 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         num_docs = self._process_num_docs(queries, docs, num_docs)
         queries, docs = self._preprocess(queries, docs, num_docs)
 
-        if self.tokenizer_pattern is not None:
-            input_texts = [self.tokenizer_pattern.format(query=query, doc=doc) for query, doc in zip(queries, docs)]
-            encoding = self(input_texts, **kwargs)
-        else:
-            encoding = self(queries, docs, **kwargs)
+        orig_post_processor = self._tokenizer.post_processor
+        if self.post_processor is not None:
+            self._tokenizer.post_processor = self.post_processor
+
+        encoding = self(queries, docs, **kwargs)
+
+        if self.post_processor is not None:
+            self._tokenizer.post_processor = orig_post_processor
 
         return {"encoding": encoding}

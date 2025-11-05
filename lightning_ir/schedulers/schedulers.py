@@ -64,7 +64,7 @@ class LinearSchedulerWithLinearWarmup(LambdaWarmupScheduler):
             num_warmup_steps (int): Number of warmup steps.
             num_training_steps (int): Number of training steps.
             final_value (float, optional): Final value that should be reached at the end of decay. Defaults to 0.0.
-            num_delay_steps (int, optional): Number of steps to delay warmup / decay. Defaults to 0.
+            num_delay_steps (int | None): Number of steps to delay warmup / decay. Defaults to 0.
         """
         self.num_training_steps = num_training_steps
         self.final_value = final_value

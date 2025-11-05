@@ -14,14 +14,8 @@ from ..base import LightningIRClassFactory, LightningIRTokenizer
 from .bi_encoder_config import BiEncoderConfig
 
 ADD_MARKER_TOKEN_MAPPING = {
-    "bert": {
-        "single": "[CLS] {TOKEN} $0 [SEP]",
-        "pair": "[CLS] {TOKEN_1} $A [SEP] {TOKEN_2} $B:1 [SEP]:1",
-    },
-    "modernbert": {
-        "single": "[CLS] {TOKEN} $0 [SEP]",
-        "pair": "[CLS] {TOKEN_1} $A [SEP] {TOKEN_2} $B:1 [SEP]:1",
-    },
+    "bert": {"pattern": "[CLS] {TOKEN} $0 [SEP]", "special_tokens": ["[CLS]", "[SEP]"]},
+    "modernbert": {"pattern": "[CLS] {TOKEN} $0 [SEP]", "special_tokens": ["[CLS]", "[SEP]"]},
 }
 
 
@@ -38,8 +32,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
     def __init__(
         self,
         *args,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         add_marker_tokens: bool = False,
         **kwargs,
     ):
@@ -47,8 +41,8 @@ class BiEncoderTokenizer(LightningIRTokenizer):
         adds marker tokens are added to encoded input sequences.
 
         Args:
-            query_length (int): Maximum query length in number of tokens. Defaults to 32.
-            doc_length (int): Maximum document length in number of tokens. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             add_marker_tokens (bool): Whether to add marker tokens to the query and document input sequences.
                 Defaults to False.
         Raises:
@@ -77,26 +71,21 @@ class BiEncoderTokenizer(LightningIRTokenizer):
                     "or add the backbone model type to `ADD_MARKER_TOKEN_MAPPING`."
                 )
             self.add_tokens([self.QUERY_TOKEN, self.DOC_TOKEN], special_tokens=True)
-            pattern = ADD_MARKER_TOKEN_MAPPING[backbone_model_type]
+            pattern = ADD_MARKER_TOKEN_MAPPING[backbone_model_type]["pattern"]
+            special_tokens = [
+                (token, self.convert_tokens_to_ids(token))
+                for token in ADD_MARKER_TOKEN_MAPPING[backbone_model_type]["special_tokens"]
+            ]
+
             self.query_post_processor = TemplateProcessing(
-                single=pattern["single"].format(TOKEN=self.QUERY_TOKEN),
-                pair=pattern["pair"].format(TOKEN_1=self.QUERY_TOKEN, TOKEN_2=self.DOC_TOKEN),
-                special_tokens=[
-                    ("[CLS]", self.cls_token_id),
-                    ("[SEP]", self.sep_token_id),
-                    (self.QUERY_TOKEN, self.query_token_id),
-                    (self.DOC_TOKEN, self.doc_token_id),
-                ],
+                single=pattern.format(TOKEN=self.QUERY_TOKEN),
+                pair=None,
+                special_tokens=special_tokens + [(self.QUERY_TOKEN, self.query_token_id)],
             )
             self.doc_post_processor = TemplateProcessing(
-                single=pattern["single"].format(TOKEN=self.DOC_TOKEN),
-                pair=pattern["pair"].format(TOKEN_1=self.QUERY_TOKEN, TOKEN_2=self.DOC_TOKEN),
-                special_tokens=[
-                    ("[CLS]", self.cls_token_id),
-                    ("[SEP]", self.sep_token_id),
-                    (self.QUERY_TOKEN, self.query_token_id),
-                    (self.DOC_TOKEN, self.doc_token_id),
-                ],
+                single=pattern.format(TOKEN=self.DOC_TOKEN),
+                pair=None,
+                special_tokens=special_tokens + [(self.DOC_TOKEN, self.doc_token_id)],
             )
 
     @property
@@ -179,7 +168,8 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
             BatchEncoding: Tokenized input sequences.
         """
         post_processer = getattr(self, f"{input_type}_post_processor")
-        kwargs["max_length"] = getattr(self, f"{input_type}_length")
+        if hasattr(self, f"{input_type}_length"):
+            kwargs["max_length"] = getattr(self, f"{input_type}_length")
         if "padding" not in kwargs:
             kwargs["truncation"] = True
         return self._encode(text, *args, post_processor=post_processer, **kwargs)
