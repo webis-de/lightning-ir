@@ -47,7 +47,7 @@ class TorchSparseIndex:
         Returns:
             torch.Tensor: The computed scores.
         """
-        embeddings = embeddings.to(self.device)
+        embeddings = embeddings.to(self.index)
         similarity = self.similarity_function(embeddings, self.index).to_dense()
         return similarity
 

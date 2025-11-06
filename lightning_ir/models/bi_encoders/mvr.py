@@ -11,7 +11,7 @@ from transformers import BatchEncoding
 
 from lightning_ir.bi_encoder.bi_encoder_model import BiEncoderEmbedding
 
-from ..bi_encoder import BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
+from ...bi_encoder import BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
 
 
 class MvrConfig(MultiVectorBiEncoderConfig):
@@ -22,10 +22,10 @@ class MvrConfig(MultiVectorBiEncoderConfig):
 
     def __init__(
         self,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalize: bool = False,
+        normalization: Literal["l2"] | None = None,
         add_marker_tokens: bool = False,
         embedding_dim: int | None = None,
         projection: Literal["linear", "linear_no_bias"] | None = "linear",
@@ -39,11 +39,11 @@ class MvrConfig(MultiVectorBiEncoderConfig):
         between the query vector and the viewer token vectors is used to compute the relevance score.
 
         Args:
-            query_length (int): Maximum query length. Defaults to 32.
-            doc_length (int): Maximum document length. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalize (bool): Whether to normalize query and document embeddings. Defaults to False.
+            normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             embedding_dim (int | None): Dimension of the final embeddings. If None, it will be set to the hidden size
@@ -56,7 +56,7 @@ class MvrConfig(MultiVectorBiEncoderConfig):
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
-            normalize=normalize,
+            normalization=normalization,
             add_marker_tokens=add_marker_tokens,
             embedding_dim=embedding_dim,
             projection=projection,
@@ -126,7 +126,7 @@ class MvrModel(MultiVectorBiEncoderModel):
             embeddings = self.pooling(embeddings, None, "first")
         elif input_type == "doc":
             embeddings = embeddings[:, 1 : self.config.num_viewer_tokens + 1]
-        if self.config.normalize:
+        if self.config.normalization == "l2":
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self.scoring_mask(encoding, input_type)
         return BiEncoderEmbedding(embeddings, scoring_mask, encoding)
@@ -138,8 +138,8 @@ class MvrTokenizer(BiEncoderTokenizer):
     def __init__(
         self,
         *args,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         add_marker_tokens: bool = False,
         num_viewer_tokens: int = 8,
         **kwargs,

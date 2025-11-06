@@ -5,10 +5,11 @@
 .. autoclass:: {{ objname }}
    :members:
    :show-inheritance:
-   :inherited-members: None, Callback, LightningCLI, LightningDataModule, LightningModule, Module, PretrainedConfig, PreTrainedModel, PreTrainedTokenizerBase, PushToHubMixin, SpecialTokensMixin, Tensor, Trainer
 
    {% block methods %}
+   {%- if '__init__' not in inherited_members %}
    .. automethod:: __init__
+   {%- endif %}
 
    {% if methods %}
    .. rubric:: {{ _('Methods') }}

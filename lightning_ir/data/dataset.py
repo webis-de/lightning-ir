@@ -78,6 +78,15 @@ class IRDataset:
         return ir_datasets.docs_parent_id(self.dataset_id)
 
     @property
+    def dashed_docs_dataset_id(self) -> str:
+        """Dataset id with dashes instead of slashes for the documents dataset.
+
+        Returns:
+            str: Document dataset id with dashes.
+        """
+        return self.docs_dataset_id.replace("/", "-")
+
+    @property
     def ir_dataset(self) -> ir_datasets.Dataset | None:
         """Instance of ir_datasets.Dataset.
 
@@ -491,14 +500,7 @@ class RunDataset(IRDataset, Dataset):
 
     @staticmethod
     def _load_parquet(path: Path) -> pd.DataFrame:
-        return pd.read_parquet(path).rename(
-            {
-                "qid": "query_id",
-                "docid": "doc_id",
-                "docno": "doc_id",
-            },
-            axis=1,
-        )
+        return pd.read_parquet(path)
 
     @staticmethod
     def _load_json(path: Path) -> pd.DataFrame:
@@ -506,17 +508,7 @@ class RunDataset(IRDataset, Dataset):
         if ".jsonl" in path.suffixes:
             kwargs["lines"] = True
             kwargs["orient"] = "records"
-        run = pd.read_json(
-            path,
-            **kwargs,
-            dtype={
-                "query_id": str,
-                "qid": str,
-                "doc_id": str,
-                "docid": str,
-                "docno": str,
-            },
-        )
+        run = pd.read_json(path, **kwargs)
         return run
 
     def _get_run_path(self) -> Path | None:
@@ -535,6 +527,10 @@ class RunDataset(IRDataset, Dataset):
             {"qid": "query_id", "docid": "doc_id", "docno": "doc_id", "Q0": "iteration", "q0": "iteration"},
             axis=1,
         )
+        dtypes = {"rank": np.int32, "query_id": str, "doc_id": str}
+        if "score" in run.columns:
+            dtypes["score"] = np.float32
+        run = run.astype(dtypes)
         if "query" in run.columns:
             self._queries = run.drop_duplicates("query_id").set_index("query_id")["query"].rename("text")
             run = run.drop("query", axis=1)
@@ -543,10 +539,6 @@ class RunDataset(IRDataset, Dataset):
             run = run.drop("text", axis=1)
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]
-        dtypes = {"rank": np.int32}
-        if "score" in run.columns:
-            dtypes["score"] = np.float32
-        run = run.astype(dtypes)
         return run
 
     def _load_run(self) -> pd.DataFrame:

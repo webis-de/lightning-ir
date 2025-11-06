@@ -6,23 +6,23 @@ from lightning_ir import BiEncoderModule
 
 
 @pytest.mark.parametrize(
-    "model_name",
+    "hf_model",
     [
         "sentence-transformers/msmarco-bert-base-dot-v5",
         "sentence-transformers/msmarco-MiniLM-L-6-v3",
     ],
-    ids=["bert", "minilm"],
+    indirect=True,
 )
-def test_same_as_sentence_transformer(model_name: str):
+def test_same_as_sentence_transformer(hf_model: str):
     query = "This is an example query"
     docs = ["This is an example sentence", "Each sentence is converted"]
 
-    orig_model = SentenceTransformer(model_name)
+    orig_model = SentenceTransformer(hf_model)
     orig_query_embeddings = orig_model.encode(query)
     orig_doc_embeddings = orig_model.encode(docs)
     orig_scores = util.dot_score(torch.from_numpy(orig_query_embeddings), torch.from_numpy(orig_doc_embeddings))
 
-    module = BiEncoderModule(model_name).eval()
+    module = BiEncoderModule(hf_model).eval()
     with torch.no_grad():
         output = module.score(query, docs)
 

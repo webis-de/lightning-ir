@@ -63,8 +63,8 @@ from .loss import (
     SupervisedMarginMSE,
 )
 from .main import LightningIRTrainer, LightningIRWandbLogger
-from .register_external_models import _register_external_models
-from .register_internal_models import _register_internal_models
+from .models.register_external_models import _register_external_models
+from .models.register_internal_models import _register_internal_models
 from .retrieve import (
     FaissFlatIndexConfig,
     FaissFlatIndexer,
@@ -106,7 +106,7 @@ _register_internal_models()
 _register_external_models()
 _register_external_datasets()
 
-__version__ = "0.0.4"
+__version__ = "0.0.5"
 
 __all__ = [
     "ApproxMRR",

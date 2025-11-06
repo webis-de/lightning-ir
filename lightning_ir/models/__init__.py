@@ -4,13 +4,25 @@ Lightning IR module for native models.
 This module provides the classes, configurations and tokenizer for various models in the Lightning IR framework.
 """
 
-from .coil import CoilConfig, CoilEmbedding, CoilModel
-from .col import ColConfig, ColModel, ColTokenizer
-from .dpr import DprConfig, DprModel
-from .mono import MonoConfig, MonoModel
-from .mvr import MvrConfig, MvrModel, MvrTokenizer
-from .set_encoder import SetEncoderConfig, SetEncoderModel, SetEncoderTokenizer
-from .splade import SpladeConfig, SpladeModel
+from .bi_encoders import (
+    CoilConfig,
+    CoilEmbedding,
+    CoilModel,
+    ColConfig,
+    ColModel,
+    ColTokenizer,
+    DprConfig,
+    DprModel,
+    MvrConfig,
+    MvrModel,
+    MvrTokenizer,
+    SpladeConfig,
+    SpladeModel,
+    SpladeTokenizer,
+    UniCoilConfig,
+    UniCoilModel,
+)
+from .cross_encoders import MonoConfig, MonoModel, SetEncoderConfig, SetEncoderModel, SetEncoderTokenizer
 
 __all__ = [
     "CoilConfig",
@@ -31,4 +43,7 @@ __all__ = [
     "SetEncoderTokenizer",
     "SpladeConfig",
     "SpladeModel",
+    "SpladeTokenizer",
+    "UniCoilConfig",
+    "UniCoilModel",
 ]

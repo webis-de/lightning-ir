@@ -26,12 +26,12 @@ https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreT
     config_class: Type[LightningIRConfig] = LightningIRConfig
     """Configuration class for the tokenizer."""
 
-    def __init__(self, *args, query_length: int = 32, doc_length: int = 512, **kwargs):
+    def __init__(self, *args, query_length: int | None = 32, doc_length: int | None = 512, **kwargs):
         """Initializes the tokenizer.
 
         Args:
-            query_length (int, optional): Maximum number of tokens per query. Defaults to 32.
-            doc_length (int, optional): Maximum number of tokens per document. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
         """
         super().__init__(*args, query_length=query_length, doc_length=doc_length, **kwargs)
         self.query_length = query_length

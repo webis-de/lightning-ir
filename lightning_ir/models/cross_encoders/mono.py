@@ -9,9 +9,8 @@ from typing import Literal, Type
 import torch
 from transformers import BatchEncoding
 
-from ..base.model import batch_encoding_wrapper
-from ..cross_encoder.cross_encoder_config import CrossEncoderConfig
-from ..cross_encoder.cross_encoder_model import CrossEncoderModel, CrossEncoderOutput
+from ...base.model import batch_encoding_wrapper
+from ...cross_encoder import CrossEncoderConfig, CrossEncoderModel, CrossEncoderOutput
 
 
 class ScaleLinear(torch.nn.Linear):
@@ -30,8 +29,8 @@ class MonoConfig(CrossEncoderConfig):
 
     def __init__(
         self,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         pooling_strategy: Literal["first", "mean", "max", "sum", "bert_pool"] = "first",
         linear_bias: bool = False,
         scoring_strategy: Literal["mono", "rank"] = "rank",
@@ -41,8 +40,8 @@ class MonoConfig(CrossEncoderConfig):
         """Initialize the configuration for mono cross-encoder models.
 
         Args:
-            query_length (int): Maximum query length. Defaults to 32.
-            doc_length (int): Maximum document length. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             pooling_strategy (Literal["first", "mean", "max", "sum", "bert_pool"]): Pooling strategy for the
                 embeddings. Defaults to "first".
             linear_bias (bool): Whether to use bias in the final linear layer. Defaults to False.

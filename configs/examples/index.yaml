@@ -1,4 +1,5 @@
 trainer:
+  logger: false
   callbacks:
     - class_path: lightning_ir.IndexCallback
       init_args:

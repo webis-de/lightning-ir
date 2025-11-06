@@ -6,14 +6,14 @@ Quickstart Guide
 
 Lightning IR can either be used programatically or using the CLI. The CLI is based on `PyTorch Lightning CLI <https://lightning.ai/docs/pytorch/stable/cli/lightning_cli.html#lightning-cli>`_ and adds additional options to provide a unified interface for fine-tuning and running neural ranking models.
 
-After installing Lightning IR, the CLI is accessible via the ``lightning-ir`` command and provides commands for fine-tuning, indexing, searching, and re-ranking. 
+After installing Lightning IR, the CLI is accessible via the ``lightning-ir`` command and provides commands for fine-tuning, indexing, searching, and re-ranking.
 
 .. code-block::
 
     $ lightning-ir --help
-    
+
     ...
-    
+
     Available subcommands:
       fit                 Runs the full optimization routine.
       index               Index a collection of documents.
@@ -32,12 +32,12 @@ The following sections provide a step-by-step example of how to fine-tune a bi-e
 Fine-Tuning
 +++++++++++
 
-To fine-tune a model you need to define the model module (either a :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule` or a :py:class:`~lightning_ir.cross_encoder.cross_encoder_module.CrossEncoderModule`), the :py:class:`~lightning_ir.data.datamodule.LightningIRDataModule` (which has either a :py:class:`~lightning_ir.data.dataset.TupleDataset` or :py:class:`~lightning_ir.data.dataset.RunDataset` training dataset), and the :py:class:`~lightning_ir.main.LightningIRTrainer` settings.   
+To fine-tune a model you need to configure the parameters of three things: the model module, the data module, and the trainer. The model module (either a :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule` or a :py:class:`~lightning_ir.cross_encoder.cross_encoder_module.CrossEncoderModule`) configures which backbone transformer model and which type of retrieval model (see :py:mod:`~lightning_ir.models.bi_encoders` for a list of available bi-encoder models and :py:mod:`~lightning_ir.models.cross_encoders` for a list of available cross-encoder models) to use. The :py:class:`~lightning_ir.data.datamodule.LightningIRDataModule` (which has either a :py:class:`~lightning_ir.data.dataset.TupleDataset` or :py:class:`~lightning_ir.data.dataset.RunDataset` training dataset) defines which dataset to use and how to process it. The :py:class:`~lightning_ir.main.LightningIRTrainer` combines the model and data modules and handles the training loop and hyperparameters.
 
-The following command and configuration file demonstrates how to fine-tune a bi-encoder (or cross-encoder) on the MS MARCO passage ranking dataset using the CLI.
+The following command and configuration file demonstrates how to fine-tune a :py:class:`~lightning_ir.models.bi_encoders.dpr.DprModel` bi-encoder model on the MS MARCO passage ranking dataset using the CLI.
 
 .. code-block:: bash
-  
+
       lightning-ir fit --config fine-tune.yaml
 
 .. collapse:: fine-tune.yaml
@@ -59,10 +59,10 @@ Indexing
 
 For indexing, you need an already fine-tuned :py:class:`~lightning_ir.bi_encoder.bi_encoder_model.BiEncoderModel`. See the :ref:`model-zoo` for examples. Depending on the bi-encoder model type, you need to select the appropriate :py:class:`~lightning_ir.retrieve.base.indexer.IndexConfig` to pass to the :py:class:`~lightning_ir.callbacks.callbacks.IndexCallback`. In addition, you need to specify the :py:class:`~lightning_ir.data.dataset.DocDataset` to index. The model module, data module, and indexing callback are then passed to the trainer to run the indexing.
 
-The following command and configuration file demonstrate how to index the MS MARCO passage ranking dataset using an already fine-tuned bi-encoder and `faiss <https://faiss.ai/>`_.
+The following command and configuration file demonstrate how to index the MS MARCO passage ranking dataset using a simple PyTorch-based dense index (:py:class:`~lightning_ir.retrieve.pytorch.dense_indexer.TorchDenseIndexer`).
 
 .. code-block:: bash
-  
+
       lightning-ir index --config index.yaml
 
 .. collapse:: index.yaml
@@ -87,7 +87,7 @@ For searching, you need an already fine-tuned :py:class:`~lightning_ir.bi_encode
 The following command and configuration file demonstrate how to retrieve the top-100 passages for each query from the TREC Deep Learning 2019 and 2020 tracks. After searching, the results are saved in a run file and the effectiveness is reported using nDCG\@10.
 
 .. code-block:: bash
-  
+
       lightning-ir search --config search.yaml
 
 .. collapse:: search.yaml
@@ -110,7 +110,7 @@ For re-ranking, you need an already fine-tuned :py:class:`~lightning_ir.bi_encod
 The following command and configuration file demonstrate how to re-rank the top-100 passages for each query from the TREC Deep Learning 2019 and 2020 tracks using a cross-encoder. After re-ranking, the results are saved in a run file and the effectiveness is reported using nDCG\@10.
 
 .. code-block:: bash
-  
+
       lightning-ir re_rank --config re-rank.yaml
 
 .. collapse:: re-rank.yaml

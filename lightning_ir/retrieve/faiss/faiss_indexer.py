@@ -281,6 +281,8 @@ class FaissIVFIndexer(_FaissTrainIndexer):
 
         # clustering_index overrides the index used during clustering but leaves the quantizer on the gpu
         # https://faiss.ai/cpp_api/namespace/namespacefaiss_1_1gpu.html
+        if faiss.get_num_gpus() == 0:
+            return
         clustering_index = faiss.index_cpu_to_all_gpus(
             faiss.IndexFlat(self.module.config.embedding_dim, self.metric_type)
         )
@@ -292,15 +294,16 @@ class FaissIVFIndexer(_FaissTrainIndexer):
         """Move the FAISS IVF index to CPU."""
         import faiss
 
-        if torch.cuda.is_available() and hasattr(faiss, "index_gpu_to_cpu") and hasattr(faiss, "index_cpu_to_gpu"):
-            self.index = faiss.index_gpu_to_cpu(self.index)
+        if faiss.get_num_gpus() == 0:
+            return
+        self.index = faiss.index_gpu_to_cpu(self.index)
 
-            # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
-            # move index to cpu but leave quantizer on gpu
-            index_ivf = faiss.extract_index_ivf(self.index)
-            quantizer = index_ivf.quantizer
-            gpu_quantizer = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, quantizer)
-            index_ivf.quantizer = gpu_quantizer
+        # https://gist.github.com/mdouze/334ad6a979ac3637f6d95e9091356d3e
+        # move index to cpu but leave quantizer on gpu
+        index_ivf = faiss.extract_index_ivf(self.index)
+        quantizer = index_ivf.quantizer
+        gpu_quantizer = faiss.index_cpu_to_gpu(faiss.StandardGpuResources(), 0, quantizer)
+        index_ivf.quantizer = gpu_quantizer
 
     def set_verbosity(self, verbose: bool | None = None) -> None:
         """Set the verbosity of the FAISS IVF index.
