@@ -25,17 +25,35 @@ from lightning_ir.models import CoilConfig, ColConfig, DprConfig, MonoConfig, Mv
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--remove-hf-models",
+        "--delete-cache",
         action="store_true",
         default=False,
         help="remove Hugging Face models after tests",
     )
     parser.addoption(
-        "--ignore-models",
+        "--run-models",
         action="store_true",
         default=False,
         help="run tests that require downloading models from Hugging Face",
     )
+    parser.addoption(
+        "--run-datasets",
+        action="store_true",
+        default=False,
+        help="run tests that require downloading datasets from external sources",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    run_models = config.getoption("--run-models")
+    run_datasets = config.getoption("--run-datasets")
+    skip_model = pytest.mark.skip(reason="need --run-models option to run")
+    skip_dataset = pytest.mark.skip(reason="need --run-datasets option to run")
+    for item in items:
+        if "model" in item.keywords and not run_models:
+            item.add_marker(skip_model)
+        # if "dataset" in item.keywords and not run_datasets:
+        #     item.add_marker(skip_dataset)
 
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -204,10 +222,15 @@ def doc_datamodule() -> LightningIRDataModule:
 
 @pytest.fixture()
 def hf_model(request: SubRequest) -> Generator[str, None, None]:
-    if request.config.getoption("--ignore-models"):
-        pytest.skip("Skipping tests that require downloading models")
-    model_id = request.param
-    yield model_id
-    if request.config.getoption("--remove-hf-models"):
+    yield request.param
+    if request.config.getoption("--delete-cache"):
         hf_cache = os.environ.get("HF_HOME", os.path.join(Path.home(), ".cache/huggingface"))
         shutil.rmtree(hf_cache, ignore_errors=True)
+
+
+@pytest.fixture()
+def ir_datasets_run_path_or_id(request: SubRequest) -> Generator[str, None, None]:
+    yield request.param
+    if request.config.getoption("--delete-cache"):
+        ir_datasets_cache = os.environ.get("IR_DATASETS_HOME", os.path.join(Path.home(), ".ir_datasets"))
+        shutil.rmtree(ir_datasets_cache, ignore_errors=True)

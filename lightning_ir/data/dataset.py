@@ -8,7 +8,7 @@ import csv
 import warnings
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal, Sequence, Tuple
+from typing import Any, Dict, Iterator, Literal, Self, Sequence, Tuple
 
 import ir_datasets
 import numpy as np
@@ -444,13 +444,15 @@ class RunDataset(IRDataset, Dataset):
 
         self.run: pd.DataFrame | None = None
 
-    def prepare_data(self) -> None:
+    def prepare_data(self) -> Self:
         """Downloads docs, queries, scoreddocs, and qrels using ir_datasets if needed and available."""
         self.prepare_constituent("docs")
         self.prepare_constituent("queries")
         if self.run_path is None:
             self.prepare_constituent("scoreddocs")
+            self.prepare_constituent("docpairs")
         self.prepare_constituent("qrels")
+        return self
 
     def _setup(self):
         if self.run is not None:

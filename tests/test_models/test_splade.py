@@ -5,6 +5,7 @@ from sentence_transformers import SparseEncoder
 from lightning_ir import BiEncoderModule
 
 
+@pytest.mark.model
 @pytest.mark.parametrize(
     "hf_model",
     [

@@ -1,4 +1,4 @@
-name: Test Models
+name: Test Datasets
 on:
   push:
     branches:
@@ -29,4 +29,4 @@ jobs:
         working-directory: ${{github.workspace}}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: pytest --run-models --delete-cache tests/test_models
+        run: pytest --run-datasets --delete-cache tests/test_datasets

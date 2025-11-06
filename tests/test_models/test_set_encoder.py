@@ -4,7 +4,14 @@ import torch
 from lightning_ir import CrossEncoderModule
 
 
-@pytest.mark.parametrize("hf_model", ["webis/set-encoder-base"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "webis/set-encoder-base",
+    ],
+    indirect=True,
+)
 def test_set_encoder(hf_model: str):
     query = "What is the capital of France?"
     documents = [
