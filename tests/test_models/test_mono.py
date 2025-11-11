@@ -1,15 +1,18 @@
 import pytest
 import torch
-from transformers import (
-    AutoModelForSequenceClassification,
-    AutoTokenizer,
-    T5ForConditionalGeneration,
-)
+from transformers import AutoModelForSequenceClassification, AutoTokenizer, T5ForConditionalGeneration
 
 from lightning_ir import CrossEncoderModule
 
 
-@pytest.mark.parametrize("hf_model", ["castorini/monobert-large-msmarco-finetune-only"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "castorini/monobert-large-msmarco-finetune-only",
+    ],
+    indirect=True,
+)
 def test_same_as_mono(hf_model: str):
     query = "What is the capital of France?"
     documents = [
@@ -34,7 +37,15 @@ def test_same_as_mono(hf_model: str):
     assert torch.allclose(output.scores, orig_scores, atol=1e-4)
 
 
-@pytest.mark.parametrize("hf_model", ["castorini/monot5-base-msmarco-10k", "Soyoung97/RankT5-base"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "castorini/monot5-base-msmarco-10k",
+        "Soyoung97/RankT5-base",
+    ],
+    indirect=True,
+)
 def test_same_as_t5(hf_model: str):
     orig_model = T5ForConditionalGeneration.from_pretrained(hf_model).eval()
     orig_tokenizer = AutoTokenizer.from_pretrained(hf_model)

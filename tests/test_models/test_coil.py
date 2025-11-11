@@ -108,7 +108,14 @@ class UniCoilEncoder(PreTrainedModel):
         return out
 
 
-@pytest.mark.parametrize("hf_model", ["fschlatt/coil-with-hn"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "fschlatt/coil-with-hn",
+    ],
+    indirect=True,
+)
 def test_same_as_coil(hf_model: str):
     orig_model = COIL(hf_model).eval()
     orig_tokenizer = AutoTokenizer.from_pretrained(hf_model)
@@ -150,7 +157,14 @@ def test_same_as_coil(hf_model: str):
     assert torch.allclose(output.scores, orig_scores, atol=1e-4)
 
 
-@pytest.mark.parametrize("hf_model", ["castorini/unicoil-noexp-msmarco-passage"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "castorini/unicoil-noexp-msmarco-passage",
+    ],
+    indirect=True,
+)
 def test_same_as_unicoil(hf_model: str):
     query = "What is the capital of France?"
     docs = [

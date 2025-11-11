@@ -20,7 +20,14 @@ def _get_model_type(*args, **kwargs):
 PyLateColbert._get_model_type = _get_model_type
 
 
-@pytest.mark.parametrize("hf_model", ["colbert-ir/colbertv2.0"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "colbert-ir/colbertv2.0",
+    ],
+    indirect=True,
+)
 def test_same_as_colbert(hf_model: str):
     query = "What is the capital of France?"
     documents = [
@@ -48,7 +55,14 @@ def test_same_as_colbert(hf_model: str):
     assert torch.allclose(output.scores, orig_scores, atol=1e-6)
 
 
-@pytest.mark.parametrize("hf_model", ["lightonai/GTE-ModernColBERT-v1"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "lightonai/GTE-ModernColBERT-v1",
+    ],
+    indirect=True,
+)
 def test_same_as_modern_colbert(hf_model: str):
     query = "What is the capital of France?"
     documents = [

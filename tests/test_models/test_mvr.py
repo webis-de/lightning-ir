@@ -5,7 +5,14 @@ from lightning_ir import BiEncoderModule
 from lightning_ir.models import MvrConfig
 
 
-@pytest.mark.parametrize("hf_model", ["bert-base-uncased"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "bert-base-uncased",
+    ],
+    indirect=True,
+)
 def test_mvr(hf_model: str):
     config = MvrConfig()
     model = BiEncoderModule(hf_model, config=config).eval()
