@@ -9,7 +9,7 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  run-model-tests:
+  run-dataset-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
@@ -25,7 +25,7 @@ jobs:
           pip3 install pylate --no-deps
           pip3 install .[test,dev]
           pip3 cache purge
-      - name: Run model tests
+      - name: Run dataset tests
         working-directory: ${{github.workspace}}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
