@@ -537,7 +537,9 @@ class RunDataset(IRDataset, Dataset):
             self._queries = run.drop_duplicates("query_id").set_index("query_id")["query"].rename("text")
             run = run.drop("query", axis=1)
         if "text" in run.columns:
-            self._docs = run.set_index("doc_id")["text"].map(lambda x: GenericDoc("", x)).to_dict()
+            self._docs = (
+                run.drop_duplicates("doc_id").set_index("doc_id")["text"].map(lambda x: GenericDoc("", x)).to_dict()
+            )
             run = run.drop("text", axis=1)
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]
