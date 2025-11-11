@@ -29,4 +29,4 @@ jobs:
         working-directory: ${{github.workspace}}
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: pytest --run-datasets --delete-cache tests/test_datasets
+        run: pytest --run-datasets --delete-cache tests/test_external_datasets.py
