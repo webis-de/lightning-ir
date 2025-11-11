@@ -9,6 +9,7 @@ from .col import ColConfig, ColModel, ColTokenizer
 from .dpr import DprConfig, DprModel
 from .mvr import MvrConfig, MvrModel, MvrTokenizer
 from .splade import SpladeConfig, SpladeModel, SpladeTokenizer
+from .xtr import XTRConfig, XTRModel
 
 __all__ = [
     "CoilConfig",
@@ -27,4 +28,6 @@ __all__ = [
     "SpladeTokenizer",
     "UniCoilConfig",
     "UniCoilModel",
+    "XTRConfig",
+    "XTRModel",
 ]
