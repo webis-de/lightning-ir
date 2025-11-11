@@ -52,8 +52,8 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "model" in item.keywords and not run_models:
             item.add_marker(skip_model)
-        # if "dataset" in item.keywords and not run_datasets:
-        #     item.add_marker(skip_dataset)
+        if "dataset" in item.keywords and not run_datasets:
+            item.add_marker(skip_dataset)
 
 
 DATA_DIR = Path(__file__).parent / "data"
