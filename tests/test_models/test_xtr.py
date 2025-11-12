@@ -1,11 +1,10 @@
 import pytest
 import torch
-from transformers import AutoModel, AutoTokenizer, T5EncoderModel
+from transformers import AutoTokenizer
 from xtr.configuration_xtr import XtrConfig
 from xtr.modeling_xtr import XtrModel
 
 from lightning_ir import BiEncoderModule
-from lightning_ir.models import XTRConfig
 
 
 @pytest.mark.parametrize("hf_model", ["google/xtr-base-en"], indirect=True)
