@@ -44,7 +44,7 @@ class XTRConfig(ColConfig):
 
         Args:
             query_length: Maximum query length in tokens. Defaults to 32.
-            doc_length: Maximum document length in tokens. Defaults to 180.
+            doc_length: Maximum document length in tokens. Defaults to 512.
             similarity_function: Similarity function for token scores. Defaults to "cosine".
             normalization: Whether to L2 normalize embeddings. Defaults to "l2".
             add_marker_tokens: Whether to add marker tokens [Q]/[D]. Defaults to False.
@@ -57,9 +57,12 @@ class XTRConfig(ColConfig):
             k_train: Number of top-k document tokens to retrieve per query token during in-batch
                 training. Defaults to 128. Should be much smaller than batch_size * doc_length.
                 Typical values: 32-64 (small batches), 128 (default), 256-320 (large batches).
+                Note: If the batch is too small, k_train will be automatically clamped to the available number of tokens.
             use_in_batch_token_retrieval: Whether to use XTR's in-batch token retrieval during
                 training. If False, falls back to standard max-sim scoring. Defaults to True.
         """
+        if query_mask_scoring_tokens is not None or doc_mask_scoring_tokens is not None:
+            raise NotImplementedError("Masking specific tokens is not yet implemented in XTRConfig.")
         super().__init__(
             query_length=query_length,
             doc_length=doc_length,
@@ -73,8 +76,6 @@ class XTRConfig(ColConfig):
             doc_aggregation_function=doc_aggregation_function,
             **kwargs,
         )
-        if query_mask_scoring_tokens is not None or doc_mask_scoring_tokens is not None:
-            raise NotImplementedError("Masking specific tokens is not yet implemented in XTRConfig.")
         self.embedding_dim = embedding_dim
         self.projection = projection
         self.k_train = k_train
