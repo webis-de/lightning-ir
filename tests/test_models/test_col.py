@@ -12,7 +12,6 @@ from xtr.configuration_xtr import XtrConfig  # noqa: E402
 from xtr.modeling_xtr import XtrModel  # noqa: E402
 
 from lightning_ir import BiEncoderModule  # noqa: E402
-from lightning_ir.models import ColConfig  # noqa: E402
 
 
 # monkeypatch pylate colbert for newest transformers compatibility
