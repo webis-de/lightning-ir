@@ -66,3 +66,29 @@ def test_same_as_xtr(hf_model: str):
     orig_scores_sorted, _ = torch.sort(orig_scores, descending=True)
 
     assert torch.allclose(lightning_scores_sorted, orig_scores_sorted, atol=1e-5), "Scores differ"
+
+
+def test_xtr_training():
+    model_name = "google/xtr-base-en"
+    module = BiEncoderModule(model_name_or_path=model_name).train()
+
+    queries = ["What is the capital of France?", "Where is the Eiffel Tower located?"]
+    documents = [
+        [
+            "Paris is the capital of France.",
+            "France is a country in Europe.",
+            "The Eiffel Tower is in Paris.",
+        ],
+        [
+            "The Eiffel Tower is located in Paris.",
+            "London is the capital of the UK.",
+        ],
+    ]
+
+    output = module.score(queries, documents)
+
+    module.eval()
+
+    output_eval = module.score(queries, documents)
+
+    assert not torch.allclose(output.scores, output_eval.scores), "Scores should differ between training and eval"
