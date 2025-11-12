@@ -9,9 +9,9 @@ from typing import Literal
 import torch
 from transformers import BatchEncoding
 
-from ...base import Pooler
 from ...base.model import batch_encoding_wrapper
 from ...cross_encoder import CrossEncoderConfig, CrossEncoderModel, CrossEncoderOutput
+from ...modeling_utils.embedding_post_processing import Pooler
 
 
 class ScaleLinear(torch.nn.Linear):

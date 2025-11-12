@@ -11,13 +11,13 @@ from typing import Literal, Self
 import torch
 from transformers import BatchEncoding
 
-from ...base import Pooler, Sparsifier
 from ...bi_encoder import (
     BiEncoderEmbedding,
     BiEncoderTokenizer,
     SingleVectorBiEncoderConfig,
     SingleVectorBiEncoderModel,
 )
+from ...modeling_utils.embedding_post_processing import Pooler, Sparsifier
 from ...modeling_utils.mlm_head import (
     MODEL_TYPE_TO_LM_HEAD,
     MODEL_TYPE_TO_OUTPUT_EMBEDDINGS,

@@ -10,8 +10,8 @@ from typing import Literal
 import torch
 from transformers import BatchEncoding
 
-from ...base import Pooler, Sparsifier
 from ...bi_encoder import BiEncoderEmbedding, SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel
+from ...modeling_utils.embedding_post_processing import Pooler, Sparsifier
 
 
 class DprConfig(SingleVectorBiEncoderConfig):

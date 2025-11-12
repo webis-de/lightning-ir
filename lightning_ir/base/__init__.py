@@ -14,7 +14,6 @@ from .class_factory import (
 from .config import LightningIRConfig
 from .external_model_hub import BACKBONE_MAPPING, CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
 from .model import LightningIRModel, LightningIROutput
-from .model_utils import Pooler, Sparsifier
 from .module import LightningIRModule
 from .tokenizer import LightningIRTokenizer
 
@@ -30,8 +29,6 @@ __all__ = [
     "LightningIROutput",
     "LightningIRTokenizer",
     "LightningIRTokenizerClassFactory",
-    "Pooler",
     "POST_LOAD_CALLBACKS",
-    "Sparsifier",
     "STATE_DICT_KEY_MAPPING",
 ]
