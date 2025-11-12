@@ -5,12 +5,8 @@
 from typing import Literal, Sequence
 
 import torch
-from transformers import BatchEncoding
 
-from ...bi_encoder import (
-    BiEncoderEmbedding,
-    BiEncoderOutput,
-)
+from ...bi_encoder import BiEncoderOutput
 
 from .col import ColConfig, ColModel
 
@@ -128,5 +124,50 @@ class XTRModel(ColModel):
         Returns:
             BiEncoderOutput: Output containing relevance scores.
         """
+        similarities = self.compute_similarity(output.query_embeddings, output.doc_embeddings, num_docs)
+
+        query_mask = output.query_embeddings.scoring_mask
+        doc_mask = output.doc_embeddings.scoring_mask
+
+        num_docs_t = self._parse_num_docs(
+            output.query_embeddings.embeddings.shape[0],
+            output.doc_embeddings.embeddings.shape[0],
+            num_docs,
+            output.query_embeddings.device,
+        )
+
+        query_mask_expanded = query_mask.repeat_interleave(num_docs_t, dim=0).unsqueeze(-1)
+        doc_mask_expanded = doc_mask.unsqueeze(1)
+
+        similarities = similarities.masked_fill(~doc_mask_expanded, float("-inf"))
+        similarities = similarities.masked_fill(~query_mask_expanded, float("-inf"))
+
+        batch_size = output.query_embeddings.embeddings.shape[0]
+        q_len = output.query_embeddings.embeddings.shape[1]
+        doc_len = output.doc_embeddings.embeddings.shape[1]
+        max_docs = torch.max(num_docs_t)
+
+        sim_list = similarities.split(num_docs_t.tolist(), dim=0)
+        sim_padded = torch.nn.utils.rnn.pad_sequence(sim_list, batch_first=True, padding_value=float("-inf"))
+
+        valid_mask = torch.arange(max_docs, device=num_docs_t.device).unsqueeze(0) < num_docs_t.unsqueeze(1)
+
+        sim_flat = sim_padded.view(batch_size, -1)
+        k_train = min(self.config.k_train, sim_flat.size(-1))
+        minimum_values = torch.topk(sim_flat, k=k_train, dim=-1).values[:, -1].unsqueeze(-1)
+
+        sim_padded = sim_padded.view(batch_size, -1)
+        sim_padded = sim_padded.masked_fill(sim_padded < minimum_values, 0.0)
+        sim_padded = sim_padded.view(batch_size, max_docs, q_len, doc_len)
+
+        scores = sim_padded.max(dim=-1).values.sum(dim=-1)
+        Z = (sim_padded.max(dim=-1).values > 0).sum(dim=-1).float()
+        Z = Z.clamp(min=1.0)
+        scores = scores / Z
+
+        scores = scores[valid_mask]
+
+        output.scores = scores
+        output.similarity = sim_padded[valid_mask]
 
         return output
