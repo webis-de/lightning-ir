@@ -7,7 +7,6 @@ from typing import Literal, Sequence
 import torch
 
 from ...bi_encoder import BiEncoderOutput
-
 from .col import ColConfig, ColModel
 
 
