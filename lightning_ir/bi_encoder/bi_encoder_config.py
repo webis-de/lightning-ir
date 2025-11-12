@@ -35,7 +35,8 @@ class BiEncoderConfig(LightningIRConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
+            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings.
+                Defaults to None.
             sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
                 function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
@@ -87,7 +88,8 @@ class SingleVectorBiEncoderConfig(BiEncoderConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
+            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings.
+                Defaults to None.
             sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
                 function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.

@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
-from typing import Any, Literal, Protocol, Self, TypeVar
+from typing import Any, Protocol, Self, TypeVar
 
 import torch
 from transformers import BatchEncoding, BertModel, PreTrainedModel

@@ -53,7 +53,8 @@ class Sparsifier(torch.nn.Module):
         """Initializes the sparsifier.
 
         Args:
-            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Sparsification strategy to apply.
+            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Which sparsification strategy
+                to apply.
         """
         super().__init__()
         self.sparsification_strategy = sparsification_strategy
