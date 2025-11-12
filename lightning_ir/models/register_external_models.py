@@ -89,10 +89,6 @@ def _map_opensearch_splade_weights(model: LightningIRModel) -> LightningIRModel:
     return model
 
 
-MONO_T5_PATTERN = "Query: {query} Document: {doc} Relevant:"
-RANK_T5_PATTERN = "Query: {query} Document: {doc}"
-
-
 def _register_external_models():
     CHECKPOINT_MAPPING.update(
         {
@@ -138,17 +134,19 @@ def _register_external_models():
             "sentence-transformers/msmarco-MiniLM-L-6-v3": DprConfig(
                 projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
             ),
-            "castorini/monot5-base-msmarco-10k": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
-            "castorini/monot5-base-msmarco": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
-            "castorini/monot5-large-msmarco-10k": MonoConfig(
-                scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN
+            "castorini/monot5-base-msmarco-10k": MonoConfig(
+                scoring_strategy="mono", query_length=None, doc_length=None
             ),
-            "castorini/monot5-large-msmarco": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
-            "castorini/monot5-3b-msmarco-10k": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
-            "castorini/monot5-3b-msmarco": MonoConfig(scoring_strategy="mono", tokenizer_pattern=MONO_T5_PATTERN),
-            "Soyoung97/RankT5-base": MonoConfig(scoring_strategy="rank", tokenizer_pattern=RANK_T5_PATTERN),
-            "Soyoung97/RankT5-large": MonoConfig(scoring_strategy="rank", tokenizer_pattern=RANK_T5_PATTERN),
-            "Soyoung97/RankT5-3b": MonoConfig(scoring_strategy="rank", tokenizer_pattern=RANK_T5_PATTERN),
+            "castorini/monot5-base-msmarco": MonoConfig(scoring_strategy="mono", query_length=None, doc_length=None),
+            "castorini/monot5-large-msmarco-10k": MonoConfig(
+                scoring_strategy="mono", query_length=None, doc_length=None
+            ),
+            "castorini/monot5-large-msmarco": MonoConfig(scoring_strategy="mono", query_length=None, doc_length=None),
+            "castorini/monot5-3b-msmarco-10k": MonoConfig(scoring_strategy="mono", query_length=None, doc_length=None),
+            "castorini/monot5-3b-msmarco": MonoConfig(scoring_strategy="mono", query_length=None, doc_length=None),
+            "Soyoung97/RankT5-base": MonoConfig(scoring_strategy="rank", query_length=None, doc_length=None),
+            "Soyoung97/RankT5-large": MonoConfig(scoring_strategy="rank", query_length=None, doc_length=None),
+            "Soyoung97/RankT5-3b": MonoConfig(scoring_strategy="rank", query_length=None, doc_length=None),
             "castorini/monobert-large-msmarco-finetune-only": MonoConfig(
                 scoring_strategy="mono", linear_bias=True, pooling_strategy="bert_pool"
             ),

@@ -48,8 +48,8 @@ class CoilConfig(MultiVectorBiEncoderConfig):
 
     def __init__(
         self,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         add_marker_tokens: bool = False,
         token_embedding_dim: int = 32,
@@ -61,14 +61,14 @@ class CoilConfig(MultiVectorBiEncoderConfig):
         similarity ...
 
         Args:
-            query_length (int, optional): Maximum query length in number of tokens. Defaults to 32.
-            doc_length (int, optional): Maximum document length in number of tokens. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
-            token_embedding_dim (int, optional): The output embedding dimension for tokens. Defaults to 32.
-            cls_embedding_dim (int, optional): The output embedding dimension for the [CLS] token. Defaults to 768.
+            token_embedding_dim (int | None): The output embedding dimension for tokens. Defaults to 32.
+            cls_embedding_dim (int | None): The output embedding dimension for the [CLS] token. Defaults to 768.
             projection (Literal["linear", "linear_no_bias"], optional): Whether and how to project the embeddings.
                 Defaults to "linear".
         """
@@ -193,8 +193,8 @@ class UniCoilConfig(SingleVectorBiEncoderConfig):
 
     def __init__(
         self,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         projection: Literal["linear", "linear_no_bias"] = "linear",
         **kwargs,
@@ -203,8 +203,8 @@ class UniCoilConfig(SingleVectorBiEncoderConfig):
         similarity of token embeddings between query and document.
 
         Args:
-            query_length (int, optional): Maximum query length in number of tokens. Defaults to 32.
-            doc_length (int, optional): Maximum document length in number of tokens. Defaults to 512.
+            query_length (int | None): Maximum query length in number of tokens. Defaults to 32.
+            doc_length (int | None): Maximum document length in number of tokens. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             projection (Literal["linear", "linear_no_bias"], optional): Whether and how to project the embeddings.

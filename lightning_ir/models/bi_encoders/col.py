@@ -26,8 +26,8 @@ class ColConfig(MultiVectorBiEncoderConfig):
 
     def __init__(
         self,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
         normalization: Literal["l2"] | None = None,
         add_marker_tokens: bool = False,
@@ -51,8 +51,8 @@ class ColConfig(MultiVectorBiEncoderConfig):
         be ignored during scoring.
 
         Args:
-            query_length (int): Maximum query length in number of tokens. Defaults to 32.
-            doc_length (int): Maximum document length in number of tokens. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
             normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
@@ -261,8 +261,8 @@ class ColTokenizer(BiEncoderTokenizer):
     def __init__(
         self,
         *args,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         add_marker_tokens: bool = False,
         query_expansion: bool = False,
         attend_to_query_expanded_tokens: bool = False,
@@ -274,8 +274,8 @@ class ColTokenizer(BiEncoderTokenizer):
         to encoded input sequences and expands queries and documents with mask tokens.
 
         Args:
-            query_length (int): Maximum query length in number of tokens. Defaults to 32.
-            doc_length (int): Maximum document length in number of tokens. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             query_expansion (bool): Whether to expand queries with mask tokens. Defaults to False.

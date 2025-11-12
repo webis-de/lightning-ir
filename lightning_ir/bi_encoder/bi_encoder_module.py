@@ -249,7 +249,7 @@ class BiEncoderModule(LightningIRModule):
         Args:
             batch (TrainBatch | IndexBatch | SearchBatch | RankBatch): Batch of validation or testing data.
             batch_idx (int): Index of the batch.
-            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+            dataloader_idx (int | None): Index of the dataloader. Defaults to 0.
         Returns:
             BiEncoderOutput: Output of the model.
         """

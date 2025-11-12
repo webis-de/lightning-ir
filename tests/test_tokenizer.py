@@ -22,6 +22,7 @@ def test_serialize_deserialize(
         Tokenizer.__bases__[0].from_pretrained(save_dir),
     ]
     for new_tokenizer in new_tokenizers:
+        assert new_tokenizer.__class__.__name__ == tokenizer.__class__.__name__
         for key in tokenizer_kwargs:
             assert getattr(tokenizer, key) == getattr(new_tokenizer, key)
 

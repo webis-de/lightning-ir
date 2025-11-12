@@ -226,16 +226,16 @@ class SetEncoderTokenizer(CrossEncoderTokenizer):
     def __init__(
         self,
         *args,
-        query_length: int = 32,
-        doc_length: int = 512,
+        query_length: int | None = 32,
+        doc_length: int | None = 512,
         add_extra_token: bool = False,
         **kwargs,
     ):
         """Initializes a SetEncoder tokenizer.
 
         Args:
-            query_length (int): Maximum query length. Defaults to 32.
-            doc_length (int): Maximum document length. Defaults to 512.
+            query_length (int | None): Maximum number of tokens per query. If None does not truncate. Defaults to 32.
+            doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             add_extra_token (bool): Whether to add an extra interaction token. Defaults to False.
         """
         super().__init__(

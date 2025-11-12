@@ -7,6 +7,7 @@ by extending Hugging Face Transformers classes.
 
 from __future__ import annotations
 
+import importlib
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Tuple, Type
@@ -19,7 +20,8 @@ from transformers import (
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
-from transformers.models.auto.tokenization_auto import get_tokenizer_config, tokenizer_class_from_name
+from transformers.models.auto.configuration_auto import model_type_to_module_name
+from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING_NAMES, get_tokenizer_config
 
 if TYPE_CHECKING:
     from . import LightningIRConfig, LightningIRModel, LightningIRTokenizer
@@ -125,10 +127,9 @@ class LightningIRClassFactory(ABC):
             return None
         return config_dict.get("model_type", None)
 
-    @property
-    def cc_lir_model_type(self) -> str:
+    def cc_lir_model_type(self, Config: Type[LightningIRConfig]) -> str:
         """Camel case model type of the Lightning IR model."""
-        return "".join(s.title() for s in self.MixinConfig.model_type.split("-"))
+        return "".join(s.title() for s in Config.model_type.split("-"))
 
     @abstractmethod
     def from_pretrained(self, model_name_or_path: str | Path, *args, **kwargs) -> Any:
@@ -185,7 +186,7 @@ https://huggingface.co/docs/transformers/main_classes/configuration#transformers
         LightningIRConfigMixin: Type[LightningIRConfig] = CONFIG_MAPPING[self.MixinConfig.model_type]
 
         DerivedLightningIRConfig = type(
-            f"{self.cc_lir_model_type}{BackboneClass.__name__}",
+            f"{self.cc_lir_model_type(LightningIRConfigMixin)}{BackboneClass.__name__}",
             (LightningIRConfigMixin, BackboneClass),
             {
                 "model_type": self.MixinConfig.model_type,
@@ -241,7 +242,7 @@ https://huggingface.co/transformers/main_classes/model#transformers.PreTrainedMo
         DerivedLightningIRConfig = LightningIRConfigClassFactory(self.MixinConfig).from_backbone_class(BackboneConfig)
 
         DerivedLightningIRModel = type(
-            f"{self.cc_lir_model_type}{BackboneClass.__name__}",
+            f"{self.cc_lir_model_type(LightningIRModelMixin.config_class)}{BackboneClass.__name__}",
             (LightningIRModelMixin, BackboneClass),
             {"config_class": DerivedLightningIRConfig, "_backbone_forward": BackboneClass.forward},
         )
@@ -279,10 +280,14 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
             config_dict = get_tokenizer_config(model_name_or_path)
             backbone_tokenizer_class = config_dict.get("backbone_tokenizer_class", None)
             if backbone_tokenizer_class is not None:
-                Tokenizer = tokenizer_class_from_name(backbone_tokenizer_class)
-                for config, tokenizers in TOKENIZER_MAPPING.items():
-                    if Tokenizer in tokenizers:
-                        return getattr(config, "model_type")
+                config_class = backbone_tokenizer_class.removesuffix("Fast").replace("Tokenizer", "Config")
+                for module_name, tokenizers in TOKENIZER_MAPPING_NAMES.items():
+                    if backbone_tokenizer_class in tokenizers:
+                        module_name = model_type_to_module_name(module_name)
+                        module = importlib.import_module(f".{module_name}", "transformers.models")
+                        if hasattr(module, backbone_tokenizer_class) and hasattr(module, config_class):
+                            config = getattr(module, config_class)
+                            return config.model_type
             raise ValueError("No backbone model found in the configuration")
 
     def from_pretrained(
@@ -352,7 +357,9 @@ https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.Pre
         LightningIRTokenizerMixin = TOKENIZER_MAPPING[self.MixinConfig][0]
 
         DerivedLightningIRTokenizer = type(
-            f"{self.cc_lir_model_type}{BackboneClass.__name__}", (LightningIRTokenizerMixin, BackboneClass), {}
+            f"{self.cc_lir_model_type(LightningIRTokenizerMixin.config_class)}{BackboneClass.__name__}",
+            (LightningIRTokenizerMixin, BackboneClass),
+            {},
         )
 
         return DerivedLightningIRTokenizer

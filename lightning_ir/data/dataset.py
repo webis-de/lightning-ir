@@ -8,7 +8,7 @@ import csv
 import warnings
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal, Sequence, Tuple
+from typing import Any, Dict, Iterator, Literal, Self, Sequence, Tuple
 
 import ir_datasets
 import numpy as np
@@ -76,6 +76,15 @@ class IRDataset:
             str: Document dataset id.
         """
         return ir_datasets.docs_parent_id(self.dataset_id)
+
+    @property
+    def dashed_docs_dataset_id(self) -> str:
+        """Dataset id with dashes instead of slashes for the documents dataset.
+
+        Returns:
+            str: Document dataset id with dashes.
+        """
+        return self.docs_dataset_id.replace("/", "-")
 
     @property
     def ir_dataset(self) -> ir_datasets.Dataset | None:
@@ -435,13 +444,15 @@ class RunDataset(IRDataset, Dataset):
 
         self.run: pd.DataFrame | None = None
 
-    def prepare_data(self) -> None:
+    def prepare_data(self) -> Self:
         """Downloads docs, queries, scoreddocs, and qrels using ir_datasets if needed and available."""
         self.prepare_constituent("docs")
         self.prepare_constituent("queries")
         if self.run_path is None:
             self.prepare_constituent("scoreddocs")
+            self.prepare_constituent("docpairs")
         self.prepare_constituent("qrels")
+        return self
 
     def _setup(self):
         if self.run is not None:
@@ -526,7 +537,9 @@ class RunDataset(IRDataset, Dataset):
             self._queries = run.drop_duplicates("query_id").set_index("query_id")["query"].rename("text")
             run = run.drop("query", axis=1)
         if "text" in run.columns:
-            self._docs = run.set_index("doc_id")["text"].map(lambda x: GenericDoc("", x)).to_dict()
+            self._docs = (
+                run.drop_duplicates("doc_id").set_index("doc_id")["text"].map(lambda x: GenericDoc("", x)).to_dict()
+            )
             run = run.drop("text", axis=1)
         if self.depth != -1:
             run = run[run["rank"] <= self.depth]

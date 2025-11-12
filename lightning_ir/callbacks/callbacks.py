@@ -70,7 +70,7 @@ class _IndexDirMixin:
                 raise ValueError("No index_dir provided and model_name_or_path is not a path")
         index_dir = Path(index_dir)
         if self.index_name is None:
-            index_dir = index_dir / dataset.docs_dataset_id
+            index_dir = index_dir / dataset.dashed_docs_dataset_id
         else:
             index_dir = index_dir / self.index_name
         return index_dir
@@ -223,7 +223,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
             pl_module (BiEncoderModule): LightningIR bi-encoder module.
             batch (Any): Batch of input data.
             batch_idx (int): Index of batch in the current dataset.
-            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+            dataloader_idx (int | None): Index of the dataloader. Defaults to 0.
         """
         if batch_idx == 0:
             self.indexer = self._get_indexer(pl_module, dataloader_idx)
@@ -246,7 +246,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
             outputs (BiEncoderOutput): Encoded documents.
             batch (Any): Batch of input data.
             batch_idx (int): Index of batch in the current dataset.
-            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+            dataloader_idx (int | None): Index of the dataloader. Defaults to 0.
         """
         batch = self._gather(pl_module, batch)
         outputs = self._gather(pl_module, outputs)
@@ -383,7 +383,7 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
             outputs (LightningIROutput): Scored query documents pairs.
             batch (Any): Batch of input data.
             batch_idx (int): Index of batch in the current dataset.
-            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+            dataloader_idx (int | None): Index of the dataloader. Defaults to 0.
         Raises:
             ValueError: If the batch does not have query_ids.
         """
@@ -503,7 +503,7 @@ class SearchCallback(RankCallback, _IndexDirMixin):
             pl_module (BiEncoderModule): LightningIR bi-encoder module.
             batch (Any): Batch of input data.
             batch_idx (int): Index of the batch in the dataset.
-            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+            dataloader_idx (int | None): Index of the dataloader. Defaults to 0.
         """
         if batch_idx == 0:
             self.searcher = self._get_searcher(trainer, pl_module, dataloader_idx)

@@ -34,7 +34,7 @@ from .conftest import CORPUS_DIR, DATA_DIR
         FaissIVFIndexConfig(num_centroids=16),
         TorchSparseIndexConfig(),
         TorchDenseIndexConfig(),
-        PlaidIndexConfig(num_centroids=8, num_train_embeddings=1_024),
+        PlaidIndexConfig(num_centroids=8),
         SeismicIndexConfig(num_postings=32),
     ],
     ids=["Faiss", "FaissIVF", "Sparse", "Dense", "Plaid", "Seismic"],
@@ -83,7 +83,7 @@ def test_index_callback(
     assert (
         (index_dir / "index.faiss").exists()  # faiss
         or (index_dir / "index.pt").exists()  # sparse
-        or (index_dir / "centroids.pt").exists()  # plaid
+        or (index_dir / "centroids.npy").exists()  # plaid
         or (index_dir / ".index.seismic").exists()  # seismic
     )
     assert (index_dir / "doc_ids.txt").exists()
@@ -111,7 +111,7 @@ def get_index(
         index_config = TorchDenseIndexConfig()
     elif isinstance(search_config, PlaidSearchConfig):
         index_type = "plaid"
-        index_config = PlaidIndexConfig(num_centroids=8, num_train_embeddings=1_024)
+        index_config = PlaidIndexConfig(num_centroids=8)
     elif isinstance(search_config, SeismicSearchConfig):
         index_type = "seismic"
         index_config = SeismicIndexConfig(num_postings=32)
