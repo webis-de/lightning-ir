@@ -9,7 +9,13 @@ from typing import Literal, Sequence
 import torch
 from transformers import BatchEncoding
 
-from ...bi_encoder import BiEncoderEmbedding, BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
+from ...bi_encoder import (
+    BiEncoderEmbedding,
+    BiEncoderOutput,
+    BiEncoderTokenizer,
+    MultiVectorBiEncoderConfig,
+    MultiVectorBiEncoderModel,
+)
 
 
 class ColConfig(MultiVectorBiEncoderConfig):
@@ -35,6 +41,7 @@ class ColConfig(MultiVectorBiEncoderConfig):
         attend_to_query_expanded_tokens: bool = False,
         doc_expansion: bool = False,
         attend_to_doc_expanded_tokens: bool = False,
+        k_train: int | None = None,
         **kwargs,
     ):
         """A Col model encodes queries and documents separately and computes a late interaction score between the query
@@ -68,6 +75,11 @@ class ColConfig(MultiVectorBiEncoderConfig):
             doc_expansion (bool): Whether to expand documents with mask tokens. Defaults to False.
             attend_to_doc_expanded_tokens (bool): Whether to allow document tokens to attend to mask expanded document
                 tokens. Defaults to False.
+            k_train (int | None): Whether to use XTR_'s in-batch token retrieval during training and how many top-k
+                document tokens to use. Defaults to 128.
+
+        .. _XTR: \
+<https://proceedings.neurips.cc/paper_files/paper/2023/file/31d997278ee9069d6721bc194174bb4c-Paper-Conference.pdf>`_
         """
         super().__init__(
             query_length=query_length,
@@ -87,6 +99,7 @@ class ColConfig(MultiVectorBiEncoderConfig):
         self.attend_to_query_expanded_tokens = attend_to_query_expanded_tokens
         self.doc_expansion = doc_expansion
         self.attend_to_doc_expanded_tokens = attend_to_doc_expanded_tokens
+        self.k_train = k_train
 
 
 class ColModel(MultiVectorBiEncoderModel):
@@ -109,6 +122,28 @@ class ColModel(MultiVectorBiEncoderModel):
         self.projection = torch.nn.Linear(
             config.hidden_size, config.embedding_dim, bias="no_bias" not in config.projection
         )
+
+    def score(
+        self,
+        output: BiEncoderOutput,
+        num_docs: Sequence[int] | int | None = None,
+    ) -> BiEncoderOutput:
+        """Compute relevance scores between queries and documents.
+
+        Args:
+            output (BiEncoderOutput): Output containing embeddings and scoring mask.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+        Returns:
+            BiEncoderOutput: Output containing relevance scores.
+        """
+        if self.training and self.config.k_train is not None:
+            return self._score_xtr_in_batch(output, num_docs)
+
+        return super().score(output, num_docs)
 
     def scoring_mask(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> torch.Tensor:
         """Computes a scoring mask for batched tokenized text sequences which is used in the scoring function to mask
@@ -148,6 +183,73 @@ class ColModel(MultiVectorBiEncoderModel):
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self.scoring_mask(encoding, input_type)
         return BiEncoderEmbedding(embeddings, scoring_mask, encoding)
+
+    def _score_xtr_in_batch(
+        self, output: BiEncoderOutput, num_docs: Sequence[int] | int | None = None
+    ) -> BiEncoderOutput:
+        """XTR in-batch token retrieval scoring.
+
+        Args:
+            output (BiEncoderOutput): Output containing embeddings and scoring mask.
+            num_docs (Sequence[int] | int | None): Specifies how many documents are passed per query. If a sequence of
+                integers, `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the
+                number of documents, i.e., the sequence contains one value per query specifying the number of documents
+                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
+                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
+        Returns:
+            BiEncoderOutput: Output containing relevance scores.
+        """
+        query_embeddings = output.query_embeddings
+        doc_embeddings = output.doc_embeddings
+        if query_embeddings is None or doc_embeddings is None:
+            raise ValueError("Both query and document embeddings must be provided for scoring.")
+        similarities = self.compute_similarity(query_embeddings, doc_embeddings, num_docs)
+
+        query_mask = query_embeddings.scoring_mask
+        doc_mask = doc_embeddings.scoring_mask
+
+        num_docs_t = self._parse_num_docs(
+            query_embeddings.embeddings.shape[0],
+            doc_embeddings.embeddings.shape[0],
+            num_docs,
+            query_embeddings.device,
+        )
+
+        query_mask_expanded = query_mask.repeat_interleave(num_docs_t, dim=0).unsqueeze(-1)
+        doc_mask_expanded = doc_mask.unsqueeze(1)
+
+        similarities = similarities.masked_fill(~doc_mask_expanded, float("-inf"))
+        similarities = similarities.masked_fill(~query_mask_expanded, float("-inf"))
+
+        batch_size = query_embeddings.embeddings.shape[0]
+        q_len = query_embeddings.embeddings.shape[1]
+        doc_len = doc_embeddings.embeddings.shape[1]
+        max_docs = torch.max(num_docs_t)
+
+        sim_list = similarities.split(num_docs_t.tolist(), dim=0)
+        sim_padded = torch.nn.utils.rnn.pad_sequence(sim_list, batch_first=True, padding_value=float("-inf"))
+
+        valid_mask = torch.arange(max_docs, device=num_docs_t.device).unsqueeze(0) < num_docs_t.unsqueeze(1)
+
+        sim_flat = sim_padded.view(batch_size, -1)
+        k_train = min(self.config.k_train, sim_flat.size(-1))
+        minimum_values = torch.topk(sim_flat, k=k_train, dim=-1).values[:, -1].unsqueeze(-1)
+
+        sim_padded = sim_padded.view(batch_size, -1)
+        sim_padded = sim_padded.masked_fill(sim_padded < minimum_values, 0.0)
+        sim_padded = sim_padded.view(batch_size, max_docs, q_len, doc_len)
+
+        scores = sim_padded.max(dim=-1).values.sum(dim=-1)
+        Z = (sim_padded.max(dim=-1).values > 0).sum(dim=-1).float()
+        Z = Z.clamp(min=1.0)
+        scores = scores / Z
+
+        scores = scores[valid_mask]
+
+        output.scores = scores
+        output.similarity = sim_padded[valid_mask]
+
+        return output
 
 
 class ColTokenizer(BiEncoderTokenizer):

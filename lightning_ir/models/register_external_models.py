@@ -6,7 +6,7 @@ from safetensors.torch import load_file
 from transformers import T5EncoderModel
 
 from ..base import BACKBONE_MAPPING, CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig, UniCoilConfig, XTRConfig
+from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig, UniCoilConfig
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -37,6 +37,10 @@ def _map_moderncolbert_marker_tokens(model: LightningIRModel) -> LightningIRMode
 
 
 def _map_xtr_weights(model: LightningIRModel) -> LightningIRModel:
+    warnings.warn(
+        "The above warning, that the linear layer is not initialized, is expected and can be ignored."
+        "The weights are initialized separately."
+    )
     path = hf_hub_download(model.config.name_or_path, filename="pytorch_model.bin", subfolder="2_Dense")
     state_dict = torch.load(path, weights_only=True, map_location="cpu")
     state_dict["projection.weight"] = state_dict.pop("linear.weight")
@@ -153,7 +157,7 @@ def _register_external_models():
             ),
             "fschlatt/coil-with-hn": CoilConfig(),
             "castorini/unicoil-noexp-msmarco-passage": UniCoilConfig(projection="linear"),
-            "google/xtr-base-en": XTRConfig(projection="linear_no_bias"),
+            "google/xtr-base-en": ColConfig(projection="linear_no_bias", normalization="l2"),
         }
     )
     BACKBONE_MAPPING.update({"google/xtr-base-en": T5EncoderModel})
