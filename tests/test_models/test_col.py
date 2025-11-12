@@ -99,7 +99,14 @@ def test_same_as_modern_colbert(hf_model: str):
     assert torch.allclose(output.scores, torch.tensor([d["score"] for q in orig_scores for d in q]), atol=1e-6)
 
 
-@pytest.mark.parametrize("hf_model", ["google/xtr-base-en"], indirect=True)
+@pytest.mark.model
+@pytest.mark.parametrize(
+    "hf_model",
+    [
+        "google/xtr-base-en",
+    ],
+    indirect=True,
+)
 def test_same_as_xtr(hf_model: str):
     query = "What is the capital of France?"
     documents = [
