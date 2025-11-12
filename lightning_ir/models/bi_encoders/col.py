@@ -23,7 +23,7 @@ class ColConfig(MultiVectorBiEncoderConfig):
         query_length: int | None = 32,
         doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalization: Literal["l2"] | None = None,
+        normalization_strategy: Literal["l2"] | None = None,
         add_marker_tokens: bool = False,
         query_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
@@ -48,7 +48,8 @@ class ColConfig(MultiVectorBiEncoderConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
+            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings.
+                Defaults to None.
             add_marker_tokens (bool): Whether to add extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             query_mask_scoring_tokens (Sequence[str] | Literal["punctuation"] | None): Whether and which query tokens
@@ -73,7 +74,7 @@ class ColConfig(MultiVectorBiEncoderConfig):
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
-            normalization=normalization,
+            normalization_strategy=normalization_strategy,
             add_marker_tokens=add_marker_tokens,
             query_mask_scoring_tokens=query_mask_scoring_tokens,
             doc_mask_scoring_tokens=doc_mask_scoring_tokens,
@@ -144,7 +145,7 @@ class ColModel(MultiVectorBiEncoderModel):
         """
         embeddings = self._backbone_forward(**encoding).last_hidden_state
         embeddings = self.projection(embeddings)
-        if self.config.normalization == "l2":
+        if self.config.normalization_strategy == "l2":
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self.scoring_mask(encoding, input_type)
         return BiEncoderEmbedding(embeddings, scoring_mask, encoding)

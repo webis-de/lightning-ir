@@ -11,6 +11,7 @@ from transformers import BatchEncoding
 
 from lightning_ir.bi_encoder.bi_encoder_model import BiEncoderEmbedding
 
+from ...base import Pooler
 from ...bi_encoder import BiEncoderTokenizer, MultiVectorBiEncoderConfig, MultiVectorBiEncoderModel
 
 
@@ -25,7 +26,7 @@ class MvrConfig(MultiVectorBiEncoderConfig):
         query_length: int | None = 32,
         doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalization: Literal["l2"] | None = None,
+        normalization_strategy: Literal["l2"] | None = None,
         add_marker_tokens: bool = False,
         embedding_dim: int | None = None,
         projection: Literal["linear", "linear_no_bias"] | None = "linear",
@@ -43,7 +44,8 @@ class MvrConfig(MultiVectorBiEncoderConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
+            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings.
+                Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
             embedding_dim (int | None): Dimension of the final embeddings. If None, it will be set to the hidden size
@@ -56,7 +58,7 @@ class MvrConfig(MultiVectorBiEncoderConfig):
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
-            normalization=normalization,
+            normalization_strategy=normalization_strategy,
             add_marker_tokens=add_marker_tokens,
             embedding_dim=embedding_dim,
             projection=projection,
@@ -88,6 +90,7 @@ class MvrModel(MultiVectorBiEncoderModel):
                 self.config.embedding_dim,
                 bias="no_bias" not in self.config.projection,
             )
+        self.query_pooler = Pooler("first")
 
     def scoring_mask(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> torch.Tensor:
         """Computes a scoring mask for batched tokenized text sequences which is used in the scoring function to mask
@@ -123,10 +126,12 @@ class MvrModel(MultiVectorBiEncoderModel):
         embeddings = self._backbone_forward(**encoding).last_hidden_state
         embeddings = self.projection(embeddings)
         if input_type == "query":
-            embeddings = self.pooling(embeddings, None, "first")
+            embeddings = self.query_pooler(embeddings, None)
         elif input_type == "doc":
             embeddings = embeddings[:, 1 : self.config.num_viewer_tokens + 1]
-        if self.config.normalization == "l2":
+        else:
+            raise ValueError(f"Invalid input type: {input_type}")
+        if self.config.normalization_strategy == "l2":
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
         scoring_mask = self.scoring_mask(encoding, input_type)
         return BiEncoderEmbedding(embeddings, scoring_mask, encoding)

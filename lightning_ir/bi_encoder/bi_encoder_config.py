@@ -20,8 +20,8 @@ class BiEncoderConfig(LightningIRConfig):
         query_length: int | None = 32,
         doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalization: Literal["l2"] | None = None,
-        sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = None,
+        normalization_strategy: Literal["l2"] | None = None,
+        sparsification_strategy: Literal["relu", "relu_log", "relu_2xlog"] | None = None,
         add_marker_tokens: bool = False,
         **kwargs,
     ):
@@ -34,16 +34,16 @@ class BiEncoderConfig(LightningIRConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
-            sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
+            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
+            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
                 function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
         """
         super().__init__(query_length=query_length, doc_length=doc_length, **kwargs)
         self.similarity_function = similarity_function
-        self.normalization = normalization
-        self.sparsification = sparsification
+        self.normalization_strategy = normalization_strategy
+        self.sparsification_strategy = sparsification_strategy
         self.add_marker_tokens = add_marker_tokens
         self.embedding_dim: int | None = getattr(self, "hidden_size", None)
 
@@ -72,11 +72,10 @@ class SingleVectorBiEncoderConfig(BiEncoderConfig):
         query_length: int | None = 32,
         doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalization: Literal["l2"] | None = None,
-        sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = None,
+        normalization_strategy: Literal["l2"] | None = None,
+        sparsification_strategy: Literal["relu", "relu_log", "relu_2xlog"] | None = None,
         add_marker_tokens: bool = False,
-        query_pooling_strategy: Literal["first", "mean", "max", "sum"] = "mean",
-        doc_pooling_strategy: Literal["first", "mean", "max", "sum"] = "mean",
+        pooling_strategy: Literal["first", "mean", "max", "sum"] = "mean",
         **kwargs,
     ):
         """Configuration class for a single-vector bi-encoder model. A single-vector bi-encoder model pools the
@@ -87,27 +86,24 @@ class SingleVectorBiEncoderConfig(BiEncoderConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
-            sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
+            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
+            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
                 function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
-            query_pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | str): How to pool the query
-                token embeddings. Defaults to "mean".
-            doc_pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | str): How to pool document
-                token embeddings. Defaults to "mean".
+            pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | str): How to pool the token embeddings.
+                Defaults to "mean".
         """
         super().__init__(
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
-            normalization=normalization,
-            sparsification=sparsification,
+            normalization_strategy=normalization_strategy,
+            sparsification_strategy=sparsification_strategy,
             add_marker_tokens=add_marker_tokens,
             **kwargs,
         )
-        self.query_pooling_strategy = query_pooling_strategy
-        self.doc_pooling_strategy = doc_pooling_strategy
+        self.pooling_strategy = pooling_strategy
 
 
 class MultiVectorBiEncoderConfig(BiEncoderConfig):
@@ -121,8 +117,8 @@ class MultiVectorBiEncoderConfig(BiEncoderConfig):
         query_length: int | None = 32,
         doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        normalization: Literal["l2"] | None = None,
-        sparsification: None | Literal["relu", "relu_log", "relu_2xlog"] = None,
+        normalization_strategy: Literal["l2"] | None = None,
+        sparsification_strategy: None | Literal["relu", "relu_log", "relu_2xlog"] = None,
         add_marker_tokens: bool = False,
         query_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
         doc_mask_scoring_tokens: Sequence[str] | Literal["punctuation"] | None = None,
@@ -139,8 +135,9 @@ class MultiVectorBiEncoderConfig(BiEncoderConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal['cosine', 'dot']): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalization (Literal['l2'] | None): Whether to normalize query and document embeddings. Defaults to None.
-            sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
+            normalization_strategy (Literal['l2'] | None): Whether to normalize query and document embeddings.
+                Defaults to None.
+            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
                 function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
@@ -157,8 +154,8 @@ class MultiVectorBiEncoderConfig(BiEncoderConfig):
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
-            normalization=normalization,
-            sparsification=sparsification,
+            normalization_strategy=normalization_strategy,
+            sparsification_strategy=sparsification_strategy,
             add_marker_tokens=add_marker_tokens,
             **kwargs,
         )
