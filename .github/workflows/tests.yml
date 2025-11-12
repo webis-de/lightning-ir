@@ -22,8 +22,7 @@ jobs:
         working-directory: ${{github.workspace}}
         run: |
           # Since pylate makes problems otherwise:
-          pip3 install pylate --no-deps
-          pip3 install git+https://github.com/mjeensung/xtr-pytorch.git --no-deps
+          pip3 install pylate git+https://github.com/mjeensung/xtr-pytorch.git --no-deps
           pip3 install .[test,dev]
           pip3 cache purge
       - name: Run tests
