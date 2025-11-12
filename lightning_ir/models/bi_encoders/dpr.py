@@ -11,6 +11,7 @@ import torch
 from transformers import BatchEncoding
 
 from ...bi_encoder import BiEncoderEmbedding, SingleVectorBiEncoderConfig, SingleVectorBiEncoderModel
+from ...modeling_utils.embedding_post_processing import Pooler, Sparsifier
 
 
 class DprConfig(SingleVectorBiEncoderConfig):
@@ -99,6 +100,8 @@ class DprModel(SingleVectorBiEncoderModel):
                 self.config.embedding_dim,
                 bias="no_bias" not in self.config.projection,
             )
+        self.pooler = Pooler(config.pooling_strategy)
+        self.sparsifier = Sparsifier(config.sparsification_strategy)
 
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
@@ -109,11 +112,10 @@ class DprModel(SingleVectorBiEncoderModel):
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """
-        pooling_strategy = getattr(self.config, f"{input_type}_pooling_strategy")
         embeddings = self._backbone_forward(**encoding).last_hidden_state
-        embeddings = self.pooling(embeddings, encoding["attention_mask"], pooling_strategy)
+        embeddings = self.pooler(embeddings, encoding["attention_mask"])
         embeddings = self.projection(embeddings)
-        embeddings = self.sparsification(embeddings, self.config.sparsification)
+        embeddings = self.sparsifier(embeddings)
         if self.config.normalize:
             embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=-1)
         return BiEncoderEmbedding(embeddings, None, encoding)

@@ -189,7 +189,7 @@ class BiEncoderModule(LightningIRModule):
                 losses.append(loss_function.compute_loss(output, batch))
             else:
                 raise ValueError(f"Unknown loss function type {loss_function.__class__.__name__}")
-        if self.config.sparsification is not None:
+        if self.config.sparsification_strategy is not None:
             query_num_nonzero = (
                 torch.nonzero(output.query_embeddings.embeddings).shape[0] / output.query_embeddings.embeddings.shape[0]
             )

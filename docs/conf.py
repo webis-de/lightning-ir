@@ -5,7 +5,7 @@
 
 import os
 import sys
-from typing import Any, dict
+from typing import Any
 
 from sphinxawesome_theme.postprocess import Icons
 

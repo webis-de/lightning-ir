@@ -112,7 +112,7 @@ def _register_external_models():
                 query_length=32,
                 doc_length=184,
                 add_marker_tokens=True,
-                normalization="l2",
+                normalization_strategy="l2",
                 query_expansion=True,
                 doc_mask_scoring_tokens="punctuation",
             ),
@@ -120,7 +120,7 @@ def _register_external_models():
                 query_length=32,
                 doc_length=296,
                 add_marker_tokens=True,
-                normalization="l2",
+                normalization_strategy="l2",
                 query_expansion=False,
                 projection="linear_no_bias",
                 doc_mask_scoring_tokens="punctuation",
@@ -139,17 +139,11 @@ def _register_external_models():
                 query_weighting="static",
             ),
             "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill": SpladeConfig(
-                query_expansion=False, query_weighting="static", sparsification="relu_2xlog"
+                query_expansion=False, query_weighting="static", sparsification_strategy="relu_2xlog"
             ),
-            "sentence-transformers/msmarco-bert-base-dot-v5": DprConfig(
-                projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
-            ),
-            "sentence-transformers/msmarco-distilbert-dot-v5": DprConfig(
-                projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
-            ),
-            "sentence-transformers/msmarco-MiniLM-L-6-v3": DprConfig(
-                projection=None, query_pooling_strategy="mean", doc_pooling_strategy="mean"
-            ),
+            "sentence-transformers/msmarco-bert-base-dot-v5": DprConfig(projection=None, pooling_strategy="mean"),
+            "sentence-transformers/msmarco-distilbert-dot-v5": DprConfig(projection=None, pooling_strategy="mean"),
+            "sentence-transformers/msmarco-MiniLM-L-6-v3": DprConfig(projection=None, pooling_strategy="mean"),
             "castorini/monot5-base-msmarco-10k": MonoConfig(
                 scoring_strategy="mono", query_length=None, doc_length=None
             ),
@@ -171,7 +165,7 @@ def _register_external_models():
             ),
             "fschlatt/coil-with-hn": CoilConfig(),
             "castorini/unicoil-noexp-msmarco-passage": UniCoilConfig(projection="linear"),
-            "google/xtr-base-en": ColConfig(projection="linear_no_bias", normalization="l2"),
+            "google/xtr-base-en": ColConfig(projection="linear_no_bias", normalization_strategy="l2"),
         }
     )
     BACKBONE_MAPPING.update({"google/xtr-base-en": T5EncoderModel})

@@ -9,7 +9,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
-from typing import Any, Literal, Protocol, Self, TypeVar
+from typing import Any, Protocol, Self, TypeVar
 
 import torch
 from transformers import BatchEncoding, BertModel, PreTrainedModel
@@ -106,66 +106,6 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
     def forward(self, *args, **kwargs) -> LightningIROutput:
         """Forward method of the model. Must be implemented by the derived class."""
         raise NotImplementedError
-
-    def sparsification(
-        self, embeddings: torch.Tensor, sparsification_strategy: Literal["relu", "relu_log", "relu_2xlog"] | None = None
-    ) -> torch.Tensor:
-        """Helper method to apply sparsification to the embeddings.
-
-        Args:
-            embeddings(torch.Tensor): Query or document embeddings
-            sparsification_strategy(Literal['relu', 'relu_log', 'relu_2xlog'] | None): The sparsification strategy. No
-                sparsification is applied if None. Defaults to None.
-        Returns:
-            torch.Tensor: (Optionally) sparsified embeddings.
-        Raises:
-            ValueError: If an unknown sparsification strategy is passed.
-        """
-        if sparsification_strategy is None:
-            return embeddings
-        if sparsification_strategy == "relu":
-            return torch.relu(embeddings)
-        if sparsification_strategy == "relu_log":
-            return torch.log1p(torch.relu(embeddings))
-        if sparsification_strategy == "relu_2xlog":
-            return torch.log1p(torch.log1p(torch.relu(embeddings)))
-        raise ValueError(f"Unknown sparsification strategy: {sparsification_strategy}")
-
-    def pooling(
-        self,
-        embeddings: torch.Tensor,
-        attention_mask: torch.Tensor | None,
-        pooling_strategy: Literal["first", "mean", "max", "sum"] | None,
-    ) -> torch.Tensor:
-        """Helper method to apply pooling to the embeddings.
-
-        Args:
-            embeddings (torch.Tensor): Query or document embeddings
-            attention_mask (torch.Tensor | None): Query or document attention mask
-            pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | None):
-                The pooling strategy. No pooling is applied if None.
-        Returns:
-            torch.Tensor: (Optionally) pooled embeddings.
-        Raises:
-            ValueError: If an unknown pooling strategy is passed.
-        """
-        if pooling_strategy is None:
-            return embeddings
-        if pooling_strategy == "first":
-            return embeddings[:, [0]]
-        if pooling_strategy in ("sum", "mean"):
-            if attention_mask is not None:
-                embeddings = embeddings * attention_mask.unsqueeze(-1)
-            embeddings = embeddings.sum(dim=1, keepdim=True)
-            if pooling_strategy == "mean":
-                if attention_mask is not None:
-                    embeddings = embeddings / attention_mask.sum(dim=1, keepdim=True).unsqueeze(-1)
-            return embeddings
-        if pooling_strategy == "max":
-            if attention_mask is not None:
-                embeddings = embeddings.masked_fill(~attention_mask.bool().unsqueeze(-1), float("-inf"))
-            return embeddings.amax(dim=1, keepdim=True)
-        raise ValueError(f"Unknown pooling strategy: {pooling_strategy}")
 
     @classmethod
     def from_pretrained(

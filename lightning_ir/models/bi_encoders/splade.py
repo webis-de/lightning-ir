@@ -17,6 +17,7 @@ from ...bi_encoder import (
     SingleVectorBiEncoderConfig,
     SingleVectorBiEncoderModel,
 )
+from ...modeling_utils.embedding_post_processing import Pooler, Sparsifier
 from ...modeling_utils.mlm_head import (
     MODEL_TYPE_TO_LM_HEAD,
     MODEL_TYPE_TO_OUTPUT_EMBEDDINGS,
@@ -36,11 +37,10 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
         query_length: int | None = 32,
         doc_length: int | None = 512,
         similarity_function: Literal["cosine", "dot"] = "dot",
-        sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = "relu_log",
-        query_pooling_strategy: Literal["first", "mean", "max", "sum"] = "max",
+        sparsification_strategy: Literal["relu", "relu_log", "relu_2xlog"] | None = "relu_log",
+        pooling_strategy: Literal["first", "mean", "max", "sum"] = "max",
         query_weighting: Literal["contextualized", "static"] | None = "contextualized",
         query_expansion: bool = True,
-        doc_pooling_strategy: Literal["first", "mean", "max", "sum"] = "max",
         doc_weighting: Literal["contextualized", "static"] | None = "contextualized",
         doc_expansion: bool = True,
         **kwargs,
@@ -55,15 +55,13 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
+            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
                 function to apply. Defaults to None.
+            pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query embeddings.
+                Defaults to "max".
             query_weighting (Literal["contextualized", "static"] | None): Whether to reweight query embeddings.
                 Defaults to "contextualized".
             query_expansion (bool): Whether to allow query expansion. Defaults to True.
-            query_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query embeddings.
-                Defaults to "max".
-            doc_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for document embeddings.
-                Defaults to "max".
             doc_weighting (Literal["contextualized", "static"] | None): Whether to reweight document embeddings.
                 Defaults to "contextualized".
             doc_expansion (bool): Whether to allow document expansion. Defaults to True.
@@ -72,9 +70,8 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
             query_length=query_length,
             doc_length=doc_length,
             similarity_function=similarity_function,
-            sparsification=sparsification,
-            query_pooling_strategy=query_pooling_strategy,
-            doc_pooling_strategy=doc_pooling_strategy,
+            sparsification_strategy=sparsification_strategy,
+            pooling_strategy=pooling_strategy,
             **kwargs,
         )
         if query_expansion and not query_weighting:
@@ -127,6 +124,9 @@ class SpladeModel(SingleVectorBiEncoderModel):
         if config.doc_weighting == "static":
             self.doc_weights = torch.nn.Embedding(config.vocab_size, 1)
 
+        self.pooler = Pooler(config.pooling_strategy)
+        self.sparsifier = Sparsifier(config.sparsification_strategy)
+
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
 
@@ -136,7 +136,6 @@ class SpladeModel(SingleVectorBiEncoderModel):
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """
-        pooling_strategy = getattr(self.config, f"{input_type}_pooling_strategy")
         weighting = getattr(self.config, f"{input_type}_weighting")
         expansion = getattr(self.config, f"{input_type}_expansion")
         token_mask = None
@@ -159,8 +158,8 @@ class SpladeModel(SingleVectorBiEncoderModel):
 
         embeddings = self._backbone_forward(**encoding).last_hidden_state
         embeddings = self.projection(embeddings)
-        embeddings = self.sparsification(embeddings, self.config.sparsification)
-        embeddings = self.pooling(embeddings, encoding["attention_mask"], pooling_strategy)
+        embeddings = self.sparsifier(embeddings)
+        embeddings = self.pooler(embeddings, encoding["attention_mask"])
         if token_mask is not None:
             embeddings = embeddings * token_mask[:, None]
         return BiEncoderEmbedding(embeddings, None, encoding)

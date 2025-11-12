@@ -10,6 +10,7 @@ from lightning_ir import BiEncoderModule
     "hf_model",
     [
         "sentence-transformers/msmarco-bert-base-dot-v5",
+        "sentence-transformers/msmarco-distilbert-dot-v5",
         "sentence-transformers/msmarco-MiniLM-L-6-v3",
     ],
     indirect=True,

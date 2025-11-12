@@ -11,6 +11,7 @@ from transformers import BatchEncoding
 
 from ...base.model import batch_encoding_wrapper
 from ...cross_encoder import CrossEncoderConfig, CrossEncoderModel, CrossEncoderOutput
+from ...modeling_utils.embedding_post_processing import Pooler
 
 
 class ScaleLinear(torch.nn.Linear):
@@ -48,7 +49,7 @@ class MonoConfig(CrossEncoderConfig):
             tokenizer_pattern (str | None): Optional pattern for tokenization. Defaults to None.
         """
         self._bert_pool = False
-        if pooling_strategy == "bert_pool":
+        if pooling_strategy == "bert_pool":  # some models use the internal BERT pooler
             self._bert_pool = True
             pooling_strategy = "first"
         super().__init__(
@@ -94,6 +95,7 @@ class MonoModel(CrossEncoderModel):
             self.linear = ScaleLinear(config.hidden_size, output_dim, bias=self.config.linear_bias)
         else:
             self.linear = torch.nn.Linear(config.hidden_size, output_dim, bias=self.config.linear_bias)
+        self.pooler = Pooler(self.config.pooling_strategy)
 
     @batch_encoding_wrapper
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
@@ -112,9 +114,7 @@ class MonoModel(CrossEncoderModel):
             )
             encoding["decoder_input_ids"] = decoder_input_ids
         embeddings = self._backbone_forward(**encoding).last_hidden_state
-        embeddings = self.pooling(
-            embeddings, encoding.get("attention_mask", None), pooling_strategy=self.config.pooling_strategy
-        )
+        embeddings = self.pooler(embeddings, encoding.get("attention_mask", None))
         embeddings = self.bert_pool(embeddings)
         scores = self.linear(embeddings)
 
