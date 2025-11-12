@@ -5,8 +5,9 @@ The module also defines several helper classes for configuring and running exper
 
 import os
 import sys
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Set
+from typing import Any
 
 import torch
 from lightning import LightningDataModule, LightningModule, Trainer
@@ -145,7 +146,6 @@ class LightningIRWandbLogger(WandbLogger):
                        are saved, or None if the experiment is not properly initialized
                        or WandB is running in offline/disabled mode.
         """
-        super().save_dir
         if isinstance(self.experiment, DummyExperiment):
             return None
         return self.experiment.dir
@@ -209,7 +209,7 @@ class LightningIRTrainer(Trainer):
         ckpt_path: str | Path | None = None,
         verbose: bool = True,
         datamodule: LightningDataModule | None = None,
-    ) -> List[Mapping[str, float]]:
+    ) -> list[Mapping[str, float]]:
         """Index a collection of documents using a fine-tuned bi-encoder model.
 
         This method performs document indexing by running inference on a document collection and
@@ -228,7 +228,7 @@ class LightningIRTrainer(Trainer):
                 to passing dataloaders directly.
 
         Returns:
-            List[Mapping[str, float]]: List of dictionaries containing indexing metrics and results.
+            list[Mapping[str, float]]: list of dictionaries containing indexing metrics and results.
 
         Example:
             .. code-block:: python
@@ -266,7 +266,7 @@ class LightningIRTrainer(Trainer):
         ckpt_path: str | Path | None = None,
         verbose: bool = True,
         datamodule: LightningDataModule | None = None,
-    ) -> List[Mapping[str, float]]:
+    ) -> list[Mapping[str, float]]:
         """Search for relevant documents using a bi-encoder model and pre-built index.
 
         This method performs dense or sparse retrieval by encoding queries and searching through
@@ -286,7 +286,7 @@ class LightningIRTrainer(Trainer):
                 to passing dataloaders directly.
 
         Returns:
-            List[Mapping[str, float]]: List of dictionaries containing search metrics and effectiveness
+            list[Mapping[str, float]]: list of dictionaries containing search metrics and effectiveness
                 results (if relevance judgments are available).
 
         Example:
@@ -328,7 +328,7 @@ class LightningIRTrainer(Trainer):
         ckpt_path: str | Path | None = None,
         verbose: bool = True,
         datamodule: LightningDataModule | None = None,
-    ) -> List[Mapping[str, float]]:
+    ) -> list[Mapping[str, float]]:
         """Re-rank a set of retrieved documents using bi-encoder or cross-encoder models.
 
         This method performs re-ranking by scoring query-document pairs and reordering them
@@ -349,7 +349,7 @@ class LightningIRTrainer(Trainer):
                 to passing dataloaders directly.
 
         Returns:
-            List[Mapping[str, float]]: List of dictionaries containing re-ranking metrics and
+            list[Mapping[str, float]]: list of dictionaries containing re-ranking metrics and
                 effectiveness results (if relevance judgments are available).
 
         Example:
@@ -511,7 +511,7 @@ class LightningIRCLI(LightningCLI):
         parser.link_arguments("trainer.max_steps", "lr_scheduler.init_args.num_training_steps")
 
     @staticmethod
-    def subcommands() -> Dict[str, Set[str]]:
+    def subcommands() -> dict[str, set[str]]:
         """Defines the list of available subcommands and the arguments to skip.
 
         Returns a dictionary mapping subcommand names to the set of configuration sections
@@ -519,7 +519,7 @@ class LightningIRCLI(LightningCLI):
         indexing, searching, and re-ranking operations.
 
         Returns:
-            Dict[str, Set[str]]: Dictionary mapping subcommand names to required config sections.
+            dict[str, set[str]]: Dictionary mapping subcommand names to required config sections.
                 - fit: Standard Lightning training subcommand with all sections
                 - index: Document indexing requiring model, dataloaders, and datamodule
                 - search: Document search requiring model, dataloaders, and datamodule

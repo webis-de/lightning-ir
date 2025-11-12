@@ -5,7 +5,6 @@ from transformers.models.distilbert.configuration_distilbert import DistilBertCo
 
 
 class DistilBertOnlyMLMHead(torch.nn.Module):
-
     def __init__(self, config: DistilBertConfig) -> None:
         super().__init__()
         self.activation = get_activation(config.activation)

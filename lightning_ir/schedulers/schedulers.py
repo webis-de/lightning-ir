@@ -1,7 +1,8 @@
 """Generic schedulers for LightningIR."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 from lightning import Callback, LightningModule, Trainer
 
@@ -48,7 +49,6 @@ class LambdaWarmupScheduler(ABC):
 
 
 class LinearSchedulerWithLinearWarmup(LambdaWarmupScheduler):
-
     def __init__(
         self,
         num_warmup_steps: int,
@@ -121,13 +121,12 @@ class ConstantSchedulerWithQuadraticWarmup(LambdaWarmupScheduler):
 
 
 class GenericScheduler(Callback, ABC):
-
     def __init__(self, *args, keys: Sequence[str] | None = None, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         if keys is None:
             raise ValueError("keys must be provided")
         self.keys = keys
-        self.values: Dict[str, float] = {}
+        self.values: dict[str, float] = {}
 
     def step(self, key: str, current_step: int) -> float:
         value = self.values[key]

@@ -1,8 +1,96 @@
-[tool.black]
-line-length = 120
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 120
-include_trailing_comma = true
+[project]
+name = "lightning-ir"
+version = "0.0.5"
+authors = [
+    {name = "Ferdinand Schlatt", email = "ferdinand.schlatt@uni-jena.de"},
+]
+description = "Your one-stop shop for fine-tuning and running neural ranking models."
+readme = "README.md"
+license = {text = "Apache-2.0"}
+keywords = ["information-retrieval"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "transformers[torch]>=4.50.0",
+    "datasets>=3.0.0",
+    "ir_datasets",
+    "ir-measures",
+    "lightning",
+    "pandas",
+    "jsonargparse[signatures]>=4.27.7",
+    "sentencepiece",
+    "protobuf",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<8",
+    "sentence-transformers",
+    "faiss-cpu",
+    "pyseismic-lsr",
+    "omegaconf",
+    "colbert-ai",
+    "fast-plaid",
+    # "xtr and pylate should be installed separately with --no-deps because it has fixed package versions which conflict with other packages"
+    # "xtr @ git+https://github.com/mjeensung/xtr-pytorch.git",
+    # "pylate",
+]
+adapters = [
+    "peft>=0.17.0",
+]
+dev = [
+    "ruff",
+]
+docs = [
+    "sphinx",
+    "myst-parser",
+    "sphinxawesome-theme",
+    "sphinx-toolbox",
+]
+
+[project.scripts]
+lightning-ir = "lightning_ir.main:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["lightning_ir", "lightning_ir.*"]
+exclude = ["examples*", "docs*", "tests*"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+known-first-party = ["lightning_ir"]
+force-single-line = false
+split-on-trailing-comma = true

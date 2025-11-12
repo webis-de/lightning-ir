@@ -5,8 +5,9 @@ This module defines the basic samples classes for Lightning IR. A sample is sing
 into batches for processing.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Dict, List, Sequence
+from typing import Any
 
 import torch
 from ir_datasets.formats.base import GenericDoc, GenericQuery
@@ -19,11 +20,11 @@ class RankSample:
     Attributes:
         query_id (str): Id of the query.
         query (str): Query text.
-        doc_ids (Sequence[str]): List of document ids.
-        docs (Sequence[str]): List of document texts.
+        doc_ids (Sequence[str]): list of document ids.
+        docs (Sequence[str]): list of document texts.
         targets (torch.Tensor): Optional list of target labels denoting the relevance of a document for the query.
             Defaults to None.
-        qrels (List[Dict[str, Any]]): Optional list of dictionaries mapping document ids to relevance labels.
+        qrels (list[dict[str, Any]]): Optional list of dictionaries mapping document ids to relevance labels.
             Defaults to None.
     """
 
@@ -32,7 +33,7 @@ class RankSample:
     doc_ids: Sequence[str]
     docs: Sequence[str]
     targets: torch.Tensor | None = None
-    qrels: List[Dict[str, Any]] | None = None
+    qrels: list[dict[str, Any]] | None = None
 
 
 @dataclass
@@ -42,13 +43,13 @@ class QuerySample:
     Attributes:
         query_id (str): Id of the query.
         query (str): Query text.
-        qrels (List[Dict[str, Any]] | None): Optional list of dictionaries mapping document ids to relevance labels.
+        qrels (list[dict[str, Any]] | None): Optional list of dictionaries mapping document ids to relevance labels.
             Defaults to None.
     """
 
     query_id: str
     query: str
-    qrels: List[Dict[str, Any]] | None = None
+    qrels: list[dict[str, Any]] | None = None
 
     @classmethod
     def from_ir_dataset_sample(cls, sample: GenericQuery) -> "QuerySample":
@@ -95,11 +96,11 @@ class RankBatch:
     """A batch of ranking data combining multiple :py:class:`.RankSample` instances
 
     Attributes:
-        queries (Sequence[str]): List of query texts.
-        docs (Sequence[Sequence[str]]): List of list of document texts.
+        queries (Sequence[str]): list of query texts.
+        docs (Sequence[Sequence[str]]): list of list of document texts.
         query_ids (Sequence[str] | None): Optional list of query ids. Defaults to None.
         doc_ids (Sequence[Sequence[str]] | None): Optional list of list of document ids. Defaults to None.
-        qrels (List[Dict[str, int]] | None): Optional list of dictionaries mapping document ids to relevance labels.
+        qrels (list[dict[str, int]] | None): Optional list of dictionaries mapping document ids to relevance labels.
             Defaults to None.
     """
 
@@ -107,7 +108,7 @@ class RankBatch:
     docs: Sequence[Sequence[str]]
     query_ids: Sequence[str] | None = None
     doc_ids: Sequence[Sequence[str]] | None = None
-    qrels: List[Dict[str, int]] | None = None
+    qrels: list[dict[str, int]] | None = None
 
 
 @dataclass
@@ -115,11 +116,11 @@ class TrainBatch(RankBatch):
     """A batch of ranking data that combines multiple :py:class:`.RankSample` instances
 
     Attributes:
-        queries (Sequence[str]): List of query texts.
-        docs (Sequence[Sequence[str]]): List of list of document texts.
+        queries (Sequence[str]): list of query texts.
+        docs (Sequence[Sequence[str]]): list of list of document texts.
         query_ids (Sequence[str] | None): Optional list of query ids. Defaults to None.
         doc_ids (Sequence[Sequence[str]] | None): Optional list of list of document ids. Defaults to None.
-        qrels (List[Dict[str, int]] | None): Optional list of dictionaries mapping document ids to relevance labels.
+        qrels (list[dict[str, int]] | None): Optional list of dictionaries mapping document ids to relevance labels.
             Defaults to None.
         targets (torch.Tensor | None): Optional list of target labels denoting the relevance of a document for the
             query. Defaults to None.
@@ -133,8 +134,8 @@ class IndexBatch:
     """A batch of index that combines multiple :py:class:`.DocSample` instances
 
     Attributes:
-        doc_ids (Sequence[str]): List of document ids.
-        docs (Sequence[str]): List of document texts.
+        doc_ids (Sequence[str]): list of document ids.
+        docs (Sequence[str]): list of document texts.
     """
 
     doc_ids: Sequence[str]
@@ -147,14 +148,14 @@ class SearchBatch:
     and qrels.
 
     Attributes:
-        query_ids (Sequence[str]): List of query ids.
-        queries (Sequence[str]): List of query texts.
+        query_ids (Sequence[str]): list of query ids.
+        queries (Sequence[str]): list of query texts.
         doc_ids (Sequence[Sequence[str]] | None): Optional list of list of document ids. Defaults to None.
-        qrels (List[Dict[str, int]] | None): Optional list of dictionaries mapping document ids to relevance labels.
+        qrels (list[dict[str, int]] | None): Optional list of dictionaries mapping document ids to relevance labels.
             Defaults to None.
     """
 
     query_ids: Sequence[str]
     queries: Sequence[str]
     doc_ids: Sequence[Sequence[str]] | None = None
-    qrels: List[Dict[str, int]] | None = None
+    qrels: list[dict[str, int]] | None = None

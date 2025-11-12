@@ -7,7 +7,7 @@ import gc
 import itertools
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 
 import pandas as pd
 import torch
@@ -35,7 +35,7 @@ def _format_large_number(number: float) -> str:
         number /= 1000.0
         suffix_index += 1
 
-    formatted_number = "{:.2f}".format(number)
+    formatted_number = f"{number:.2f}"
 
     suffix = suffixes[suffix_index]
     if suffix:
@@ -94,7 +94,7 @@ class _OverwriteMixin:
                 save_path = self._get_save_path(pl_module, dataset)
                 if save_path.exists():
                     dataset._SKIP = True
-                    trainer.print(f"`{save_path}` already exists. Set overwrite=True to overwrite")
+                    trainer.print(f"`{save_path}` already exists. set overwrite=True to overwrite")
                     if (
                         save_path.name.endswith(".run")
                         and dataset.qrels is not None
@@ -187,7 +187,7 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         indexer = self.index_config.indexer_class(index_dir, self.index_config, pl_module, self.verbose)
         return indexer
 
-    def _log_to_pg(self, info: Dict[str, Any], trainer: Trainer):
+    def _log_to_pg(self, info: dict[str, Any], trainer: Trainer):
         pg_callback = trainer.progress_bar_callback
         if pg_callback is None or not isinstance(pg_callback, TQDMProgressBar):
             return
@@ -285,7 +285,7 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         self.save_dir = Path(save_dir) if save_dir is not None else None
         self.run_name = run_name
         self.overwrite = overwrite
-        self.run_dfs: List[pd.DataFrame] = []
+        self.run_dfs: list[pd.DataFrame] = []
 
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         """Hook to setup the callback.
@@ -336,7 +336,7 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         run_file_path = self.save_dir / run_file
         return run_file_path
 
-    def _rank(self, batch: RankBatch, output: LightningIROutput) -> Tuple[torch.Tensor, List[str], List[int]]:
+    def _rank(self, batch: RankBatch, output: LightningIROutput) -> tuple[torch.Tensor, list[str], list[int]]:
         scores = output.scores
         if scores is None:
             raise ValueError("Expected output to have scores")
@@ -469,7 +469,7 @@ class SearchCallback(RankCallback, _IndexDirMixin):
 
     def _rank(
         self, batch: SearchBatch | RankBatch, output: LightningIROutput
-    ) -> Tuple[torch.Tensor, List[str], List[int]]:
+    ) -> tuple[torch.Tensor, list[str], list[int]]:
         if batch.doc_ids is None:
             raise ValueError("BiEncoderModule did not return doc_ids when searching")
         dummy_docs = [[""] * len(ids) for ids in batch.doc_ids]
@@ -516,7 +516,6 @@ class ReRankCallback(RankCallback):
 
 
 class RegisterLocalDatasetCallback(Callback):
-
     def __init__(
         self,
         dataset_id: str,
@@ -525,7 +524,7 @@ class RegisterLocalDatasetCallback(Callback):
         qrels: str | None = None,
         docpairs: str | None = None,
         scoreddocs: str | None = None,
-        qrels_defs: Dict[int, str] | None = None,
+        qrels_defs: dict[int, str] | None = None,
     ):
         """Registers a local dataset with ``ir_datasets``. After registering the dataset, it can be loaded using
         ``ir_datasets.load(dataset_id)``. Currently, the following (optionally gzipped) file types are supported:
@@ -547,7 +546,7 @@ class RegisterLocalDatasetCallback(Callback):
                 will be taken. Defaults to None.
             scoreddocs (str | None): Path to run file or valid ir_datasets id from which scored documents will be taken.
                 Defaults to None.
-            qrels_defs (Dict[int, str] | None): Optional dictionary describing the relevance levels of the qrels.
+            qrels_defs (dict[int, str] | None): Optional dictionary describing the relevance levels of the qrels.
                 Defaults to None.
         """
         super().__init__()

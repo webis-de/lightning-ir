@@ -19,7 +19,7 @@ class CrossEncoderConfig(LightningIRConfig):
         doc_length: int | None = 512,
         pooling_strategy: Literal["first", "mean", "max", "sum"] = "first",
         linear_bias: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """Configuration class for a cross-encoder model
 

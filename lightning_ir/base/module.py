@@ -5,8 +5,9 @@ This module contains the main module class deriving from a LightningModule_.
 .. _LightningModule: https://lightning.ai/docs/pytorch/stable/common/lightning_module.html
 """
 
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Sequence, Tuple, Type
+from typing import Any
 
 import pandas as pd
 import torch
@@ -35,8 +36,8 @@ class LightningIRModule(LightningModule):
         model_name_or_path: str | None = None,
         config: LightningIRConfig | None = None,
         model: LightningIRModel | None = None,
-        BackboneModel: Type[PreTrainedModel] | None = None,
-        loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
+        BackboneModel: type[PreTrainedModel] | None = None,
+        loss_functions: Sequence[LossFunction | tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
         model_kwargs: Mapping[str, Any] | None = None,
     ):
@@ -50,9 +51,9 @@ class LightningIRModule(LightningModule):
             config (LightningIRConfig | None): LightningIRConfig to apply when loading from backbone model.
                 Defaults to None.
             model (LightningIRModel | None): Already instantiated Lightning IR model. Defaults to None.
-            BackboneModel (Type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
+            BackboneModel (type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
                 instead of the default AutoModel. Defaults to None.
-            loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
+            loss_functions (Sequence[LossFunction | tuple[LossFunction, float]] | None):
                 Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function
                 Defaults to None.
             evaluation_metrics (Sequence[str] | None): Metrics corresponding to ir-measures_ measure strings
@@ -77,7 +78,7 @@ class LightningIRModule(LightningModule):
 
         self.model: LightningIRModel = model
         self.config = self.model.config
-        self.loss_functions: List[Tuple[LossFunction, float]] | None = None
+        self.loss_functions: list[tuple[LossFunction, float]] | None = None
         if loss_functions is not None:
             self.loss_functions = []
             for loss_function in loss_functions:
@@ -88,7 +89,7 @@ class LightningIRModule(LightningModule):
         self.evaluation_metrics = evaluation_metrics
         self._optimizer: torch.optim.Optimizer | None = None
         self.tokenizer = LightningIRTokenizer.from_pretrained(self.config.name_or_path, config=self.config)
-        self._additional_log_metrics: Dict[str, float] = {}
+        self._additional_log_metrics: dict[str, float] = {}
 
     def on_train_start(self) -> None:
         """Called at the beginning of training after sanity check."""
@@ -126,13 +127,13 @@ class LightningIRModule(LightningModule):
         return self._optimizer
 
     def set_optimizer(
-        self, optimizer: Type[torch.optim.Optimizer], **optimizer_kwargs: Dict[str, Any]
+        self, optimizer: type[torch.optim.Optimizer], **optimizer_kwargs: dict[str, Any]
     ) -> "LightningIRModule":
         """Sets the optimizer for the model. Necessary for fine-tuning when not using the CLI.
 
         Args:
-            optimizer (Type[torch.optim.Optimizer]): Torch optimizer class.
-            optimizer_kwargs (Dict[str, Any]): Arguments to initialize the optimizer.
+            optimizer (type[torch.optim.Optimizer]): Torch optimizer class.
+            optimizer_kwargs (dict[str, Any]): Arguments to initialize the optimizer.
         Returns:
             LightningIRModule: Self with the optimizer set.
         """
@@ -170,7 +171,7 @@ class LightningIRModule(LightningModule):
 
     def prepare_input(
         self, queries: Sequence[str] | None, docs: Sequence[str] | None, num_docs: Sequence[int] | int | None
-    ) -> Dict[str, BatchEncoding]:
+    ) -> dict[str, BatchEncoding]:
         """Tokenizes queries and documents and returns the tokenized BatchEncoding_.
 
         .. _BatchEncoding: https://huggingface.co/transformers/main_classes/tokenizer#transformers.BatchEncoding
@@ -181,7 +182,7 @@ class LightningIRModule(LightningModule):
             num_docs (Sequence[int] | int | None): Number of documents per query, if None num_docs is inferred by
                 `len(docs) // len(queries)`. Defaults to None.
         Returns:
-            Dict[str, BatchEncoding]: Tokenized queries and documents, format depends on the tokenizer.
+            dict[str, BatchEncoding]: Tokenized queries and documents, format depends on the tokenizer.
         """
         encodings = self.tokenizer.tokenize(
             queries, docs, return_tensors="pt", padding=True, truncation=True, num_docs=num_docs
@@ -190,11 +191,11 @@ class LightningIRModule(LightningModule):
             encodings[key] = encodings[key].to(self.device)
         return encodings
 
-    def _compute_losses(self, batch: TrainBatch, output: LightningIROutput) -> List[torch.Tensor]:
+    def _compute_losses(self, batch: TrainBatch, output: LightningIROutput) -> list[torch.Tensor]:
         """Computes the losses for a training batch."""
         raise NotImplementedError
 
-    def training_step(self, batch: TrainBatch, batch_idx: int) -> Dict[str, Any]:
+    def training_step(self, batch: TrainBatch, batch_idx: int) -> dict[str, Any]:
         """Handles the training step for the model.
 
         Args:
@@ -308,16 +309,16 @@ class LightningIRModule(LightningModule):
         self,
         output: LightningIROutput,
         batch: TrainBatch | RankBatch | SearchBatch,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Validates the model output with the evaluation metrics and loss functions.
 
         Args:
             output (LightningIROutput): Model output.
             batch (TrainBatch | RankBatch | SearchBatch): Batch of validation or testing data.
         Returns:
-            Dict[str, float]: Dictionary of evaluation metrics.
+            dict[str, float]: Dictionary of evaluation metrics.
         """
-        metrics: Dict[str, float] = {}
+        metrics: dict[str, float] = {}
         if self.evaluation_metrics is None or output.scores is None:
             return metrics
         metrics.update(self.validate_metrics(output, batch))
@@ -328,18 +329,18 @@ class LightningIRModule(LightningModule):
         self,
         output: LightningIROutput,
         batch: TrainBatch | RankBatch | SearchBatch,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Validates the model output with the evaluation metrics.
 
         Args:
             output (LightningIROutput): Model output.
             batch (TrainBatch | RankBatch | SearchBatch): Batch of validation or testing data.
         Returns:
-            Dict[str, float]: Dictionary of evaluation metrics.
+            dict[str, float]: Dictionary of evaluation metrics.
         Raises:
             ValueError: If query_ids or doc_ids are not set in the batch.
         """
-        metrics: Dict[str, float] = {}
+        metrics: dict[str, float] = {}
         qrels = batch.qrels
         if self.evaluation_metrics is None or qrels is None:
             return metrics
@@ -360,16 +361,16 @@ class LightningIRModule(LightningModule):
         self,
         output: LightningIROutput,
         batch: TrainBatch | RankBatch | SearchBatch,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         """Validates the model output with the loss functions.
 
         Args:
             output (LightningIROutput): Model output.
             batch (TrainBatch | RankBatch | SearchBatch): Batch of validation or testing data.
         Returns:
-            Dict[str, float]: Dictionary of evaluation metrics.
+            dict[str, float]: Dictionary of evaluation metrics.
         """
-        metrics: Dict[str, float] = {}
+        metrics: dict[str, float] = {}
         query_ids = batch.query_ids
         if query_ids is None:
             raise ValueError("query_ids must be set")
@@ -440,7 +441,7 @@ class LightningIRModule(LightningModule):
         self.model.save_pretrained(save_path)
         self.tokenizer.save_pretrained(save_path)
 
-    def on_save_checkpoint(self, checkpoint: Dict[str, Any]) -> None:
+    def on_save_checkpoint(self, checkpoint: dict[str, Any]) -> None:
         """Saves the model and tokenizer to the trainer's log directory."""
         if self.trainer is not None and self.trainer.log_dir is not None:
             if self.trainer.global_rank != 0:

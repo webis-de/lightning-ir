@@ -6,7 +6,7 @@ import array
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Set, Type
+from typing import TYPE_CHECKING
 
 import torch
 
@@ -36,7 +36,7 @@ class Indexer(ABC):
         self.index_dir = index_dir
         self.index_config = index_config
         self.module = module
-        self.doc_ids: List[str] = []
+        self.doc_ids: list[str] = []
         self.doc_lengths = array.array("I")
         self.num_embeddings = 0
         self.num_docs = 0
@@ -63,11 +63,11 @@ class Indexer(ABC):
 class IndexConfig:
     """Configuration class for indexers that defines the index type and other parameters."""
 
-    indexer_class: Type[Indexer]
-    SUPPORTED_MODELS: Set[str]
+    indexer_class: type[Indexer]
+    SUPPORTED_MODELS: set[str]
 
     @classmethod
-    def from_pretrained(cls, index_dir: Path | str) -> "IndexConfig":
+    def from_pretrained(cls, index_dir: Path | str) -> IndexConfig:
         """Load the index configuration from a directory.
 
         Args:
@@ -78,7 +78,7 @@ class IndexConfig:
             ValueError: If the index type in the configuration does not match the expected class name.
         """
         index_dir = Path(index_dir)
-        with open(index_dir / "config.json", "r") as f:
+        with open(index_dir / "config.json") as f:
             data = json.load(f)
             if data["index_type"] != cls.__name__:
                 raise ValueError(f"Expected index_type {cls.__name__}, got {data['index_type']}")

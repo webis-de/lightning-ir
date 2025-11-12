@@ -1,7 +1,6 @@
 """Plaid Searcher using fast-plaid library for Lightning IR Framework"""
 
 from pathlib import Path
-from typing import List, Tuple
 
 import torch
 
@@ -36,13 +35,13 @@ class PlaidSearcher(Searcher):
 
         self.index = search.FastPlaid(index=str(self.index_dir), device=self.device.type, preload_index=True)
 
-    def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
+    def search(self, output: BiEncoderOutput) -> tuple[PackedTensor, list[list[str]]]:
         """Search for relevant documents using the Plaid index.
 
         Args:
             output (BiEncoderOutput): The output from the BiEncoder module containing query embeddings.
         Returns:
-            Tuple[PackedTensor, List[List[str]]]: A tuple containing the scores and the corresponding document IDs.
+            tuple[PackedTensor, list[list[str]]]: A tuple containing the scores and the corresponding document IDs.
         Raises:
             ValueError: If the output does not contain query embeddings.
             ValueError: If the index is not loaded. Call load() before searching.

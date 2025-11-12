@@ -80,7 +80,7 @@ class TorchSparseIndexer(Indexer):
         Args:
             embeddings (torch.Tensor): The embeddings tensor to convert.
         Returns:
-            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Crow indices, column indices, and values of the sparse
+            tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Crow indices, column indices, and values of the sparse
                 matrix.
         """
         token_idcs, dim_idcs = torch.nonzero(embeddings, as_tuple=True)

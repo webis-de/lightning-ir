@@ -4,7 +4,7 @@ Model implementation for mono cross-encoder models. Originally introduced in
 <https://arxiv.org/abs/1901.04085>`_.
 """
 
-from typing import Literal, Type
+from typing import Literal
 
 import torch
 from transformers import BatchEncoding
@@ -14,7 +14,6 @@ from ...cross_encoder import CrossEncoderConfig, CrossEncoderModel, CrossEncoder
 
 
 class ScaleLinear(torch.nn.Linear):
-
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         # See https://github.com/tensorflow/mesh/blob/fa19d69eafc9a482aff0b59ddd96b025c0cb207d/mesh_tensorflow/transformer/transformer.py#L586 # noqa
         input = input * (input.shape[-1] ** -0.5)
@@ -64,7 +63,7 @@ class MonoConfig(CrossEncoderConfig):
 
 
 class MonoModel(CrossEncoderModel):
-    config_class: Type[MonoConfig] = MonoConfig
+    config_class: type[MonoConfig] = MonoConfig
     """Configuration class for mono cross-encoder models."""
 
     def __init__(self, config: MonoConfig, *args, **kwargs):

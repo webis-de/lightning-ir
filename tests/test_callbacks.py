@@ -1,5 +1,5 @@
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 import ir_datasets
 import pandas as pd
@@ -155,7 +155,6 @@ def test_search_callback(
     doc_datamodule: LightningIRDataModule,
     search_config: SearchConfig,
 ):
-
     if bi_encoder_module.config.model_type not in search_config.SUPPORTED_MODELS:
         pytest.skip(
             f"Searching not supported for {bi_encoder_module.config.__class__.__name__} model and "

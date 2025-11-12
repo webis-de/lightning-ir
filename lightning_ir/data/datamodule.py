@@ -8,7 +8,8 @@ inference in Lightning IR.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Any, Dict, List, Literal, Sequence
+from collections.abc import Sequence
+from typing import Any, Literal
 
 import torch
 from lightning import LightningDataModule
@@ -43,7 +44,7 @@ class LightningIRDataModule(LightningDataModule):
             train_dataset (RunDataset | TupleDataset | None): A training dataset. Defaults to None.
             train_batch_size (int | None): Batch size to use for training. Defaults to None.
             shuffle_train (bool): Whether to shuffle the training data. Defaults to True.
-            inference_datasets (Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None): List of
+            inference_datasets (Sequence[RunDataset | TupleDataset | QueryDataset | DocDataset] | None): list of
                 datasets to use for inference (indexing, searching, and re-ranking). Defaults to None.
             inference_batch_size (int | None): Batch size to use for inference. Defaults to None.
             num_workers (int): Number of workers for loading data in parallel. Defaults to 0.
@@ -121,19 +122,19 @@ class LightningIRDataModule(LightningDataModule):
             prefetch_factor=16 if self.num_workers > 0 else None,
         )
 
-    def val_dataloader(self) -> List[DataLoader]:
+    def val_dataloader(self) -> list[DataLoader]:
         """Returns a list of dataloaders for validation.
 
         Returns:
-            List[DataLoader]: Dataloaders for validation.
+            list[DataLoader]: Dataloaders for validation.
         """
         return self.inference_dataloader()
 
-    def test_dataloader(self) -> List[DataLoader]:
+    def test_dataloader(self) -> list[DataLoader]:
         """Returns a list of dataloaders for testing.
 
         Returns:
-            List[DataLoader]: Dataloaders for testing.
+            list[DataLoader]: Dataloaders for testing.
         """
         return self.inference_dataloader()
 
@@ -141,15 +142,15 @@ class LightningIRDataModule(LightningDataModule):
         """Returns a list of dataloaders for predicting.
 
         Returns:
-            List[DataLoader]: Dataloaders for predicting.
+            list[DataLoader]: Dataloaders for predicting.
         """
         return self.inference_dataloader()
 
-    def inference_dataloader(self) -> List[DataLoader]:
+    def inference_dataloader(self) -> list[DataLoader]:
         """Returns a list of dataloaders for inference (validation, testing, or predicting).
 
         Returns:
-            List[DataLoader]: Dataloaders for inference.
+            list[DataLoader]: Dataloaders for inference.
         """
         inference_datasets = self.inference_datasets or []
         dataloaders = [
@@ -167,7 +168,7 @@ class LightningIRDataModule(LightningDataModule):
             dataloaders = [DataLoader(_DummyIterableDataset())]
         return dataloaders
 
-    def _aggregate_samples(self, samples: Sequence[RankSample | QuerySample | DocSample]) -> Dict[str, Any]:
+    def _aggregate_samples(self, samples: Sequence[RankSample | QuerySample | DocSample]) -> dict[str, Any]:
         aggregated = defaultdict(list)
         field_options = {
             "query_id": {"extend": False},
@@ -192,8 +193,8 @@ class LightningIRDataModule(LightningDataModule):
                     aggregated[key].append(value)
         return aggregated
 
-    def _clean_sample(self, aggregated: Dict[str, Any]) -> Dict[str, Any]:
-        kwargs: Dict[str, Any] = dict(aggregated)
+    def _clean_sample(self, aggregated: dict[str, Any]) -> dict[str, Any]:
+        kwargs: dict[str, Any] = dict(aggregated)
         if "querys" in kwargs:
             kwargs["queries"] = kwargs["querys"]
             del kwargs["querys"]

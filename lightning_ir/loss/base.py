@@ -8,7 +8,7 @@ used in the Lightning IR framework.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Literal, Tuple
+from typing import TYPE_CHECKING, Literal
 
 import torch
 
@@ -105,13 +105,13 @@ class RegularizationLossFunction(EmbeddingLossFunction):
         self.query_weight = query_weight
         self.doc_weight = doc_weight
 
-    def process_embeddings(self, output: BiEncoderOutput) -> Tuple[torch.Tensor, torch.Tensor]:
+    def process_embeddings(self, output: BiEncoderOutput) -> tuple[torch.Tensor, torch.Tensor]:
         """Process the embeddings from the output.
 
         Args:
             output (BiEncoderOutput): The output from the model containing query and document embeddings.
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: The processed query and document embeddings.
+            tuple[torch.Tensor, torch.Tensor]: The processed query and document embeddings.
         Raises:
             ValueError: If query_embeddings are not present in the output.
             ValueError: If doc_embeddings are not present in the output.
@@ -128,13 +128,13 @@ class RegularizationLossFunction(EmbeddingLossFunction):
 class PairwiseLossFunction(ScoringLossFunction):
     """Base class for pairwise loss functions."""
 
-    def get_pairwise_idcs(self, targets: torch.Tensor) -> Tuple[torch.Tensor, ...]:
+    def get_pairwise_idcs(self, targets: torch.Tensor) -> tuple[torch.Tensor, ...]:
         """Get pairwise indices for positive and negative samples based on targets.
 
         Args:
             targets (torch.Tensor): The targets tensor containing relevance labels.
         Returns:
-            Tuple[torch.Tensor, ...]: Indices of positive and negative samples.
+            tuple[torch.Tensor, ...]: Indices of positive and negative samples.
         """
         # positive items are items where label is greater than other label in sample
         return torch.nonzero(targets[..., None] > targets[:, None], as_tuple=True)
@@ -243,14 +243,14 @@ class InBatchLossFunction(LossFunction):
             raise ValueError("invalid neg sampling technique")
         return neg_mask
 
-    def get_ib_idcs(self, output: LightningIROutput, batch: TrainBatch) -> Tuple[torch.Tensor, torch.Tensor]:
+    def get_ib_idcs(self, output: LightningIROutput, batch: TrainBatch) -> tuple[torch.Tensor, torch.Tensor]:
         """Get in-batch indices for positive and negative samples.
 
         Args:
             output (LightningIROutput): The output from the model containing scores.
             batch (TrainBatch): The training batch containing targets.
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: Indices of positive and negative samples.
+            tuple[torch.Tensor, torch.Tensor]: Indices of positive and negative samples.
         Raises:
             ValueError: If scores are not present in the output.
         """

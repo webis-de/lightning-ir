@@ -6,8 +6,9 @@ This module defines the Lightning IR module class used to implement bi-encoder m
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, List, Mapping, Sequence, Tuple, Type
+from typing import TYPE_CHECKING, Any
 
 import torch
 from transformers import BatchEncoding, PreTrainedModel
@@ -30,8 +31,8 @@ class BiEncoderModule(LightningIRModule):
         model_name_or_path: str | None = None,
         config: BiEncoderConfig | None = None,
         model: BiEncoderModel | None = None,
-        BackboneModel: Type[PreTrainedModel] | None = None,
-        loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
+        BackboneModel: type[PreTrainedModel] | None = None,
+        loss_functions: Sequence[LossFunction | tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
         index_dir: Path | None = None,
         search_config: SearchConfig | None = None,
@@ -48,9 +49,9 @@ class BiEncoderModule(LightningIRModule):
             config (BiEncoderConfig | None): BiEncoderConfig to apply when loading from backbone model.
                 Defaults to None.
             model (BiEncoderModel | None): Already instantiated BiEncoderModel. Defaults to None.
-            BackboneModel (Type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
+            BackboneModel (type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
                 instead of the default AutoModel. Defaults to None.
-            loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
+            loss_functions (Sequence[LossFunction | tuple[LossFunction, float]] | None):
                 Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function
                 Defaults to None.
             evaluation_metrics (Sequence[str] | None): Metrics corresponding to ir-measures_ measure strings
@@ -152,7 +153,7 @@ class BiEncoderModule(LightningIRModule):
         """
         return super().score(queries, docs)
 
-    def _compute_losses(self, batch: TrainBatch, output: BiEncoderOutput) -> List[torch.Tensor]:
+    def _compute_losses(self, batch: TrainBatch, output: BiEncoderOutput) -> list[torch.Tensor]:
         """Computes the losses for a training batch."""
         if self.loss_functions is None:
             raise ValueError("Loss function is not set")
@@ -164,7 +165,7 @@ class BiEncoderModule(LightningIRModule):
             or output.scores is None
         ):
             raise ValueError(
-                "targets, scores, query_embeddings, and doc_embeddings must be set in " "the output and batch"
+                "targets, scores, query_embeddings, and doc_embeddings must be set in the output and batch"
             )
 
         num_queries = len(batch.queries)

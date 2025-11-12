@@ -4,8 +4,9 @@
 """
 
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Self, Sequence
+from typing import Literal, Self
 
 import torch
 from transformers import BatchEncoding
@@ -118,7 +119,7 @@ class SpladeModel(SingleVectorBiEncoderModel):
             f"projection.{key}"
             for key in MODEL_TYPE_TO_TIED_WEIGHTS_KEYS[config.backbone_model_type or config.model_type]
         ]
-        setattr(self, "_tied_weights_keys", tied_weight_keys)
+        self._tied_weights_keys = tied_weight_keys
         self.query_weights = None
         if config.query_weighting == "static":
             self.query_weights = torch.nn.Embedding(config.vocab_size, 1)
@@ -131,7 +132,7 @@ class SpladeModel(SingleVectorBiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """
@@ -200,7 +201,8 @@ class SpladeModel(SingleVectorBiEncoderModel):
         if not key_mapping:
             warnings.warn(
                 f"No mlm key mappings for model_type {model_type} were provided. "
-                "The pre-trained mlm weights will not be loaded correctly."
+                "The pre-trained mlm weights will not be loaded correctly.",
+                stacklevel=2,
             )
         model = super().from_pretrained(model_name_or_path, *args, key_mapping=key_mapping, **kwargs)
         return model
@@ -289,7 +291,7 @@ class SpladeTokenizer(BiEncoderTokenizer):
 
         Args:
             text (Sequence[str] | str): Input text to tokenize.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BatchEncoding: Tokenized input sequences.
         """

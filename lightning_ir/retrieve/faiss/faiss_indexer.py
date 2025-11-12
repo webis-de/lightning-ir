@@ -2,7 +2,6 @@
 
 import warnings
 from pathlib import Path
-from typing import Type
 
 import torch
 
@@ -62,7 +61,7 @@ class FaissIndexer(Indexer):
         pass
 
     def set_verbosity(self, verbose: bool | None = None) -> None:
-        """Set the verbosity of the FAISS index.
+        """set the verbosity of the FAISS index.
 
         Args:
             verbose (bool | None): Whether to enable verbose output. If None, uses the index's current verbosity
@@ -223,7 +222,10 @@ class _FaissTrainIndexer(FaissIndexer):
         if not force and self.num_embeddings < self.num_train_embeddings:
             return
         if torch.isnan(self._train_embeddings).any():
-            warnings.warn("Corpus contains less tokens/documents than num_train_embeddings. Removing NaN embeddings.")
+            warnings.warn(
+                "Corpus contains less tokens/documents than num_train_embeddings. Removing NaN embeddings.",
+                stacklevel=2,
+            )
             self._train_embeddings = self._train_embeddings[~torch.isnan(self._train_embeddings).any(dim=1)]
         self.index.train(self._train_embeddings)
         if torch.cuda.is_available():
@@ -306,7 +308,7 @@ class FaissIVFIndexer(_FaissTrainIndexer):
         index_ivf.quantizer = gpu_quantizer
 
     def set_verbosity(self, verbose: bool | None = None) -> None:
-        """Set the verbosity of the FAISS IVF index.
+        """set the verbosity of the FAISS IVF index.
 
         Args:
             verbose (bool | None): Whether to enable verbose output. Defaults to None.
@@ -316,7 +318,7 @@ class FaissIVFIndexer(_FaissTrainIndexer):
         verbose = verbose if verbose is not None else self.verbose
         index = faiss.extract_index_ivf(self.index)
         for elem in (index, index.quantizer):
-            setattr(elem, "verbose", verbose)
+            elem.verbose = verbose
 
 
 class FaissPQIndexer(_FaissTrainIndexer):
@@ -381,7 +383,7 @@ class FaissIVFPQIndexer(FaissIVFIndexer):
         index_ivf.make_direct_map()
 
     def set_verbosity(self, verbose: bool | None = None) -> None:
-        """Set the verbosity of the FAISS IVFPQ index.
+        """set the verbosity of the FAISS IVFPQ index.
 
         Args:
             verbose (bool | None): Whether to enable verbose output. Defaults to None.
@@ -395,14 +397,14 @@ class FaissIVFPQIndexer(FaissIVFIndexer):
             index_ivf_pq.pq,
             index_ivf_pq.quantizer,
         ):
-            setattr(elem, "verbose", verbose)
+            elem.verbose = verbose
 
 
 class FaissIndexConfig(IndexConfig):
     """Configuration class for FAISS indexers in the Lightning IR framework."""
 
     SUPPORTED_MODELS = {ColConfig.model_type, DprConfig.model_type}
-    indexer_class: Type[Indexer] = FaissIndexer
+    indexer_class: type[Indexer] = FaissIndexer
 
 
 class FaissFlatIndexConfig(FaissIndexConfig):
