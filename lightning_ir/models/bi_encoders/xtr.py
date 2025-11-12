@@ -56,7 +56,7 @@ class XTRConfig(ColConfig):
             k_train: Number of top-k document tokens to retrieve per query token during in-batch
                 training. Defaults to 128. Should be much smaller than batch_size * doc_length.
                 Typical values: 32-64 (small batches), 128 (default), 256-320 (large batches).
-                Note: If the batch is too small, k_train will be automatically clamped to the available number of tokens.
+                Note: If batch is too small, k_train will be automatically clamped to the available number of tokens.
             use_in_batch_token_retrieval: Whether to use XTR's in-batch token retrieval during
                 training. If False, falls back to standard max-sim scoring. Defaults to True.
         """
