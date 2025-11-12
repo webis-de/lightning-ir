@@ -165,7 +165,7 @@ def _register_external_models():
             ),
             "fschlatt/coil-with-hn": CoilConfig(),
             "castorini/unicoil-noexp-msmarco-passage": UniCoilConfig(projection="linear"),
-            "google/xtr-base-en": ColConfig(projection="linear_no_bias", normalization="l2"),
+            "google/xtr-base-en": ColConfig(projection="linear_no_bias", normalization_strategy="l2"),
         }
     )
     BACKBONE_MAPPING.update({"google/xtr-base-en": T5EncoderModel})
