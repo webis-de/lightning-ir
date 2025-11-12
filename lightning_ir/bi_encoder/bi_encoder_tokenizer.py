@@ -5,7 +5,8 @@ This module contains the tokenizer class bi-encoder models.
 """
 
 import warnings
-from typing import Dict, Literal, Sequence, Type
+from collections.abc import Sequence
+from typing import Literal
 
 from tokenizers.processors import TemplateProcessing
 from transformers import BatchEncoding
@@ -20,8 +21,7 @@ ADD_MARKER_TOKEN_MAPPING = {
 
 
 class BiEncoderTokenizer(LightningIRTokenizer):
-
-    config_class: Type[BiEncoderConfig] = BiEncoderConfig
+    config_class: type[BiEncoderConfig] = BiEncoderConfig
     """Configuration class for the tokenizer."""
 
     QUERY_TOKEN: str = "[QUE]"
@@ -119,7 +119,7 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
 
         Args:
             text (str | Sequence[str]): Text to tokenize.
-            warn (bool): Set to False to silence warning. Defaults to True.
+            warn (bool): set to False to silence warning. Defaults to True.
         Returns:
             BatchEncoding: Tokenized text.
         """
@@ -127,6 +127,7 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
             warnings.warn(
                 "BiEncoderTokenizer is being directly called. Use `tokenize`, `tokenize_query`, or `tokenize_doc` "
                 "to make sure tokenization is done correctly.",
+                stacklevel=2,
             )
         return super().__call__(*args, **kwargs)
 
@@ -163,7 +164,7 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
 
         Args:
             text (Sequence[str] | str): Input text to tokenize.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BatchEncoding: Tokenized input sequences.
         """
@@ -201,14 +202,14 @@ https://huggingface.co/docs/transformers/en/main_classes/tokenizer#transformers.
         queries: str | Sequence[str] | None = None,
         docs: str | Sequence[str] | None = None,
         **kwargs,
-    ) -> Dict[str, BatchEncoding]:
+    ) -> dict[str, BatchEncoding]:
         """Tokenizes queries and documents.
 
         Args:
             queries (str | Sequence[str] | None): Queries to tokenize. Defaults to None.
             docs (str | Sequence[str] | None): Documents to tokenize. Defaults to None.
         Returns:
-            Dict[str, BatchEncoding]: Dictionary containing tokenized queries and documents.
+            dict[str, BatchEncoding]: Dictionary containing tokenized queries and documents.
         """
         encodings = {}
         kwargs.pop("num_docs", None)

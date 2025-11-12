@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Tuple
+from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 import torch
@@ -34,7 +34,7 @@ class SeismicSearcher(ApproximateSearcher):
     def __init__(
         self,
         index_dir: Path | str,
-        search_config: "SeismicSearchConfig",
+        search_config: SeismicSearchConfig,
         module: BiEncoderModule,
         use_gpu: bool = False,
     ) -> None:
@@ -61,7 +61,7 @@ class SeismicSearcher(ApproximateSearcher):
 
         self.search_config: SeismicSearchConfig
 
-    def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> Tuple[PackedTensor, PackedTensor]:
+    def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> tuple[PackedTensor, PackedTensor]:
         if query_embeddings.scoring_mask is None:
             embeddings = query_embeddings.embeddings[:, 0]
         else:

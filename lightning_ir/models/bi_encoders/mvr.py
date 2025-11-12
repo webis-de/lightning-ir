@@ -50,7 +50,7 @@ class MvrConfig(MultiVectorBiEncoderConfig):
                 Defaults to False.
             embedding_dim (int | None): Dimension of the final embeddings. If None, it will be set to the hidden size
                 of the backbone model. Defaults to None.
-            projection (Literal["linear", "linear_no_bias"] | None): Type of projection layer to apply on the pooled
+            projection (Literal["linear", "linear_no_bias"] | None): type of projection layer to apply on the pooled
                 embeddings. If None, no projection is applied. Defaults to "linear".
             num_viewer_tokens (int | None): Number of viewer tokens to prepend to the document. Defaults to 8.
         """
@@ -98,7 +98,7 @@ class MvrModel(MultiVectorBiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             torch.Tensor: Scoring mask.
         """
@@ -119,7 +119,7 @@ class MvrModel(MultiVectorBiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """

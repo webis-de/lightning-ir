@@ -5,9 +5,10 @@ This module defines the model class used to implement bi-encoder models.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from string import punctuation
-from typing import Iterable, List, Literal, Self, Sequence, Tuple, Type, overload
+from typing import Literal, Self, overload
 
 import torch
 from transformers import BatchEncoding
@@ -28,8 +29,8 @@ class BiEncoderEmbedding:
     """Mask tensor designating which vectors should be ignored during scoring."""
     encoding: BatchEncoding | None = None
     """Tokenizer encodings used to generate the embeddings."""
-    ids: List[str] | None = None
-    """List of ids for the embeddings, e.g., query or document ids."""
+    ids: list[str] | None = None
+    """list of ids for the embeddings, e.g., query or document ids."""
 
     @overload
     def to(self, device: torch.device, /) -> Self: ...
@@ -64,11 +65,11 @@ class BiEncoderEmbedding:
         """
         return self.embeddings.device
 
-    def items(self) -> Iterable[Tuple[str, torch.Tensor]]:
+    def items(self) -> Iterable[tuple[str, torch.Tensor]]:
         """Iterates over the embeddings attributes and their values like `dict.items()`.
 
         Yields:
-            Tuple[str, torch.Tensor]: Tuple of attribute name and its value.
+            tuple[str, torch.Tensor]: tuple of attribute name and its value.
         """
         for field in self.__dataclass_fields__:
             yield field, getattr(self, field)
@@ -90,7 +91,7 @@ class BiEncoderModel(LightningIRModel, ABC):
     """A bi-encoder model that encodes queries and documents separately and computes a relevance score between them.
     See :class:`.BiEncoderConfig` for configuration options."""
 
-    config_class: Type[BiEncoderConfig] = BiEncoderConfig
+    config_class: type[BiEncoderConfig] = BiEncoderConfig
     """Configuration class for the bi-encoder model."""
 
     def __init__(self, config: BiEncoderConfig, *args, **kwargs) -> None:
@@ -229,7 +230,7 @@ class BiEncoderModel(LightningIRModel, ABC):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask for the text sequence.
         Raises:
@@ -261,7 +262,7 @@ class SingleVectorBiEncoderModel(BiEncoderModel):
     single vector, and computes a relevance score based on the similarities between the two vectors. See
     :class:`.SingleVectorBiEncoderConfig` for configuration options."""
 
-    config_class: Type[SingleVectorBiEncoderConfig] = SingleVectorBiEncoderConfig
+    config_class: type[SingleVectorBiEncoderConfig] = SingleVectorBiEncoderConfig
     """Configuration class for the single-vector bi-encoder model."""
 
     def __init__(self, config: SingleVectorBiEncoderConfig, *args, **kwargs) -> None:
@@ -300,8 +301,7 @@ class SingleVectorBiEncoderModel(BiEncoderModel):
 
 
 class MultiVectorBiEncoderModel(BiEncoderModel):
-
-    config_class: Type[MultiVectorBiEncoderConfig] = MultiVectorBiEncoderConfig
+    config_class: type[MultiVectorBiEncoderConfig] = MultiVectorBiEncoderConfig
     """Configuration class for the single-vector bi-encoder model."""
 
     supports_retrieval_models = []
@@ -331,8 +331,10 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
                 from transformers import AutoTokenizer
 
                 tokenizer = AutoTokenizer.from_pretrained(self.config.name_or_path)
-            except OSError:
-                raise ValueError("Can't use token scoring masking if the checkpoint does not have a tokenizer.")
+            except OSError as err:
+                raise ValueError(
+                    "Can't use token scoring masking if the checkpoint does not have a tokenizer."
+                ) from err
             mask_scoring_input_ids = []
             for token in mask_scoring_tokens:
                 if token not in tokenizer.vocab:
@@ -381,7 +383,7 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             torch.Tensor: Scoring mask.
         """

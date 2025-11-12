@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, Optional, Type
+from typing import TYPE_CHECKING, Any
 
 from transformers import PretrainedConfig
 
@@ -39,7 +39,7 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
     model_type = "lightning-ir"
     """Model type for the configuration."""
     backbone_model_type: str | None = None
-    """Backbone model type for the configuration. Set by :func:`LightningIRModelClassFactory`."""
+    """Backbone model type for the configuration. set by :func:`LightningIRModelClassFactory`."""
 
     def __init__(
         self,
@@ -47,8 +47,8 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         query_length: int | None = 32,
         doc_length: int | None = 512,
         use_adapter: bool = False,
-        adapter_config: Optional["LoraConfig"] = None,
-        pretrained_adapter_name_or_path: Optional[str] = None,
+        adapter_config: LoraConfig | None = None,
+        pretrained_adapter_name_or_path: str | None = None,
         **kwargs,
     ):
         """Initializes the configuration.
@@ -69,18 +69,18 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
         self.adapter_config = adapter_config
         self.pretrained_adapter_name_or_path = pretrained_adapter_name_or_path
 
-    def get_tokenizer_kwargs(self, Tokenizer: Type[LightningIRTokenizer]) -> Dict[str, Any]:
+    def get_tokenizer_kwargs(self, Tokenizer: type[LightningIRTokenizer]) -> dict[str, Any]:
         """Returns the keyword arguments for the tokenizer. This method is used to pass the configuration
         parameters to the tokenizer.
 
         Args:
-            Tokenizer (Type[LightningIRTokenizer]): Class of the tokenizer to be used.
+            Tokenizer (type[LightningIRTokenizer]): Class of the tokenizer to be used.
         Returns:
-            Dict[str, Any]: Keyword arguments for the tokenizer.
+            dict[str, Any]: Keyword arguments for the tokenizer.
         """
         return {k: getattr(self, k) for k in inspect.signature(Tokenizer.__init__).parameters if hasattr(self, k)}
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Overrides the transformers.PretrainedConfig.to_dict_ method to include the added arguments and the backbone
         model type.
 
@@ -88,7 +88,7 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
 https://huggingface.co/docs/transformers/en/main_classes/configuration#transformers.PretrainedConfig.to_dict
 
         Returns:
-            Dict[str, Any]: Configuration dictionary.
+            dict[str, Any]: Configuration dictionary.
         """
         output = super().to_dict()
         if self.backbone_model_type is not None:
@@ -96,7 +96,7 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         return output
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_name_or_path: str | Path, *args, **kwargs) -> "LightningIRConfig":
+    def from_pretrained(cls, pretrained_model_name_or_path: str | Path, *args, **kwargs) -> LightningIRConfig:
         """Loads the configuration from a pretrained model. Wraps the transformers.PretrainedConfig.from_pretrained_
 
         .. _transformers.PretrainedConfig.from_pretrained: \
@@ -129,4 +129,4 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
                 derived_config = cls.from_pretrained(pretrained_model_name_or_path, config=config)
                 derived_config.update(config.to_dict())
             return cls.from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
-        return super(LightningIRConfig, cls).from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
+        return super().from_pretrained(pretrained_model_name_or_path, *args, **kwargs)

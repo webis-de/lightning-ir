@@ -1,4 +1,4 @@
-from typing import Any, Dict, Type
+from typing import Any
 
 import pytest
 import torch
@@ -25,7 +25,7 @@ class DummyObject:
 
 class DummyModule(LightningModule):
     def __init__(
-        self, LRScheduler: Type[WarmupLRScheduler] | None = None, scheduler_kwargs: Dict[str, float] | None = None
+        self, LRScheduler: type[WarmupLRScheduler] | None = None, scheduler_kwargs: dict[str, float] | None = None
     ) -> None:
         super().__init__()
         self.LRScheduler = LRScheduler
@@ -107,8 +107,8 @@ class DummyDataModule(LightningDataModule):
     ids=["Linear", "Constant", "Quadratic", "LinearLR", "LinearLRFinal", "ConstantLR"],
 )
 def test_scheduler(
-    Scheduler: Type[GenericScheduler | WarmupLRScheduler],
-    kwargs: Dict[str, float],
+    Scheduler: type[GenericScheduler | WarmupLRScheduler],
+    kwargs: dict[str, float],
     intermediate_value: float,
     final_value: float,
 ):

@@ -1,7 +1,7 @@
 import codecs
 import json
 from pathlib import Path
-from typing import Any, Dict, Literal, NamedTuple, Tuple, Type
+from typing import Any, Literal, NamedTuple
 
 import ir_datasets
 from ir_datasets.datasets.base import Dataset
@@ -19,7 +19,7 @@ from ir_datasets.formats import (
 )
 from ir_datasets.util import Cache, DownloadConfig
 
-CONSTITUENT_TYPE_MAP: Dict[str, Dict[str, Type]] = {
+CONSTITUENT_TYPE_MAP: dict[str, dict[str, type]] = {
     "docs": {
         ".json": jsonl.JsonlDocs,
         ".jsonl": jsonl.JsonlDocs,
@@ -38,8 +38,8 @@ CONSTITUENT_TYPE_MAP: Dict[str, Dict[str, Type]] = {
 
 def _load_constituent(
     dataset_id: str,
-    constituent: Path | str | Dict[str, Any] | None,
-    constituent_type: Literal["docs", "queries", "qrels", "scoreddocs", "docpairs"] | Type,
+    constituent: Path | str | dict[str, Any] | None,
+    constituent_type: Literal["docs", "queries", "qrels", "scoreddocs", "docpairs"] | type,
     **kwargs,
 ) -> Any:
     if constituent is None:
@@ -65,7 +65,7 @@ def _load_constituent(
     return ConstituentType(cache, **kwargs)
 
 
-def _register_and_get_cache(dataset_id: str, dlc_contents: Dict[str, Any]) -> Cache:
+def _register_and_get_cache(dataset_id: str, dlc_contents: dict[str, Any]) -> Cache:
     extractors = dlc_contents.pop("extractors", [])
     base_id = dataset_id.split("/")[0]
     new_id = dataset_id.removeprefix(base_id + "/")
@@ -81,17 +81,17 @@ def _register_and_get_cache(dataset_id: str, dlc_contents: Dict[str, Any]) -> Ca
 
 def register_new_dataset(
     dataset_id: str,
-    docs: Path | str | Dict[str, str] | None = None,
-    DocsType: Type[BaseDocs] | None = None,
-    queries: Path | str | Dict[str, str] | None = None,
-    QueriesType: Type[BaseQueries] | None = None,
-    qrels: Path | str | Dict[str, str] | None = None,
-    QrelsType: Type[BaseQrels] | None = None,
-    docpairs: Path | str | Dict[str, str] | None = None,
-    DocpairsType: Type[BaseDocPairs] | None = None,
-    scoreddocs: Path | str | Dict[str, str] | None = None,
-    ScoreddocsType: Type[BaseScoredDocs] | None = None,
-    qrels_defs: Dict[int, str] | None = None,
+    docs: Path | str | dict[str, str] | None = None,
+    DocsType: type[BaseDocs] | None = None,
+    queries: Path | str | dict[str, str] | None = None,
+    QueriesType: type[BaseQueries] | None = None,
+    qrels: Path | str | dict[str, str] | None = None,
+    QrelsType: type[BaseQrels] | None = None,
+    docpairs: Path | str | dict[str, str] | None = None,
+    DocpairsType: type[BaseDocPairs] | None = None,
+    scoreddocs: Path | str | dict[str, str] | None = None,
+    ScoreddocsType: type[BaseScoredDocs] | None = None,
+    qrels_defs: dict[int, str] | None = None,
 ):
     if dataset_id in ir_datasets.registry._registered:
         return
@@ -109,8 +109,8 @@ def register_new_dataset(
 
 class ScoredDocTuple(NamedTuple):
     query_id: str
-    doc_ids: Tuple[str, ...]
-    scores: Tuple[float, ...] | None
+    doc_ids: tuple[str, ...]
+    scores: tuple[float, ...] | None
     num_docs: int
 
 

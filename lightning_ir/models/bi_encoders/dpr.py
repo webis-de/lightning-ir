@@ -53,7 +53,7 @@ class DprConfig(SingleVectorBiEncoderConfig):
                 Defaults to "first".
             embedding_dim (int | None): Dimension of the final embeddings. If None, it will be set to the hidden size
                 of the backbone model. Defaults to None.
-            projection (Literal["linear", "linear_no_bias"] | None): Type of projection layer to apply on the pooled
+            projection (Literal["linear", "linear_no_bias"] | None): type of projection layer to apply on the pooled
                 embeddings. If None, no projection is applied. Defaults to "linear".
         """
         super().__init__(
@@ -108,7 +108,7 @@ class DprModel(SingleVectorBiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """

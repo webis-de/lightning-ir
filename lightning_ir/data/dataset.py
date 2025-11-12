@@ -6,9 +6,10 @@ This module defines several datasets that handle loading and sampling data for t
 
 import csv
 import warnings
+from collections.abc import Iterator, Sequence
 from itertools import islice
 from pathlib import Path
-from typing import Any, Dict, Iterator, Literal, Self, Sequence, Tuple
+from typing import Any, Literal, Self
 
 import ir_datasets
 import numpy as np
@@ -32,9 +33,8 @@ class _DummyIterableDataset(IterableDataset):
 
 
 class IRDataset:
-
     _SKIP: bool = False
-    """Set to True to skip the dataset during inference."""
+    """set to True to skip the dataset during inference."""
 
     def __init__(self, dataset: str) -> None:
         """Initializes a new IRDataset.
@@ -99,11 +99,11 @@ class IRDataset:
             return None
 
     @property
-    def DASHED_DATASET_MAP(self) -> Dict[str, str]:
+    def DASHED_DATASET_MAP(self) -> dict[str, str]:
         """Map of dataset names with dashes to dataset names with slashes.
 
         Returns:
-            Dict[str, str]: Dataset map.
+            dict[str, str]: Dataset map.
         """
         return {dataset.replace("/", "-"): dataset for dataset in ir_datasets.registry._registered}
 
@@ -128,11 +128,11 @@ class IRDataset:
         return self._queries
 
     @property
-    def docs(self) -> ir_datasets.indices.Docstore | Dict[str, GenericDoc]:
+    def docs(self) -> ir_datasets.indices.Docstore | dict[str, GenericDoc]:
         """Documents in the dataset.
 
         Returns:
-            ir_datasets.indices.Docstore | Dict[str, GenericDoc]: Documents.
+            ir_datasets.indices.Docstore | dict[str, GenericDoc]: Documents.
         Raises:
             ValueError: If no documents are found in the dataset.
         """
@@ -439,7 +439,8 @@ class RunDataset(IRDataset, Dataset):
             warnings.warn(
                 "Sample size is greater than depth and top sampling strategy is used. "
                 "This can cause documents to be sampled that are not contained "
-                "in the run file, but that are present in the qrels."
+                "in the run file, but that are present in the qrels.",
+                stacklevel=2,
             )
 
         self.run: pd.DataFrame | None = None
@@ -485,7 +486,7 @@ class RunDataset(IRDataset, Dataset):
         self.query_ids = list(self.run_groups.groups.keys())
 
         if self.depth != -1 and self.run["rank"].max() < self.depth:
-            warnings.warn("Depth is greater than the maximum rank in the run file.")
+            warnings.warn("Depth is greater than the maximum rank in the run file.", stacklevel=2)
 
     @staticmethod
     def _load_csv(path: Path) -> pd.DataFrame:
@@ -506,7 +507,7 @@ class RunDataset(IRDataset, Dataset):
 
     @staticmethod
     def _load_json(path: Path) -> pd.DataFrame:
-        kwargs: Dict[str, Any] = {}
+        kwargs: dict[str, Any] = {}
         if ".jsonl" in path.suffixes:
             kwargs["lines"] = True
             kwargs["orient"] = "records"
@@ -546,7 +547,6 @@ class RunDataset(IRDataset, Dataset):
         return run
 
     def _load_run(self) -> pd.DataFrame:
-
         suffix_load_map = {
             ".tsv": self._load_csv,
             ".run": self._load_csv,
@@ -678,7 +678,7 @@ class TupleDataset(IRDataset, IterableDataset):
 
     def _parse_sample(
         self, sample: ScoredDocTuple | GenericDocPair
-    ) -> Tuple[Tuple[str, ...], Tuple[str, ...], Tuple[float, ...] | None]:
+    ) -> tuple[tuple[str, ...], tuple[str, ...], tuple[float, ...] | None]:
         if isinstance(sample, GenericDocPair):
             if self.targets == "score":
                 raise ValueError("ScoredDocTuple required for score targets.")
@@ -693,7 +693,7 @@ class TupleDataset(IRDataset, IterableDataset):
             elif self.targets == "order":
                 targets = tuple([1.0] + [0.0] * (sample.num_docs - 1))
             else:
-                raise ValueError(f"invalid value for targets, got {self.targets}, " "expected one of (order, score)")
+                raise ValueError(f"invalid value for targets, got {self.targets}, expected one of (order, score)")
             targets = targets[: self.num_docs]
         else:
             raise ValueError("Invalid sample type.")

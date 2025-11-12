@@ -3,9 +3,23 @@ import warnings
 import torch
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
+from transformers import T5EncoderModel
 
-from ..base import BACKBONE_MAPPING, CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig, UniCoilConfig
+from ..base import (
+    BACKBONE_MAPPING,
+    CHECKPOINT_MAPPING,
+    POST_LOAD_CALLBACKS,
+    STATE_DICT_KEY_MAPPING,
+    LightningIRModel,
+)
+from ..models import (
+    CoilConfig,
+    ColConfig,
+    DprConfig,
+    MonoConfig,
+    SpladeConfig,
+    UniCoilConfig,
+)
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -35,11 +49,25 @@ def _map_moderncolbert_marker_tokens(model: LightningIRModel) -> LightningIRMode
     return model
 
 
+def _map_xtr_weights(model: LightningIRModel) -> LightningIRModel:
+    warnings.warn(
+        "The above warning, that the linear layer is not initialized, is expected and can be ignored."
+        "The weights are initialized separately.",
+        stacklevel=2,
+    )
+    path = hf_hub_download(model.config.name_or_path, filename="pytorch_model.bin", subfolder="2_Dense")
+    state_dict = torch.load(path, weights_only=True, map_location="cpu")
+    state_dict["projection.weight"] = state_dict.pop("linear.weight")
+    model.load_state_dict(state_dict, strict=False)
+    return model
+
+
 def _map_mono_t5_weights(model: LightningIRModel) -> LightningIRModel:
     # [1176, 6136] true, false
     warnings.warn(
         "The above warning, that the linear layer is not initialized, is expected and can be ignored."
-        "The weights are initialized separately."
+        "The weights are initialized separately.",
+        stacklevel=2,
     )
     model.linear.weight.data = model.shared.weight.data[[6136, 1176]]
     return model
@@ -49,7 +77,8 @@ def _map_rank_t5_weights(model: LightningIRModel) -> LightningIRModel:
     # 32089 <extra_id_10>
     warnings.warn(
         "The above warning, that the linear layer is not initialized, is expected and can be ignored."
-        "The weights are initialized separately."
+        "The weights are initialized separately.",
+        stacklevel=2,
     )
     model.linear.weight.data = model.shared.weight.data[[32089]]
     return model
@@ -136,9 +165,10 @@ def _register_external_models():
             ),
             "fschlatt/coil-with-hn": CoilConfig(),
             "castorini/unicoil-noexp-msmarco-passage": UniCoilConfig(projection="linear"),
+            "google/xtr-base-en": ColConfig(projection="linear_no_bias", normalization="l2"),
         }
     )
-    BACKBONE_MAPPING.update({})
+    BACKBONE_MAPPING.update({"google/xtr-base-en": T5EncoderModel})
     STATE_DICT_KEY_MAPPING.update(
         {
             "colbert-ir/colbertv2.0": [("linear.weight", "bert.projection.weight")],
@@ -170,12 +200,13 @@ def _register_external_models():
             "castorini/monot5-large-msmarco": _map_mono_t5_weights,
             "castorini/monot5-3b-msmarco-10k": _map_mono_t5_weights,
             "castorini/monot5-3b-msmarco": _map_mono_t5_weights,
-            "Soyoung97/RankT5-base": _map_rank_t5_weights,
-            "Soyoung97/RankT5-large": _map_rank_t5_weights,
-            "Soyoung97/RankT5-3b": _map_rank_t5_weights,
             "fschlatt/coil-with-hn": _map_coil_weights,
+            "google/xtr-base-en": _map_xtr_weights,
             "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-distill": _map_opensearch_splade_weights,
             "opensearch-project/opensearch-neural-sparse-encoding-doc-v2-mini": _map_opensearch_splade_weights,
             "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-distill": _map_opensearch_splade_weights,
+            "Soyoung97/RankT5-base": _map_rank_t5_weights,
+            "Soyoung97/RankT5-large": _map_rank_t5_weights,
+            "Soyoung97/RankT5-3b": _map_rank_t5_weights,
         }
     )

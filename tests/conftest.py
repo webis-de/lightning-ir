@@ -1,7 +1,8 @@
 import os
 import shutil
+from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Dict, Generator, List, Union
+from typing import Any, Union
 
 import pytest
 from _pytest.fixtures import SubRequest
@@ -20,7 +21,15 @@ from lightning_ir import (
     RunDataset,
 )
 from lightning_ir.data.external_datasets.ir_datasets_utils import register_new_dataset
-from lightning_ir.models import CoilConfig, ColConfig, DprConfig, MonoConfig, MvrConfig, SetEncoderConfig, SpladeConfig
+from lightning_ir.models import (
+    CoilConfig,
+    ColConfig,
+    DprConfig,
+    MonoConfig,
+    MvrConfig,
+    SetEncoderConfig,
+    SpladeConfig,
+)
 
 
 def pytest_addoption(parser):
@@ -79,7 +88,7 @@ def model_name_or_path() -> str:
 
 
 @pytest.fixture()
-def inference_datasets() -> List[RunDataset]:
+def inference_datasets() -> list[RunDataset]:
     inference_datasets = [
         RunDataset(RUNS_DIR / run_path, depth=10, sampling_strategy="top", targets="relevance")
         for run_path in ["run.jsonl", "lightning-ir.tsv"]
@@ -89,9 +98,9 @@ def inference_datasets() -> List[RunDataset]:
 
 DATA_DIR = Path(__file__).parent / "data"
 
-GLOBAL_KWARGS: Dict[str, Any] = dict(query_length=8, doc_length=8)
+GLOBAL_KWARGS: dict[str, Any] = {"query_length": 8, "doc_length": 8}
 
-BI_ENCODER_GLOBAL_KWARGS: Dict[str, Any] = dict(embedding_dim=4)
+BI_ENCODER_GLOBAL_KWARGS: dict[str, Any] = {"embedding_dim": 4}
 
 BI_ENCODER_CONFIGS = {
     "CoilModel": CoilConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),
@@ -143,12 +152,12 @@ def cross_encoder_config(request: SubRequest) -> CrossEncoderConfig:
 )
 def train_module(config: CONFIGS, model_name_or_path: str, request: SubRequest) -> LightningIRModule:
     loss_function = request.param
-    kwargs: Dict[str, Any] = dict(
-        model_name_or_path=model_name_or_path,
-        config=config,
-        loss_functions=[loss_function],
-        evaluation_metrics=["loss", "nDCG@10"],
-    )
+    kwargs: dict[str, Any] = {
+        "model_name_or_path": model_name_or_path,
+        "config": config,
+        "loss_functions": [loss_function],
+        "evaluation_metrics": ["loss", "nDCG@10"],
+    }
     module: LightningIRModule
     if isinstance(config, CrossEncoderConfig):
         module = CrossEncoderModule(**kwargs)
@@ -161,11 +170,11 @@ def train_module(config: CONFIGS, model_name_or_path: str, request: SubRequest) 
 
 @pytest.fixture(scope="module")
 def module(config: CONFIGS, model_name_or_path: str) -> LightningIRModule:
-    kwargs: Dict[str, Any] = dict(
-        model_name_or_path=model_name_or_path,
-        config=config,
-        evaluation_metrics=["loss", "nDCG@10", "MRR@10"],
-    )
+    kwargs: dict[str, Any] = {
+        "model_name_or_path": model_name_or_path,
+        "config": config,
+        "evaluation_metrics": ["loss", "nDCG@10", "MRR@10"],
+    }
     module: LightningIRModule
     if isinstance(config, CrossEncoderConfig):
         module = CrossEncoderModule(**kwargs)
@@ -178,22 +187,22 @@ def module(config: CONFIGS, model_name_or_path: str) -> LightningIRModule:
 
 @pytest.fixture(scope="module")
 def bi_encoder_module(bi_encoder_config: BiEncoderConfig, model_name_or_path: str) -> LightningIRModule:
-    kwargs: Dict[str, Any] = dict(
-        model_name_or_path=model_name_or_path,
-        config=bi_encoder_config,
-        evaluation_metrics=["loss", "nDCG@10"],
-    )
+    kwargs: dict[str, Any] = {
+        "model_name_or_path": model_name_or_path,
+        "config": bi_encoder_config,
+        "evaluation_metrics": ["loss", "nDCG@10"],
+    }
     module = BiEncoderModule(**kwargs)
     return module
 
 
 @pytest.fixture(scope="module")
 def cross_encoder_module(cross_encoder_config: CrossEncoderConfig, model_name_or_path: str) -> LightningIRModule:
-    kwargs: Dict[str, Any] = dict(
-        model_name_or_path=model_name_or_path,
-        config=cross_encoder_config,
-        evaluation_metrics=["loss", "nDCG@10"],
-    )
+    kwargs: dict[str, Any] = {
+        "model_name_or_path": model_name_or_path,
+        "config": cross_encoder_config,
+        "evaluation_metrics": ["loss", "nDCG@10"],
+    }
     module = CrossEncoderModule(**kwargs)
     return module
 

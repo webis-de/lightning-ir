@@ -1,11 +1,11 @@
 """
 Configuration and model implementation for SetEncoder type models. Originally proposed in
-`Set-Encoder: Permutation-Invariant Inter-passage Attention for Listwise Passage Re-ranking with Cross-Encoders
+`set-Encoder: Permutation-Invariant Inter-passage Attention for Listwise Passage Re-ranking with Cross-Encoders
 <https://link.springer.com/chapter/10.1007/978-3-031-88711-6_1>`_.
 """
 
+from collections.abc import Sequence
 from functools import partial
-from typing import Dict, Sequence, Tuple
 
 import torch
 from tokenizers.processors import TemplateProcessing
@@ -74,7 +74,7 @@ class SetEncoderModel(MonoModel):
     def get_extended_attention_mask(
         self,
         attention_mask: torch.Tensor,
-        input_shape: Tuple[int, ...],
+        input_shape: tuple[int, ...],
         device: torch.device | None = None,
         dtype: torch.dtype | None = None,
         num_docs: Sequence[int] | None = None,
@@ -84,7 +84,7 @@ class SetEncoderModel(MonoModel):
 
         Args:
             attention_mask (torch.Tensor): Attention mask for the input sequence.
-            input_shape (Tuple[int, ...]): Shape of the input sequence.
+            input_shape (tuple[int, ...]): Shape of the input sequence.
             device (torch.device | None): Device to move the attention mask to. Defaults to None.
             dtype (torch.dtype | None): Data type of the attention mask. Defaults to None.
             num_docs (Sequence[int] | None): Specifies how many documents are passed per query. If a sequence of
@@ -132,7 +132,7 @@ class SetEncoderModel(MonoModel):
         *args,
         num_docs: Sequence[int],
         **kwargs,
-    ) -> Tuple[torch.Tensor]:
+    ) -> tuple[torch.Tensor]:
         """Performs the attention forward pass for the SetEncoder model.
 
         Args:
@@ -146,7 +146,7 @@ class SetEncoderModel(MonoModel):
                 for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
                 the number of documents by dividing the number of documents by the number of queries.
         Returns:
-            Tuple[torch.Tensor]: Contextualized embeddings.
+            tuple[torch.Tensor]: Contextualized embeddings.
         """
         key_value_hidden_states = hidden_states
         if num_docs is not None:
@@ -219,7 +219,6 @@ class SetEncoderModel(MonoModel):
 
 
 class SetEncoderTokenizer(CrossEncoderTokenizer):
-
     config_class = SetEncoderConfig
     """Configuration class for the tokenizer."""
 
@@ -267,7 +266,7 @@ class SetEncoderTokenizer(CrossEncoderTokenizer):
         docs: str | Sequence[str] | None = None,
         num_docs: Sequence[int] | int | None = None,
         **kwargs,
-    ) -> Dict[str, BatchEncoding]:
+    ) -> dict[str, BatchEncoding]:
         """Tokenizes queries and documents into a single sequence of tokens.
 
         Args:
@@ -279,7 +278,7 @@ class SetEncoderTokenizer(CrossEncoderTokenizer):
                 for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
                 the number of documents by dividing the number of documents by the number of queries. Defaults to None.
             Returns:
-                Dict[str, BatchEncoding]: Tokenized query-document sequence.
+                dict[str, BatchEncoding]: Tokenized query-document sequence.
             Raises:
                 ValueError: If both queries and docs are None.
                 ValueError: If queries and docs are not both lists or both strings.

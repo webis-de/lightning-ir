@@ -1,9 +1,10 @@
-"""Configuration, model, and embedding for COIL (Contextualized Inverted List) type models. Originally proposed in
-`COIL: Revisit Exact Lexical Match in Information Retrieval with Contextualized Inverted List \
+"""Configuration, model, and embedding for COIL (Contextualized Inverted list) type models. Originally proposed in
+`COIL: Revisit Exact Lexical Match in Information Retrieval with Contextualized Inverted list \
 <https://arxiv.org/abs/2104.07186>`_."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal, Sequence
+from typing import Literal
 
 import torch
 from transformers import BatchEncoding
@@ -114,7 +115,7 @@ class CoilModel(MultiVectorBiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """
@@ -253,7 +254,7 @@ class UniCoilModel(SingleVectorBiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """

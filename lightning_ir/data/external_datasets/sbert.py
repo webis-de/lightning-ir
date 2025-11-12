@@ -8,7 +8,6 @@ from lightning_ir.data.external_datasets.ir_datasets_utils import ScoredDocTuple
 
 
 class SBERTScoredDocTuples(ScoredDocTuples):
-
     def __init__(self, docpairs_dlc, name):
         super().__init__(docpairs_dlc)
         self.name = name

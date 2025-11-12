@@ -5,10 +5,11 @@ This module contains the main model class and output class for the Lightning IR 
 """
 
 from collections import defaultdict
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import wraps
 from pathlib import Path
-from typing import Any, Literal, Mapping, Protocol, Self, Sequence, Type, TypeVar
+from typing import Any, Literal, Protocol, Self, TypeVar
 
 import torch
 from transformers import BatchEncoding, BertModel, PreTrainedModel
@@ -17,7 +18,12 @@ from transformers.modeling_outputs import ModelOutput
 from .adapter import LightningIRAdapterMixin
 from .class_factory import LightningIRModelClassFactory, _get_model_class
 from .config import LightningIRConfig
-from .external_model_hub import BACKBONE_MAPPING, CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING
+from .external_model_hub import (
+    BACKBONE_MAPPING,
+    CHECKPOINT_MAPPING,
+    POST_LOAD_CALLBACKS,
+    STATE_DICT_KEY_MAPPING,
+)
 
 
 def _update_config_with_kwargs(config: LightningIRConfig, **kwargs):
@@ -52,16 +58,16 @@ class LightningIRModel(LightningIRAdapterMixin, PreTrainedModel):
 https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrainedModel
 
     Attributes:
-        config_class (Type[LightningIRConfig]): Configuration class for the model.
+        config_class (type[LightningIRConfig]): Configuration class for the model.
         ALLOW_SUB_BATCHING (bool): Flag to allow mini batches of documents for a single query.
-            Set to false for listwise models to ensure correctness.
+            set to false for listwise models to ensure correctness.
     """
 
-    config_class: Type[LightningIRConfig] = LightningIRConfig
+    config_class: type[LightningIRConfig] = LightningIRConfig
     """Configuration class for the model."""
 
     ALLOW_SUB_BATCHING = True
-    """Flag to allow mini batches of documents for a single query. Set to false for listwise models to ensure
+    """Flag to allow mini batches of documents for a single query. set to false for listwise models to ensure
     correctness."""
 
     def __init__(self, config: LightningIRConfig, *args, **kwargs) -> None:
@@ -103,7 +109,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
     @classmethod
     def from_pretrained(
-        cls, model_name_or_path: str | Path, *args, BackboneModel: Type[PreTrainedModel] | None = None, **kwargs
+        cls, model_name_or_path: str | Path, *args, BackboneModel: type[PreTrainedModel] | None = None, **kwargs
     ) -> Self:
         """Loads a pretrained model. Wraps the transformers.PreTrainedModel.from_pretrained_ method to return a
         derived LightningIRModel. See :class:`LightningIRModelClassFactory` for more details.
@@ -124,7 +130,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
         Args:
             model_name_or_path (str | Path): Name or path of the pretrained model.
-            BackboneModel (Type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
+            BackboneModel (type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
                 instead of the default AutoModel. Defaults to None.
         Raises:
             ValueError: If called on the abstract class `LightningIRModel` and no config is passed.
@@ -187,13 +193,13 @@ T = TypeVar("T")
 
 
 def _cat_outputs(
-    outputs: Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None], OutputClass: Type[T] | None
+    outputs: Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None], OutputClass: type[T] | None
 ) -> torch.Tensor | T | None:
     """Helper method to concatenate outputs of the model.
 
     Args:
         outputs (Sequence[Mapping] | Sequence[torch.Tensor] | Sequence[None]): Outputs from the model.
-        OutputClass (Type[T] | None): Class to return the concatenated output as.
+        OutputClass (type[T] | None): Class to return the concatenated output as.
     Returns:
         torch.Tensor | T | None: Concatenated output.
     """

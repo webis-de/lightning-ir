@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, Tuple
+from typing import TYPE_CHECKING, Literal
 
 import torch
 
@@ -55,7 +55,7 @@ class FaissSearcher(ApproximateSearcher):
                     hnsw.efSearch = search_config.ef_search
         super().__init__(index_dir, search_config, module, use_gpu)
 
-    def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> Tuple[PackedTensor, PackedTensor]:
+    def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> tuple[PackedTensor, PackedTensor]:
         if query_embeddings.scoring_mask is None:
             embeddings = query_embeddings.embeddings[:, 0]
         else:

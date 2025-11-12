@@ -5,7 +5,7 @@
 
 import os
 import sys
-from typing import Any, Dict
+from typing import Any, dict
 
 from sphinxawesome_theme.postprocess import Icons
 
@@ -57,7 +57,7 @@ html_title = "Lightning IR"
 html_logo = "./_static/lightning-ir-logo.svg"
 language = "en"
 
-html_theme_options: Dict[str, Any] = {
+html_theme_options: dict[str, Any] = {
     "navigation_with_keys": True,
     # Sphinx Awesome Configurations:
     "show_breadcrumbs": True,

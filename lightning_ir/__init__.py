@@ -1,3 +1,5 @@
+import importlib.metadata
+
 from .base import (
     LightningIRClassFactory,
     LightningIRConfig,
@@ -102,11 +104,12 @@ from .schedulers import (
     WarmupLRScheduler,
 )
 
+__version__ = importlib.metadata.version("lightning-ir")
+
 _register_internal_models()
 _register_external_models()
 _register_external_datasets()
 
-__version__ = "0.0.5"
 
 __all__ = [
     "ApproxMRR",

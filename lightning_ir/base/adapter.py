@@ -35,7 +35,7 @@ class LightningIRAdapterMixin:
         """
         if not PEFT_AVAILABLE:
             raise ImportError(
-                "PEFT is required for adapter functionality. " "Install it with: pip install lightning-ir[adapters]"
+                "PEFT is required for adapter functionality. Install it with: pip install lightning-ir[adapters]"
             )
 
         if self._hf_peft_config_loaded:

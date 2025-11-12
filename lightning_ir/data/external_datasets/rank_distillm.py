@@ -2,7 +2,6 @@ from .ir_datasets_utils import ParquetScoredDocs, register_new_dataset
 
 
 def register_rank_distillm():
-
     base_url = "https://huggingface.co/datasets/webis/rank-distillm/resolve/main"
 
     md5_hashes = {
