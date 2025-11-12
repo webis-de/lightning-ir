@@ -2,14 +2,21 @@ from pathlib import Path
 from typing import Sequence
 
 import pytest
+import torch
 from transformers import AutoModel
 
-from lightning_ir.base import LightningIRModel, LightningIRModule
-from lightning_ir.cross_encoder import CrossEncoderModule
-from lightning_ir.data import LightningIRDataModule, RunDataset, TupleDataset
+from lightning_ir import (
+    BiEncoderModule,
+    CrossEncoderModule,
+    LightningIRDataModule,
+    LightningIRModel,
+    LightningIRModule,
+    RunDataset,
+    TupleDataset,
+)
 from lightning_ir.loss.in_batch import InBatchLossFunction
 from lightning_ir.main import LightningIRTrainer
-from lightning_ir.models import CoilConfig
+from lightning_ir.models import CoilConfig, ColConfig
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -90,3 +97,27 @@ def test_seralize_deserialize(module: LightningIRModule, tmp_path: Path):
             assert getattr(new_model.config, key) == value
         for key, value in model.state_dict().items():
             assert new_model.state_dict()[key].equal(value)
+
+
+def test_xtr_training(model_name_or_path: str):
+    xtr_config = ColConfig(k_train=128)
+    module = BiEncoderModule(model_name_or_path=model_name_or_path, config=xtr_config).train()
+
+    queries = ["What is the capital of France?", "Where is the Eiffel Tower located?"]
+    documents = [
+        [
+            "Paris is the capital of France.",
+            "France is a country in Europe.",
+            "The Eiffel Tower is in Paris.",
+        ],
+        [
+            "The Eiffel Tower is located in Paris.",
+            "London is the capital of the UK.",
+        ],
+    ]
+
+    output = module.score(queries, documents)
+    module.eval()
+    output_eval = module.score(queries, documents)
+
+    assert not torch.allclose(output.scores, output_eval.scores), "Scores should differ between training and eval"
