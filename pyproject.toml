@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lightning-ir"
-version = "0.0.5"
+version = "0.0.6"
 authors = [
     {name = "Ferdinand Schlatt", email = "ferdinand.schlatt@uni-jena.de"},
 ]
