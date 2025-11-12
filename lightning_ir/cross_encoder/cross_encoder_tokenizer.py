@@ -4,7 +4,7 @@ Tokenizer module for cross-encoder models.
 This module contains the tokenizer class cross-encoder models.
 """
 
-from typing import Dict, List, Sequence, Tuple, Type
+from collections.abc import Sequence
 
 from tokenizers.processors import TemplateProcessing
 from transformers import BatchEncoding
@@ -43,8 +43,7 @@ SCORING_STRATEGY_POST_PROCESSOR_MAPPING = {
 
 
 class CrossEncoderTokenizer(LightningIRTokenizer):
-
-    config_class: Type[CrossEncoderConfig] = CrossEncoderConfig
+    config_class: type[CrossEncoderConfig] = CrossEncoderConfig
     """Configuration class for the tokenizer."""
 
     def __init__(
@@ -82,7 +81,7 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
                     special_tokens=special_tokens,
                 )
 
-    def _truncate(self, text: Sequence[str], max_length: int | None) -> List[str]:
+    def _truncate(self, text: Sequence[str], max_length: int | None) -> list[str]:
         """Encodes a list of texts, truncates them to a maximum number of tokens and decodes them to strings."""
         if max_length is None:
             return text
@@ -97,7 +96,7 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
             ).input_ids
         )
 
-    def _repeat_queries(self, queries: Sequence[str], num_docs: Sequence[int]) -> List[str]:
+    def _repeat_queries(self, queries: Sequence[str], num_docs: Sequence[int]) -> list[str]:
         """Repeats queries to match the number of documents."""
         return [query for query_idx, query in enumerate(queries) for _ in range(num_docs[query_idx])]
 
@@ -106,7 +105,7 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         queries: Sequence[str],
         docs: Sequence[str],
         num_docs: Sequence[int],
-    ) -> Tuple[str | Sequence[str], str | Sequence[str]]:
+    ) -> tuple[str | Sequence[str], str | Sequence[str]]:
         """Preprocesses queries and documents to ensure that they are truncated their respective maximum lengths."""
         truncated_queries = self._repeat_queries(self._truncate(queries, self.query_length), num_docs)
         truncated_docs = self._truncate(docs, self.doc_length)
@@ -117,7 +116,7 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         queries: str | Sequence[str],
         docs: str | Sequence[str],
         num_docs: Sequence[int] | int | None,
-    ) -> List[int]:
+    ) -> list[int]:
         if num_docs is None:
             if isinstance(num_docs, int):
                 num_docs = [num_docs] * len(queries)
@@ -133,7 +132,7 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         docs: str | Sequence[str] | None = None,
         num_docs: Sequence[int] | int | None = None,
         **kwargs,
-    ) -> Dict[str, BatchEncoding]:
+    ) -> dict[str, BatchEncoding]:
         """Tokenizes queries and documents into a single sequence of tokens.
 
         Args:
@@ -145,7 +144,7 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
                 for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
                 the number of documents by dividing the number of documents by the number of queries. Defaults to None.
         Returns:
-            Dict[str, BatchEncoding]: Tokenized query-document sequence.
+            dict[str, BatchEncoding]: Tokenized query-document sequence.
         Raises:
             ValueError: If either queries or docs are None.
             ValueError: If queries and docs are not both lists or both strings.

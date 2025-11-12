@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Literal, Set, Tuple, Type
+from typing import TYPE_CHECKING, Literal
 
 import torch
 
@@ -75,7 +75,7 @@ class Searcher(ABC):
 
     def _filter_and_sort(
         self, doc_scores: PackedTensor, doc_idcs: PackedTensor, k: int | None = None
-    ) -> Tuple[PackedTensor, PackedTensor]:
+    ) -> tuple[PackedTensor, PackedTensor]:
         """Filter and sort the document scores and indices.
 
         Args:
@@ -84,7 +84,7 @@ class Searcher(ABC):
             k (int | None): The number of top documents to return. If None, use the configured k from search_config.
                 Defaults to None.
         Returns:
-            Tuple[PackedTensor, PackedTensor]: The filtered and sorted document scores and indices.
+            tuple[PackedTensor, PackedTensor]: The filtered and sorted document scores and indices.
         """
         k = k or self.search_config.k
         per_query_doc_scores = torch.split(doc_scores, doc_scores.lengths)
@@ -103,13 +103,13 @@ class Searcher(ABC):
         )
 
     @abstractmethod
-    def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
+    def search(self, output: BiEncoderOutput) -> tuple[PackedTensor, list[list[str]]]:
         """Search for documents based on the output of the bi-encoder model.
 
         Args:
             output (BiEncoderOutput): The output from the bi-encoder model containing query and document embeddings.
         Returns:
-            Tuple[PackedTensor, List[List[str]]]: The top-k scores and corresponding document IDs.
+            tuple[PackedTensor, list[list[str]]]: The top-k scores and corresponding document IDs.
         """
         ...
 
@@ -117,13 +117,13 @@ class Searcher(ABC):
 class ExactSearcher(Searcher):
     """Searcher that retrieves documents using exact matching of query embeddings."""
 
-    def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
+    def search(self, output: BiEncoderOutput) -> tuple[PackedTensor, list[list[str]]]:
         """Search for documents based on the output of the bi-encoder model.
 
         Args:
             output (BiEncoderOutput): The output from the bi-encoder model containing query and document embeddings.
         Returns:
-            Tuple[PackedTensor, List[List[str]]]: The top-k scores and corresponding document IDs.
+            tuple[PackedTensor, list[list[str]]]: The top-k scores and corresponding document IDs.
         """
         query_embeddings = output.query_embeddings
         if query_embeddings is None:
@@ -179,14 +179,13 @@ class ExactSearcher(Searcher):
 
 
 class ApproximateSearcher(Searcher):
-
-    def search(self, output: BiEncoderOutput) -> Tuple[PackedTensor, List[List[str]]]:
+    def search(self, output: BiEncoderOutput) -> tuple[PackedTensor, list[list[str]]]:
         """Search for documents based on the output of the bi-encoder model.
 
         Args:
             output (BiEncoderOutput): The output from the bi-encoder model containing query and document embeddings.
         Returns:
-            Tuple[PackedTensor, List[List[str]]]: The top-k scores and corresponding document IDs.
+            tuple[PackedTensor, list[list[str]]]: The top-k scores and corresponding document IDs.
         """
         query_embeddings = output.query_embeddings
         if query_embeddings is None:
@@ -205,7 +204,7 @@ class ApproximateSearcher(Searcher):
 
     def _aggregate_doc_scores(
         self, candidate_scores: PackedTensor, candidate_idcs: PackedTensor, query_embeddings: BiEncoderEmbedding
-    ) -> Tuple[PackedTensor, PackedTensor]:
+    ) -> tuple[PackedTensor, PackedTensor]:
         if self.doc_is_single_vector:
             return candidate_scores, candidate_idcs
 
@@ -269,7 +268,7 @@ class ApproximateSearcher(Searcher):
         elif self.search_config.imputation_strategy == "zero":
             imputation_values = torch.zeros_like(unpacked_scores)
         else:
-            raise ValueError("Invalid imputation strategy: " f"{self.search_config.imputation_strategy}")
+            raise ValueError(f"Invalid imputation strategy: {self.search_config.imputation_strategy}")
 
         is_nan = torch.isnan(unpacked_scores)
         unpacked_scores[is_nan] = imputation_values[is_nan]
@@ -289,7 +288,7 @@ class ApproximateSearcher(Searcher):
         return scores
 
     @abstractmethod
-    def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> Tuple[PackedTensor, PackedTensor]:
+    def _candidate_retrieval(self, query_embeddings: BiEncoderEmbedding) -> tuple[PackedTensor, PackedTensor]:
         """Retrieves initial candidates using the query embeddings. Returns candidate scores and candidate vector
         indices of shape `num_query_vecs x candidate_k` (packed). Candidate indices are None if all doc vectors are
         scored.
@@ -297,7 +296,7 @@ class ApproximateSearcher(Searcher):
         Args:
             query_embeddings (BiEncoderEmbedding): The query embeddings to use for candidate retrieval.
         Returns:
-            Tuple[PackedTensor, PackedTensor]: The candidate scores and candidate vector indices.
+            tuple[PackedTensor, PackedTensor]: The candidate scores and candidate vector indices.
         """
         ...
 
@@ -330,7 +329,7 @@ class ApproximateSearcher(Searcher):
         all_doc_idcs = cat_arange(start_doc_idcs, start_doc_idcs + doc_lengths)
         all_doc_embeddings = self._gather_doc_embeddings(all_doc_idcs)
         unique_embeddings = torch.nn.utils.rnn.pad_sequence(
-            [embeddings for embeddings in torch.split(all_doc_embeddings, doc_lengths.tolist())],
+            list(torch.split(all_doc_embeddings, doc_lengths.tolist())),
             batch_first=True,
         ).to(inverse_idcs.device)
         embeddings = unique_embeddings[inverse_idcs]
@@ -345,9 +344,9 @@ class ApproximateSearcher(Searcher):
 class SearchConfig:
     """Configuration class for searchers in the Lightning IR framework."""
 
-    search_class: Type[Searcher]
+    search_class: type[Searcher]
 
-    SUPPORTED_MODELS: Set[str]
+    SUPPORTED_MODELS: set[str]
 
     def __init__(self, k: int = 10) -> None:
         """Initialize the SearchConfig.

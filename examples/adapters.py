@@ -5,6 +5,7 @@ Example demonstrating LoRA adapter usage with Lightning IR models.
 Note: This example requires the 'adapters' extra dependency:
 pip install lightning-ir[adapters]
 """
+
 from peft import LoraConfig
 from torch.optim import AdamW
 

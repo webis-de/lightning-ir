@@ -5,8 +5,21 @@ from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 from transformers import T5EncoderModel
 
-from ..base import BACKBONE_MAPPING, CHECKPOINT_MAPPING, POST_LOAD_CALLBACKS, STATE_DICT_KEY_MAPPING, LightningIRModel
-from ..models import CoilConfig, ColConfig, DprConfig, MonoConfig, SpladeConfig, UniCoilConfig
+from ..base import (
+    BACKBONE_MAPPING,
+    CHECKPOINT_MAPPING,
+    POST_LOAD_CALLBACKS,
+    STATE_DICT_KEY_MAPPING,
+    LightningIRModel,
+)
+from ..models import (
+    CoilConfig,
+    ColConfig,
+    DprConfig,
+    MonoConfig,
+    SpladeConfig,
+    UniCoilConfig,
+)
 
 
 def _map_colbert_marker_tokens(model: LightningIRModel) -> LightningIRModel:
@@ -39,7 +52,8 @@ def _map_moderncolbert_marker_tokens(model: LightningIRModel) -> LightningIRMode
 def _map_xtr_weights(model: LightningIRModel) -> LightningIRModel:
     warnings.warn(
         "The above warning, that the linear layer is not initialized, is expected and can be ignored."
-        "The weights are initialized separately."
+        "The weights are initialized separately.",
+        stacklevel=2,
     )
     path = hf_hub_download(model.config.name_or_path, filename="pytorch_model.bin", subfolder="2_Dense")
     state_dict = torch.load(path, weights_only=True, map_location="cpu")
@@ -52,7 +66,8 @@ def _map_mono_t5_weights(model: LightningIRModel) -> LightningIRModel:
     # [1176, 6136] true, false
     warnings.warn(
         "The above warning, that the linear layer is not initialized, is expected and can be ignored."
-        "The weights are initialized separately."
+        "The weights are initialized separately.",
+        stacklevel=2,
     )
     model.linear.weight.data = model.shared.weight.data[[6136, 1176]]
     return model
@@ -62,7 +77,8 @@ def _map_rank_t5_weights(model: LightningIRModel) -> LightningIRModel:
     # 32089 <extra_id_10>
     warnings.warn(
         "The above warning, that the linear layer is not initialized, is expected and can be ignored."
-        "The weights are initialized separately."
+        "The weights are initialized separately.",
+        stacklevel=2,
     )
     model.linear.weight.data = model.shared.weight.data[[32089]]
     return model

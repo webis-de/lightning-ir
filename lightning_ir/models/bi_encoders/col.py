@@ -4,7 +4,8 @@
 to work with any transformer backbone model.
 """
 
-from typing import Literal, Sequence
+from collections.abc import Sequence
+from typing import Literal
 
 import torch
 from transformers import BatchEncoding
@@ -79,7 +80,7 @@ class ColConfig(MultiVectorBiEncoderConfig):
                 document tokens to use. Defaults to 128.
 
         .. _XTR: \
-<https://proceedings.neurips.cc/paper_files/paper/2023/file/31d997278ee9069d6721bc194174bb4c-Paper-Conference.pdf>`_
+https://proceedings.neurips.cc/paper_files/paper/2023/file/31d997278ee9069d6721bc194174bb4c-Paper-Conference.pdf
         """
         super().__init__(
             query_length=query_length,
@@ -151,7 +152,7 @@ class ColModel(MultiVectorBiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             torch.Tensor: Scoring mask.
         """
@@ -173,7 +174,7 @@ class ColModel(MultiVectorBiEncoderModel):
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """
@@ -319,7 +320,7 @@ class ColTokenizer(BiEncoderTokenizer):
 
         Args:
             text (Sequence[str] | str): Input text to tokenize.
-            input_type (Literal["query", "doc"]): Type of input, either "query" or "doc".
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
         Returns:
             BatchEncoding: Tokenized input sequences.
         """

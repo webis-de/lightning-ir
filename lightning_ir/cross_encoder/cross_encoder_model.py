@@ -6,7 +6,6 @@ This module defines the model class used to implement cross-encoder models.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Type
 
 import torch
 from transformers import BatchEncoding
@@ -25,7 +24,7 @@ class CrossEncoderOutput(LightningIROutput):
 
 
 class CrossEncoderModel(LightningIRModel, ABC):
-    config_class: Type[CrossEncoderConfig] = CrossEncoderConfig
+    config_class: type[CrossEncoderConfig] = CrossEncoderConfig
     """Configuration class for cross-encoder models."""
 
     def __init__(self, config: CrossEncoderConfig, *args, **kwargs):

@@ -4,7 +4,8 @@ Module module for cross-encoder models.
 This module defines the Lightning IR module class used to implement cross-encoder models.
 """
 
-from typing import Any, List, Mapping, Sequence, Tuple, Type
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import torch
 from transformers import PreTrainedModel
@@ -23,8 +24,8 @@ class CrossEncoderModule(LightningIRModule):
         model_name_or_path: str | None = None,
         config: CrossEncoderConfig | None = None,
         model: CrossEncoderModel | None = None,
-        BackboneModel: Type[PreTrainedModel] | None = None,
-        loss_functions: Sequence[LossFunction | Tuple[LossFunction, float]] | None = None,
+        BackboneModel: type[PreTrainedModel] | None = None,
+        loss_functions: Sequence[LossFunction | tuple[LossFunction, float]] | None = None,
         evaluation_metrics: Sequence[str] | None = None,
         model_kwargs: Mapping[str, Any] | None = None,
     ):
@@ -39,9 +40,9 @@ class CrossEncoderModule(LightningIRModule):
             config (CrossEncoderConfig | None): CrossEncoderConfig to apply when loading from backbone model.
                 Defaults to None.
             model (CrossEncoderModel | None): Already instantiated CrossEncoderModel. Defaults to None.
-            BackboneModel (Type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
+            BackboneModel (type[PreTrainedModel] | None): Huggingface PreTrainedModel class to use as backbone
                 instead of the default AutoModel. Defaults to None.
-            loss_functions (Sequence[LossFunction | Tuple[LossFunction, float]] | None):
+            loss_functions (Sequence[LossFunction | tuple[LossFunction, float]] | None):
                 Loss functions to apply during fine-tuning, optional loss weights can be provided per loss function.
                 Defaults to None.
             evaluation_metrics (Sequence[str] | None): Metrics corresponding to ir-measures_ measure strings to apply
@@ -82,7 +83,7 @@ class CrossEncoderModule(LightningIRModule):
         output = self.model.forward(encoding["encoding"])
         return output
 
-    def _compute_losses(self, batch: TrainBatch, output: CrossEncoderOutput) -> List[torch.Tensor]:
+    def _compute_losses(self, batch: TrainBatch, output: CrossEncoderOutput) -> list[torch.Tensor]:
         """Computes the losses for a training batch."""
         if self.loss_functions is None:
             raise ValueError("loss_functions must be set in the module")

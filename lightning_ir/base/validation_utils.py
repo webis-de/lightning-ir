@@ -2,7 +2,7 @@
 
 This module contains utility functions for validation and evaluation of Lightning IR models."""
 
-from typing import Dict, Sequence
+from collections.abc import Sequence
 
 import ir_measures
 import numpy as np
@@ -16,8 +16,8 @@ def create_run_from_scores(
     """Convenience function to create a run DataFrame from query and document ids and scores.
 
     Args:
-        query_ids (Sequence[str]): List of query IDs.
-        doc_ids (Sequence[Sequence[str]]): List of lists containing document IDs for each query.
+        query_ids (Sequence[str]): list of query IDs.
+        doc_ids (Sequence[Sequence[str]]): list of lists containing document IDs for each query.
         scores (torch.Tensor): Tensor containing scores for each query-document pair.
     Returns:
         pd.DataFrame: DataFrame containing the run information with columns:
@@ -28,7 +28,7 @@ def create_run_from_scores(
         {
             "query_id": np.array(query_ids).repeat(num_docs),
             "q0": 0,
-            "doc_id": sum(map(lambda x: list(x), doc_ids), []),
+            "doc_id": sum((list(x) for x in doc_ids), []),
             "score": scores.float().numpy(force=True).reshape(-1),
             "system": "lightning_ir",
         }
@@ -44,18 +44,18 @@ def create_run_from_scores(
     return df
 
 
-def create_qrels_from_dicts(qrels: Sequence[Dict[str, int]]) -> pd.DataFrame:
+def create_qrels_from_dicts(qrels: Sequence[dict[str, int]]) -> pd.DataFrame:
     """Convenience function to create a qrels DataFrame from a list of dictionaries.
 
     Args:
-        qrels (Sequence[Dict[str, int]]): Mappings of doc_id -> relevance for each query. Defaults to None.
+        qrels (Sequence[dict[str, int]]): Mappings of doc_id -> relevance for each query. Defaults to None.
     Returns:
         pd.DataFrame: DataFrame with columns: query_id, q0, doc_id, and relevance.
     """
     return pd.DataFrame.from_records(qrels)
 
 
-def evaluate_run(run: pd.DataFrame, qrels: pd.DataFrame, measures: Sequence[str]) -> Dict[str, float]:
+def evaluate_run(run: pd.DataFrame, qrels: pd.DataFrame, measures: Sequence[str]) -> dict[str, float]:
     """Convenience function to evaluate a run against qrels using a set of measures.
 
     .. _ir-measures: https://ir-measur.es/en/latest/index.html
@@ -65,7 +65,7 @@ def evaluate_run(run: pd.DataFrame, qrels: pd.DataFrame, measures: Sequence[str]
         qrels (pd.DataFrame): Parse TREC qrels.
         measures (Sequence[str]): Metrics corresponding to ir-measures_ measure strings.
     Returns:
-        Dict[str, float]: Calculated metrics.
+        dict[str, float]: Calculated metrics.
     """
     parsed_measures = [ir_measures.parse_measure(measure) for measure in measures]
     metrics = {str(measure): measure.calc_aggregate(qrels, run) for measure in parsed_measures}

@@ -1,6 +1,6 @@
 """PackedTensor class for handling tensors with variable segment lengths."""
 
-from typing import Sequence, Tuple
+from collections.abc import Sequence
 
 import torch
 
@@ -38,14 +38,14 @@ class PackedTensor(torch.Tensor):
         if sum(lengths) != len(self):
             raise ValueError("Sum of lengths must equal the length of the tensor")
         self.lengths = list(lengths)
-        self._segmented_tensor: Tuple[torch.Tensor, ...] | None = None
+        self._segmented_tensor: tuple[torch.Tensor, ...] | None = None
 
     @property
-    def segmented_tensor(self) -> Tuple[torch.Tensor, ...]:
+    def segmented_tensor(self) -> tuple[torch.Tensor, ...]:
         """Get the segmented tensor, which is a tuple of tensors split according to the specified lengths.
 
         Returns:
-            Tuple[torch.Tensor, ...]: A tuple of tensors, each corresponding to a segment defined by the lengths.
+            tuple[torch.Tensor, ...]: A tuple of tensors, each corresponding to a segment defined by the lengths.
         """
         if self._segmented_tensor is None:
             self._segmented_tensor = torch.split(self, self.lengths)

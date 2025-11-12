@@ -5,8 +5,9 @@ This module contains the main tokenizer class for the Lightning IR library.
 """
 
 import json
+from collections.abc import Sequence
 from os import PathLike
-from typing import Dict, Self, Sequence, Tuple, Type
+from typing import Self
 
 from transformers import TOKENIZER_MAPPING, BatchEncoding, PreTrainedTokenizerBase
 
@@ -23,7 +24,7 @@ class LightningIRTokenizer(PreTrainedTokenizerBase):
 https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreTrainedTokenizer
     """
 
-    config_class: Type[LightningIRConfig] = LightningIRConfig
+    config_class: type[LightningIRConfig] = LightningIRConfig
     """Configuration class for the tokenizer."""
 
     def __init__(self, *args, query_length: int | None = 32, doc_length: int | None = 512, **kwargs):
@@ -39,14 +40,14 @@ https://huggingface.co/transformers/main_classes/tokenizer.htmltransformers.PreT
 
     def tokenize(
         self, queries: str | Sequence[str] | None = None, docs: str | Sequence[str] | None = None, **kwargs
-    ) -> Dict[str, BatchEncoding]:
+    ) -> dict[str, BatchEncoding]:
         """Tokenizes queries and documents.
 
         Args:
             queries (str | Sequence[str] | None): Queries to tokenize. Defaults to None.
             docs (str | Sequence[str] | None): Documents to tokenize. Defaults to None.
         Returns:
-            Dict[str, BatchEncoding]: Dictionary containing tokenized queries and documents.
+            dict[str, BatchEncoding]: Dictionary containing tokenized queries and documents.
         Raises:
             NotImplementedError: Must be implemented by the derived class.
         """
@@ -108,20 +109,20 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
         config = kwargs.pop("config", None)
         if config is not None:
             kwargs.update(config.get_tokenizer_kwargs(cls))
-        return super(LightningIRTokenizer, cls).from_pretrained(model_name_or_path, *args, **kwargs)
+        return super().from_pretrained(model_name_or_path, *args, **kwargs)
 
     def _save_pretrained(
         self,
         save_directory: str | PathLike,
-        file_names: Tuple[str],
+        file_names: tuple[str],
         legacy_format: bool | None = None,
         filename_prefix: str | None = None,
-    ) -> Tuple[str]:
+    ) -> tuple[str]:
         # bit of a hack to change the tokenizer class in the stored tokenizer config to only contain the
         # lightning_ir tokenizer class (removing the backbone tokenizer class)
         save_files = super()._save_pretrained(save_directory, file_names, legacy_format, filename_prefix)
         config_file = save_files[0]
-        with open(config_file, "r") as file:
+        with open(config_file) as file:
             tokenizer_config = json.load(file)
 
         tokenizer_class = None

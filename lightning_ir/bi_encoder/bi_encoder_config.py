@@ -4,7 +4,8 @@ Configuration module for bi-encoder models.
 This module defines the configuration class used to instantiate bi-encoder models.
 """
 
-from typing import Any, Literal, Sequence
+from collections.abc import Sequence
+from typing import Any, Literal
 
 from ..base import LightningIRConfig
 

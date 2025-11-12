@@ -53,10 +53,7 @@ adapters = [
     "peft>=0.17.0",
 ]
 dev = [
-    "black",
-    "flake8",
-    "isort",
-    "mypy",
+    "ruff",
 ]
 docs = [
     "sphinx",
@@ -75,15 +72,25 @@ include-package-data = true
 include = ["lightning_ir", "lightning_ir.*"]
 exclude = ["examples*", "docs*", "tests*"]
 
-[tool.black]
+[tool.ruff]
 line-length = 120
+target-version = "py39"
 
-[tool.isort]
-profile = "black"
-multi_line_output = 3
-line_length = 120
-include_trailing_comma = true
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade
+]
 
-[tool.flake8]
-max-line-length = 120
-extend-ignore = ["E203"]
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.ruff.lint.isort]
+known-first-party = ["lightning_ir"]
+force-single-line = false
+split-on-trailing-comma = true
