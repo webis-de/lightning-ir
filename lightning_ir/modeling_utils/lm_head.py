@@ -46,6 +46,7 @@ MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
         "cls.predictions.transform.dense": "bert.projection.dense",
         "cls.predictions.transform.LayerNorm": "bert.projection.norm",
         "cls.predictions.decoder": "bert.projection.decoder",
+        "cls.predictions.bias": "bert.projection.decoder.bias",
     },
     "distilbert": {
         "vocab_transform": "distilbert.projection.dense",
