@@ -28,8 +28,7 @@ class DprConfig(SingleVectorBiEncoderConfig):
         normalize: bool = False,
         sparsification: Literal["relu", "relu_log", "relu_2xlog"] | None = None,
         add_marker_tokens: bool = False,
-        query_pooling_strategy: Literal["first", "mean", "max", "sum"] = "first",
-        doc_pooling_strategy: Literal["first", "mean", "max", "sum"] = "first",
+        pooling_strategy: Literal["first", "mean", "max", "sum"] = "first",
         embedding_dim: int | None = None,
         projection: Literal["linear", "linear_no_bias"] | None = "linear",
         **kwargs,
@@ -47,10 +46,8 @@ class DprConfig(SingleVectorBiEncoderConfig):
             sparsification (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification
                 function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to add marker tokens to the input sequences. Defaults to False.
-            query_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query embeddings.
-                Defaults to "first".
-            doc_pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for document embeddings.
-                Defaults to "first".
+            pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query and document
+                embeddings. Defaults to "first".
             embedding_dim (int | None): Dimension of the final embeddings. If None, it will be set to the hidden size
                 of the backbone model. Defaults to None.
             projection (Literal["linear", "linear_no_bias"] | None): type of projection layer to apply on the pooled
@@ -63,8 +60,7 @@ class DprConfig(SingleVectorBiEncoderConfig):
             normalize=normalize,
             sparsification=sparsification,
             add_marker_tokens=add_marker_tokens,
-            query_pooling_strategy=query_pooling_strategy,
-            doc_pooling_strategy=doc_pooling_strategy,
+            pooling_strategy=pooling_strategy,
             **kwargs,
         )
         hidden_size = getattr(self, "hidden_size", None)
@@ -100,8 +96,8 @@ class DprModel(SingleVectorBiEncoderModel):
                 self.config.embedding_dim,
                 bias="no_bias" not in self.config.projection,
             )
-        self.pooler = Pooler(config.pooling_strategy)
-        self.sparsifier = Sparsifier(config.sparsification_strategy)
+        self.pooler = Pooler(config)
+        self.sparsifier = Sparsifier(config)
 
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
