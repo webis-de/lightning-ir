@@ -18,12 +18,7 @@ from ...bi_encoder import (
     SingleVectorBiEncoderModel,
 )
 from ...modeling_utils.embedding_post_processing import Pooler, Sparsifier
-from ...modeling_utils.mlm_head import (
-    MODEL_TYPE_TO_LM_HEAD,
-    MODEL_TYPE_TO_OUTPUT_EMBEDDINGS,
-    MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING,
-    MODEL_TYPE_TO_TIED_WEIGHTS_KEYS,
-)
+from ...modeling_utils.lm_head import MODEL_TYPE_TO_LM_HEAD, MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING
 
 
 class SpladeConfig(SingleVectorBiEncoderConfig):
@@ -111,11 +106,7 @@ class SpladeModel(SingleVectorBiEncoderModel):
         # grab language modeling head based on backbone model type
         layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
         self.projection = layer_cls(config)
-        tied_weight_keys = getattr(self, "_tied_weights_keys", []) or []
-        tied_weight_keys = tied_weight_keys + [
-            f"projection.{key}"
-            for key in MODEL_TYPE_TO_TIED_WEIGHTS_KEYS[config.backbone_model_type or config.model_type]
-        ]
+        tied_weight_keys = (getattr(self, "_tied_weights_keys", []) or []) + ["projection.decoder.weight"]
         self._tied_weights_keys = tied_weight_keys
         self.query_weights = None
         if config.query_weighting == "static":
@@ -224,11 +215,7 @@ class SpladeModel(SingleVectorBiEncoderModel):
         Returns:
             torch.nn.Module | None: Output embeddings of the model.
         """
-        module_names = MODEL_TYPE_TO_OUTPUT_EMBEDDINGS[self.config.backbone_model_type or self.config.model_type]
-        output = self.projection
-        for module_name in module_names.split("."):
-            output = getattr(output, module_name)
-        return output
+        return self.projection.decoder
 
 
 class SpladeTokenizer(BiEncoderTokenizer):
