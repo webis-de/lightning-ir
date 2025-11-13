@@ -6,11 +6,11 @@ import torch
 class Pooler(torch.nn.Module):
     """Applies pooling to the embeddings based on the pooling strategy defined in the configuration."""
 
-    def __init__(self, pooling_strategy: Literal["first", "mean", "max", "sum"]) -> None:
+    def __init__(self, pooling_strategy: Literal["first", "mean", "max", "sum"] | None) -> None:
         """Initializes the pooler.
 
         Args:
-            pooling_strategy (Literal['first', 'mean', 'max', 'sum']): Pooling strategy to aggregate the
+            pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | None): Pooling strategy to aggregate the
                 contextualized embeddings into a single vector.
         """
         super().__init__()
@@ -20,8 +20,8 @@ class Pooler(torch.nn.Module):
         """Applies optional pooling to the embeddings.
 
         Args:
-            embeddings (torch.Tensor): Query or document embeddings
-            attention_mask (torch.Tensor | None): Query or document attention mask
+            embeddings (torch.Tensor): Query, document, or joint query-document embeddings
+            attention_mask (torch.Tensor | None): Query, document, or joint query-document attention mask
         Returns:
             torch.Tensor: (Optionally) pooled embeddings.
         Raises:
@@ -63,7 +63,7 @@ class Sparsifier(torch.nn.Module):
         """Applies optional sparsification to the embeddings.
 
         Args:
-            embeddings (torch.Tensor): Query or document embeddings
+            embeddings (torch.Tensor): Query, document, or joint query-document embeddings
         Returns:
             torch.Tensor: (Optionally) sparsified embeddings.
         Raises:
