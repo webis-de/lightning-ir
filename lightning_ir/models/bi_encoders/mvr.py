@@ -28,6 +28,7 @@ class MvrConfig(MultiVectorBiEncoderConfig):
         similarity_function: Literal["cosine", "dot"] = "dot",
         normalization_strategy: Literal["l2"] | None = None,
         add_marker_tokens: bool = False,
+        pooling_strategy: Literal["first", "mean", "max", "sum"] = "first",
         embedding_dim: int | None = None,
         projection: Literal["linear", "linear_no_bias"] | None = "linear",
         num_viewer_tokens: int | None = 8,
@@ -48,6 +49,8 @@ class MvrConfig(MultiVectorBiEncoderConfig):
                 Defaults to None.
             add_marker_tokens (bool): Whether to prepend extra marker tokens [Q] / [D] to queries / documents.
                 Defaults to False.
+            pooling_strategy (Literal['first', 'mean', 'max', 'sum']): Pooling strategy for query embeddings. Defaults
+                to "first".
             embedding_dim (int | None): Dimension of the final embeddings. If None, it will be set to the hidden size
                 of the backbone model. Defaults to None.
             projection (Literal["linear", "linear_no_bias"] | None): type of projection layer to apply on the pooled
@@ -64,6 +67,7 @@ class MvrConfig(MultiVectorBiEncoderConfig):
             projection=projection,
             **kwargs,
         )
+        self.pooling_strategy = pooling_strategy
         self.num_viewer_tokens = num_viewer_tokens
 
 
@@ -90,7 +94,7 @@ class MvrModel(MultiVectorBiEncoderModel):
                 self.config.embedding_dim,
                 bias="no_bias" not in self.config.projection,
             )
-        self.query_pooler = Pooler("first")
+        self.query_pooler = Pooler(config)
 
     def scoring_mask(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> torch.Tensor:
         """Computes a scoring mask for batched tokenized text sequences which is used in the scoring function to mask

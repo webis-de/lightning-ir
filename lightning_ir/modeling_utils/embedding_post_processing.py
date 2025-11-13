@@ -1,20 +1,19 @@
-from typing import Literal
-
 import torch
+
+from ..base import LightningIRConfig
 
 
 class Pooler(torch.nn.Module):
     """Applies pooling to the embeddings based on the pooling strategy defined in the configuration."""
 
-    def __init__(self, pooling_strategy: Literal["first", "mean", "max", "sum"] | None) -> None:
+    def __init__(self, config: LightningIRConfig) -> None:
         """Initializes the pooler.
 
         Args:
-            pooling_strategy (Literal['first', 'mean', 'max', 'sum'] | None): Pooling strategy to aggregate the
-                contextualized embeddings into a single vector.
+            config (LightningIRConfig): Configuration containing the pooling strategy to apply
         """
         super().__init__()
-        self.pooling_strategy = pooling_strategy
+        self.pooling_strategy = getattr(config, "pooling_strategy", None)
 
     def forward(self, embeddings: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         """Applies optional pooling to the embeddings.
@@ -23,9 +22,9 @@ class Pooler(torch.nn.Module):
             embeddings (torch.Tensor): Query, document, or joint query-document embeddings
             attention_mask (torch.Tensor | None): Query, document, or joint query-document attention mask
         Returns:
-            torch.Tensor: (Optionally) pooled embeddings.
+            torch.Tensor: (Optionally) pooled embeddings
         Raises:
-            ValueError: If an unknown pooling strategy is passed.
+            ValueError: If an unknown pooling strategy is passed
         """
         if self.pooling_strategy is None:
             return embeddings
@@ -49,15 +48,14 @@ class Pooler(torch.nn.Module):
 class Sparsifier(torch.nn.Module):
     """Applies sparsification to the embeddings based on the sparsification strategy defined in the configuration."""
 
-    def __init__(self, sparsification_strategy: Literal["relu", "relu_log", "relu_2xlog"] | None) -> None:
+    def __init__(self, config: LightningIRConfig) -> None:
         """Initializes the sparsifier.
 
         Args:
-            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Which sparsification strategy
-                to apply.
+            config (LightningIRConfig): Configuration containing the sparsification strategy to apply
         """
         super().__init__()
-        self.sparsification_strategy = sparsification_strategy
+        self.sparsification_strategy = getattr(config, "sparsification_strategy", None)
 
     def forward(self, embeddings: torch.Tensor) -> torch.Tensor:
         """Applies optional sparsification to the embeddings.
@@ -65,9 +63,9 @@ class Sparsifier(torch.nn.Module):
         Args:
             embeddings (torch.Tensor): Query, document, or joint query-document embeddings
         Returns:
-            torch.Tensor: (Optionally) sparsified embeddings.
+            torch.Tensor: (Optionally) sparsified embeddings
         Raises:
-            ValueError: If an unknown sparsification strategy is passed.
+            ValueError: If an unknown sparsification strategy is passed
         """
         if self.sparsification_strategy is None:
             return embeddings
