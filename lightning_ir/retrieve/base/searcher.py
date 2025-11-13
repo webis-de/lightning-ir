@@ -62,9 +62,7 @@ class Searcher(ABC):
         self.num_embeddings = int(self.cumulative_doc_lengths[-1].item())
 
         self.doc_is_single_vector = self.num_docs == self.num_embeddings
-        self.query_is_single_vector = isinstance(module.config, SingleVectorBiEncoderConfig) or getattr(
-            module.config, "query_pooling_strategy", None
-        ) in {"first", "mean", "min", "max"}
+        self.query_is_single_vector = isinstance(module.config, SingleVectorBiEncoderConfig)
 
         if self.doc_lengths.shape[0] != self.num_docs or self.doc_lengths.sum() != self.num_embeddings:
             raise ValueError("doc_lengths do not match index")

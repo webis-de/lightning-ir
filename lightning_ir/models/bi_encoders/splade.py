@@ -115,8 +115,8 @@ class SpladeModel(SingleVectorBiEncoderModel):
         if config.doc_weighting == "static":
             self.doc_weights = torch.nn.Embedding(config.vocab_size, 1)
 
-        self.pooler = Pooler(config.pooling_strategy)
-        self.sparsifier = Sparsifier(config.sparsification_strategy)
+        self.pooler = Pooler(config)
+        self.sparsifier = Sparsifier(config)
 
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.

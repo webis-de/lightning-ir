@@ -95,7 +95,7 @@ class MonoModel(CrossEncoderModel):
             self.linear = ScaleLinear(config.hidden_size, output_dim, bias=self.config.linear_bias)
         else:
             self.linear = torch.nn.Linear(config.hidden_size, output_dim, bias=self.config.linear_bias)
-        self.pooler = Pooler(self.config.pooling_strategy)
+        self.pooler = Pooler(config)
 
     @batch_encoding_wrapper
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
