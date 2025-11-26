@@ -42,10 +42,11 @@ class DprConfig(SingleVectorBiEncoderConfig):
             doc_length (int | None): Maximum number of tokens per document. If None does not truncate. Defaults to 512.
             similarity_function (Literal["cosine", "dot"]): Similarity function to compute scores between query and
                 document embeddings. Defaults to "dot".
-            normalization_strategy (Literal['l2'] | None): Whether to normalization_strategy query and document embeddings.
+            normalization_strategy (Literal['l2'] | None): Whether to normalization_strategy query and document
+                embeddings.
                 Defaults to None.
-            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which sparsification_strategy
-                function to apply. Defaults to None.
+            sparsification_strategy (Literal['relu', 'relu_log', 'relu_2xlog'] | None): Whether and which
+                sparsification_strategy function to apply. Defaults to None.
             add_marker_tokens (bool): Whether to add marker tokens to the input sequences. Defaults to False.
             pooling_strategy (Literal["first", "mean", "max", "sum"]): Pooling strategy for query and document
                 embeddings. Defaults to "first".
