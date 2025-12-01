@@ -86,6 +86,16 @@ class IRDataset:
         """
         return self.docs_dataset_id.replace("/", "-")
 
+    def register_lsr_dataset_to_ir_datasets(self):
+        try:
+            from lsr_benchmark import register_to_ir_datasets
+        except:
+            msg = f"I could not import the lsr_benchmark package. Please install the lsr-benchmark via 'pip3 install lsr-benchmark' to load ir_datasets from there. I got the dataset id '{self.dataset}'."
+            print(msg)
+            raise ValueError(msg)
+
+        register_to_ir_datasets(self.dataset.replace("lsr-benchmark/", ""))
+
     @property
     def ir_dataset(self) -> ir_datasets.Dataset | None:
         """Instance of ir_datasets.Dataset.
@@ -93,6 +103,9 @@ class IRDataset:
         Returns:
             ir_datasets.Dataset | None: Instance of ir_datasets.Dataset or None if the dataset is not found.
         """
+        if self.dataset and self.dataset.startswith("lsr-benchmark/"):
+            self.register_lsr_dataset_to_ir_datasets()
+
         try:
             return ir_datasets.load(self.dataset)
         except KeyError:
