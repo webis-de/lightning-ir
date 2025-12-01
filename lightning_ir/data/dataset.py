@@ -21,6 +21,7 @@ from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
 from .data import DocSample, QuerySample, RankSample
 from .external_datasets.ir_datasets_utils import ScoredDocTuple
+from .external_datasets.lsr_benchmark import register_lsr_dataset_to_ir_datasets
 
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 
@@ -86,19 +87,6 @@ class IRDataset:
         """
         return self.docs_dataset_id.replace("/", "-")
 
-    def register_lsr_dataset_to_ir_datasets(self):
-        try:
-            from lsr_benchmark import register_to_ir_datasets
-        except ImportError:
-            msg = (
-                "I could not import the lsr_benchmark package. Please install the lsr-benchmark via "
-                + f"'pip3 install lsr-benchmark' to load ir_datasets from there. I got the dataset id '{self.dataset}'."
-            )
-            print(msg)
-            raise ValueError(msg)
-
-        register_to_ir_datasets(self.dataset.replace("lsr-benchmark/", ""))
-
     @property
     def ir_dataset(self) -> ir_datasets.Dataset | None:
         """Instance of ir_datasets.Dataset.
@@ -107,7 +95,7 @@ class IRDataset:
             ir_datasets.Dataset | None: Instance of ir_datasets.Dataset or None if the dataset is not found.
         """
         if self.dataset and self.dataset.startswith("lsr-benchmark/"):
-            self.register_lsr_dataset_to_ir_datasets()
+            register_lsr_dataset_to_ir_datasets(self.dataset)
 
         try:
             return ir_datasets.load(self.dataset)
