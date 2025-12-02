@@ -21,6 +21,7 @@ from torch.utils.data import Dataset, IterableDataset, get_worker_info
 
 from .data import DocSample, QuerySample, RankSample
 from .external_datasets.ir_datasets_utils import ScoredDocTuple
+from .external_datasets.lsr_benchmark import register_lsr_dataset_to_ir_datasets
 
 RUN_HEADER = ["query_id", "q0", "doc_id", "rank", "score", "system"]
 
@@ -93,6 +94,9 @@ class IRDataset:
         Returns:
             ir_datasets.Dataset | None: Instance of ir_datasets.Dataset or None if the dataset is not found.
         """
+        if self.dataset and self.dataset.startswith("lsr-benchmark/"):
+            register_lsr_dataset_to_ir_datasets(self.dataset)
+
         try:
             return ir_datasets.load(self.dataset)
         except KeyError:

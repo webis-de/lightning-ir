@@ -45,6 +45,7 @@ test = [
     "omegaconf",
     "colbert-ai",
     "fast-plaid",
+    "lsr-benchmark",
     # "xtr and pylate should be installed separately with --no-deps because it has fixed package versions which conflict with other packages"
     # "xtr @ git+https://github.com/mjeensung/xtr-pytorch.git",
     # "pylate",
