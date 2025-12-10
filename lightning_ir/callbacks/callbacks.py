@@ -225,7 +225,11 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
             batch_idx (int): Index of batch in the current dataset.
             dataloader_idx (int | None): Index of the dataloader. Defaults to 0.
         """
+        if not trainer.is_global_zero:
+            return
         if batch_idx == 0:
+            if hasattr(self, "indexer"):
+                self.indexer.save()
             self.indexer = self._get_indexer(pl_module, dataloader_idx)
         super().on_test_batch_start(trainer, pl_module, batch, batch_idx, dataloader_idx)
 
@@ -265,6 +269,17 @@ class IndexCallback(Callback, _GatherMixin, _IndexDirMixin, _OverwriteMixin):
         # TODO if dataset length cannot be inferred, num_test_batches is inf and no index is saved
         if batch_idx == trainer.num_test_batches[dataloader_idx] - 1:
             assert hasattr(self, "indexer")
+
+    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        """Hook to save the index after indexing is done.
+
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (LightningIRModule): LightningIR module.
+        """
+        if not trainer.is_global_zero:
+            return
+        if hasattr(self, "indexer"):
             self.indexer.save()
 
 
@@ -366,6 +381,26 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         run_df = pd.concat(self.run_dfs, ignore_index=True)
         run_df.to_csv(run_file_path, header=False, index=False, sep="\t", quoting=csv.QUOTE_NONE)
 
+    def on_test_batch_start(
+        self, trainer: Trainer, pl_module: LightningIRModule, batch: Any, batch_idx: int, dataloader_idx: int = 0
+    ) -> None:
+        """Hook to write run file.
+
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (LightningIRModule): LightningIR module.
+            batch (Any): Batch of input data.
+            batch_idx (int): Index of batch in the current dataset.
+            dataloader_idx (int, optional): Index of the dataloader. Defaults to 0.
+        """
+        if not trainer.is_global_zero:
+            return
+        if batch_idx == 0:
+            if self.run_dfs:
+                self._write_run_dfs(trainer, pl_module, dataloader_idx)
+            self.run_dfs = []
+        super().on_test_batch_start(trainer, pl_module, batch, batch_idx, dataloader_idx)
+
     def on_test_batch_end(
         self,
         trainer: Trainer,
@@ -411,9 +446,17 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
 
         self.run_dfs.append(run_df)
 
-        if batch_idx == trainer.num_test_batches[dataloader_idx] - 1:
-            self._write_run_dfs(trainer, pl_module, dataloader_idx)
-            self.run_dfs = []
+    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        """Hook to write remaining run files after ranking is done.
+
+        Args:
+            trainer (Trainer): PyTorch Lightning Trainer.
+            pl_module (LightningIRModule): LightningIR module.
+        """
+        if not trainer.is_global_zero:
+            return
+        if self.run_dfs:
+            self._write_run_dfs(trainer, pl_module, 0)
 
 
 class SearchCallback(RankCallback, _IndexDirMixin):
