@@ -94,12 +94,15 @@ class IRDataset:
         Returns:
             ir_datasets.Dataset | None: Instance of ir_datasets.Dataset or None if the dataset is not found.
         """
-        if self.dataset and self.dataset.startswith("lsr-benchmark/"):
-            register_lsr_dataset_to_ir_datasets(self.dataset)
-
         try:
             return ir_datasets.load(self.dataset)
         except KeyError:
+            if self.dataset and self.dataset.startswith("lsr-benchmark/"):
+                register_lsr_dataset_to_ir_datasets(self.dataset)
+                try:
+                    return ir_datasets.load(self.dataset)
+                except KeyError:
+                    return None
             return None
 
     @property
