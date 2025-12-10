@@ -23,7 +23,7 @@ jobs:
         run: |
           # Since pylate makes problems otherwise:
           pip3 install pylate git+https://github.com/mjeensung/xtr-pytorch.git --no-deps
-          pip3 install .[test,dev]
+          pip3 install .[test,dev] --extra-index-url https://download.pytorch.org/whl/cpu
           pip3 cache purge
       - name: Run model tests
         working-directory: ${{github.workspace}}
