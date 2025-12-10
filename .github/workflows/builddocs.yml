@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip
-          pip3 install .[docs]
+          pip3 install .[docs] --extra-index-url https://download.pytorch.org/whl/cpu
       - name: Build Documentation
         run: |
           cd docs/
