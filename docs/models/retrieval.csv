@@ -25,11 +25,6 @@ Model Name,Native,NanoBEIR
     .. csv-table::
        :file: ./nanobeir_details_external_moderncol.csv
        :header-rows: 0"
-"`google/xtr-base-en <https://huggingface.co/google/xtr-base-en>`_",|x|,".. collapse:: 604
-
-    .. csv-table::
-       :file: ./nanobeir_details_xtr.csv
-       :header-rows: 0"
 "`webis/splade <https://huggingface.co/webis/splade>`_",|c|,".. collapse:: 0.619
 
     .. csv-table::
@@ -39,4 +34,9 @@ Model Name,Native,NanoBEIR
 
     .. csv-table::
        :file: ./nanobeir_details_external_splade.csv
+       :header-rows: 0"
+"`google/xtr-base-en <https://huggingface.co/google/xtr-base-en>`_",|x|,".. collapse:: 604
+
+    .. csv-table::
+       :file: ./nanobeir_details_xtr.csv
        :header-rows: 0"
