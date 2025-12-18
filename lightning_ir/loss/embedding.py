@@ -29,7 +29,7 @@ class ContrastiveLocalLoss(EmbeddingLossFunction):
         Returns:
             torch.Tensor: The computed loss.
         """
-        similarity = output.similarity
+        similarity = output.similarity.squeeze(1)
         if similarity is None:
             raise ValueError("Expected similarity in BiEncoderOutput")
         targets = similarity.argmax(-1)
