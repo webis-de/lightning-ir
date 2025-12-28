@@ -16,3 +16,4 @@ Model Name,Native,TREC DL 2019,TREC DL 2020
 "`lightonai/GTE-ModernColBERT-v1 <https://huggingface.co/lightonai/GTE-ModernColBERT-v1>`_",|x|,0.722,0.737
 "`webis/splade <https://huggingface.co/webis/splade>`_",|c|,0.736,0.723
 "`naver/splade-v3 <https://huggingface.co/naver/splade-v3>`_",|x|,0.715,0.749
+"`google/xtr-base-en <https://huggingface.co/google/xtr-base-en>`_",|x|,0.670,0.664
