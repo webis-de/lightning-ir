@@ -7,6 +7,7 @@ Lightning IR
    :hidden:
 
    quickstart
+   guide
    core
    howto
    model-zoo
