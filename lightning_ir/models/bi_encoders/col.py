@@ -1,7 +1,38 @@
-"""Configuration, model, and tokenizer for Col (Contextualized Late Interaction) type models. Originally proposed in
+"""Configuration, model, and tokenizer for Col (Contextualized Late Interaction) type models. 
+
+Col models implement a multi-vector late-interaction retrieval approach where queries and documents
+are encoded separately into multiple token-level embeddings. Relevance is computed through element-wise
+similarity matching between query and document token embeddings, aggregated to produce a final relevance score.
+This approach enables fine-grained matching while maintaining computational efficiency compared to dense
+cross-encoders.
+
+Originally proposed in
 `ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT \
 <https://dl.acm.org/doi/abs/10.1145/3397271.3401075>`_ as the ColBERT model. This implementation generalizes the model
 to work with any transformer backbone model.
+
+Additionally supports XTR (conteXtualized Token Retrieval) an information retrieval model that dramatically speeds up
+multi-vector architectures like ColBERT by rethinking how documents are scored. In traditional multi-vector models, the
+system finds candidate documents using a few matching tokens but then must computationally gather every single word
+vector from those candidates to calculate a final score. XTR simplifies this by training the model to prioritize
+retrieving the most important document tokens right away, allowing it to calculate the final relevance score using only
+those initially retrieved tokens. This entirely eliminates the expensive gathering step, making the search process up
+to a thousand times cheaper and faster while still achieving state-of-the-art accuracy.
+
+Usage with XTR:
+    To enable XTR in-batch token retrieval during training, set the `k_train` parameter in the configuration
+    to the desired number of top-k document tokens to retrieve (e.g., 128):
+
+    >>> config = ColConfig(k_train=128)
+    >>> model = ColModel(config)
+    
+    During training, the model will automatically use XTR scoring when `k_train` is set and the model is in
+    training mode. This enables efficient computation by retrieving only the most relevant document tokens
+    rather than processing all tokens.
+
+Originally proposed in
+`Rethinking the Role of Token Retrieval in Multi-Vector Retrieval \
+<https://arxiv.org/abs/2304.01982>`_.
 """
 
 from collections.abc import Sequence
