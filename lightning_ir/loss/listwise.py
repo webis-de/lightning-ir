@@ -20,6 +20,11 @@ if TYPE_CHECKING:
 
 class KLDivergence(ListwiseLossFunction):
     """Kullback-Leibler Divergence loss for listwise ranking tasks.
+
+    KL Divergence loss for listwise ranking treats both the ground truth relevance labels and the predicted scores as
+    probability distributions over the entire list of items. The loss is computed by minimizing the divergence between
+    them to align the global ranking structure rather than just local comparisons.
+
     Originally proposed in: `On Information and Sufficiency \
     <https://projecteuclid.org/journals/annals-of-mathematical-statistics/volume-22/issue-1/On-Information-and-Sufficiency/10.1214/aoms/1177729694.full>`_
     """
@@ -42,7 +47,12 @@ class KLDivergence(ListwiseLossFunction):
 
 
 class PearsonCorrelation(ListwiseLossFunction):
-    """Pearson Correlation loss for listwise ranking tasks."""
+    """Pearson Correlation loss for listwise ranking tasks.
+
+    Pearson Correlation for listwise ranking maximizes the linear alignment between the vector of predicted scores and
+    the vector of ground truth relevance labels, ensuring that the relative trends across the entire list are preserved
+    regardless of the absolute scale of the scores.
+    """
 
     def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
         """Compute the Pearson Correlation loss.
@@ -64,6 +74,11 @@ class PearsonCorrelation(ListwiseLossFunction):
 
 class InfoNCE(ListwiseLossFunction):
     """InfoNCE loss for listwise ranking tasks.
+
+    Information Noise-Contrastive Estimation loss for listwise ranking adapts contrastive learning by treating the
+    relevant item as the positive signal and all other items in the list as negative noise, maximizing the likelihood
+    of the correct document relative to the entire candidate set via a softmax-normalized objective.
+
     Originally proposed in: `Representation Learning with Contrastive Predictive Coding \
     <https://arxiv.org/abs/1807.03748>`_
     """
