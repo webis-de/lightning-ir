@@ -1,9 +1,16 @@
 """Base module for bi-encoder models.
 
 This module provides the main classes and functions for bi-encoder models, including configurations, models,
-modules, and tokenizers."""
+modules, and tokenizers.
 
-from .bi_encoder_config import BiEncoderConfig, MultiVectorBiEncoderConfig, SingleVectorBiEncoderConfig
+Bi-encoders are neural models that encode queries and documents separately into dense vector representations,
+then compute relevance scores based on the similarity between these embeddings."""
+
+from .bi_encoder_config import (
+    BiEncoderConfig,
+    MultiVectorBiEncoderConfig,
+    SingleVectorBiEncoderConfig,
+)
 from .bi_encoder_model import (
     BiEncoderEmbedding,
     BiEncoderModel,
