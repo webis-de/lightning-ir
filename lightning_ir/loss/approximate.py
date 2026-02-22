@@ -50,6 +50,13 @@ class ApproxLossFunction(ListwiseLossFunction):
 
 class ApproxNDCG(ApproxLossFunction):
     """Approximate NDCG loss function for ranking tasks.
+
+    Standard NDCG relies on non-differentiable sorting operations that prevent the use of gradient descent for direct
+    optimization. Approximate NDCG overcomes this limitation by replacing the sorting step with a smooth,
+    differentiable surrogate function that estimates the rank of each document based on its score. This approach allows
+    the model to optimize a loss that is mathematically aligned with the final evaluation metric, reducing the mismatch
+    between training objectives and testing performance.
+
     Originally proposed in: `Cumulated Gain-Based Evaluation of IR Techniques \
     <https://dl.acm.org/doi/10.1145/582415.582418>`_"""
 
@@ -139,7 +146,17 @@ class ApproxNDCG(ApproxLossFunction):
 
 
 class ApproxMRR(ApproxLossFunction):
-    """Approximate Mean Reciprocal Rank (MRR) loss function for ranking tasks."""
+    """Approximate Mean Reciprocal Rank (MRR) loss function for ranking tasks.
+
+    Mean Reciprocal Rank (MRR) is a metric used to evaluate ranking systems by focusing on the position of the
+    first relevant result, making it ideal for tasks like question answering where the user wants one correct answer
+    immediately. It assigns a score of $1/k$, where $k$ is the rank of the first relevant document; for example, if the
+    correct result is at position 1, the score is 1, but if it is at position 10, the score drops to 0.1.  The final
+    MRR is simply the average of these reciprocal scores across all queries in the dataset.
+    Approximate MRR replaces the non-differentiable discrete ranking operation with a smooth, differentiable surrogate
+    function based on pairwise score comparisons, enabling the model to directly maximize the reciprocal rank of the
+    relevant document via gradient descent.
+    """
 
     def __init__(self, temperature: float = 1):
         """Initialize the ApproxMRR loss function.
@@ -187,8 +204,16 @@ class ApproxMRR(ApproxLossFunction):
 
 class ApproxRankMSE(ApproxLossFunction):
     """Approximate Rank Mean Squared Error (RankMSE) loss function for ranking tasks.
+
+    Rank Mean Squared Error (RankMSE) penalizes the squared differences between predicted document ranks and their
+    ground truth ranks. Because standard discrete sorting prevents gradient descent, Approximate RankMSE uses a
+    smooth, differentiable approximation of these ranks. It computes the Mean Squared Error between the continuous
+    approximate ranks and the true target ranks, optionally applying position-based discounting (like log2 or
+    reciprocal weights) to penalize errors at the top of the list more heavily.
+
     Originally proposed in: `Rank-DistiLLM: Closing the Effectiveness Gap Between Cross-Encoders and LLMs
-    for Passage Re-ranking <https://link.springer.com/chapter/10.1007/978-3-031-88714-7_31>`_"""
+    for Passage Re-ranking <https://link.springer.com/chapter/10.1007/978-3-031-88714-7_31>`_
+    """
 
     def __init__(
         self,
