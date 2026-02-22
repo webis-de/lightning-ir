@@ -1,5 +1,16 @@
 """
-Model implementation for mono cross-encoder models. Originally introduced in
+Model implementation for mono cross-encoder models.
+
+A mono cross-encoder model, such as MonoBERT or MonoT5, maximizes retrieval accuracy by processing the user's query and
+the target document simultaneously.  Instead of encoding texts separately like DPR or delaying their interaction like
+ColBERT, a cross-encoder combines the query and document into a single text sequence before passing them through the
+neural network. This "early interaction" allows every word in the query to deeply contextualize with every word in the
+document, producing a highly precise relevance score. However, because this architecture requires processing every
+potential query and document pair together from scratch, it is computationally prohibitive for large databases and is
+instead used almost exclusively as a second-stage re-ranker to carefully sort a small list of candidate documents
+already found by faster models.
+
+Originally introduced in
 `Passage Re-ranking with BERT
 <https://arxiv.org/abs/1901.04085>`_.
 """
