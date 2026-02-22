@@ -1,5 +1,17 @@
 """
-Configuration and model implementation for SetEncoder type models. Originally proposed in
+Configuration and model implementation for SetEncoder type models.
+
+The Set-Encoder is a cross-encoder architecture designed for listwise passage re-ranking that evaluates an
+entire group of candidate documents simultaneously while eliminating positional bias. Traditional listwise models
+concatenate all candidate passages into a single long text sequence, which is computationally heavy and
+changes relevance scores based on the order the documents are inputted. The Set-Encoder circumvents this by processing
+each passage in parallel and inserting a dedicated interaction token into each document's sequence. Through a novel
+inter-passage attention mechanism, all the passages can share context and mathematically "communicate" by attending
+exclusively to these special interaction tokens. This ensures the model is permutation invariant, meaning the
+input order has zero effect on the final ranking, while keeping computational costs much lower than standard
+concatenation methods.
+
+Originally proposed in
 `set-Encoder: Permutation-Invariant Inter-passage Attention for Listwise Passage Re-ranking with Cross-Encoders
 <https://link.springer.com/chapter/10.1007/978-3-031-88711-6_1>`_.
 """
