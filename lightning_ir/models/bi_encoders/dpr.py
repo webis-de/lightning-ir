@@ -1,4 +1,10 @@
-"""Configuration and model for DPR (Dense Passage Retriever) type models. Originally proposed in \
+"""Configuration and model for DPR (Dense Passage Retriever) type models.
+
+DPR type models use two separate neural networks, known as dual encoders, to independently map a user's question and
+the database of documents into a shared mathematical space. During a search, DPR finds relevant documents by
+measuring the distance or similarity between the single vector of the query and the vectors of the documents.
+
+Originally proposed in \
 `Dense Passage Retrieval for Open-Domain Question Answering \
 <https://arxiv.org/abs/2004.04906>`_. This model type is also known as a SentenceTransformer model:
 `Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks \
