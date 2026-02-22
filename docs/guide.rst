@@ -48,24 +48,24 @@ The table below summarizes the key ingredients for each workflow.
      - Required Callback
    * - Fine-tune a model
      - ``fit``
-     - ``BiEncoderModule`` **or** ``CrossEncoderModule``
-     - ``TupleDataset`` or ``RunDataset`` (train)
+     - :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule` **or** :py:class:`~lightning_ir.cross_encoder.cross_encoder_module.CrossEncoderModule`
+     - :py:class:`~lightning_ir.data.dataset.TupleDataset` or :py:class:`~lightning_ir.data.dataset.RunDataset` (train)
      - *(none — optional ModelCheckpoint)*
    * - Index documents
      - ``index``
-     - ``BiEncoderModule``
-     - ``DocDataset``
-     - ``IndexCallback``
+     - :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule`
+     - :py:class:`~lightning_ir.data.dataset.DocDataset`
+     - :py:class:`~lightning_ir.callbacks.callbacks.IndexCallback`
    * - Search (retrieve)
      - ``search``
-     - ``BiEncoderModule``
-     - ``QueryDataset``
-     - ``SearchCallback``
+     - :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule`
+     - :py:class:`~lightning_ir.data.dataset.QueryDataset`
+     - :py:class:`~lightning_ir.callbacks.callbacks.SearchCallback`
    * - Re-rank
      - ``re_rank``
-     - ``BiEncoderModule`` **or** ``CrossEncoderModule``
-     - ``RunDataset``
-     - ``ReRankCallback``
+     - :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule` **or** :py:class:`~lightning_ir.cross_encoder.cross_encoder_module.CrossEncoderModule`
+     - :py:class:`~lightning_ir.data.dataset.RunDataset`
+     - :py:class:`~lightning_ir.callbacks.callbacks.ReRankCallback`
 
 .. tip::
 
@@ -125,35 +125,35 @@ Architecture Comparison
      - Re-ranking
      - Key Trade-off
    * - **DPR**
-     - ``DprConfig``
+     - :py:class:`~lightning_ir.models.bi_encoders.dpr.DprConfig`
      - Separate
      - Single dense
      - ✅
      - ✅
      - Fastest index & search; lower quality
    * - **SPLADE**
-     - ``SpladeConfig``
+     - :py:class:`~lightning_ir.models.bi_encoders.splade.SpladeConfig`
      - Separate
      - Single sparse
      - ✅
      - ✅
      - Interpretable lexical matching; needs regularization
    * - **ColBERT**
-     - ``ColConfig``
+     - :py:class:`~lightning_ir.models.bi_encoders.col.ColConfig`
      - Separate
      - Multi dense
      - ✅
      - ✅
      - Best bi-encoder quality; larger index
    * - **MonoEncoder**
-     - ``MonoConfig``
+     - :py:class:`~lightning_ir.models.cross_encoders.mono.MonoConfig`
      - Joint
      - —
      - ❌
      - ✅
      - Highest quality; cannot index
    * - **SetEncoder**
-     - ``SetEncoderConfig``
+     - :py:class:`~lightning_ir.models.cross_encoders.set_encoder.SetEncoderConfig`
      - Joint (listwise)
      - —
      - ❌
@@ -162,8 +162,8 @@ Architecture Comparison
 
 .. note::
 
-   Lightning IR also supports several other bi-encoder variants (``CoilConfig``,
-   ``MvrConfig``) and external models such as XTR for advanced use cases. See
+   Lightning IR also supports several other bi-encoder variants (:py:class:`~lightning_ir.models.bi_encoders.coil.CoilConfig`,
+   :py:class:`~lightning_ir.models.bi_encoders.mvr.MvrConfig`) and external models such as XTR for advanced use cases. See
    the :ref:`concepts-model` page and the :py:mod:`~lightning_ir.models` API
    reference for a full list.
 
@@ -327,44 +327,44 @@ Index Type Comparison
      - Memory
      - Exact?
      - Compatible Models
-   * - ``TorchDenseIndexConfig``
-     - ``TorchDenseSearchConfig``
+   * - :py:class:`~lightning_ir.retrieve.pytorch.dense_indexer.TorchDenseIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.pytorch.dense_searcher.TorchDenseSearchConfig`
      - Slow
      - High
      - ✅
      - DPR, ColBERT
-   * - ``FaissFlatIndexConfig``
-     - ``FaissSearchConfig``
+   * - :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissFlatIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.faiss.faiss_searcher.FaissSearchConfig`
      - Medium
      - High
      - ✅
      - DPR, ColBERT
-   * - ``FaissIVFIndexConfig``
-     - ``FaissSearchConfig``
+   * - :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissIVFIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.faiss.faiss_searcher.FaissSearchConfig`
      - Fast
      - High
      - ❌ (approx.)
      - DPR, ColBERT
-   * - ``FaissIVFPQIndexConfig``
-     - ``FaissSearchConfig``
+   * - :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissIVFPQIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.faiss.faiss_searcher.FaissSearchConfig`
      - Fastest
      - Low
      - ❌ (approx.)
      - DPR, ColBERT
-   * - ``PlaidIndexConfig``
-     - ``PlaidSearchConfig``
+   * - :py:class:`~lightning_ir.retrieve.plaid.plaid_indexer.PlaidIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.plaid.plaid_searcher.PlaidSearchConfig`
      - Fast
      - Medium
      - ❌ (approx.)
      - ColBERT only
-   * - ``TorchSparseIndexConfig``
-     - ``TorchSparseSearchConfig``
+   * - :py:class:`~lightning_ir.retrieve.pytorch.sparse_indexer.TorchSparseIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.pytorch.sparse_searcher.TorchSparseSearchConfig`
      - Medium
      - Medium
      - ✅
      - SPLADE, UniCOIL
-   * - ``SeismicIndexConfig``
-     - ``SeismicSearchConfig``
+   * - :py:class:`~lightning_ir.retrieve.seismic.seismic_indexer.SeismicIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.seismic.seismic_searcher.SeismicSearchConfig`
      - Fast
      - Medium
      - ❌ (approx.)
@@ -630,51 +630,51 @@ Loss Function Reference
    * - Loss
      - Category
      - When to Use
-   * - ``RankNet``
+   * - :py:class:`~lightning_ir.loss.pairwise.RankNet`
      - Pairwise
      - Default choice for training with triples (pos/neg pairs). Optimizes
        pairwise ranking accuracy.
-   * - ``ConstantMarginMSE``
+   * - :py:class:`~lightning_ir.loss.pairwise.ConstantMarginMSE`
      - Pairwise
      - Pairwise MSE with a fixed margin between positive and negative scores.
-   * - ``SupervisedMarginMSE``
+   * - :py:class:`~lightning_ir.loss.pairwise.SupervisedMarginMSE`
      - Pairwise
      - Pairwise MSE where the margin is derived from relevance labels.
-   * - ``KLDivergence``
+   * - :py:class:`~lightning_ir.loss.listwise.KLDivergence`
      - Listwise
      - Knowledge distillation from a teacher model's score distribution.
-       Requires ``RunDataset`` with ``targets: score``.
-   * - ``InfoNCE``
+       Requires :py:class:`~lightning_ir.data.dataset.RunDataset` with ``targets: score``.
+   * - :py:class:`~lightning_ir.loss.listwise.InfoNCE`
      - Listwise
      - Contrastive loss over a list of scored candidates.
-   * - ``PearsonCorrelation``
+   * - :py:class:`~lightning_ir.loss.listwise.PearsonCorrelation`
      - Listwise
      - Optimizes correlation between predicted and target scores.
-   * - ``ApproxNDCG``
+   * - :py:class:`~lightning_ir.loss.approximate.ApproxNDCG`
      - Approximate
      - Differentiable approximation of nDCG. Directly optimizes the target
        metric.
-   * - ``ApproxMRR``
+   * - :py:class:`~lightning_ir.loss.approximate.ApproxMRR`
      - Approximate
      - Differentiable approximation of MRR.
-   * - ``ApproxRankMSE``
+   * - :py:class:`~lightning_ir.loss.approximate.ApproxRankMSE`
      - Approximate
      - MSE on approximate rank positions.
-   * - ``InBatchCrossEntropy``
+   * - :py:class:`~lightning_ir.loss.in_batch.InBatchCrossEntropy`
      - In-batch
      - Uses other queries' positives as negatives within a batch. Very
        effective with large batch sizes.
-   * - ``ScoreBasedInBatchCrossEntropy``
+   * - :py:class:`~lightning_ir.loss.in_batch.ScoreBasedInBatchCrossEntropy`
      - In-batch
      - In-batch negatives weighted by teacher scores.
-   * - ``FLOPSRegularization``
+   * - :py:class:`~lightning_ir.loss.regularization.FLOPSRegularization`
      - Regularization
      - Encourages sparsity in SPLADE embeddings. **Always** combine with a
        primary loss and a warmup scheduler.
-   * - ``L1Regularization``
+   * - :py:class:`~lightning_ir.loss.regularization.L1Regularization`
      - Regularization
      - L1 penalty on embedding values.
-   * - ``L2Regularization``
+   * - :py:class:`~lightning_ir.loss.regularization.L2Regularization`
      - Regularization
      - L2 penalty on embedding values.
 
@@ -843,30 +843,30 @@ Dataset Class Reference
    * - Dataset
      - Workflow
      - Description
-   * - ``TupleDataset``
+   * - :py:class:`~lightning_ir.data.dataset.TupleDataset`
      - ``fit``
      - Iterates over (query, doc₁, doc₂, …) tuples with relevance targets.
        Backed by `ir_datasets <https://ir-datasets.com/>`_.
-   * - ``RunDataset``
+   * - :py:class:`~lightning_ir.data.dataset.RunDataset`
      - ``fit``, ``re_rank``
      - Loads a ranked list of documents per query from a TREC-format run file
        or an ir_datasets ID. Key parameters: ``depth`` (max rank to load),
        ``sample_size`` (docs per query), ``sampling_strategy``
        (``top`` or ``random``), ``targets`` (``relevance`` or ``score``).
-   * - ``DocDataset``
+   * - :py:class:`~lightning_ir.data.dataset.DocDataset`
      - ``index``
      - Iterates over all documents in a collection. Backed by ir_datasets.
-   * - ``QueryDataset``
+   * - :py:class:`~lightning_ir.data.dataset.QueryDataset`
      - ``search``
      - Iterates over queries in a dataset split. Backed by ir_datasets.
 
 .. tip::
 
-   When using ``RunDataset`` for **training** (knowledge distillation), set
+   When using :py:class:`~lightning_ir.data.dataset.RunDataset` for **training** (knowledge distillation), set
    ``sampling_strategy: random`` so the model sees diverse negatives, and
    ``targets: score`` to use the teacher's relevance scores.
 
-   When using ``RunDataset`` for **re-ranking** (inference), set
+   When using :py:class:`~lightning_ir.data.dataset.RunDataset` for **re-ranking** (inference), set
    ``sampling_strategy: top`` and increase ``depth`` / ``sample_size``
    to cover the full candidate list.
 
@@ -1573,32 +1573,32 @@ Use this table as a cheat sheet when composing configurations.
      - Compatible Index
      - Compatible Search
      - Supported Workflows
-   * - ``DprConfig``
-     - ``BiEncoderModule``
-     - ``TorchDenseIndexConfig``, ``FaissFlatIndexConfig``,
-       ``FaissIVFIndexConfig``, ``FaissIVFPQIndexConfig``
-     - ``TorchDenseSearchConfig``, ``FaissSearchConfig``
+   * - :py:class:`~lightning_ir.models.bi_encoders.dpr.DprConfig`
+     - :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule`
+     - :py:class:`~lightning_ir.retrieve.pytorch.dense_indexer.TorchDenseIndexConfig`, :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissFlatIndexConfig`,
+       :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissIVFIndexConfig`, :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissIVFPQIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.pytorch.dense_searcher.TorchDenseSearchConfig`, :py:class:`~lightning_ir.retrieve.faiss.faiss_searcher.FaissSearchConfig`
      - fit, index, search, re_rank
-   * - ``SpladeConfig``
-     - ``BiEncoderModule``
-     - ``TorchSparseIndexConfig``, ``SeismicIndexConfig``
-     - ``TorchSparseSearchConfig``, ``SeismicSearchConfig``
+   * - :py:class:`~lightning_ir.models.bi_encoders.splade.SpladeConfig`
+     - :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule`
+     - :py:class:`~lightning_ir.retrieve.pytorch.sparse_indexer.TorchSparseIndexConfig`, :py:class:`~lightning_ir.retrieve.seismic.seismic_indexer.SeismicIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.pytorch.sparse_searcher.TorchSparseSearchConfig`, :py:class:`~lightning_ir.retrieve.seismic.seismic_searcher.SeismicSearchConfig`
      - fit, index, search, re_rank
-   * - ``ColConfig``
-     - ``BiEncoderModule``
-     - ``TorchDenseIndexConfig``, ``FaissFlatIndexConfig``,
-       ``FaissIVFIndexConfig``, ``FaissIVFPQIndexConfig``,
-       ``PlaidIndexConfig``
-     - ``TorchDenseSearchConfig``, ``FaissSearchConfig``,
-       ``PlaidSearchConfig``
+   * - :py:class:`~lightning_ir.models.bi_encoders.col.ColConfig`
+     - :py:class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule`
+     - :py:class:`~lightning_ir.retrieve.pytorch.dense_indexer.TorchDenseIndexConfig`, :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissFlatIndexConfig`,
+       :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissIVFIndexConfig`, :py:class:`~lightning_ir.retrieve.faiss.faiss_indexer.FaissIVFPQIndexConfig`,
+       :py:class:`~lightning_ir.retrieve.plaid.plaid_indexer.PlaidIndexConfig`
+     - :py:class:`~lightning_ir.retrieve.pytorch.dense_searcher.TorchDenseSearchConfig`, :py:class:`~lightning_ir.retrieve.faiss.faiss_searcher.FaissSearchConfig`,
+       :py:class:`~lightning_ir.retrieve.plaid.plaid_searcher.PlaidSearchConfig`
      - fit, index, search, re_rank
-   * - ``MonoConfig``
-     - ``CrossEncoderModule``
+   * - :py:class:`~lightning_ir.models.cross_encoders.mono.MonoConfig`
+     - :py:class:`~lightning_ir.cross_encoder.cross_encoder_module.CrossEncoderModule`
      - —
      - —
      - fit, re_rank
-   * - ``SetEncoderConfig``
-     - ``CrossEncoderModule``
+   * - :py:class:`~lightning_ir.models.cross_encoders.set_encoder.SetEncoderConfig`
+     - :py:class:`~lightning_ir.cross_encoder.cross_encoder_module.CrossEncoderModule`
      - —
      - —
      - fit, re_rank
