@@ -477,6 +477,114 @@ Quick Examples: Indexing & Searching
    )
    trainer.index(module, data_module)
 
+**FAISS search** (querying a FAISS IVF index with a dense bi-encoder):
+
+.. code-block:: yaml
+
+   # search-faiss.yaml
+   trainer:
+     logger: false
+     callbacks:
+       - class_path: lightning_ir.SearchCallback
+         init_args:
+           index_dir: ./my-index
+           search_config:
+             class_path: lightning_ir.FaissSearchConfig
+             init_args:
+               k: 100
+           save_dir: ./runs
+   model:
+     class_path: lightning_ir.BiEncoderModule
+     init_args:
+       model_name_or_path: webis/bert-bi-encoder
+   data:
+     class_path: lightning_ir.LightningIRDataModule
+     init_args:
+       inference_datasets:
+         - class_path: lightning_ir.QueryDataset
+           init_args:
+             query_dataset: msmarco-passage/trec-dl-2019/judged
+       inference_batch_size: 4
+
+.. code-block:: python
+
+   from lightning_ir import (
+       BiEncoderModule, QueryDataset, SearchCallback,
+       LightningIRDataModule, LightningIRTrainer,
+       FaissSearchConfig,
+   )
+
+   module = BiEncoderModule(model_name_or_path="webis/bert-bi-encoder")
+   data_module = LightningIRDataModule(
+       inference_datasets=[
+           QueryDataset("msmarco-passage/trec-dl-2019/judged"),
+       ],
+       inference_batch_size=4,
+   )
+   callback = SearchCallback(
+       index_dir="./my-index",
+       search_config=FaissSearchConfig(k=100),
+       save_dir="./runs",
+   )
+   trainer = LightningIRTrainer(
+       callbacks=[callback], logger=False, enable_checkpointing=False
+   )
+   trainer.search(module, data_module)
+
+**Sparse search for SPLADE**:
+
+.. code-block:: yaml
+
+   # search-sparse.yaml
+   trainer:
+     logger: false
+     callbacks:
+       - class_path: lightning_ir.SearchCallback
+         init_args:
+           index_dir: ./splade-index
+           search_config:
+             class_path: lightning_ir.TorchSparseSearchConfig
+             init_args:
+               k: 100
+           save_dir: ./runs
+   model:
+     class_path: lightning_ir.BiEncoderModule
+     init_args:
+       model_name_or_path: webis/splade  # hypothetical model
+   data:
+     class_path: lightning_ir.LightningIRDataModule
+     init_args:
+       inference_datasets:
+         - class_path: lightning_ir.QueryDataset
+           init_args:
+             query_dataset: msmarco-passage/trec-dl-2019/judged
+       inference_batch_size: 4
+
+.. code-block:: python
+
+   from lightning_ir import (
+       BiEncoderModule, QueryDataset, SearchCallback,
+       LightningIRDataModule, LightningIRTrainer,
+       TorchSparseSearchConfig,
+   )
+
+   module = BiEncoderModule(model_name_or_path="webis/splade")
+   data_module = LightningIRDataModule(
+       inference_datasets=[
+           QueryDataset("msmarco-passage/trec-dl-2019/judged"),
+       ],
+       inference_batch_size=4,
+   )
+   callback = SearchCallback(
+       index_dir="./splade-index",
+       search_config=TorchSparseSearchConfig(k=100),
+       save_dir="./runs",
+   )
+   trainer = LightningIRTrainer(
+       callbacks=[callback], logger=False, enable_checkpointing=False
+   )
+   trainer.search(module, data_module)
+
 
 -------------------------------
 Which Loss Function to Use?
