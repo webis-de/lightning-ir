@@ -10,10 +10,6 @@ branches to pick the right model architecture, index type, loss function, and da
 format. Each section ends with concrete CLI and Python examples you can copy and
 adapt.
 
-.. contents:: On this page
-   :local:
-   :depth: 2
-
 -----------------------
 What Do You Want to Do?
 -----------------------
