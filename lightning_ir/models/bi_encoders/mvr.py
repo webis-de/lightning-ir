@@ -1,4 +1,13 @@
-"""Configuration, model, and tokenizer for MVR (Multi-View Representation) type models. Originally proposed in
+"""Configuration, model, and tokenizer for MVR (Multi-View Representation) type models.
+
+MVR (Multi-View Representation) is an information retrieval approach that strikes a balance between the simplicity of
+single-vector models and the complexity of token-level architectures by representing a document using a small, fixed
+number of dense vectors.  Instead of compressing an entire passage into one embedding or storing a separate vector for
+every single word. MVR generates multiple distinct representations of the text, with each vector capturing a different
+semantic facet or topic. During a search, the query is compared against these multiple document views to find the
+strongest match.
+
+Originally proposed in
 `Multi-View Document Representation Learning for Open-Domain Dense Retrieval \
 <https://aclanthology.org/2022.acl-long.414/>`_.
 """

@@ -1,4 +1,12 @@
-"""Configuration and model for SPLADE (SParse Lexical AnD Expansion) type models. Originally proposed in
+"""Configuration and model for SPLADE (SParse Lexical AnD Expansion) type models.
+
+SPLADE (SParse Lexical AnD Expansion) is a efficient retrieval model that bridges the gap between traditional
+keyword search and deep neural understanding. It uses a language model to analyze a document and assign importance
+scores to words across the entire vocabulary, expanding the text with highly relevant terms that were not originally 
+present. This process creates a sparse, high-dimensional vector that can be stored and searched using inverted indices 
+just like traditional search engines.
+
+Originally proposed in
 `SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking
 <https://dl.acm.org/doi/abs/10.1145/3404835.3463098>`_.
 """

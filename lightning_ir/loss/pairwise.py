@@ -20,6 +20,12 @@ if TYPE_CHECKING:
 
 class MarginMSE(PairwiseLossFunction):
     """Mean Squared Error loss with a margin for pairwise ranking tasks.
+
+    MarginMSE optimizes pairwise ranking by penalizing the squared difference between the predicted score margin of a
+    positive and negative document and a target margin. This target margin can be a fixed constant or dynamically
+    derived from the difference in ground truth or teacher scores, making it particularly effective for knowledge
+    distillation tasks where a student model learns to replicate the score distances of a stronger teacher model.
+
     Originally proposed in: `Improving Efficient Neural Ranking Models with Cross-Architecture Knowledge Distillation \
     <https://arxiv.org/abs/2010.02666>`_
     """
@@ -81,16 +87,23 @@ class SupervisedMarginMSE(MarginMSE):
 
 class RankNet(PairwiseLossFunction):
     """RankNet loss function for pairwise ranking tasks.
+
+    RankNet optimizes pairwise ranking by modeling the probability that a positive document should be ranked higher
+    than a negative document using a logistic function. It computes the margin between the scores of positive and
+    negative pairs and applies a binary cross-entropy loss to maximize the likelihood of correct pairwise orderings.
+    This approach allows the model to learn from relative comparisons rather than absolute score values.
+
     Originally proposed in: `Learning to Rank using Gradient Descent \
     <https://dl.acm.org/doi/10.1145/1102351.1102363>`_
     """
 
     def __init__(self, temperature: float = 1) -> None:
-        super().__init__()
         """Initialize the RankNet loss function.
         Args:
             temperature (float): Temperature parameter for scaling the scores.
         """
+        super().__init__()
+
         self.temperature = temperature
 
     def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:

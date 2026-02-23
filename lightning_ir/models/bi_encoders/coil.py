@@ -1,4 +1,11 @@
-"""Configuration, model, and embedding for COIL (Contextualized Inverted list) type models. Originally proposed in
+"""Configuration, model, and embedding for COIL (Contextualized Inverted list) type models.
+
+COIL is an information retrieval model that combines the speed of traditional keyword search with the deep
+understanding of neural networks. It generates context-aware vector representations for every word in a document and
+stores them in a standard inverted index. During a search, the model only calculates similarity scores for the exact
+words that appear in both the query and the document.
+
+Originally proposed in
 `COIL: Revisit Exact Lexical Match in Information Retrieval with Contextualized Inverted list \
 <https://arxiv.org/abs/2104.07186>`_."""
 
@@ -110,7 +117,9 @@ class CoilModel(MultiVectorBiEncoderModel):
             bias="no_bias" not in self.config.projection,
         )
 
-    def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> CoilEmbedding:
+    def encode(
+        self, encoding: BatchEncoding, input_type: Literal["query", "doc"]
+    ) -> CoilEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
 
         Args:
@@ -126,7 +135,11 @@ class CoilModel(MultiVectorBiEncoderModel):
 
         scoring_mask = self.scoring_mask(encoding, input_type)
         return CoilEmbedding(
-            embeddings, scoring_mask, encoding, cls_embeddings=cls_embeddings, token_embeddings=token_embeddings
+            embeddings,
+            scoring_mask,
+            encoding,
+            cls_embeddings=cls_embeddings,
+            token_embeddings=token_embeddings,
         )
 
     def score(
@@ -149,16 +162,22 @@ class CoilModel(MultiVectorBiEncoderModel):
         query_embeddings = output.query_embeddings
         doc_embeddings = output.doc_embeddings
         if query_embeddings is None or doc_embeddings is None:
-            raise ValueError("Query and document embeddings must be provided for scoring.")
+            raise ValueError(
+                "Query and document embeddings must be provided for scoring."
+            )
         if query_embeddings.scoring_mask is None or doc_embeddings.scoring_mask is None:
-            raise ValueError("Scoring masks expected for scoring multi-vector embeddings")
+            raise ValueError(
+                "Scoring masks expected for scoring multi-vector embeddings"
+            )
         if (
             query_embeddings.cls_embeddings is None
             or doc_embeddings.cls_embeddings is None
             or query_embeddings.token_embeddings is None
             or doc_embeddings.token_embeddings is None
         ):
-            raise ValueError("COIL embeddings must contain cls_embeddings and token_embeddings")
+            raise ValueError(
+                "COIL embeddings must contain cls_embeddings and token_embeddings"
+            )
 
         cls_scores = self.compute_similarity(
             BiEncoderEmbedding(query_embeddings.cls_embeddings),
@@ -172,14 +191,22 @@ class CoilModel(MultiVectorBiEncoderModel):
             num_docs,
         )
         num_docs_t = self._parse_num_docs(
-            query_embeddings.embeddings.shape[0], doc_embeddings.embeddings.shape[0], num_docs, query_embeddings.device
+            query_embeddings.embeddings.shape[0],
+            doc_embeddings.embeddings.shape[0],
+            num_docs,
+            query_embeddings.device,
         )
-        query = query_embeddings.encoding.input_ids.repeat_interleave(num_docs_t, 0)[:, 1:]
+        query = query_embeddings.encoding.input_ids.repeat_interleave(num_docs_t, 0)[
+            :, 1:
+        ]
         docs = doc_embeddings.encoding.input_ids[:, 1:]
         mask = (query[:, :, None] == docs[:, None, :]).to(token_similarity)
         token_similarity = token_similarity * mask
         token_scores = self.aggregate_similarity(
-            token_similarity, query_embeddings.scoring_mask[:, 1:], doc_embeddings.scoring_mask[:, 1:], num_docs
+            token_similarity,
+            query_embeddings.scoring_mask[:, 1:],
+            doc_embeddings.scoring_mask[:, 1:],
+            num_docs,
         )
 
         output.scores = cls_scores + token_scores
@@ -249,7 +276,9 @@ class UniCoilModel(SingleVectorBiEncoderModel):
             self.config.hidden_size, 1, bias="no_bias" not in self.config.projection
         )
 
-    def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
+    def encode(
+        self, encoding: BatchEncoding, input_type: Literal["query", "doc"]
+    ) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
 
         Args:
@@ -262,8 +291,14 @@ class UniCoilModel(SingleVectorBiEncoderModel):
 
         token_weights = self.token_projection(contextualized_embeddings).squeeze(-1)
         if encoding["attention_mask"] is not None:
-            token_weights = token_weights.masked_fill(~(encoding["attention_mask"].bool()), 0)
+            token_weights = token_weights.masked_fill(
+                ~(encoding["attention_mask"].bool()), 0
+            )
         token_weights = torch.relu(token_weights)
-        embeddings = torch.zeros(encoding.input_ids.shape[0], self.config.vocab_size, device=token_weights.device)
+        embeddings = torch.zeros(
+            encoding.input_ids.shape[0],
+            self.config.vocab_size,
+            device=token_weights.device,
+        )
         embeddings = embeddings.scatter(1, encoding.input_ids, token_weights)
         return BiEncoderEmbedding(embeddings[:, None], None, encoding)

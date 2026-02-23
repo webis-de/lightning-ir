@@ -126,6 +126,10 @@ class ScoreBasedInBatchLossFunction(InBatchLossFunction):
 
 class InBatchCrossEntropy(InBatchLossFunction):
     """In-batch cross-entropy loss function for ranking tasks.
+
+    In-batch cross-entropy is a contrastive loss function that optimizes representations by treating the paired sample
+    in a batch as the positive target while utilizing all other samples in that same batch as negative examples.
+
     Originally proposed in: `Fast Single-Class Classification and the Principle of Logit Separation
     <https://arxiv.org/pdf/1705.10246v1>`_"""
 
