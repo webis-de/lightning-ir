@@ -181,6 +181,13 @@ class SetEncoderModel(MonoModel):
             .transpose(1, 2)
         )
 
+        if attention_mask is not None and num_docs is not None and attention_mask.shape[-1] != key.shape[-2]:
+            other_doc_attention_mask = _self._build_other_doc_attention_mask(num_docs, hidden_states.device)
+            other_doc_attention_mask = other_doc_attention_mask[:, None, None, :].expand(
+                -1, 1, query.shape[-2], -1
+            )
+            attention_mask = torch.cat([attention_mask, other_doc_attention_mask.to(attention_mask)], dim=-1)
+
         context = torch.nn.functional.scaled_dot_product_attention(
             query,
             key,
@@ -192,7 +199,7 @@ class SetEncoderModel(MonoModel):
         context = context.permute(0, 2, 1, 3).contiguous()
         new_context_shape = context.size()[:-2] + (self.all_head_size,)
         context = context.view(new_context_shape)
-        return (context,)
+        return (context, None)
 
     def cat_other_doc_hidden_states(
         self,

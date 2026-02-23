@@ -114,7 +114,10 @@ class SpladeModel(SingleVectorBiEncoderModel):
         # grab language modeling head based on backbone model type
         layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
         self.projection = layer_cls(config)
-        tied_weight_keys = (getattr(self, "_tied_weights_keys", []) or []) + ["projection.decoder.weight"]
+        tied_weight_keys = getattr(self, "_tied_weights_keys", {}) or {}
+        if not isinstance(tied_weight_keys, dict):
+            tied_weight_keys = {key: None for key in tied_weight_keys}
+        tied_weight_keys["projection.decoder.weight"] = None
         self._tied_weights_keys = tied_weight_keys
         self.query_weights = None
         if config.query_weighting == "static":
