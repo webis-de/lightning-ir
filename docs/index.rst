@@ -45,3 +45,5 @@ Getting Started
 ---------------
 
 See the `Quickstart <quickstart>`_ guide to get started with Lightning IR.
+
+For more information, see the `Guide <guide>`_ for detailed documentation and examples.
