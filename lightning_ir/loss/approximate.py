@@ -43,9 +43,7 @@ class ApproxLossFunction(ListwiseLossFunction):
         score_diff = scores[:, None] - scores[..., None]
         normalized_score_diff = torch.sigmoid(score_diff / temperature)
         # set diagonal to 0
-        normalized_score_diff = normalized_score_diff * (
-            1 - torch.eye(scores.shape[1], device=scores.device)
-        )
+        normalized_score_diff = normalized_score_diff * (1 - torch.eye(scores.shape[1], device=scores.device))
         approx_ranks = normalized_score_diff.sum(-1) + 1
         return approx_ranks
 
@@ -130,9 +128,7 @@ class ApproxNDCG(ApproxLossFunction):
         ndcg = dcg / (idcg.clamp(min=1e-12))
         return ndcg
 
-    def compute_loss(
-        self, output: LightningIROutput, batch: TrainBatch
-    ) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
         """Compute the ApproxNDCG loss.
 
         Args:
@@ -144,9 +140,7 @@ class ApproxNDCG(ApproxLossFunction):
         scores = self.process_scores(output)
         targets = self.process_targets(scores, batch)
         approx_ranks = self.get_approx_ranks(scores, self.temperature)
-        ndcg = self.get_ndcg(
-            approx_ranks, targets, k=None, scale_gains=self.scale_gains
-        )
+        ndcg = self.get_ndcg(approx_ranks, targets, k=None, scale_gains=self.scale_gains)
         loss = 1 - ndcg
         return loss.mean()
 
@@ -173,9 +167,7 @@ class ApproxMRR(ApproxLossFunction):
         super().__init__(temperature)
 
     @staticmethod
-    def get_mrr(
-        ranks: torch.Tensor, targets: torch.Tensor, k: int | None = None
-    ) -> torch.Tensor:
+    def get_mrr(ranks: torch.Tensor, targets: torch.Tensor, k: int | None = None) -> torch.Tensor:
         """Compute the Mean Reciprocal Rank (MRR) for the given ranks and targets.
 
         Args:
@@ -193,9 +185,7 @@ class ApproxMRR(ApproxLossFunction):
         mrr = mrr.max(dim=-1)[0]
         return mrr
 
-    def compute_loss(
-        self, output: LightningIROutput, batch: TrainBatch
-    ) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
         """Compute the ApproxMRR loss.
 
         Args:
@@ -240,9 +230,7 @@ class ApproxRankMSE(ApproxLossFunction):
         super().__init__(temperature)
         self.discount = discount
 
-    def compute_loss(
-        self, output: LightningIROutput, batch: TrainBatch
-    ) -> torch.Tensor:
+    def compute_loss(self, output: LightningIROutput, batch: TrainBatch) -> torch.Tensor:
         """Compute the ApproxRankMSE loss.
 
         Args:
@@ -255,9 +243,7 @@ class ApproxRankMSE(ApproxLossFunction):
         targets = self.process_targets(scores, batch)
         approx_ranks = self.get_approx_ranks(scores, self.temperature)
         ranks = torch.argsort(torch.argsort(targets, descending=True)) + 1
-        loss = torch.nn.functional.mse_loss(
-            approx_ranks, ranks.to(approx_ranks), reduction="none"
-        )
+        loss = torch.nn.functional.mse_loss(approx_ranks, ranks.to(approx_ranks), reduction="none")
         if self.discount == "log2":
             weight = 1 / torch.log2(ranks + 1)
         elif self.discount == "reciprocal":

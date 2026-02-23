@@ -1,4 +1,4 @@
-"""Configuration, model, and tokenizer for Col (Contextualized Late Interaction) type models. 
+"""Configuration, model, and tokenizer for Col (Contextualized Late Interaction) type models.
 
 Col models implement a multi-vector late-interaction retrieval approach where queries and documents
 are encoded separately into multiple token-level embeddings. Relevance is computed through element-wise
@@ -25,7 +25,7 @@ Usage with XTR:
 
     >>> config = ColConfig(k_train=128)
     >>> model = ColModel(config)
-    
+
     During training, the model will automatically use XTR scoring when `k_train` is set and the model is in
     training mode. This enables efficient computation by retrieving only the most relevant document tokens
     rather than processing all tokens.
