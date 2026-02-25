@@ -407,7 +407,10 @@ https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.Pre
             return BackboneClass
         _tokenizer_mapping = TOKENIZER_MAPPING[self.MixinConfig]
         # transformers v4 returns (slow, fast) tuple; v5 returns a single class
-        LightningIRTokenizerMixin = _tokenizer_mapping[0] if isinstance(_tokenizer_mapping, (tuple, list)) else _tokenizer_mapping
+        if isinstance(_tokenizer_mapping, (tuple, list)):
+            LightningIRTokenizerMixin = _tokenizer_mapping[0]
+        else:
+            LightningIRTokenizerMixin = _tokenizer_mapping
 
         DerivedLightningIRTokenizer = type(
             f"{self.cc_lir_model_type(LightningIRTokenizerMixin.config_class)}{BackboneClass.__name__}",

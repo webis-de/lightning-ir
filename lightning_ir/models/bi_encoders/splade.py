@@ -117,7 +117,10 @@ class SpladeModel(SingleVectorBiEncoderModel):
         existing_tied = getattr(self, "_tied_weights_keys", None) or {}
         if isinstance(existing_tied, dict):
             # transformers v5: _tied_weights_keys is a dict {tied_key: source_key}
-            tied_weight_keys: dict | list = {**existing_tied, "projection.decoder.weight": "embeddings.word_embeddings.weight", }
+            tied_weight_keys: dict | list = {
+                **existing_tied,
+                "projection.decoder.weight": "embeddings.word_embeddings.weight",
+            }
         else:
             # transformers v4: _tied_weights_keys is a list of tied key names
             tied_weight_keys = list(existing_tied) + ["projection.decoder.weight"]
