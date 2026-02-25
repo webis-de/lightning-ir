@@ -9,7 +9,7 @@ from collections.abc import Sequence
 from os import PathLike
 from typing import Self
 
-from transformers import TOKENIZER_MAPPING, BatchEncoding, PreTrainedTokenizerBase
+from transformers import BatchEncoding, PreTrainedTokenizerBase
 
 from .class_factory import LightningIRTokenizerClassFactory
 from .config import LightningIRConfig
@@ -99,11 +99,13 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
                     raise ValueError("Pass a config to `from_pretrained`.")
             ConfigClass = getattr(ConfigClass, "mixin_config", ConfigClass)
             backbone_config = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
-            BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
+            BackboneTokenizers = LightningIRTokenizerClassFactory.get_backbone_tokenizer_classes(backbone_config)
             if kwargs.get("use_fast", True):
-                BackboneTokenizer = BackboneTokenizers[1]
+                BackboneTokenizer = BackboneTokenizers[1] or BackboneTokenizers[0]
             else:
-                BackboneTokenizer = BackboneTokenizers[0]
+                BackboneTokenizer = BackboneTokenizers[0] or BackboneTokenizers[1]
+            if BackboneTokenizer is None:
+                raise ValueError(f"No tokenizer class found for backbone config {type(backbone_config).__name__}.")
             cls = LightningIRTokenizerClassFactory(ConfigClass).from_backbone_class(BackboneTokenizer)
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         config = kwargs.pop("config", None)
