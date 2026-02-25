@@ -109,9 +109,8 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
             LightningIRConfig: Derived LightningIRConfig instance.
         """
         if (
-            (cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__))
-            and "backbone_model_type" in config_dict
-        ):
+            cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__)
+        ) and "backbone_model_type" in config_dict:
             from transformers import CONFIG_MAPPING
 
             backbone_model_type = config_dict["backbone_model_type"]
