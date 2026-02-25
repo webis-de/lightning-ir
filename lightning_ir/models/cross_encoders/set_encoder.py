@@ -129,11 +129,49 @@ class SetEncoderModel(MonoModel):
             CrossEncoderOutput: Output of the model.
         """
         num_docs = encoding.pop("num_docs", None)
+        self._set_encoder_num_docs = num_docs
         self.get_extended_attention_mask = partial(self.get_extended_attention_mask, num_docs=num_docs)
         for name, module in self.named_modules():
             if name.endswith(self.self_attention_pattern):
                 module.forward = partial(self.attention_forward, self, module, num_docs=num_docs)
-        return super().forward(encoding)
+        try:
+            return super().forward(encoding)
+        finally:
+            self._set_encoder_num_docs = None
+
+    def _create_attention_masks(
+        self,
+        attention_mask: torch.Tensor,
+        encoder_attention_mask,
+        embedding_output: torch.Tensor,
+        encoder_hidden_states,
+        cache_position,
+        past_key_values,
+    ):
+        """Overrides BertModel._create_attention_masks (transformers v5+) to extend the attention mask
+        with cross-document interaction tokens for SetEncoder inter-passage attention.
+
+        Falls back to the parent implementation once the mask is extended.
+        """
+        num_docs = getattr(self, "_set_encoder_num_docs", None)
+        if num_docs is not None and attention_mask is not None and attention_mask.dim() == 2:
+            device = attention_mask.device
+            eye = (1 - torch.eye(self.config.depth, device=device)).long()
+            if not self.config.sample_missing_docs:
+                eye = eye[:, : max(num_docs)]
+            other_doc_attention_mask = torch.cat([eye[:n] for n in num_docs])
+            attention_mask = torch.cat(
+                [attention_mask, other_doc_attention_mask.to(attention_mask)],
+                dim=-1,
+            )
+        return super()._create_attention_masks(
+            attention_mask,
+            encoder_attention_mask,
+            embedding_output,
+            encoder_hidden_states,
+            cache_position,
+            past_key_values,
+        )
 
     @staticmethod
     def attention_forward(
@@ -192,7 +230,7 @@ class SetEncoderModel(MonoModel):
         context = context.permute(0, 2, 1, 3).contiguous()
         new_context_shape = context.size()[:-2] + (self.all_head_size,)
         context = context.view(new_context_shape)
-        return (context,)
+        return (context, None)
 
     def cat_other_doc_hidden_states(
         self,

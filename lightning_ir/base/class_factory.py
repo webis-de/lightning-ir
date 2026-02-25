@@ -58,6 +58,9 @@ def _get_model_class(config: PretrainedConfig | type[PretrainedConfig]) -> type[
 class LightningIRClassFactory(ABC):
     """Base class for creating derived Lightning IR classes from HuggingFace classes."""
 
+    _config_class_cache: dict[tuple[type, type], type] = {}
+    _model_class_cache: dict[tuple[type, type], type] = {}
+
     def __init__(self, MixinConfig: type[LightningIRConfig]) -> None:
         """Creates a new LightningIRClassFactory.
 
@@ -185,6 +188,10 @@ https://huggingface.co/docs/transformers/main_classes/configuration#transformers
             return BackboneClass
         LightningIRConfigMixin: type[LightningIRConfig] = CONFIG_MAPPING[self.MixinConfig.model_type]
 
+        cache_key = (LightningIRConfigMixin, BackboneClass)
+        if cache_key in LightningIRClassFactory._config_class_cache:
+            return LightningIRClassFactory._config_class_cache[cache_key]
+
         DerivedLightningIRConfig = type(
             f"{self.cc_lir_model_type(LightningIRConfigMixin)}{BackboneClass.__name__}",
             (LightningIRConfigMixin, BackboneClass),
@@ -194,6 +201,7 @@ https://huggingface.co/docs/transformers/main_classes/configuration#transformers
                 "mixin_config": self.MixinConfig,
             },
         )
+        LightningIRClassFactory._config_class_cache[cache_key] = DerivedLightningIRConfig
         return DerivedLightningIRConfig
 
 
@@ -239,6 +247,10 @@ https://huggingface.co/transformers/main_classes/model#transformers.PreTrainedMo
 
         LightningIRModelMixin: type[LightningIRModel] = _get_model_class(self.MixinConfig)
 
+        cache_key = (LightningIRModelMixin, BackboneClass)
+        if cache_key in LightningIRClassFactory._model_class_cache:
+            return LightningIRClassFactory._model_class_cache[cache_key]
+
         DerivedLightningIRConfig = LightningIRConfigClassFactory(self.MixinConfig).from_backbone_class(BackboneConfig)
 
         DerivedLightningIRModel = type(
@@ -246,6 +258,20 @@ https://huggingface.co/transformers/main_classes/model#transformers.PreTrainedMo
             (LightningIRModelMixin, BackboneClass),
             {"config_class": DerivedLightningIRConfig, "_backbone_forward": BackboneClass.forward},
         )
+        LightningIRClassFactory._model_class_cache[cache_key] = DerivedLightningIRModel
+
+        # Register the derived config->model mapping directly in AutoModel's extra_content so that
+        # AutoModel.from_pretrained() can resolve the derived config class (e.g. LirDprBertConfig).
+        # In transformers v5, AutoModel.from_pretrained() does an exact `type(config) in _model_mapping`
+        # check, which only finds base mixin configs (e.g. DprConfig). We inject the derived class
+        # directly into _extra_content without touching the AutoConfig string->class registry.
+        try:
+            from transformers import AutoModel
+
+            AutoModel._model_mapping._extra_content[DerivedLightningIRConfig] = DerivedLightningIRModel
+        except Exception:
+            pass
+
         return DerivedLightningIRModel
 
 

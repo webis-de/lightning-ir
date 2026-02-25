@@ -114,7 +114,13 @@ class SpladeModel(SingleVectorBiEncoderModel):
         # grab language modeling head based on backbone model type
         layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
         self.projection = layer_cls(config)
-        tied_weight_keys = (getattr(self, "_tied_weights_keys", []) or []) + ["projection.decoder.weight"]
+        existing_tied = getattr(self, "_tied_weights_keys", None) or {}
+        if isinstance(existing_tied, dict):
+            # transformers v5: _tied_weights_keys is a dict {tied_key: source_key}
+            tied_weight_keys: dict | list = {**existing_tied, "projection.decoder.weight": "embeddings.word_embeddings.weight", }
+        else:
+            # transformers v4: _tied_weights_keys is a list of tied key names
+            tied_weight_keys = list(existing_tied) + ["projection.decoder.weight"]
         self._tied_weights_keys = tied_weight_keys
         self.query_weights = None
         if config.query_weighting == "static":

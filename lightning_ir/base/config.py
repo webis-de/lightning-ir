@@ -96,6 +96,39 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         return output
 
     @classmethod
+    def from_dict(cls, config_dict: dict, **kwargs) -> LightningIRConfig:
+        """Overrides transformers.PretrainedConfig.from_dict to handle transformers v5 behaviour where
+        ``AutoConfig.from_pretrained`` directly calls ``from_dict`` on the registered config class,
+        bypassing ``from_pretrained``. When called on a pure LightningIR mixin class (i.e. no backbone
+        inheritance) and the ``config_dict`` contains a ``backbone_model_type`` key, the method builds
+        the correct derived config (mixin + backbone) before delegating to the parent.
+
+        Args:
+            config_dict (dict): Dictionary used to instantiate the config.
+        Returns:
+            LightningIRConfig: Derived LightningIRConfig instance.
+        """
+        if (cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__)) and "backbone_model_type" in config_dict:
+            from transformers import CONFIG_MAPPING
+
+            backbone_model_type = config_dict["backbone_model_type"]
+            try:
+                BackboneConfig = CONFIG_MAPPING[backbone_model_type]
+            except KeyError:
+                BackboneConfig = None
+            if BackboneConfig is not None and not issubclass(BackboneConfig, LightningIRConfig):
+                ConfigClass = cls if cls is not LightningIRConfig else None
+                if ConfigClass is None:
+                    model_type = config_dict.get("model_type")
+                    try:
+                        ConfigClass = CONFIG_MAPPING[model_type] if model_type else cls
+                    except KeyError:
+                        ConfigClass = cls
+                derived_cls = LightningIRConfigClassFactory(ConfigClass).from_backbone_class(BackboneConfig)
+                return super(LightningIRConfig, derived_cls).from_dict(config_dict, **kwargs)
+        return super().from_dict(config_dict, **kwargs)
+
+    @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: str | Path, *args, **kwargs) -> LightningIRConfig:
         """Loads the configuration from a pretrained model. Wraps the transformers.PretrainedConfig.from_pretrained_
 
