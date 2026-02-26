@@ -23,6 +23,7 @@ Usage with XTR:
     To enable XTR in-batch token retrieval during training, set the `k_train` parameter in the configuration
     to the desired number of top-k document tokens to retrieve (e.g., 128):
 
+    >>> from lightning_ir import ColConfig, ColModel
     >>> config = ColConfig(k_train=128)
     >>> model = ColModel(config)
 
