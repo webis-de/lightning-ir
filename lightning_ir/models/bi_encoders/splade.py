@@ -26,7 +26,7 @@ from ...bi_encoder import (
     SingleVectorBiEncoderModel,
 )
 from ...modeling_utils.embedding_post_processing import Pooler, Sparsifier
-from ...modeling_utils.lm_head import MODEL_TYPE_TO_LM_HEAD, MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING
+from ...modeling_utils.lm_head import MODEL_TYPE_TO_EMBEDDING_WEIGHT_KEY, MODEL_TYPE_TO_LM_HEAD, MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING
 
 
 class SpladeConfig(SingleVectorBiEncoderConfig):
@@ -112,10 +112,15 @@ class SpladeModel(SingleVectorBiEncoderModel):
         """
         super().__init__(config, *args, **kwargs)
         # grab language modeling head based on backbone model type
-        layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
+        model_type = config.backbone_model_type or config.model_type
+        layer_cls = MODEL_TYPE_TO_LM_HEAD[model_type]
         self.projection = layer_cls(config)
-        tied_weight_keys = (getattr(self, "_tied_weights_keys", []) or []) + ["projection.decoder.weight"]
-        self._tied_weights_keys = tied_weight_keys
+        # In transformers v5, _tied_weights_keys must be a dict {target: source}
+        existing_tied = dict(getattr(self, "_tied_weights_keys", None) or {})
+        source_key = MODEL_TYPE_TO_EMBEDDING_WEIGHT_KEY.get(
+            model_type, f"{model_type}.embeddings.word_embeddings.weight"
+        )
+        self._tied_weights_keys = {**existing_tied, "projection.decoder.weight": source_key}
         self.query_weights = None
         if config.query_weighting == "static":
             self.query_weights = torch.nn.Embedding(config.vocab_size, 1)

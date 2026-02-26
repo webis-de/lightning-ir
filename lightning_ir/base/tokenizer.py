@@ -99,11 +99,7 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
                     raise ValueError("Pass a config to `from_pretrained`.")
             ConfigClass = getattr(ConfigClass, "mixin_config", ConfigClass)
             backbone_config = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
-            BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
-            if kwargs.get("use_fast", True):
-                BackboneTokenizer = BackboneTokenizers[1]
-            else:
-                BackboneTokenizer = BackboneTokenizers[0]
+            BackboneTokenizer = TOKENIZER_MAPPING[type(backbone_config)]
             cls = LightningIRTokenizerClassFactory(ConfigClass).from_backbone_class(BackboneTokenizer)
             return cls.from_pretrained(model_name_or_path, *args, **kwargs)
         config = kwargs.pop("config", None)

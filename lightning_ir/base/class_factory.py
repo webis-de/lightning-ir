@@ -282,7 +282,9 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
             if backbone_tokenizer_class is not None:
                 config_class = backbone_tokenizer_class.removesuffix("Fast").replace("Tokenizer", "Config")
                 for module_name, tokenizers in TOKENIZER_MAPPING_NAMES.items():
-                    if backbone_tokenizer_class in tokenizers:
+                    if backbone_tokenizer_class == tokenizers or (
+                        isinstance(tokenizers, tuple) and backbone_tokenizer_class in tokenizers
+                    ):
                         module_name = model_type_to_module_name(module_name)
                         module = importlib.import_module(f".{module_name}", "transformers.models")
                         if hasattr(module, backbone_tokenizer_class) and hasattr(module, config_class):
@@ -297,48 +299,14 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
 
         Args:
             model_name_or_path (str | Path): Path to the tokenizer or its name.
-            use_fast (bool, optional): Whether to use the fast tokenizer. Defaults to True.
+            use_fast (bool, optional): Ignored. Transformers v5 no longer distinguishes slow/fast tokenizers.
         Returns:
             type[LightningIRTokenizer]: Derived LightningIRTokenizer.
-        Raises:
-            ValueError: If no fast tokenizer is found when `use_fast` is True.
-            ValueError: If no slow tokenizer is found when `use_fast` is False.
         """
         backbone_config = self.get_backbone_config(model_name_or_path)
-        BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
-        DerivedLightningIRTokenizers = self.from_backbone_classes(BackboneTokenizers, type(backbone_config))
-        if use_fast:
-            DerivedLightningIRTokenizer = DerivedLightningIRTokenizers[1]
-            if DerivedLightningIRTokenizer is None:
-                raise ValueError("No fast tokenizer found.")
-        else:
-            DerivedLightningIRTokenizer = DerivedLightningIRTokenizers[0]
-            if DerivedLightningIRTokenizer is None:
-                raise ValueError("No slow tokenizer found.")
+        BackboneTokenizer = TOKENIZER_MAPPING[type(backbone_config)]
+        DerivedLightningIRTokenizer = self.from_backbone_class(BackboneTokenizer)
         return DerivedLightningIRTokenizer
-
-    def from_backbone_classes(
-        self,
-        BackboneClasses: tuple[type[PreTrainedTokenizerBase] | None, type[PreTrainedTokenizerBase] | None],
-        BackboneConfig: type[PretrainedConfig] | None = None,
-    ) -> tuple[type[LightningIRTokenizer] | None, type[LightningIRTokenizer] | None]:
-        """Creates derived slow and fastLightningIRTokenizers from a tuple of backbone HuggingFace tokenizer classes.
-
-        Args:
-            BackboneClasses (tuple[type[PreTrainedTokenizerBase] | None, type[PreTrainedTokenizerBase] | None]):
-                Slow and fast backbone tokenizer classes.
-            BackboneConfig (type[PretrainedConfig] | None, optional): Backbone configuration class. Defaults to None.
-        Returns:
-            tuple[type[LightningIRTokenizer] | None, type[LightningIRTokenizer] | None]: Slow and fast derived
-            LightningIRTokenizers.
-        """
-        DerivedLightningIRTokenizers = tuple(
-            None if BackboneClass is None else self.from_backbone_class(BackboneClass)
-            for BackboneClass in BackboneClasses
-        )
-        if DerivedLightningIRTokenizers[1] is not None:
-            DerivedLightningIRTokenizers[1].slow_tokenizer_class = DerivedLightningIRTokenizers[0]
-        return DerivedLightningIRTokenizers
 
     def from_backbone_class(self, BackboneClass: type[PreTrainedTokenizerBase]) -> type[LightningIRTokenizer]:
         """Creates a derived LightningIRTokenizer from a transformers.PreTrainedTokenizerBase_ backbone tokenizer. If
@@ -354,7 +322,7 @@ https://huggingface.co/transformers/main_classes/tokenizer.html#transformers.Pre
         """
         if hasattr(BackboneClass, "config_class"):
             return BackboneClass
-        LightningIRTokenizerMixin = TOKENIZER_MAPPING[self.MixinConfig][0]
+        LightningIRTokenizerMixin = TOKENIZER_MAPPING[self.MixinConfig]
 
         DerivedLightningIRTokenizer = type(
             f"{self.cc_lir_model_type(LightningIRTokenizerMixin.config_class)}{BackboneClass.__name__}",

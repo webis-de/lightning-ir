@@ -83,41 +83,52 @@ class SetEncoderModel(MonoModel):
                 f"Supported types are 'bert' and 'electra'."
             )
 
-    def get_extended_attention_mask(
+    def _build_other_doc_additive_mask(
         self,
         attention_mask: torch.Tensor,
-        input_shape: tuple[int, ...],
-        device: torch.device | None = None,
-        dtype: torch.dtype | None = None,
-        num_docs: Sequence[int] | None = None,
+        num_docs: Sequence[int],
     ) -> torch.Tensor:
-        """
-        Extends the attention mask to account for the number of documents per query.
+        """Builds an additive attention mask extension for the other-document tokens.
+
+        For each document in the batch, allows attending to all other documents' interaction tokens
+        (value 0.0) but blocks attending to its own interaction token (value -inf).
 
         Args:
-            attention_mask (torch.Tensor): Attention mask for the input sequence.
-            input_shape (tuple[int, ...]): Shape of the input sequence.
-            device (torch.device | None): Device to move the attention mask to. Defaults to None.
-            dtype (torch.dtype | None): Data type of the attention mask. Defaults to None.
-            num_docs (Sequence[int] | None): Specifies how many documents are passed per query. If a sequence of
-                integers, `len(num_doc)` should be equal to the number of queries and `sum(num_docs)` equal to the
-                number of documents, i.e., the sequence contains one value per query specifying the number of documents
-                for that query. If an integer, assumes an equal number of documents per query. If None, tries to infer
-                the number of documents by dividing the number of documents by the number of queries. Defaults to None.
-            Returns:
-                torch.Tensor: Extended attention mask.
+            attention_mask (torch.Tensor): Current additive attention mask, shape (batch, 1, q_len, k_len)
+                or (batch, 1, 1, k_len).
+            num_docs (Sequence[int]): Number of documents per query.
+        Returns:
+            torch.Tensor: Extended additive attention mask of shape (batch, 1, q_len, k_len + depth).
         """
-        if num_docs is not None:
-            eye = (1 - torch.eye(self.config.depth, device=device)).long()
-            if not self.config.sample_missing_docs:
-                eye = eye[:, : max(num_docs)]
-            other_doc_attention_mask = torch.cat([eye[:n] for n in num_docs])
-            attention_mask = torch.cat(
-                [attention_mask, other_doc_attention_mask.to(attention_mask)],
-                dim=-1,
-            )
-            input_shape = tuple(attention_mask.shape)
-        return super().get_extended_attention_mask(attention_mask, input_shape, device, dtype)
+        device = attention_mask.device
+        dtype = attention_mask.dtype
+        if not dtype.is_floating_point:
+            dtype = torch.get_default_dtype()
+        neg_inf = torch.finfo(dtype).min
+
+        depth = self.config.depth
+        max_n = max(num_docs)
+        extra_cols = depth if self.config.sample_missing_docs else max_n
+
+        # For each batch element, build a row of shape (extra_cols,):
+        # 0.0 = attend, neg_inf = block (self token)
+        extra_mask_rows = []
+        for q_idx, n in enumerate(num_docs):
+            for doc_idx in range(n):
+                row = torch.zeros(extra_cols, device=device, dtype=dtype)
+                row[doc_idx] = neg_inf  # block self interaction token
+                extra_mask_rows.append(row)
+
+        # extra_mask: (batch, extra_cols)
+        extra_mask = torch.stack(extra_mask_rows)  # (batch, extra_cols)
+        # expand to (batch, 1, 1, extra_cols) then broadcast to match q_len of attention_mask
+        extra_mask = extra_mask[:, None, None, :]
+        # Expand q_len dim to match attention_mask (handles both (b,1,1,k) and (b,1,q,k) masks)
+        q_len = attention_mask.shape[2]
+        if q_len > 1:
+            extra_mask = extra_mask.expand(-1, -1, q_len, -1)
+
+        return torch.cat([attention_mask, extra_mask], dim=-1)
 
     def forward(self, encoding: BatchEncoding) -> CrossEncoderOutput:
         """Computes contextualized embeddings for the joint query-document input sequence and computes a relevance
@@ -129,7 +140,8 @@ class SetEncoderModel(MonoModel):
             CrossEncoderOutput: Output of the model.
         """
         num_docs = encoding.pop("num_docs", None)
-        self.get_extended_attention_mask = partial(self.get_extended_attention_mask, num_docs=num_docs)
+        # NOTE: In transformers v5, get_extended_attention_mask is no longer called by BertModel.
+        # The attention mask extension for other-doc tokens is now handled directly in attention_forward.
         for name, module in self.named_modules():
             if name.endswith(self.self_attention_pattern):
                 module.forward = partial(self.attention_forward, self, module, num_docs=num_docs)
@@ -163,6 +175,11 @@ class SetEncoderModel(MonoModel):
         key_value_hidden_states = hidden_states
         if num_docs is not None:
             key_value_hidden_states = _self.cat_other_doc_hidden_states(hidden_states, num_docs)
+            # Extend the attention mask to cover the extra other-doc key positions.
+            # In transformers v5, BertModel no longer calls get_extended_attention_mask,
+            # so we must extend the 4D additive mask here directly.
+            if attention_mask is not None:
+                attention_mask = _self._build_other_doc_additive_mask(attention_mask, num_docs)
 
         batch_size = hidden_states.shape[0]
         query = (
@@ -192,7 +209,8 @@ class SetEncoderModel(MonoModel):
         context = context.permute(0, 2, 1, 3).contiguous()
         new_context_shape = context.size()[:-2] + (self.all_head_size,)
         context = context.view(new_context_shape)
-        return (context,)
+        # Return (context, attn_weights) tuple - v5 BertAttention expects 2 values
+        return (context, None)
 
     def cat_other_doc_hidden_states(
         self,

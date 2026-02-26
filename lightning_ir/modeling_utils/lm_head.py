@@ -65,3 +65,11 @@ MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
         "lm_head.bias": "roberta.projection.decoder.bias",
     },
 }
+
+# Maps backbone model_type -> path to input embedding weight (for tied weights in v5)
+MODEL_TYPE_TO_EMBEDDING_WEIGHT_KEY = {
+    "bert": "bert.embeddings.word_embeddings.weight",
+    "distilbert": "distilbert.embeddings.word_embeddings.weight",
+    "modernbert": "model.embeddings.tok_embeddings.weight",
+    "roberta": "roberta.embeddings.word_embeddings.weight",
+}
