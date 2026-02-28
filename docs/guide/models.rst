@@ -113,6 +113,13 @@ Quick Examples
 
 **DPR bi-encoder** — simplest dense retrieval:
 
+DPR encodes each query and document into a single dense vector using a
+pooling step (typically the CLS token). Similarity is computed with a single
+dot product or cosine comparison, which makes retrieval fast and straightforward
+to index. The optional ``projection`` head lets you reduce the embedding
+dimension and add a non-linear bottleneck; set ``embedding_dim`` to control the
+output size.
+
 .. code-block:: yaml
 
    # model-dpr.yaml
@@ -122,6 +129,13 @@ Quick Examples
        model_name_or_path: bert-base-uncased
        config:
          class_path: lightning_ir.models.DprConfig
+         init_args:
+           similarity_function: dot   # or "cosine"
+           query_length: 32           # max query tokens
+           doc_length: 512            # max document tokens
+           pooling_strategy: first    # CLS token; also "mean", "max", "sum"
+           embedding_dim: null        # null → use backbone hidden size
+           projection: linear         # linear projection head; null to disable
 
 .. code-block:: python
 
@@ -130,10 +144,22 @@ Quick Examples
 
    module = BiEncoderModule(
        model_name_or_path="bert-base-uncased",
-       config=DprConfig(),
+       config=DprConfig(
+           similarity_function="dot",
+           query_length=32,
+           doc_length=512,
+           pooling_strategy="first",
+           embedding_dim=None,   # None → use backbone hidden size
+           projection="linear",
+       ),
    )
 
 **ColBERT** — multi-vector late interaction:
+
+ColBERT produces one embedding **per token**, so controlling sequence lengths and
+the per-token embedding dimension directly affects index size and quality.
+It also supports special ColBERT-specific options (query expansion, marker
+tokens, per-token ``normalization_strategy``) that DPR and SPLADE do not have.
 
 .. code-block:: yaml
 
@@ -147,13 +173,13 @@ Quick Examples
          init_args:
            similarity_function: dot
            query_aggregation_function: sum
-           query_expansion: true
+           query_expansion: true         # ColBERT-specific: pad queries to query_length
            query_length: 32
-           doc_length: 256
-           normalization_strategy: l2
-           embedding_dim: 128
-           projection: linear_no_bias
-           add_marker_tokens: true
+           doc_length: 256               # kept smaller than DPR to limit index size
+           normalization_strategy: l2   # ColBERT-specific: per-token l2 normalisation
+           embedding_dim: 128            # project every token to 128-d (reduces index size)
+           projection: linear_no_bias   # ColBERT convention: no bias in projection
+           add_marker_tokens: true       # ColBERT-specific: [Q]/[D] special tokens
 
 .. code-block:: python
 
@@ -165,17 +191,25 @@ Quick Examples
        config=ColConfig(
            similarity_function="dot",
            query_aggregation_function="sum",
-           query_expansion=True,
+           query_expansion=True,         # ColBERT-specific
            query_length=32,
            doc_length=256,
-           normalization_strategy="l2",
+           normalization_strategy="l2",  # ColBERT-specific
            embedding_dim=128,
            projection="linear_no_bias",
-           add_marker_tokens=True,
+           add_marker_tokens=True,       # ColBERT-specific
        ),
    )
 
 **SPLADE** — learned sparse retrieval:
+
+SPLADE maps each query and document to a sparse vector over the full vocabulary.
+Each vocabulary dimension is activated by taking the max-pool of the token
+logits, so the representation is directly interpretable as a bag of weighted
+terms. Because the embedding space is the tokenizer vocabulary, ``embedding_dim``
+cannot be set freely — it is always equal to the vocabulary size. The key
+knob is ``pooling_strategy``: ``max`` (the default) gives standard SPLADE
+behaviour; ``sum`` gives SPLADE-doc behaviour.
 
 .. code-block:: yaml
 
@@ -186,6 +220,17 @@ Quick Examples
        model_name_or_path: bert-base-uncased
        config:
          class_path: lightning_ir.models.SpladeConfig
+         init_args:
+           similarity_function: dot   # sparse dot product
+           query_length: 32           # max query tokens
+           doc_length: 512            # max document tokens
+           pooling_strategy: max      # max over token activations (SPLADE default)
+
+.. note::
+
+   SPLADE uses the full vocabulary as its embedding space, so
+   ``embedding_dim`` is tied to the vocabulary size and cannot be configured
+   via the constructor (it is derived from the backbone tokenizer).
 
 .. code-block:: python
 
@@ -194,10 +239,22 @@ Quick Examples
 
    module = BiEncoderModule(
        model_name_or_path="bert-base-uncased",
-       config=SpladeConfig(),
+       config=SpladeConfig(
+           similarity_function="dot",
+           query_length=32,
+           doc_length=512,
+           pooling_strategy="max",  # max over token activations (SPLADE default)
+       ),
    )
 
 **Cross-encoder (MonoEncoder)** — highest quality re-ranking:
+
+A cross-encoder concatenates query and document into a single input and runs
+them jointly through the backbone, so every layer can attend across both texts.
+This yields the highest scoring quality but means no pre-indexing is possible
+— documents must be re-encoded for every new query. Use this architecture when
+you already have a candidate list (e.g. from a bi-encoder first stage) and
+need the best possible re-ranking without latency constraints.
 
 .. code-block:: yaml
 
