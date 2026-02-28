@@ -53,15 +53,15 @@ Dataset Class Reference
    * - :py:class:`~lightning_ir.data.dataset.RunDataset`
      - ``fit``, ``re_rank``
      - Loads a ranked list of documents per query from a TREC-format run file
-       or an ir_datasets ID. Key parameters: ``depth`` (max rank to load),
+       or an `ir_datasets <https://ir-datasets.com/>`_ ID. Key parameters: ``depth`` (max rank to load),
        ``sample_size`` (docs per query), ``sampling_strategy``
        (``top`` or ``random``), ``targets`` (``relevance`` or ``score``).
    * - :py:class:`~lightning_ir.data.dataset.DocDataset`
      - ``index``
-     - Iterates over all documents in a collection. Backed by ir_datasets.
+     - Iterates over all documents in a collection. Backed by `ir_datasets <https://ir-datasets.com/>`_.
    * - :py:class:`~lightning_ir.data.dataset.QueryDataset`
      - ``search``
-     - Iterates over queries in a dataset split. Backed by ir_datasets.
+     - Iterates over queries in a dataset split. Backed by `ir_datasets <https://ir-datasets.com/>`_.
 
 .. tip::
 
