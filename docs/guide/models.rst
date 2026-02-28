@@ -79,13 +79,34 @@ Architecture Comparison
      - ❌
      - ✅
      - Sees all candidates at once; highest re-rank quality
+   * - **MVR**
+     - :py:class:`~lightning_ir.models.bi_encoders.mvr.MvrConfig`
+     - Separate
+     - Multi dense (viewer tokens)
+     - ✅
+     - ✅
+     - Fixed-count multi-vector; balances index size and quality
+   * - **COIL**
+     - :py:class:`~lightning_ir.models.bi_encoders.coil.CoilConfig`
+     - Separate
+     - Multi (token + CLS)
+     - ✅
+     - ✅
+     - Exact lexical match with context; sparse + dense hybrid
+   * - **UniCOIL**
+     - :py:class:`~lightning_ir.models.bi_encoders.coil.UniCoilConfig`
+     - Separate
+     - Single sparse (token weights)
+     - ✅
+     - ✅
+     - Lightweight token-weight sparse retrieval; simpler than SPLADE
 
 .. note::
 
-   Lightning IR also supports several other bi-encoder variants (:py:class:`~lightning_ir.models.bi_encoders.coil.CoilConfig`,
-   :py:class:`~lightning_ir.models.bi_encoders.mvr.MvrConfig`) and external models such as XTR for advanced use cases. See
-   the :ref:`concepts-model` page and the :py:mod:`~lightning_ir.models` API
-   reference for a full list.
+   External checkpoints are also supported out of the box. For example, XTR
+   (``google/xtr-base-en``) uses the ColBERT architecture (:py:class:`~lightning_ir.models.bi_encoders.col.ColConfig`)
+   with a T5 backbone. See the :ref:`concepts-model` page and the :py:mod:`~lightning_ir.models` API
+   reference for a full list of registered checkpoints.
 
 Quick Examples
 --------------
