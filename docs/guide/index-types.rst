@@ -104,6 +104,9 @@ Index Type Comparison
 Quick Examples
 --------------
 
+Index Configs
+^^^^^^^^^^^^^
+
 **FAISS IVF index** (approximate nearest-neighbor for large dense collections):
 
 .. code-block:: yaml
@@ -201,6 +204,9 @@ Quick Examples
        callbacks=[callback], logger=False, enable_checkpointing=False
    )
    trainer.index(module, data_module)
+
+Search Configs
+^^^^^^^^^^^^^^
 
 **FAISS search** (querying a FAISS IVF index with a dense bi-encoder):
 
