@@ -94,6 +94,13 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         if self.config.pretrained_adapter_name_or_path is not None:
             self.load_adapter(self.config.pretrained_adapter_name_or_path)
 
+    def _init_weights(self, module: torch.nn.Module) -> None:
+        super()._init_weights(module)
+        if isinstance(module, torch.nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=self.config.initializer_range)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
         :class:`~lightning_ir.base.class_factory.LightningIRModelClassFactory`.
