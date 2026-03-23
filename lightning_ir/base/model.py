@@ -96,10 +96,10 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
     def _init_weights(self, module: torch.nn.Module) -> None:
         super()._init_weights(module)
-        if isinstance(module, torch.nn.Linear):
-            torch.nn.init.normal_(module.weight, mean=0.0, std=self.config.initializer_range)
-            if module.bias is not None:
-                torch.nn.init.zeros_(module.bias)
+        if self.config.backbone_model_type == "modernbert":
+            # NOTE modernbert does not initialize the weights of non-modernbert layers
+            # So we need to initialize them separately using the default initialization of the PreTrainedModel
+            PreTrainedModel._init_weights(self, module)
 
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
