@@ -94,6 +94,13 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         if self.config.pretrained_adapter_name_or_path is not None:
             self.load_adapter(self.config.pretrained_adapter_name_or_path)
 
+    def _init_weights(self, module: torch.nn.Module) -> None:
+        super()._init_weights(module)
+        if self.config.backbone_model_type == "modernbert":
+            # NOTE modernbert does not initialize the weights of non-modernbert layers
+            # So we need to initialize them separately using the default initialization of the PreTrainedModel
+            PreTrainedModel._init_weights(self, module)
+
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
         :class:`~lightning_ir.base.class_factory.LightningIRModelClassFactory`.
