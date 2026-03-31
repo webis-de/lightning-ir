@@ -78,14 +78,14 @@ class LightningIRModule(LightningModule):
 
         self.model: LightningIRModel = model
         self.config = self.model.config
-        self.loss_functions: list[tuple[LossFunction, float]] | None = None
+        self.loss_functions: list[list[LossFunction | float]] | None = None
         if loss_functions is not None:
             self.loss_functions = []
             for loss_function in loss_functions:
                 if isinstance(loss_function, LossFunction):
-                    self.loss_functions.append((loss_function, 1.0))
+                    self.loss_functions.append([loss_function, 1.0])
                 else:
-                    self.loss_functions.append(loss_function)
+                    self.loss_functions.append(list(loss_function))
         self.evaluation_metrics = evaluation_metrics
         self._optimizer: torch.optim.Optimizer | None = None
         self.tokenizer = LightningIRTokenizer.from_pretrained(self.config.name_or_path, config=self.config)

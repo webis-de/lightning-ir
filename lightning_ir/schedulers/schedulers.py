@@ -145,7 +145,11 @@ class GenericScheduler(Callback, ABC):
 
     def set_value(self, sub_keys: Sequence[str], obj: object, value: float) -> None:
         obj = self.get_value(sub_keys[:-1], obj)
-        setattr(obj, sub_keys[-1], value)
+        last_key = sub_keys[-1]
+        try:
+            obj[int(last_key)] = value
+        except (ValueError, TypeError):
+            setattr(obj, last_key, value)
 
     def on_train_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         for key in self.keys:
