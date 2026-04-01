@@ -33,5 +33,5 @@ class ContrastiveLocalLoss(EmbeddingLossFunction):
         if similarity is None:
             raise ValueError("Expected similarity in BiEncoderOutput")
         targets = similarity.argmax(-1)
-        loss = torch.nn.functional.cross_entropy(similarity, targets)
+        loss = torch.nn.functional.cross_entropy(similarity / self.temperature, targets)
         return loss
