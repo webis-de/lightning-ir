@@ -105,6 +105,17 @@ class MvrModel(MultiVectorBiEncoderModel):
             )
         self.query_pooler = Pooler(config)
 
+        # ModernBERT uses local attention (window ±64) in 14 of 22 layers. VIE tokens
+        # (positions 1-8) can only directly attend to the first ~64 document tokens in
+        # those layers, making it impossible to form meaningful multi-view representations
+        # of full documents. Force full attention on all local attention layers so VIE
+        # tokens have global document context. This works for both Flash Attention
+        # (window_size=(-1,-1) means full attention) and SDPA/eager paths.
+        if getattr(self.config, "backbone_model_type", None) == "modernbert":
+            for module in self.modules():
+                if hasattr(module, "local_attention") and module.local_attention != (-1, -1):
+                    setattr(module, "local_attention", (-1, -1))
+
     def scoring_mask(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> torch.Tensor:
         """Computes a scoring mask for batched tokenized text sequences which is used in the scoring function to mask
         out vectors during scoring.
