@@ -618,3 +618,95 @@ class RegisterLocalDatasetCallback(Callback):
             scoreddocs=self.scoreddocs,
             qrels_defs=self.qrels_defs,
         )
+
+
+class MvrViewCollapseCallback(Callback):
+    """Logs pairwise cosine similarity between MVR VIE token embeddings to diagnose view collapse.
+
+    Logs three metrics, all computed as the mean off-diagonal entry of the pairwise cosine
+    similarity matrix over the N=num_viewer_tokens views (1.0 = total collapse, 0.0 = orthogonal):
+
+    - ``train/vie_cos_pre_proj``: backbone hidden states at VIE positions (isolates RoPE / attention).
+    - ``train/vie_cos_post_proj``: after the shared linear projection (isolates projection collapse).
+    - ``train/vie_cos_post_norm``: after L2 normalization — the vectors actually used in scoring.
+
+    Requires the MVR model's ``encode`` to stash views on ``self._debug_views`` when
+    ``self._debug_track_views`` is True (see ``MvrModel.encode``).
+    """
+
+    def __init__(self, log_every_n_steps: int = 50, gaussian_perturb_std: float = 0.0):
+        super().__init__()
+        self.log_every_n_steps = log_every_n_steps
+        self.gaussian_perturb_std = gaussian_perturb_std
+
+    def on_train_start(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        pl_module.model._debug_track_views = True
+
+        try:
+            n = pl_module.config.num_viewer_tokens
+            tokenizer = pl_module.tokenizer
+            vie_ids = [tokenizer.viewer_token_id(i) for i in range(n)]
+            if any(vid is None for vid in vie_ids):
+                return
+            emb_module = pl_module.model.get_input_embeddings()
+
+            # Optional in-place Gaussian perturbation: break symmetry between the N
+            # VIE token rows. mean_resizing in HF initializes all newly-added rows
+            # with the same vector, leaving the model with no diversity to bootstrap
+            # from. Adding small i.i.d. Gaussian noise per row is the cheapest fix.
+            # Noise std is scaled by the row's L2 norm so it's invariant to base
+            # embedding magnitude.
+            if self.gaussian_perturb_std > 0:
+                with torch.no_grad():
+                    base = emb_module.weight[vie_ids[0]].clone()
+                    base_norm = base.norm().clamp(min=1e-6)
+                    noise = torch.randn(
+                        len(vie_ids),
+                        emb_module.weight.shape[1],
+                        device=emb_module.weight.device,
+                        dtype=emb_module.weight.dtype,
+                    ) * self.gaussian_perturb_std * base_norm
+                    for k, vid in enumerate(vie_ids):
+                        emb_module.weight[vid] = base + noise[k]
+                print(f"[MVR debug] applied Gaussian perturbation std={self.gaussian_perturb_std} to VIE rows")
+
+            vie_rows = emb_module.weight[vie_ids].detach()
+            v = torch.nn.functional.normalize(vie_rows.float(), dim=-1)
+            sim = v @ v.transpose(-1, -2)
+            mask = ~torch.eye(sim.shape[-1], dtype=torch.bool, device=sim.device)
+            mean_off = sim[mask].mean()
+            print("=" * 80)
+            print(f"[MVR debug] VIE input-embedding pairwise cosine (N={sim.shape[-1]}):")
+            for row in sim.tolist():
+                print("  " + "  ".join(f"{x:+.3f}" for x in row))
+            print(f"  mean off-diagonal = {float(mean_off):.4f}")
+            print("=" * 80)
+        except Exception as e:
+            print(f"[MVR debug] could not compute VIE input-embedding cosine: {e}")
+
+    def on_train_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        pl_module.model._debug_track_views = False
+
+    @staticmethod
+    def _mean_off_diag_cos(views: torch.Tensor) -> torch.Tensor:
+        v = torch.nn.functional.normalize(views.float(), dim=-1)
+        sim = v @ v.transpose(-1, -2)
+        n = sim.shape[-1]
+        mask = ~torch.eye(n, dtype=torch.bool, device=sim.device)
+        return sim[:, mask].mean()
+
+    def on_train_batch_end(
+        self,
+        trainer: Trainer,
+        pl_module: LightningIRModule,
+        outputs: Any,
+        batch: Any,
+        batch_idx: int,
+    ) -> None:
+        if trainer.global_step % self.log_every_n_steps != 0:
+            return
+        debug = getattr(pl_module.model, "_debug_views", None)
+        if not debug:
+            return
+        for name, tensor in debug.items():
+            pl_module.log(f"train/vie_cos_{name}", self._mean_off_diag_cos(tensor), on_step=True)

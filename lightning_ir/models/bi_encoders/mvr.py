@@ -147,16 +147,23 @@ class MvrModel(MultiVectorBiEncoderModel):
         Returns:
             BiEncoderEmbedding: Embeddings and scoring mask.
         """
-        embeddings = self._backbone_forward(**encoding).last_hidden_state
-        embeddings = self.projection(embeddings)
+        hidden = self._backbone_forward(**encoding).last_hidden_state
+        projected = self.projection(hidden)
         if input_type == "query":
-            embeddings = self.query_pooler(embeddings, None)
+            embeddings = self.query_pooler(projected, None)
         elif input_type == "doc":
-            embeddings = embeddings[:, 1 : self.config.num_viewer_tokens + 1]
+            embeddings = projected[:, 1 : self.config.num_viewer_tokens + 1]
         else:
             raise ValueError(f"Invalid input type: {input_type}")
         if self.config.normalization_strategy == "l2":
             embeddings = torch.nn.functional.normalize(embeddings, dim=-1)
+        if input_type == "doc" and getattr(self, "_debug_track_views", False):
+            n = self.config.num_viewer_tokens
+            self._debug_views = {
+                "pre_proj": hidden[:, 1 : n + 1].detach(),
+                "post_proj": projected[:, 1 : n + 1].detach(),
+                "post_norm": embeddings.detach(),
+            }
         scoring_mask = self.scoring_mask(encoding, input_type)
         return BiEncoderEmbedding(embeddings, scoring_mask, encoding)
 

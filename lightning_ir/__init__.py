@@ -23,7 +23,14 @@ from .bi_encoder import (
     SingleVectorBiEncoderConfig,
     SingleVectorBiEncoderModel,
 )
-from .callbacks import IndexCallback, RankCallback, RegisterLocalDatasetCallback, ReRankCallback, SearchCallback
+from .callbacks import (
+    IndexCallback,
+    MvrViewCollapseCallback,
+    RankCallback,
+    RegisterLocalDatasetCallback,
+    ReRankCallback,
+    SearchCallback,
+)
 from .cross_encoder import (
     CrossEncoderConfig,
     CrossEncoderModel,
@@ -169,6 +176,7 @@ __all__ = [
     "LinearLRSchedulerWithLinearWarmup",
     "MultiVectorBiEncoderConfig",
     "MultiVectorBiEncoderModel",
+    "MvrViewCollapseCallback",
     "PearsonCorrelation",
     "QueryDataset",
     "QuerySample",
