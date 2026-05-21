@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Literal, Self
 
 import torch
+import transformers
 from transformers import BatchEncoding
 
 from ...bi_encoder import (
@@ -114,8 +115,13 @@ class SpladeModel(SingleVectorBiEncoderModel):
         # grab language modeling head based on backbone model type
         layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
         self.projection = layer_cls(config)
-        tied_weight_keys = (getattr(self, "_tied_weights_keys", []) or []) + ["projection.decoder.weight"]
-        self._tied_weights_keys = tied_weight_keys
+        tied_weights_keys = getattr(self, "_tied_weights_keys", None)
+        if not isinstance(tied_weights_keys, dict):
+            tied_weights_keys = {}
+        else:
+            tied_weights_keys = dict(tied_weights_keys)
+        tied_weights_keys["projection.decoder.weight"] = "embeddings.word_embeddings.weight"
+        self._tied_weights_keys = tied_weights_keys
         self.query_weights = None
         if config.query_weighting == "static":
             self.query_weights = torch.nn.Embedding(config.vocab_size, 1)

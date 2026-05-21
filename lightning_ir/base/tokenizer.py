@@ -100,7 +100,9 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
             ConfigClass = getattr(ConfigClass, "mixin_config", ConfigClass)
             backbone_config = LightningIRTokenizerClassFactory.get_backbone_config(model_name_or_path)
             BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
-            if kwargs.get("use_fast", True):
+            if not isinstance(BackboneTokenizers, tuple):
+                BackboneTokenizer = BackboneTokenizers
+            elif kwargs.get("use_fast", True):
                 BackboneTokenizer = BackboneTokenizers[1]
             else:
                 BackboneTokenizer = BackboneTokenizers[0]

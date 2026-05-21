@@ -129,6 +129,20 @@ class SetEncoderModel(MonoModel):
             CrossEncoderOutput: Output of the model.
         """
         num_docs = encoding.pop("num_docs", None)
+        if num_docs is not None:
+            attention_mask = encoding.get("attention_mask")
+            if attention_mask is not None:
+                device = attention_mask.device
+                eye = (1 - torch.eye(self.config.depth, device=device)).long()
+                if not self.config.sample_missing_docs:
+                    eye = eye[:, : max(num_docs)]
+                other_doc_attention_mask = torch.cat([eye[:n] for n in num_docs])
+                attention_mask = torch.cat(
+                    [attention_mask, other_doc_attention_mask.to(attention_mask)],
+                    dim=-1,
+                )
+                encoding["attention_mask"] = attention_mask
+
         self.get_extended_attention_mask = partial(self.get_extended_attention_mask, num_docs=num_docs)
         for name, module in self.named_modules():
             if name.endswith(self.self_attention_pattern):
@@ -192,7 +206,7 @@ class SetEncoderModel(MonoModel):
         context = context.permute(0, 2, 1, 3).contiguous()
         new_context_shape = context.size()[:-2] + (self.all_head_size,)
         context = context.view(new_context_shape)
-        return (context,)
+        return (context, None)
 
     def cat_other_doc_hidden_states(
         self,
