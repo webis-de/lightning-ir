@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Literal, Self
 
 import torch
-import transformers
 from transformers import BatchEncoding
 
 from ...bi_encoder import (
