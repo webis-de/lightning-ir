@@ -642,7 +642,7 @@ class RunDataset(IRDataset, Dataset):
             filtered = group.set_index("doc_id").loc[list(doc_ids)].filter(like=self.targets).fillna(0)
             if filtered.empty:
                 raise ValueError(f"targets `{self.targets}` not found in run file")
-            targets = torch.from_numpy(filtered.values)
+            targets = torch.from_numpy(filtered.values).to(torch.float32)
             if self.targets == "rank":
                 # invert ranks to be higher is better (necessary for loss functions)
                 targets = self.depth - targets + 1
@@ -718,7 +718,7 @@ class TupleDataset(IRDataset, IterableDataset):
             query = self.queries.loc[query_id]
             doc_ids, docs, targets = self._parse_sample(sample)
             if targets is not None:
-                targets = torch.tensor(targets)
+                targets = torch.tensor(targets, dtype=torch.float32)
             yield RankSample(query_id, query, doc_ids, docs, targets)
 
     def prepare_data(self) -> None:

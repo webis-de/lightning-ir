@@ -26,6 +26,7 @@ def test_serialize_deserialize(module: LightningIRModule, tmp_path: Path):
                 "transformers_version",
                 "_attn_implementation_autoset",
                 "_attn_implementation_internal",
+                "_experts_implementation_internal",
             ):
                 continue
             assert getattr(new_config, key) == value

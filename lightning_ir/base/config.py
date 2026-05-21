@@ -96,6 +96,19 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
         return output
 
     @classmethod
+    def from_dict(cls, config_dict: dict[str, Any], **kwargs) -> LightningIRConfig:
+        """Constructs a `LightningIRConfig` from a Python dictionary of parameters."""
+        if cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__):
+            backbone_model_type = config_dict.get("backbone_model_type", None)
+            if backbone_model_type is not None:
+                from transformers import CONFIG_MAPPING
+                backbone_config_class = CONFIG_MAPPING[backbone_model_type]
+                ConfigClass = cls if cls is not LightningIRConfig else type(LightningIRConfigClassFactory.get_lightning_ir_config(config_dict.get("model_type")))
+                if ConfigClass is not LightningIRConfig:
+                    cls = LightningIRConfigClassFactory(ConfigClass).from_backbone_class(backbone_config_class)
+        return super().from_dict(config_dict, **kwargs)
+
+    @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: str | Path, *args, **kwargs) -> LightningIRConfig:
         """Loads the configuration from a pretrained model. Wraps the transformers.PretrainedConfig.from_pretrained_
 

@@ -47,7 +47,11 @@ class BiEncoderConfig(LightningIRConfig):
         self.normalization_strategy = normalization_strategy
         self.sparsification_strategy = sparsification_strategy
         self.add_marker_tokens = add_marker_tokens
-        self.embedding_dim: int | None = getattr(self, "hidden_size", None)
+        
+        _embedding_dim = kwargs.get("embedding_dim", None)
+        if _embedding_dim is None:
+            _embedding_dim = getattr(self, "hidden_size", None)
+        self.embedding_dim = _embedding_dim
 
     def to_diff_dict(self) -> dict[str, Any]:
         """
@@ -59,7 +63,12 @@ class BiEncoderConfig(LightningIRConfig):
             dict[str, Any]: Dictionary of all the attributes that make up this configuration instance.
         """
         diff_dict = super().to_diff_dict()
-        diff_dict.pop("embedding_dim", None)  # Exclude embedding_dim from diff_dict
+        try:
+            embedding_dim = self.embedding_dim
+        except (ValueError, AttributeError):
+            embedding_dim = None
+        if embedding_dim is not None:
+            diff_dict["embedding_dim"] = embedding_dim
         return diff_dict
 
 
