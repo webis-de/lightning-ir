@@ -24,7 +24,7 @@ classifiers = [
 ]
 requires-python = ">=3.9"
 dependencies = [
-    "transformers[torch]>=4.50.0,<5.0.0",
+    "transformers[torch]>=5.0.0",
     "datasets>=3.0.0",
     "ir_datasets",
     "ir-measures",
