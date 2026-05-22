@@ -33,7 +33,7 @@ class PlaidSearcher(Searcher):
         super().__init__(index_dir, search_config, module, use_gpu)
         self.search_config: PlaidSearchConfig
 
-        self.index = search.FastPlaid(index=str(self.index_dir), device=self.device.type, preload_index=True)
+        self.index = search.FastPlaid(index=str(self.index_dir), device=self.device.type)
 
     def search(self, output: BiEncoderOutput) -> tuple[PackedTensor, list[list[str]]]:
         """Search for relevant documents using the Plaid index.

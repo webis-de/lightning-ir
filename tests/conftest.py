@@ -1,4 +1,10 @@
 import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 import shutil
 from collections.abc import Generator
 from pathlib import Path
@@ -100,7 +106,7 @@ DATA_DIR = Path(__file__).parent / "data"
 
 GLOBAL_KWARGS: dict[str, Any] = {"query_length": 8, "doc_length": 8}
 
-BI_ENCODER_GLOBAL_KWARGS: dict[str, Any] = {"embedding_dim": 4}
+BI_ENCODER_GLOBAL_KWARGS: dict[str, Any] = {"embedding_dim": 128}
 
 BI_ENCODER_CONFIGS = {
     "CoilModel": CoilConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),

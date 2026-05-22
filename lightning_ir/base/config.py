@@ -103,7 +103,14 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
             if backbone_model_type is not None:
                 from transformers import CONFIG_MAPPING
                 backbone_config_class = CONFIG_MAPPING[backbone_model_type]
-                ConfigClass = cls if cls is not LightningIRConfig else type(LightningIRConfigClassFactory.get_lightning_ir_config(config_dict.get("model_type")))
+                if cls is not LightningIRConfig:
+                    ConfigClass = cls
+                else:
+                    factory_result = LightningIRConfigClassFactory.get_lightning_ir_config(
+                        config_dict.get("model_type")
+                    )
+                    ConfigClass = type(factory_result)
+
                 if ConfigClass is not LightningIRConfig:
                     cls = LightningIRConfigClassFactory(ConfigClass).from_backbone_class(backbone_config_class)
         return super().from_dict(config_dict, **kwargs)
