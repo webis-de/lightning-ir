@@ -112,7 +112,8 @@ class SpladeModel(SingleVectorBiEncoderModel):
         """
         super().__init__(config, *args, **kwargs)
         # grab language modeling head based on backbone model type
-        layer_cls = MODEL_TYPE_TO_LM_HEAD[config.backbone_model_type or config.model_type]
+        backbone_model_type = config.get_backbone_model_type() or config.model_type
+        layer_cls = MODEL_TYPE_TO_LM_HEAD[backbone_model_type]
         self.projection = layer_cls(config)
         tied_weights_keys = getattr(self, "_tied_weights_keys", None)
         if not isinstance(tied_weights_keys, dict):
@@ -197,8 +198,21 @@ class SpladeModel(SingleVectorBiEncoderModel):
         """
         key_mapping = kwargs.pop("key_mapping", {})
         config = cls.config_class
+
         # map mlm projection keys
-        model_type = config.backbone_model_type or config.model_type
+        if isinstance(config, type):
+            backbone_model_type = getattr(config, "backbone_model_type", None)
+            if backbone_model_type is None:
+                for base in config.__mro__[1:]:
+                    module_name = getattr(base, "__module__", "")
+                    model_type = getattr(base, "model_type", None)
+                    if module_name.startswith("transformers.models.") and model_type:
+                        backbone_model_type = model_type
+                        break
+            model_type = backbone_model_type or getattr(config, "model_type", None)
+        else:
+            model_type = config.get_backbone_model_type() or config.model_type
+            
         if model_type in MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING:
             key_mapping.update(MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING[model_type])
         if not key_mapping:

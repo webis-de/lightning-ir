@@ -77,9 +77,10 @@ class SetEncoderModel(MonoModel):
         super().__init__(config, *args, **kwargs)
         self.config: SetEncoderConfig
         self.attn_implementation = "eager"
-        if self.config.backbone_model_type is not None and self.config.backbone_model_type not in ("bert", "electra"):
+        backbone_model_type = self.config.get_backbone_model_type()
+        if backbone_model_type is not None and backbone_model_type not in ("bert", "electra"):
             raise ValueError(
-                f"SetEncoderModel does not support backbone model type {self.config.backbone_model_type}. "
+                f"SetEncoderModel does not support backbone model type {backbone_model_type}. "
                 f"Supported types are 'bert' and 'electra'."
             )
 

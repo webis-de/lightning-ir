@@ -340,7 +340,13 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
 
     def from_backbone_classes(
         self,
-        BackboneClasses: tuple[type[PreTrainedTokenizerBase] | None, type[PreTrainedTokenizerBase] | None] | type[PreTrainedTokenizerBase],
+        BackboneClasses: (
+            tuple[
+                type[PreTrainedTokenizerBase] | None,
+                type[PreTrainedTokenizerBase] | None,
+            ]
+            | type[PreTrainedTokenizerBase]
+        ),
         BackboneConfig: type[PretrainedConfig] | None = None,
     ) -> tuple[type[LightningIRTokenizer] | None, type[LightningIRTokenizer] | None]:
         """Creates derived slow and fastLightningIRTokenizers from a tuple of backbone HuggingFace tokenizer classes.

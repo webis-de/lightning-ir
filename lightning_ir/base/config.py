@@ -91,9 +91,24 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
             dict[str, Any]: Configuration dictionary.
         """
         output = super().to_dict()
-        if self.backbone_model_type is not None:
-            output["backbone_model_type"] = self.backbone_model_type
+        backbone_model_type = self.get_backbone_model_type()
+        if backbone_model_type is not None:
+            output["backbone_model_type"] = backbone_model_type
         return output
+
+    def get_backbone_model_type(self) -> str | None:
+        """Returns the backbone model type if it can be inferred from the config class hierarchy."""
+        backbone_model_type = getattr(self, "backbone_model_type", None)
+        if backbone_model_type is not None:
+            return backbone_model_type
+
+        for base in type(self).__mro__[1:]:
+            module_name = getattr(base, "__module__", "")
+            model_type = getattr(base, "model_type", None)
+            if module_name.startswith("transformers.models.") and model_type:
+                return model_type
+
+        return None
 
     @classmethod
     def from_dict(cls, config_dict: dict[str, Any], **kwargs) -> LightningIRConfig:
