@@ -73,7 +73,6 @@ class UniCoilEncoder(PreTrainedModel):
         self.init_weights()
         self.post_init()
 
-
     # Copied from transformers.models.bert.modeling_bert.BertPreTrainedModel._init_weights
     def _init_weights(self, module):
         """Initialize the weights"""

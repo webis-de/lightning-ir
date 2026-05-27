@@ -156,6 +156,7 @@ class LightningIRClassFactory(ABC):
 
 _CONFIG_CLASS_CACHE: dict[tuple[str, str], type] = {}
 
+
 class LightningIRConfigClassFactory(LightningIRClassFactory):
     """Class factory for creating derived LightningIRConfig classes from HuggingFace configuration classes."""
 
@@ -206,6 +207,7 @@ https://huggingface.co/docs/transformers/main_classes/configuration#transformers
 
 
 _MODEL_CLASS_CACHE: dict[tuple[str, str], type] = {}
+
 
 class LightningIRModelClassFactory(LightningIRClassFactory):
     """Class factory for creating derived LightningIRModel classes from HuggingFace model classes."""
@@ -262,6 +264,7 @@ https://huggingface.co/transformers/main_classes/model#transformers.PreTrainedMo
         )
 
         from transformers import AutoModel
+
         AutoModel.register(DerivedLightningIRConfig, DerivedLightningIRModel, exist_ok=True)
 
         _MODEL_CLASS_CACHE[cache_key] = DerivedLightningIRModel
