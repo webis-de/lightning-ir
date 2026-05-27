@@ -47,7 +47,7 @@ class BiEncoderConfig(LightningIRConfig):
         self.normalization_strategy = normalization_strategy
         self.sparsification_strategy = sparsification_strategy
         self.add_marker_tokens = add_marker_tokens
-        
+
         _embedding_dim = kwargs.get("embedding_dim", None)
         if _embedding_dim is None:
             _embedding_dim = getattr(self, "hidden_size", None)

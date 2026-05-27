@@ -212,7 +212,7 @@ class SpladeModel(SingleVectorBiEncoderModel):
             model_type = backbone_model_type or getattr(config, "model_type", None)
         else:
             model_type = config.get_backbone_model_type() or config.model_type
-            
+
         if model_type in MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING:
             key_mapping.update(MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING[model_type])
         if not key_mapping:

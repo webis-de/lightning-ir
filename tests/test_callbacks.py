@@ -1,3 +1,4 @@
+import importlib.util
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -64,9 +65,7 @@ def test_index_callback(
         )
 
     if "Seismic" in index_config.__class__.__name__:
-        try:
-            import seismic
-        except ImportError:
+        if importlib.util.find_spec("seismic") is None:
             pytest.skip("seismic package is not available")
 
     index_dir = tmp_path / "index"
@@ -168,9 +167,7 @@ def test_search_callback(
         )
 
     if "Seismic" in search_config.__class__.__name__:
-        try:
-            import seismic
-        except ImportError:
+        if importlib.util.find_spec("seismic") is None:
             pytest.skip("seismic package is not available")
 
     index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)

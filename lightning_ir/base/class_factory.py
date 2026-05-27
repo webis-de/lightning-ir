@@ -185,7 +185,7 @@ https://huggingface.co/docs/transformers/main_classes/configuration#transformers
         """
         if getattr(BackboneClass, "backbone_model_type", None) is not None:
             return BackboneClass
-        
+
         cache_key = (self.MixinConfig.model_type, BackboneClass.__name__)
         if cache_key in _CONFIG_CLASS_CACHE:
             return _CONFIG_CLASS_CACHE[cache_key]
@@ -260,10 +260,10 @@ https://huggingface.co/transformers/main_classes/model#transformers.PreTrainedMo
             (LightningIRModelMixin, BackboneClass),
             {"config_class": DerivedLightningIRConfig, "_backbone_forward": BackboneClass.forward},
         )
-        
+
         from transformers import AutoModel
         AutoModel.register(DerivedLightningIRConfig, DerivedLightningIRModel, exist_ok=True)
-        
+
         _MODEL_CLASS_CACHE[cache_key] = DerivedLightningIRModel
         return DerivedLightningIRModel
 
