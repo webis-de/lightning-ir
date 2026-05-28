@@ -166,10 +166,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
                 if model_name_or_path in BACKBONE_MAPPING:
                     BackboneModel = BACKBONE_MAPPING[str(model_name_or_path)]
                 else:
-                    backbone_config = LightningIRModelClassFactory.get_backbone_config(
-                        model_name_or_path
-                    ).from_pretrained(model_name_or_path)
-                    BackboneModel = _get_model_class(backbone_config)
+                    backbone_config = LightningIRModelClassFactory.get_backbone_config(model_name_or_path)
+                    BackboneModel = _get_model_class(backbone_config, model_name_or_path)
             cls = LightningIRModelClassFactory(ConfigClass).from_backbone_class(BackboneModel)
             if config is not None:
                 if all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):

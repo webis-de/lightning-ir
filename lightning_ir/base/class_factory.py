@@ -16,10 +16,12 @@ from transformers import (
     CONFIG_MAPPING,
     MODEL_MAPPING,
     TOKENIZER_MAPPING,
+    AutoConfig,
     PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
 )
+from transformers.dynamic_module_utils import get_class_from_dynamic_module
 from transformers.models.auto.configuration_auto import model_type_to_module_name
 from transformers.models.auto.tokenization_auto import TOKENIZER_MAPPING_NAMES, get_tokenizer_config
 
@@ -27,8 +29,16 @@ if TYPE_CHECKING:
     from . import LightningIRConfig, LightningIRModel, LightningIRTokenizer
 
 
-def _get_model_class(config: PretrainedConfig | type[PretrainedConfig]) -> type[PreTrainedModel]:
+def _get_model_class(
+    config: PretrainedConfig | type[PretrainedConfig], model_name_or_path: str | Path | None = None
+) -> type[PreTrainedModel]:
     # https://github.com/huggingface/transformers/blob/356b3cd71d7bfb51c88fea3e8a0c054f3a457ab9/src/transformers/models/auto/auto_factory.py#L387
+    if not isinstance(config, type) and type(config) not in MODEL_MAPPING:
+        # Backbone ships custom modeling code (e.g. NeoBERT) and is not part of the transformers
+        # auto-mappings. Resolve the model class from the config's auto_map via trust_remote_code.
+        auto_map = getattr(config, "auto_map", None) or {}
+        if model_name_or_path is not None and "AutoModel" in auto_map:
+            return get_class_from_dynamic_module(auto_map["AutoModel"], str(model_name_or_path))
     if isinstance(config, type):
         supported_models = MODEL_MAPPING[config]
     else:
@@ -78,7 +88,11 @@ class LightningIRClassFactory(ABC):
             PretrainedConfig: Configuration of the backbone model.
         """
         backbone_model_type = LightningIRClassFactory.get_backbone_model_type(model_name_or_path)
-        return CONFIG_MAPPING[backbone_model_type].from_pretrained(model_name_or_path)
+        if backbone_model_type in CONFIG_MAPPING:
+            return CONFIG_MAPPING[backbone_model_type].from_pretrained(model_name_or_path)
+        # Backbone ships custom config code (e.g. NeoBERT) and is not part of the transformers
+        # auto-mappings. Load it via trust_remote_code.
+        return AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
 
     @staticmethod
     def get_lightning_ir_config(model_name_or_path: str | Path) -> LightningIRConfig | None:
@@ -209,7 +223,7 @@ class LightningIRModelClassFactory(LightningIRClassFactory):
             type[LightningIRModel]: Derived LightningIRModel.
         """
         backbone_config = self.get_backbone_config(model_name_or_path)
-        BackboneModel = _get_model_class(backbone_config)
+        BackboneModel = _get_model_class(backbone_config, model_name_or_path)
         DerivedLightningIRModel = self.from_backbone_class(BackboneModel)
         return DerivedLightningIRModel
 
@@ -262,7 +276,43 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
             PretrainedConfig: Configuration class of the backbone tokenizer.
         """
         backbone_model_type = LightningIRTokenizerClassFactory.get_backbone_model_type(model_name_or_path)
-        return CONFIG_MAPPING[backbone_model_type].from_pretrained(model_name_or_path)
+        if backbone_model_type in CONFIG_MAPPING:
+            return CONFIG_MAPPING[backbone_model_type].from_pretrained(model_name_or_path)
+        # Backbone ships custom config code (e.g. NeoBERT) and is not part of the transformers
+        # auto-mappings. Load it via trust_remote_code.
+        return AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+
+    @staticmethod
+    def get_backbone_tokenizers(
+        model_name_or_path: str | Path, backbone_config: PretrainedConfig
+    ) -> tuple[type[PreTrainedTokenizerBase] | None, type[PreTrainedTokenizerBase] | None]:
+        """Resolves the slow and fast backbone tokenizer classes for a pretrained HuggingFace tokenizer.
+
+        Args:
+            model_name_or_path (str | Path): Path to the tokenizer or its name.
+            backbone_config (PretrainedConfig): Configuration of the backbone tokenizer.
+        Returns:
+            tuple[type[PreTrainedTokenizerBase] | None, type[PreTrainedTokenizerBase] | None]: Slow and fast backbone
+            tokenizer classes.
+        Raises:
+            ValueError: If the backbone tokenizer classes cannot be resolved.
+        """
+        if type(backbone_config) in TOKENIZER_MAPPING:
+            return TOKENIZER_MAPPING[type(backbone_config)]
+        # Backbone is not in the transformers auto-mappings (e.g. NeoBERT). Resolve the backbone tokenizer
+        # classes from the `tokenizer_class` declared in tokenizer_config.json.
+        config_dict = get_tokenizer_config(model_name_or_path)
+        tokenizer_class = config_dict.get("tokenizer_class", None) or config_dict.get("backbone_tokenizer_class", None)
+        if tokenizer_class is None:
+            raise ValueError(f"Unable to determine the backbone tokenizer class for {model_name_or_path}.")
+        slow_class_name = tokenizer_class.removesuffix("Fast")
+        fast_class_name = f"{slow_class_name}Fast"
+        transformers_module = importlib.import_module("transformers")
+        slow_class = getattr(transformers_module, slow_class_name, None)
+        fast_class = getattr(transformers_module, fast_class_name, None)
+        if slow_class is None and fast_class is None:
+            raise ValueError(f"Unable to resolve tokenizer class '{tokenizer_class}' for {model_name_or_path}.")
+        return slow_class, fast_class
 
     @staticmethod
     def get_backbone_model_type(model_name_or_path: str | Path, *args, **kwargs) -> str:
@@ -305,7 +355,7 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
             ValueError: If no slow tokenizer is found when `use_fast` is False.
         """
         backbone_config = self.get_backbone_config(model_name_or_path)
-        BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
+        BackboneTokenizers = self.get_backbone_tokenizers(model_name_or_path, backbone_config)
         DerivedLightningIRTokenizers = self.from_backbone_classes(BackboneTokenizers, type(backbone_config))
         if use_fast:
             DerivedLightningIRTokenizer = DerivedLightningIRTokenizers[1]
