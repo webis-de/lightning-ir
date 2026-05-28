@@ -101,6 +101,19 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             # So we need to initialize them separately using the default initialization of the PreTrainedModel
             PreTrainedModel._init_weights(self, module)
 
+    def get_input_embeddings(self) -> torch.nn.Module:
+        if getattr(self.config, "backbone_model_type", None) == "neobert":
+            # NeoBERT stores its token embedding as `self.encoder` and does not implement the standard
+            # get/set_input_embeddings, so resize_token_embeddings cannot find the table otherwise.
+            return self.encoder
+        return super().get_input_embeddings()
+
+    def set_input_embeddings(self, value: torch.nn.Module) -> None:
+        if getattr(self.config, "backbone_model_type", None) == "neobert":
+            self.encoder = value
+            return
+        super().set_input_embeddings(value)
+
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
         :class:`~lightning_ir.base.class_factory.LightningIRModelClassFactory`.
