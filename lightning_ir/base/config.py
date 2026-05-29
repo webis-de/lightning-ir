@@ -28,6 +28,13 @@ if TYPE_CHECKING:
             pass
 
 
+def _drop_none_backbone_model_type(config_dict: dict[str, Any]) -> dict[str, Any]:
+    """Remove a null instance override so derived config classes keep their class-level backbone type."""
+    if config_dict.get("backbone_model_type") is None:
+        config_dict.pop("backbone_model_type", None)
+    return config_dict
+
+
 class LightningIRConfig(PretrainedConfig):
     """The configuration class to instantiate a Lightning IR model. Acts as a mixin for the
     transformers.PretrainedConfig_ class.
@@ -167,6 +174,6 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
             cls = LightningIRConfigClassFactory(ConfigClass).from_backbone_class(type(backbone_config))
             if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
                 derived_config = cls.from_pretrained(pretrained_model_name_or_path, config=config)
-                derived_config.update(config.to_dict())
+                derived_config.update(_drop_none_backbone_model_type(config.to_dict()))
             return cls.from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
         return super().from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
