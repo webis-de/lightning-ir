@@ -73,6 +73,12 @@ include-package-data = true
 include = ["lightning_ir", "lightning_ir.*"]
 exclude = ["examples*", "docs*", "tests*"]
 
+[tool.pytest.ini_options]
+markers = [
+    "dataset: tests that require downloading datasets from external sources",
+    "model: tests that require downloading models from external sources",
+]
+
 [tool.ruff]
 line-length = 120
 target-version = "py39"

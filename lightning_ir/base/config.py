@@ -98,7 +98,11 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
 
     def get_backbone_model_type(self) -> str | None:
         """Returns the backbone model type if it can be inferred from the config class hierarchy."""
-        backbone_model_type = getattr(self, "backbone_model_type", None)
+        backbone_model_type = self.__dict__.get("backbone_model_type", None)
+        if backbone_model_type is not None:
+            return backbone_model_type
+
+        backbone_model_type = getattr(type(self), "backbone_model_type", None)
         if backbone_model_type is not None:
             return backbone_model_type
 

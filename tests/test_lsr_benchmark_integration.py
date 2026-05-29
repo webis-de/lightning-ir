@@ -1,4 +1,8 @@
+import pytest
+
 from lightning_ir import DocDataset, QueryDataset
+
+pytestmark = pytest.mark.dataset
 
 
 def test_lsr_benchmark_load_docs():

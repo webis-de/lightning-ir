@@ -9,6 +9,8 @@ from lightning_ir.base.module import LightningIRModule
 def test_serialize_deserialize(module: LightningIRModule, tmp_path: Path):
     config = module.model.config
     config_class = module.model.config_class
+    assert config.backbone_model_type == "bert"
+    assert config.get_backbone_model_type() == "bert"
     save_dir = str(tmp_path / config_class.model_type)
     config.save_pretrained(save_dir)
     new_configs = [
