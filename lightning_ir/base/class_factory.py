@@ -16,6 +16,7 @@ from transformers import (
     CONFIG_MAPPING,
     MODEL_MAPPING,
     TOKENIZER_MAPPING,
+    AutoTokenizer,
     PretrainedConfig,
     PreTrainedModel,
     PreTrainedTokenizerBase,
@@ -329,7 +330,13 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
             ValueError: If no slow tokenizer is found when `use_fast` is False.
         """
         backbone_config = self.get_backbone_config(model_name_or_path)
-        BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
+        try:
+            BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
+        except KeyError:
+            BackboneTokenizer = AutoTokenizer.from_pretrained(
+                model_name_or_path, *args, use_fast=use_fast, **kwargs
+            ).__class__
+            BackboneTokenizers = (None, BackboneTokenizer) if use_fast else (BackboneTokenizer, None)
         DerivedLightningIRTokenizers = self.from_backbone_classes(BackboneTokenizers, type(backbone_config))
         if use_fast:
             DerivedLightningIRTokenizer = DerivedLightningIRTokenizers[1]

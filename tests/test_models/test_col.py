@@ -4,6 +4,8 @@ import transformers
 
 transformers.AdamW = None  # monkey patch to avoid import error for original colbert
 
+import colbert.modeling.base_colbert as colbert_base  # noqa: E402
+import colbert.modeling.hf_colbert as colbert_hf  # noqa: E402
 from colbert.modeling.checkpoint import Checkpoint  # noqa: E402
 from colbert.modeling.colbert import ColBERTConfig, colbert_score  # noqa: E402
 from pylate import models, rank  # noqa: E402
@@ -20,6 +22,20 @@ def _get_model_type(*args, **kwargs):
 
 
 PyLateColbert._get_model_type = _get_model_type
+
+
+_colbert_class_factory = colbert_hf.class_factory
+
+
+def _class_factory_with_transformers_v5_tied_keys(*args, **kwargs):
+    model_class = _colbert_class_factory(*args, **kwargs)
+    if not hasattr(model_class, "all_tied_weights_keys"):
+        model_class.all_tied_weights_keys = {}
+    return model_class
+
+
+colbert_hf.class_factory = _class_factory_with_transformers_v5_tied_keys
+colbert_base.class_factory = _class_factory_with_transformers_v5_tied_keys
 
 
 @pytest.mark.model

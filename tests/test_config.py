@@ -9,7 +9,7 @@ from lightning_ir.base.module import LightningIRModule
 def test_serialize_deserialize(module: LightningIRModule, tmp_path: Path):
     config = module.model.config
     config_class = module.model.config_class
-    assert config.get_backbone_model_type() == "bert"
+    assert config.backbone_model_type == "bert"
     save_dir = str(tmp_path / config_class.model_type)
     config.save_pretrained(save_dir)
     new_configs = [
@@ -29,8 +29,5 @@ def test_serialize_deserialize(module: LightningIRModule, tmp_path: Path):
                 "_attn_implementation_internal",
                 "_experts_implementation_internal",
             ):
-                continue
-            if key == "backbone_model_type" and value is None:
-                assert new_config.get_backbone_model_type() == config.get_backbone_model_type()
                 continue
             assert getattr(new_config, key) == value

@@ -70,6 +70,7 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
                 Defaults to None.
         """
         super().__init__(*args, **kwargs)
+        _drop_none_backbone_model_type(self.__dict__)
         self.query_length = query_length
         self.doc_length = doc_length
         self.use_adapter = use_adapter

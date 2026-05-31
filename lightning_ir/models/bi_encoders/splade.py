@@ -122,6 +122,13 @@ class SpladeModel(SingleVectorBiEncoderModel):
             tied_weights_keys = dict(tied_weights_keys)
         tied_weights_keys["projection.decoder.weight"] = "embeddings.word_embeddings.weight"
         self._tied_weights_keys = tied_weights_keys
+        all_tied_weights_keys = getattr(self, "all_tied_weights_keys", None)
+        if not isinstance(all_tied_weights_keys, dict):
+            all_tied_weights_keys = {}
+        else:
+            all_tied_weights_keys = dict(all_tied_weights_keys)
+        all_tied_weights_keys["projection.decoder.weight"] = "embeddings.word_embeddings.weight"
+        self.all_tied_weights_keys = all_tied_weights_keys
         self.query_weights = None
         if config.query_weighting == "static":
             self.query_weights = torch.nn.Embedding(config.vocab_size, 1)

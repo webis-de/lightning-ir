@@ -29,7 +29,7 @@ def test_same_as_splade(hf_model: str):
         "The Eiffel Tower is in Paris.",
     ]
 
-    orig_model = SparseEncoder(hf_model)
+    orig_model = SparseEncoder(hf_model, device="cpu")
     orig_query_embeddings = orig_model.encode_query([query])
     orig_doc_embeddings = orig_model.encode_document(documents)
     orig_scores = orig_model.similarity(orig_query_embeddings, orig_doc_embeddings)

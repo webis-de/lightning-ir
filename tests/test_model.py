@@ -94,9 +94,6 @@ def test_seralize_deserialize(module: LightningIRModule, tmp_path: Path):
                 "_attn_implementation_autoset",
             ):
                 continue
-            if key == "backbone_model_type" and value is None:
-                assert new_model.config.get_backbone_model_type() == model.config.get_backbone_model_type()
-                continue
             assert getattr(new_model.config, key) == value
         for key, value in model.state_dict().items():
             assert new_model.state_dict()[key].equal(value)

@@ -69,6 +69,8 @@ class BiEncoderConfig(LightningIRConfig):
             embedding_dim = None
         if embedding_dim is not None:
             diff_dict["embedding_dim"] = embedding_dim
+        else:
+            diff_dict.pop("embedding_dim", None)
         return diff_dict
 
 
