@@ -76,7 +76,7 @@ DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
 RUNS_DIR = DATA_DIR / "runs"
 
-CONFIGS = Union[BiEncoderConfig, CrossEncoderConfig]
+CONFIGS = BiEncoderConfig | CrossEncoderConfig
 
 register_new_dataset(
     dataset_id="lightning-ir",
