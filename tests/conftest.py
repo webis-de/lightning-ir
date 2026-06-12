@@ -1,8 +1,15 @@
 import os
+
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+
 import shutil
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import pytest
 from _pytest.fixtures import SubRequest
@@ -69,7 +76,7 @@ DATA_DIR = Path(__file__).parent / "data"
 CORPUS_DIR = DATA_DIR / "corpus"
 RUNS_DIR = DATA_DIR / "runs"
 
-CONFIGS = Union[BiEncoderConfig, CrossEncoderConfig]
+CONFIGS = BiEncoderConfig | CrossEncoderConfig
 
 register_new_dataset(
     dataset_id="lightning-ir",
@@ -100,7 +107,7 @@ DATA_DIR = Path(__file__).parent / "data"
 
 GLOBAL_KWARGS: dict[str, Any] = {"query_length": 8, "doc_length": 8}
 
-BI_ENCODER_GLOBAL_KWARGS: dict[str, Any] = {"embedding_dim": 4}
+BI_ENCODER_GLOBAL_KWARGS: dict[str, Any] = {"embedding_dim": 128}
 
 BI_ENCODER_CONFIGS = {
     "CoilModel": CoilConfig(**GLOBAL_KWARGS, **BI_ENCODER_GLOBAL_KWARGS),

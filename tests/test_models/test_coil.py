@@ -71,6 +71,7 @@ class UniCoilEncoder(PreTrainedModel):
         self.bert = BertModel(config)
         self.tok_proj = torch.nn.Linear(config.hidden_size, 1)
         self.init_weights()
+        self.post_init()
 
     # Copied from transformers.models.bert.modeling_bert.BertPreTrainedModel._init_weights
     def _init_weights(self, module):
@@ -106,6 +107,17 @@ class UniCoilEncoder(PreTrainedModel):
         out = torch.zeros(input_shape[0], self.config.vocab_size, device=device)
         out = out.scatter(1, input_ids, tok_weights)
         return out
+
+
+def _load_unicoil_state_dict(model: UniCoilEncoder, hf_model: str) -> None:
+    state_dict_path = hf_hub_download(hf_model, filename="pytorch_model.bin")
+    state_dict = torch.load(state_dict_path, map_location="cpu")
+    state_dict = {
+        key.removeprefix("coil_encoder."): value
+        for key, value in state_dict.items()
+        if key.startswith(("coil_encoder.bert.", "coil_encoder.tok_proj."))
+    }
+    model.load_state_dict(state_dict, strict=False)
 
 
 @pytest.mark.model
@@ -174,6 +186,7 @@ def test_same_as_unicoil(hf_model: str):
     ]
 
     orig_model = UniCoilEncoder.from_pretrained(hf_model)
+    _load_unicoil_state_dict(orig_model, hf_model)
     orig_tokenizer = AutoTokenizer.from_pretrained(hf_model)
     orig_query_encoded = orig_tokenizer(
         query, padding=True, truncation=True, max_length=512, return_tensors="pt", return_token_type_ids=False
