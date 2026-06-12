@@ -107,8 +107,12 @@ class CrossEncoderTokenizer(LightningIRTokenizer):
         num_docs: Sequence[int],
     ) -> tuple[str | Sequence[str], str | Sequence[str]]:
         """Preprocesses queries and documents to ensure that they are truncated their respective maximum lengths."""
-        truncated_queries = self._repeat_queries(self._truncate(queries, self.query_length), num_docs)
+        truncated_queries = self._truncate(queries, self.query_length)
         truncated_docs = self._truncate(docs, self.doc_length)
+        if self.post_processor is not None:
+            truncated_queries = [f" {query}" for query in truncated_queries]
+            truncated_docs = [f" {doc}" for doc in truncated_docs]
+        truncated_queries = self._repeat_queries(truncated_queries, num_docs)
         return truncated_queries, truncated_docs
 
     def _process_num_docs(
