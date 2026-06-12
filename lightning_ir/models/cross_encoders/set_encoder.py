@@ -130,24 +130,11 @@ class SetEncoderModel(MonoModel):
             CrossEncoderOutput: Output of the model.
         """
         num_docs = encoding.pop("num_docs", None)
-        if num_docs is not None:
-            attention_mask = encoding.get("attention_mask")
-            if attention_mask is not None:
-                device = attention_mask.device
-                eye = (1 - torch.eye(self.config.depth, device=device)).long()
-                if not self.config.sample_missing_docs:
-                    eye = eye[:, : max(num_docs)]
-                other_doc_attention_mask = torch.cat([eye[:n] for n in num_docs])
-                attention_mask = torch.cat(
-                    [attention_mask, other_doc_attention_mask.to(attention_mask)],
-                    dim=-1,
-                )
-                encoding["attention_mask"] = attention_mask
 
-        self.get_extended_attention_mask = partial(self.get_extended_attention_mask, num_docs=num_docs)
+        self.get_extended_attention_mask = partial(type(self).get_extended_attention_mask, self, num_docs=num_docs)
         for name, module in self.named_modules():
             if name.endswith(self.self_attention_pattern):
-                module.forward = partial(self.attention_forward, self, module, num_docs=num_docs)
+                module.forward = partial(type(self).attention_forward, self, module, num_docs=num_docs)
         return super().forward(encoding)
 
     @staticmethod
