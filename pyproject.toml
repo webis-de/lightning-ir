@@ -38,7 +38,7 @@ dependencies = [
 test = [
     "pytest>=8,<10",
     "pytest-cov>=5,<8",
-    "sentence-transformers",
+    "sentence-transformers==5.3.0",
     "faiss-cpu",
     "pyseismic-lsr",
     "omegaconf",
