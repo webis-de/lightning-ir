@@ -17,7 +17,7 @@ from transformers.modeling_outputs import ModelOutput
 
 from .adapter import LightningIRAdapterMixin
 from .class_factory import LightningIRModelClassFactory, _get_model_class
-from .config import LightningIRConfig
+from .config import LightningIRConfig, _drop_none_backbone_model_type
 from .external_model_hub import (
     BACKBONE_MAPPING,
     CHECKPOINT_MAPPING,
@@ -96,7 +96,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
     def _init_weights(self, module: torch.nn.Module) -> None:
         super()._init_weights(module)
-        if self.config.backbone_model_type == "modernbert":
+        if self.config.get_backbone_model_type() == "modernbert":
             # NOTE modernbert does not initialize the weights of non-modernbert layers
             # So we need to initialize them separately using the default initialization of the PreTrainedModel
             PreTrainedModel._init_weights(self, module)
@@ -174,7 +174,7 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             if config is not None:
                 if all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
                     derived_config = cls.config_class.from_pretrained(model_name_or_path, config=config)
-                    derived_config.update(config.to_diff_dict())
+                    derived_config.update(_drop_none_backbone_model_type(config.to_diff_dict()))
                     config = derived_config
                     kwargs["config"] = config
                 # NOTE 'config' is contained in kwargs, so we can update it
