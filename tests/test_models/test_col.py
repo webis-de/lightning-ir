@@ -31,6 +31,12 @@ def _class_factory_with_transformers_v5_tied_keys(*args, **kwargs):
     model_class = _colbert_class_factory(*args, **kwargs)
     if not hasattr(model_class, "all_tied_weights_keys"):
         model_class.all_tied_weights_keys = {}
+
+    for attr in ("_keys_to_ignore_on_load_missing", "_keys_to_ignore_on_load_unexpected"):
+        value = getattr(model_class, attr, None)
+        if isinstance(value, list):
+            setattr(model_class, attr, set(value))
+
     return model_class
 
 
