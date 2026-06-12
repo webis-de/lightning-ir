@@ -9,7 +9,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "1"
 import shutil
 from collections.abc import Generator
 from pathlib import Path
-from typing import Any, Union
+from typing import Any
 
 import pytest
 from _pytest.fixtures import SubRequest
