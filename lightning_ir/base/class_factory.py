@@ -198,6 +198,7 @@ https://huggingface.co/docs/transformers/main_classes/configuration#transformers
             f"{self.cc_lir_model_type(LightningIRConfigMixin)}{BackboneClass.__name__}",
             (LightningIRConfigMixin, BackboneClass),
             {
+                "__init__": LightningIRConfigMixin.__init__,
                 "model_type": self.MixinConfig.model_type,
                 "backbone_model_type": BackboneClass.model_type,
                 "mixin_config": self.MixinConfig,
