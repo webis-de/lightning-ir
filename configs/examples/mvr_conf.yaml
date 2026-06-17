@@ -1,0 +1,65 @@
+seed_everything: 0
+trainer:
+  logger: false
+  max_epochs: null
+  max_steps: 50100
+  val_check_interval: null
+  check_val_every_n_epoch: null
+  accumulate_grad_batches: 4
+  gradient_clip_val: 1
+  inference_mode: true
+  enable_progress_bar: false
+  enable_checkpointing: false
+  num_sanity_val_steps: 0
+  callbacks+:
+  - class_path: GenericConstantSchedulerWithQuadraticWarmup
+    init_args:
+      keys:
+      - loss_functions.1.0.temperature
+      num_warmup_steps: 100
+  - class_path: lightning_ir.MvrViewCollapseCallback
+    init_args:
+      log_every_n_steps: 50
+      gaussian_perturb_std: 0.1
+data:
+  class_path: LightningIRDataModule
+  init_args:
+    num_workers: 0
+    train_batch_size: 2
+    train_dataset:
+      class_path: RunDataset
+      init_args:
+        run_path_or_id: nano-beir-msmarco.run
+        sample_size: 8
+        sampling_strategy: random
+        targets: score
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 2.0e-5
+lr_scheduler:
+  class_path: ConstantLRSchedulerWithLinearWarmup
+  init_args:
+    num_warmup_steps: 5000
+model:
+  class_path: lightning_ir.BiEncoderModule
+  init_args:
+    model_name_or_path: answerdotai/ModernBERT-base
+    config:
+      class_path: MvrConfig
+      init_args:
+        query_length: 32
+        doc_length: 256
+        similarity_function: dot
+        normalization_strategy: null
+        add_marker_tokens: False
+        pooling_strategy: first
+        projection: linear
+    loss_functions:
+    - - class_path: SupervisedMarginMSE
+      - 0.05
+    - class_path: ContrastiveLocalLoss
+      init_args:
+        temperature: 1.0
+    evaluation_metrics:
+      - nDCG@10
