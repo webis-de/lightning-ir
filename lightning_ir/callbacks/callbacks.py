@@ -301,6 +301,7 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         self.run_name = run_name
         self.overwrite = overwrite
         self.run_dfs: list[pd.DataFrame] = []
+        self._current_dataloader_idx: int = 0
 
     def setup(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
         """Hook to setup the callback.
@@ -397,8 +398,9 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
             return
         if batch_idx == 0:
             if self.run_dfs:
-                self._write_run_dfs(trainer, pl_module, dataloader_idx)
+                self._write_run_dfs(trainer, pl_module, self._current_dataloader_idx)
             self.run_dfs = []
+            self._current_dataloader_idx = dataloader_idx
         super().on_test_batch_start(trainer, pl_module, batch, batch_idx, dataloader_idx)
 
     def on_test_batch_end(
@@ -456,7 +458,7 @@ class RankCallback(Callback, _GatherMixin, _OverwriteMixin):
         if not trainer.is_global_zero:
             return
         if self.run_dfs:
-            self._write_run_dfs(trainer, pl_module, 0)
+            self._write_run_dfs(trainer, pl_module, self._current_dataloader_idx)
 
 
 class SearchCallback(RankCallback, _IndexDirMixin):
