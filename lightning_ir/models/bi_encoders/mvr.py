@@ -111,7 +111,7 @@ class MvrModel(MultiVectorBiEncoderModel):
         # of full documents. Force full attention on all local attention layers so VIE
         # tokens have global document context. This works for both Flash Attention
         # (window_size=(-1,-1) means full attention) and SDPA/eager paths.
-        if getattr(self.config, "backbone_model_type", None) == "modernbert":
+        if self.config.get_backbone_model_type() == "modernbert":
             for module in self.modules():
                 if hasattr(module, "local_attention") and module.local_attention != (-1, -1):
                     setattr(module, "local_attention", (-1, -1))
