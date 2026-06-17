@@ -5,9 +5,10 @@ from __future__ import annotations
 import csv
 import gc
 import itertools
+from collections.abc import Callable
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import pandas as pd
 import torch

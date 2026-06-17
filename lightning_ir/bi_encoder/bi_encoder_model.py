@@ -343,7 +343,7 @@ class MultiVectorBiEncoderModel(BiEncoderModel):
             setattr(
                 self,
                 f"{sequence}_mask_scoring_input_ids",
-                torch.tensor(mask_scoring_input_ids, dtype=torch.long),
+                torch.tensor(mask_scoring_input_ids, dtype=torch.long, device="cpu"),
             )
 
     def _expand_mask(self, shape: torch.Size, mask: torch.Tensor, dim: int) -> torch.Tensor:

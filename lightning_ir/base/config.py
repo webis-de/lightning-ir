@@ -28,6 +28,13 @@ if TYPE_CHECKING:
             pass
 
 
+def _drop_none_backbone_model_type(config_dict: dict[str, Any]) -> dict[str, Any]:
+    """Remove a null instance override so derived config classes keep their class-level backbone type."""
+    if config_dict.get("backbone_model_type") is None:
+        config_dict.pop("backbone_model_type", None)
+    return config_dict
+
+
 class LightningIRConfig(PretrainedConfig):
     """The configuration class to instantiate a Lightning IR model. Acts as a mixin for the
     transformers.PretrainedConfig_ class.
@@ -63,6 +70,7 @@ https://huggingface.co/transformers/main_classes/configuration.html#transformers
                 Defaults to None.
         """
         super().__init__(*args, **kwargs)
+        _drop_none_backbone_model_type(self.__dict__)
         self.query_length = query_length
         self.doc_length = doc_length
         self.use_adapter = use_adapter
@@ -91,9 +99,49 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
             dict[str, Any]: Configuration dictionary.
         """
         output = super().to_dict()
-        if self.backbone_model_type is not None:
-            output["backbone_model_type"] = self.backbone_model_type
+        backbone_model_type = self.get_backbone_model_type()
+        if backbone_model_type is not None:
+            output["backbone_model_type"] = backbone_model_type
         return output
+
+    def get_backbone_model_type(self) -> str | None:
+        """Returns the backbone model type if it can be inferred from the config class hierarchy."""
+        backbone_model_type = self.__dict__.get("backbone_model_type", None)
+        if backbone_model_type is not None:
+            return backbone_model_type
+
+        backbone_model_type = getattr(type(self), "backbone_model_type", None)
+        if backbone_model_type is not None:
+            return backbone_model_type
+
+        for base in type(self).__mro__[1:]:
+            module_name = getattr(base, "__module__", "")
+            model_type = getattr(base, "model_type", None)
+            if module_name.startswith("transformers.models.") and model_type:
+                return model_type
+
+        return None
+
+    @classmethod
+    def from_dict(cls, config_dict: dict[str, Any], **kwargs) -> LightningIRConfig:
+        """Constructs a `LightningIRConfig` from a Python dictionary of parameters."""
+        if cls is LightningIRConfig or all(issubclass(base, LightningIRConfig) for base in cls.__bases__):
+            backbone_model_type = config_dict.get("backbone_model_type", None)
+            if backbone_model_type is not None:
+                from transformers import CONFIG_MAPPING
+
+                backbone_config_class = CONFIG_MAPPING[backbone_model_type]
+                if cls is not LightningIRConfig:
+                    ConfigClass = cls
+                else:
+                    factory_result = LightningIRConfigClassFactory.get_lightning_ir_config(
+                        config_dict.get("model_type")
+                    )
+                    ConfigClass = type(factory_result)
+
+                if ConfigClass is not LightningIRConfig:
+                    cls = LightningIRConfigClassFactory(ConfigClass).from_backbone_class(backbone_config_class)
+        return super().from_dict(config_dict, **kwargs)
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path: str | Path, *args, **kwargs) -> LightningIRConfig:
@@ -127,6 +175,6 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
             cls = LightningIRConfigClassFactory(ConfigClass).from_backbone_class(type(backbone_config))
             if config is not None and all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):
                 derived_config = cls.from_pretrained(pretrained_model_name_or_path, config=config)
-                derived_config.update(config.to_dict())
+                derived_config.update(_drop_none_backbone_model_type(config.to_dict()))
             return cls.from_pretrained(pretrained_model_name_or_path, *args, **kwargs)
         return super().from_pretrained(pretrained_model_name_or_path, *args, **kwargs)

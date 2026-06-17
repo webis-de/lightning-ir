@@ -1,3 +1,4 @@
+import importlib.util
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -62,6 +63,10 @@ def test_index_callback(
             f"Indexing not supported for {bi_encoder_module.config.__class__.__name__} model "
             f"and {index_config.__class__.__name__} indexer"
         )
+
+    if "Seismic" in index_config.__class__.__name__:
+        if importlib.util.find_spec("seismic") is None:
+            pytest.skip("seismic package is not available")
 
     index_dir = tmp_path / "index"
     index_callback = IndexCallback(index_config=index_config, index_dir=index_dir)
@@ -160,6 +165,10 @@ def test_search_callback(
             f"Searching not supported for {bi_encoder_module.config.__class__.__name__} model and "
             f"{search_config.__class__.__name__} searcher"
         )
+
+    if "Seismic" in search_config.__class__.__name__:
+        if importlib.util.find_spec("seismic") is None:
+            pytest.skip("seismic package is not available")
 
     index_dir = get_index(bi_encoder_module, doc_datamodule, search_config)
     save_dir = tmp_path / "runs"

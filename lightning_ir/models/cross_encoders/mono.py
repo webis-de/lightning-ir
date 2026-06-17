@@ -102,7 +102,7 @@ class MonoModel(CrossEncoderModel):
                 torch.nn.Linear(config.hidden_size, config.hidden_size), torch.nn.Tanh()
             )
 
-        if self.config.backbone_model_type == "t5":
+        if self.config.get_backbone_model_type() == "t5":
             self.linear = ScaleLinear(config.hidden_size, output_dim, bias=self.config.linear_bias)
         else:
             self.linear = torch.nn.Linear(config.hidden_size, output_dim, bias=self.config.linear_bias)
