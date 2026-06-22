@@ -4,6 +4,8 @@ Model module for Lightning IR.
 This module contains the main model class and output class for the Lightning IR library.
 """
 
+import shutil
+import sys
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -207,6 +209,46 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
         model._initialize_adapters()
 
         return model
+
+    def save_pretrained(self, save_directory: str | Path, *args, **kwargs) -> Any:
+        """Saves the model. For backbones loaded via remote code (e.g. NeoBERT), the backbone's dynamic-module
+        files are also copied into the checkpoint so it is self-contained and can be reloaded in a separate
+        process without access to the original model repository.
+
+        Args:
+            save_directory (str | Path): Directory to save the model to.
+        Returns:
+            Any: Return value of `transformers.PreTrainedModel.save_pretrained`.
+        """
+        result = super().save_pretrained(save_directory, *args, **kwargs)
+        self._save_backbone_remote_code(save_directory)
+        return result
+
+    def _save_backbone_remote_code(self, save_directory: str | Path) -> None:
+        """Copies the backbone's dynamic-module files (custom code, e.g. NeoBERT's ``model.py``) into the save
+        directory. Transformers only copies the file defining the saved class, which for a Lightning IR model is
+        ``class_factory.py`` (the runtime-built derived class), not the backbone's modeling code referenced by
+        ``auto_map``. Without these files a checkpoint cannot be reloaded in a fresh process."""
+        backbone_module_name = next(
+            (
+                base.__module__
+                for base in type(self).__mro__
+                if getattr(base, "__module__", "").startswith("transformers_modules")
+            ),
+            None,
+        )
+        if backbone_module_name is None:
+            return
+        backbone_module = sys.modules.get(backbone_module_name)
+        module_file = getattr(backbone_module, "__file__", None)
+        if module_file is None:
+            return
+        src_dir = Path(module_file).parent
+        dst_dir = Path(save_directory)
+        for py_file in src_dir.glob("*.py"):
+            dst = dst_dir / py_file.name
+            if not dst.exists():
+                shutil.copy(py_file, dst)
 
 
 T = TypeVar("T")
