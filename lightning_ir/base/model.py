@@ -101,6 +101,19 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             # So we need to initialize them separately using the default initialization of the PreTrainedModel
             PreTrainedModel._init_weights(self, module)
 
+    def get_input_embeddings(self) -> torch.nn.Module:
+        if self.config.get_backbone_model_type() == "neobert":
+            # NeoBERT stores its token embedding as `self.encoder` and does not implement the standard
+            # get/set_input_embeddings, so resize_token_embeddings cannot find the table otherwise.
+            return self.encoder
+        return super().get_input_embeddings()
+
+    def set_input_embeddings(self, value: torch.nn.Module) -> None:
+        if self.config.get_backbone_model_type() == "neobert":
+            self.encoder = value
+            return
+        super().set_input_embeddings(value)
+
     def _backbone_forward(self, *args, **kwargs):
         """Runs the forward method of the backbone model. Is overridden in
         :class:`~lightning_ir.base.class_factory.LightningIRModelClassFactory`.
@@ -166,10 +179,8 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
                 if model_name_or_path in BACKBONE_MAPPING:
                     BackboneModel = BACKBONE_MAPPING[str(model_name_or_path)]
                 else:
-                    backbone_config = LightningIRModelClassFactory.get_backbone_config(
-                        model_name_or_path
-                    ).from_pretrained(model_name_or_path)
-                    BackboneModel = _get_model_class(backbone_config)
+                    backbone_config = LightningIRModelClassFactory.get_backbone_config(model_name_or_path)
+                    BackboneModel = _get_model_class(backbone_config, model_name_or_path)
             cls = LightningIRModelClassFactory(ConfigClass).from_backbone_class(BackboneModel)
             if config is not None:
                 if all(issubclass(base, LightningIRConfig) for base in config.__class__.__bases__):

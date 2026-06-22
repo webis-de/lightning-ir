@@ -17,6 +17,7 @@ from .bi_encoder_config import BiEncoderConfig
 ADD_MARKER_TOKEN_MAPPING = {
     "bert": {"pattern": "[CLS] {TOKEN} $0 [SEP]", "special_tokens": ["[CLS]", "[SEP]"]},
     "modernbert": {"pattern": "[CLS] {TOKEN} $0 [SEP]", "special_tokens": ["[CLS]", "[SEP]"]},
+    "neobert": {"pattern": "[CLS] {TOKEN} $0 [SEP]", "special_tokens": ["[CLS]", "[SEP]"]},
 }
 
 
