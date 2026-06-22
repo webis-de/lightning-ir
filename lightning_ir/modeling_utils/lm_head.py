@@ -65,3 +65,13 @@ MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
         "lm_head.bias": "roberta.projection.decoder.bias",
     },
 }
+
+# Path (relative to the backbone) of the input word-embedding weight that the SPLADE
+# MLM projection decoder is tied to. ModernBERT names this ``tok_embeddings`` instead of
+# the ``word_embeddings`` used by the BERT-family encoders.
+MODEL_TYPE_TO_INPUT_EMBEDDINGS_KEY = {
+    "bert": "embeddings.word_embeddings.weight",
+    "distilbert": "embeddings.word_embeddings.weight",
+    "modernbert": "embeddings.tok_embeddings.weight",
+    "roberta": "embeddings.word_embeddings.weight",
+}

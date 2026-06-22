@@ -26,7 +26,11 @@ from ...bi_encoder import (
     SingleVectorBiEncoderModel,
 )
 from ...modeling_utils.embedding_post_processing import Pooler, Sparsifier
-from ...modeling_utils.lm_head import MODEL_TYPE_TO_LM_HEAD, MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING
+from ...modeling_utils.lm_head import (
+    MODEL_TYPE_TO_INPUT_EMBEDDINGS_KEY,
+    MODEL_TYPE_TO_LM_HEAD,
+    MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING,
+)
 
 
 class SpladeConfig(SingleVectorBiEncoderConfig):
@@ -115,19 +119,20 @@ class SpladeModel(SingleVectorBiEncoderModel):
         backbone_model_type = config.get_backbone_model_type() or config.model_type
         layer_cls = MODEL_TYPE_TO_LM_HEAD[backbone_model_type]
         self.projection = layer_cls(config)
+        input_embeddings_key = MODEL_TYPE_TO_INPUT_EMBEDDINGS_KEY[backbone_model_type]
         tied_weights_keys = getattr(self, "_tied_weights_keys", None)
         if not isinstance(tied_weights_keys, dict):
             tied_weights_keys = {}
         else:
             tied_weights_keys = dict(tied_weights_keys)
-        tied_weights_keys["projection.decoder.weight"] = "embeddings.word_embeddings.weight"
+        tied_weights_keys["projection.decoder.weight"] = input_embeddings_key
         self._tied_weights_keys = tied_weights_keys
         all_tied_weights_keys = getattr(self, "all_tied_weights_keys", None)
         if not isinstance(all_tied_weights_keys, dict):
             all_tied_weights_keys = {}
         else:
             all_tied_weights_keys = dict(all_tied_weights_keys)
-        all_tied_weights_keys["projection.decoder.weight"] = "embeddings.word_embeddings.weight"
+        all_tied_weights_keys["projection.decoder.weight"] = input_embeddings_key
         self.all_tied_weights_keys = all_tied_weights_keys
         self.query_weights = None
         if config.query_weighting == "static":
