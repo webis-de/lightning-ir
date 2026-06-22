@@ -102,11 +102,17 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
             try:
                 BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
             except KeyError:
-                tokenizer_kwargs = dict(kwargs)
-                tokenizer_kwargs.pop("config", None)
-                BackboneTokenizer = AutoTokenizer.from_pretrained(
-                    model_name_or_path, *args, **tokenizer_kwargs
-                ).__class__
+                BackboneTokenizers = LightningIRTokenizerClassFactory.get_backbone_tokenizers(model_name_or_path)
+                if BackboneTokenizers is None:
+                    tokenizer_kwargs = dict(kwargs)
+                    tokenizer_kwargs.pop("config", None)
+                    BackboneTokenizer = AutoTokenizer.from_pretrained(
+                        model_name_or_path, *args, **tokenizer_kwargs
+                    ).__class__
+                elif kwargs.get("use_fast", True):
+                    BackboneTokenizer = BackboneTokenizers[1] or BackboneTokenizers[0]
+                else:
+                    BackboneTokenizer = BackboneTokenizers[0] or BackboneTokenizers[1]
             else:
                 if not isinstance(BackboneTokenizers, tuple):
                     BackboneTokenizer = BackboneTokenizers

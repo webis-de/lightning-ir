@@ -361,6 +361,37 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
                             return config.model_type
             raise ValueError("No backbone model found in the configuration") from err
 
+    @staticmethod
+    def get_backbone_tokenizers(
+        model_name_or_path: str | Path,
+    ) -> tuple[type[PreTrainedTokenizerBase] | None, type[PreTrainedTokenizerBase] | None] | None:
+        """Resolves the slow and fast backbone tokenizer classes from the ``backbone_tokenizer_class`` recorded in
+        tokenizer_config.json.
+
+        This is used when reloading a saved Lightning IR checkpoint whose backbone tokenizer is not in the
+        transformers auto-mappings (e.g. NeoBERT, which uses a BERT tokenizer). The saved ``tokenizer_class`` is the
+        derived Lightning IR class (not importable by transformers) and ``AutoTokenizer`` would re-resolve the config
+        via ``AutoConfig`` and mis-resolve the backbone, so we resolve the backbone tokenizer class directly instead.
+
+        Args:
+            model_name_or_path (str | Path): Path to the tokenizer or its name.
+        Returns:
+            tuple[type[PreTrainedTokenizerBase] | None, type[PreTrainedTokenizerBase] | None] | None: Slow and fast
+            backbone tokenizer classes, or None if no ``backbone_tokenizer_class`` is recorded.
+        """
+        config_dict = get_tokenizer_config(model_name_or_path)
+        backbone_tokenizer_class = config_dict.get("backbone_tokenizer_class", None)
+        if backbone_tokenizer_class is None:
+            return None
+        slow_name = backbone_tokenizer_class.removesuffix("Fast")
+        fast_name = f"{slow_name}Fast"
+        transformers_module = importlib.import_module("transformers")
+        slow_class = getattr(transformers_module, slow_name, None)
+        fast_class = getattr(transformers_module, fast_name, None)
+        if slow_class is None and fast_class is None:
+            return None
+        return slow_class, fast_class
+
     def from_pretrained(
         self, model_name_or_path: str | Path, *args, use_fast: bool = True, **kwargs
     ) -> type[LightningIRTokenizer]:
@@ -379,10 +410,12 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
         try:
             BackboneTokenizers = TOKENIZER_MAPPING[type(backbone_config)]
         except KeyError:
-            BackboneTokenizer = AutoTokenizer.from_pretrained(
-                model_name_or_path, *args, use_fast=use_fast, **kwargs
-            ).__class__
-            BackboneTokenizers = (None, BackboneTokenizer) if use_fast else (BackboneTokenizer, None)
+            BackboneTokenizers = self.get_backbone_tokenizers(model_name_or_path)
+            if BackboneTokenizers is None:
+                BackboneTokenizer = AutoTokenizer.from_pretrained(
+                    model_name_or_path, *args, use_fast=use_fast, **kwargs
+                ).__class__
+                BackboneTokenizers = (None, BackboneTokenizer) if use_fast else (BackboneTokenizer, None)
         DerivedLightningIRTokenizers = self.from_backbone_classes(BackboneTokenizers, type(backbone_config))
         if use_fast:
             DerivedLightningIRTokenizer = DerivedLightningIRTokenizers[1]
