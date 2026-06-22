@@ -96,9 +96,11 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
 
     def _init_weights(self, module: torch.nn.Module) -> None:
         super()._init_weights(module)
-        if self.config.get_backbone_model_type() == "modernbert":
-            # NOTE modernbert does not initialize the weights of non-modernbert layers
-            # So we need to initialize them separately using the default initialization of the PreTrainedModel
+        if self.config.get_backbone_model_type() in ("modernbert", "neobert"):
+            # NOTE modernbert and neobert only initialize the weights of their own module types, leaving
+            # layers added by Lightning IR (e.g. the projection head) as uninitialized memory — which
+            # produces huge values and inf scores. So we initialize them separately using the default
+            # initialization of the PreTrainedModel.
             PreTrainedModel._init_weights(self, module)
 
     def get_input_embeddings(self) -> torch.nn.Module:

@@ -130,20 +130,7 @@ https://huggingface.co/docs/transformers/en/main_classes/configuration#transform
             if backbone_model_type is not None:
                 from transformers import CONFIG_MAPPING
 
-                if backbone_model_type in CONFIG_MAPPING:
-                    backbone_config_class = CONFIG_MAPPING[backbone_model_type]
-                else:
-                    # Backbone ships custom config code (e.g. NeoBERT) and is not part of the transformers
-                    # auto-mappings. Resolve it from the config's auto_map via trust_remote_code.
-                    from transformers.dynamic_module_utils import get_class_from_dynamic_module
-
-                    auto_map = config_dict.get("auto_map", None) or {}
-                    name_or_path = config_dict.get("_name_or_path", None)
-                    if "AutoConfig" not in auto_map or name_or_path is None:
-                        raise ValueError(
-                            f"Unable to resolve backbone config class for model type '{backbone_model_type}'."
-                        )
-                    backbone_config_class = get_class_from_dynamic_module(auto_map["AutoConfig"], str(name_or_path))
+                backbone_config_class = CONFIG_MAPPING[backbone_model_type]
                 if cls is not LightningIRConfig:
                     ConfigClass = cls
                 else:

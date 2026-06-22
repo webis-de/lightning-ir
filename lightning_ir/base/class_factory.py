@@ -66,6 +66,33 @@ def _get_model_class(
     return supported_models[0]
 
 
+def _resolve_remote_backbone_config(model_name_or_path: str | Path) -> PretrainedConfig:
+    """Loads the raw backbone config for a model whose backbone ships custom code (e.g. NeoBERT) and is not part
+    of the transformers auto-mappings.
+
+    For a freshly downloaded backbone checkpoint (top-level ``model_type`` is the backbone's own type) a plain
+    ``AutoConfig`` with ``trust_remote_code`` resolves correctly. For a *saved* Lightning IR checkpoint the
+    top-level ``model_type`` is the Lightning IR type (e.g. ``mvr``) and ``auto_map["AutoConfig"]`` points at the
+    derived config, so ``AutoConfig`` would mis-resolve the backbone. In that case we recover the raw backbone
+    config from the backbone model's ``config_class`` via ``auto_map["AutoModel"]``.
+
+    Args:
+        model_name_or_path (str | Path): Path to the model or its name.
+    Returns:
+        PretrainedConfig: Raw backbone configuration.
+    """
+    config_dict, _ = PretrainedConfig.get_config_dict(model_name_or_path)
+    backbone_model_type = config_dict.get("backbone_model_type", None)
+    model_type = config_dict.get("model_type", None)
+    auto_map = config_dict.get("auto_map", None) or {}
+    if backbone_model_type is not None and backbone_model_type != model_type and "AutoModel" in auto_map:
+        BackboneModel = get_class_from_dynamic_module(auto_map["AutoModel"], str(model_name_or_path))
+        BackboneConfigClass = getattr(BackboneModel, "config_class", None)
+        if BackboneConfigClass is not None:
+            return BackboneConfigClass.from_pretrained(model_name_or_path)
+    return AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+
+
 class LightningIRClassFactory(ABC):
     """Base class for creating derived Lightning IR classes from HuggingFace classes."""
 
@@ -92,8 +119,8 @@ class LightningIRClassFactory(ABC):
         if backbone_model_type in CONFIG_MAPPING:
             return CONFIG_MAPPING[backbone_model_type].from_pretrained(model_name_or_path)
         # Backbone ships custom config code (e.g. NeoBERT) and is not part of the transformers
-        # auto-mappings. Load it via trust_remote_code.
-        return AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+        # auto-mappings. Resolve the raw backbone config from its auto_map.
+        return _resolve_remote_backbone_config(model_name_or_path)
 
     @staticmethod
     def get_lightning_ir_config(model_name_or_path: str | Path) -> LightningIRConfig | None:
@@ -303,8 +330,8 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
         if backbone_model_type in CONFIG_MAPPING:
             return CONFIG_MAPPING[backbone_model_type].from_pretrained(model_name_or_path)
         # Backbone ships custom config code (e.g. NeoBERT) and is not part of the transformers
-        # auto-mappings. Load it via trust_remote_code.
-        return AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
+        # auto-mappings. Resolve the raw backbone config from its auto_map.
+        return _resolve_remote_backbone_config(model_name_or_path)
 
     @staticmethod
     def get_backbone_model_type(model_name_or_path: str | Path, *args, **kwargs) -> str:
