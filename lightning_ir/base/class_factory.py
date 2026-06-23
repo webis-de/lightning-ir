@@ -412,6 +412,7 @@ class LightningIRTokenizerClassFactory(LightningIRClassFactory):
         except KeyError:
             BackboneTokenizers = self.get_backbone_tokenizers(model_name_or_path)
             if BackboneTokenizers is None:
+                kwargs.setdefault("trust_remote_code", True)
                 BackboneTokenizer = AutoTokenizer.from_pretrained(
                     model_name_or_path, *args, use_fast=use_fast, **kwargs
                 ).__class__

@@ -106,6 +106,9 @@ https://huggingface.co/docs/transformers/main_classes/tokenizer.html#transformer
                 if BackboneTokenizers is None:
                     tokenizer_kwargs = dict(kwargs)
                     tokenizer_kwargs.pop("config", None)
+                    # Allow loading tokenizers of remote-code backbones (e.g. NeoBERT) without an interactive
+                    # prompt, so non-interactive jobs (e.g. Slurm) do not hang or error.
+                    tokenizer_kwargs.setdefault("trust_remote_code", True)
                     BackboneTokenizer = AutoTokenizer.from_pretrained(
                         model_name_or_path, *args, **tokenizer_kwargs
                     ).__class__
