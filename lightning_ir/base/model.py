@@ -97,8 +97,19 @@ https://huggingface.co/transformers/main_classes/model.html#transformers.PreTrai
             self.load_adapter(self.config.pretrained_adapter_name_or_path)
 
     def _init_weights(self, module: torch.nn.Module) -> None:
+        backbone_model_type = self.config.get_backbone_model_type()
+        if backbone_model_type in ("modernbert", "neobert"):
+            # NeoBERT/ModernBERT write parameters in place in their own `_init_weights` and bypass the
+            # `_is_hf_initialized` gate, so on the checkpoint-reload path transformers calls `_init_weights` on
+            # modules whose weights were already loaded and would clobber them. Skip any module whose parameters
+            # and buffers are already initialized (i.e. loaded from the checkpoint).
+            tensors = list(module.parameters(recurse=False)) + [
+                buffer for buffer in module.buffers(recurse=False) if buffer is not None
+            ]
+            if tensors and all(getattr(tensor, "_is_hf_initialized", False) for tensor in tensors):
+                return
         super()._init_weights(module)
-        if self.config.get_backbone_model_type() in ("modernbert", "neobert"):
+        if backbone_model_type in ("modernbert", "neobert"):
             # NOTE modernbert and neobert only initialize the weights of their own module types, leaving
             # layers added by Lightning IR (e.g. the projection head) as uninitialized memory — which
             # produces huge values and inf scores. So we initialize them separately using the default
