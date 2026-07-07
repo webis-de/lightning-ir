@@ -1,0 +1,172 @@
+decoder.bias	(30522,)	torch.float32
+decoder.weight	(30522, 768)	torch.float32
+model.encoder.weight	(30522, 768)	torch.float32
+model.layer_norm.weight	(768,)	torch.float32
+model.transformer_encoder.0.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.0.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.0.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.0.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.0.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.0.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.1.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.1.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.1.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.1.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.1.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.1.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.10.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.10.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.10.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.10.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.10.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.10.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.11.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.11.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.11.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.11.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.11.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.11.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.12.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.12.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.12.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.12.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.12.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.12.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.13.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.13.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.13.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.13.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.13.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.13.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.14.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.14.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.14.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.14.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.14.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.14.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.15.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.15.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.15.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.15.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.15.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.15.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.16.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.16.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.16.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.16.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.16.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.16.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.17.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.17.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.17.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.17.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.17.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.17.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.18.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.18.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.18.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.18.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.18.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.18.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.19.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.19.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.19.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.19.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.19.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.19.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.2.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.2.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.2.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.2.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.2.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.2.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.20.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.20.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.20.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.20.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.20.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.20.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.21.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.21.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.21.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.21.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.21.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.21.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.22.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.22.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.22.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.22.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.22.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.22.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.23.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.23.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.23.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.23.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.23.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.23.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.24.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.24.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.24.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.24.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.24.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.24.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.25.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.25.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.25.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.25.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.25.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.25.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.26.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.26.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.26.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.26.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.26.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.26.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.27.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.27.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.27.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.27.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.27.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.27.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.3.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.3.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.3.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.3.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.3.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.3.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.4.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.4.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.4.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.4.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.4.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.4.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.5.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.5.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.5.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.5.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.5.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.5.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.6.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.6.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.6.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.6.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.6.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.6.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.7.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.7.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.7.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.7.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.7.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.7.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.8.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.8.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.8.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.8.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.8.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.8.wo.weight	(768, 768)	torch.float32
+model.transformer_encoder.9.attention_norm.weight	(768,)	torch.float32
+model.transformer_encoder.9.ffn.w12.weight	(4096, 768)	torch.float32
+model.transformer_encoder.9.ffn.w3.weight	(768, 2048)	torch.float32
+model.transformer_encoder.9.ffn_norm.weight	(768,)	torch.float32
+model.transformer_encoder.9.qkv.weight	(2304, 768)	torch.float32
+model.transformer_encoder.9.wo.weight	(768, 768)	torch.float32

@@ -163,3 +163,7 @@ cython_debug/
 #.idea/
 
 tests/data/indexes
+# NeoBERT vendoring (weights, converted checkpoints, parity fixtures — never commit)
+third_party/neobert_original/
+checkpoints/
+tests/test_models/fixtures/reference_outputs.pt
