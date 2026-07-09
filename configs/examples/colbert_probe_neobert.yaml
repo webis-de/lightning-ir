@@ -1,0 +1,84 @@
+# 20-step ColBERT probe over the VENDORED NeoBERT backbone (Phase 7 gate).
+#
+# Based on the known-good NeoBERT ColBERT fine-tune.yaml. Changed ONLY:
+#   - model.model_name_or_path: chandar-lab/NeoBERT -> neobert-vendored (the vendored checkpoint)
+#   - trainer.max_steps: 50100 -> 20 ; log_every_n_steps: 1 ; enable_progress_bar: true
+#   - scratch output dir (default_root_dir + ModelCheckpoint.dirpath) so it can't clobber real runs
+# Three deviations beyond the literal "minimal" list, each justified:
+#   - lr_scheduler.num_warmup_steps: 5000 -> 5  (5000 leaves LR ~8e-8 at step 20 -> no visible loss
+#     decrease; the DoD needs step1 > step20, so warmup is scaled to the 20-step horizon)
+#   - REMOVED the skip_nan.SkipNaN callback: it silences NaN steps, but this probe must SURFACE a
+#     bf16 NaN if one occurs (F11 watch on the ~1330 massive channels). gradient_clip stays.
+#   - logger switched WandbLogger -> CSVLogger (no login/network on the container; clean metrics.csv).
+# Everything else kept: bf16-mixed, accumulate_grad_batches 4, train_batch_size 16, the data,
+# the optimizer lr, and the full ColConfig.
+seed_everything: 0
+trainer:
+  precision: bf16-mixed
+  default_root_dir: probe_neobert_logs
+  logger:
+    class_path: lightning.pytorch.loggers.CSVLogger
+    init_args:
+      save_dir: probe_neobert_logs
+  callbacks:
+  - class_path: ModelCheckpoint
+    init_args:
+      dirpath: probe_neobert_logs/ckpt
+      save_last: true
+  max_epochs: null
+  max_steps: 20
+  log_every_n_steps: 1
+  val_check_interval: null
+  check_val_every_n_epoch: null
+  accumulate_grad_batches: 4
+  gradient_clip_val: 1
+  inference_mode: true
+  enable_progress_bar: true
+data:
+  class_path: LightningIRDataModule
+  init_args:
+    num_workers: 8
+    train_batch_size: 16
+    train_dataset:
+      class_path: RunDataset
+      init_args:
+        run_path_or_id: msmarco-passage/train/rank-distillm-set-encoder
+        depth: 100
+        sample_size: 8
+        sampling_strategy: random
+        targets: score
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 2.0e-5
+lr_scheduler:
+  class_path: ConstantLRSchedulerWithLinearWarmup
+  init_args:
+    num_warmup_steps: 5
+model:
+  class_path: lightning_ir.BiEncoderModule
+  init_args:
+    model_name_or_path: neobert-vendored
+    config:
+      class_path: ColConfig
+      init_args:
+        query_length: 32
+        doc_length: 256
+        similarity_function: dot
+        normalization_strategy: l2
+        add_marker_tokens: false
+        query_mask_scoring_tokens: null
+        doc_mask_scoring_tokens: punctuation
+        query_aggregation_function: mean
+        doc_aggregation_function: max
+        embedding_dim: 128
+        projection: linear
+        query_expansion: false
+        attend_to_query_expanded_tokens: false
+        doc_expansion: false
+        attend_to_doc_expanded_tokens: false
+    loss_functions:
+    - - class_path: lightning_ir.SupervisedMarginMSE
+      - 1.0
+    evaluation_metrics:
+    - nDCG@10
