@@ -247,3 +247,40 @@ strict load; this one roundtrip assertion is the guard. Encoded in
 **Upstream relevance:** transformers#37015 + the v4/v5 A/B repro (F6) + *this* init-API trap is
 exactly the kind of "here's why 4.x-era custom-code models break on v5" writeup maintainers want —
 F6 is the RoPE-buffer half, F2b is the init-guard half.
+
+---
+
+## F11 — NeoBERT genuinely runs at |max|≈130 (final) / ~1330 (intermediate); parity is relative and same-arch
+
+Established while closing the vendored-port parity gate. **The massive-activation channels are a real
+model property, not corruption** — F9's ~8000 was corruption (an uninitialised buffer); ~130/~1330 is
+the model's true operating point, and it reproduces on BOTH the original remote code and the vendored
+port. Consequences for anyone comparing or debugging NeoBERT activations:
+
+- **Use relative, not absolute, tolerances.** last_hidden_state maxes at ~130; intermediate residual
+  channels reach ~1330. An absolute `max_abs_diff < 2e-3` at magnitude 130 demands ~1.5e-5 relative on
+  outlier channels across 28 layers of kernel differences — never the intent. The frozen gate
+  (`tests/test_models/test_neobert_parity.py`) is: finite, `cos_min>0.9999`, magnitude-ratio ∈[0.5,2],
+  `max_abs_diff/|ref|_max < 1.5e-2`, and `median_abs_diff < 3e-4` (the median guards O(1) channels that
+  the max/cos statistics, both outlier-dominated, would miss).
+
+- **The port is faithful to the fp32 limit — no algorithmic divergence.** Component decomposition
+  (same machine, same torch 2.7.1): pure-torch SwiGLU vs `xformers.ops.SwiGLU` = **0.0 (bit-identical,
+  even at |out|≈1705)**; SDPA mask path = **0.0**; RoPE interleaved-real vs the original complex
+  `view_as_complex` = **4.77e-7 (fp32 epsilon — the only non-zero seed)**. That ~5e-7 RoPE seed
+  amplifies through the network's genuine ill-conditioning to a ~5e-3-relative residual. **Concrete
+  amplification trace:** channel 184 at token 274 sits near +7.6 through layer 15, then **swings to
+  −1328 at layer 16** (massive-activation onset); the relative error climbs smoothly
+  (1e-7→6e-6→1.6e-4→7e-4→1.2e-3 over layers 12–16) and holds ~1.2e-3 once the channel is massive. The
+  reference's own batch-reorder shows the identical mechanism at a smaller seed (1.4e-5 relative).
+
+- **Parity MUST run on the reference's architecture.** Cross-architecture fp32 (Mac ARM vs cluster
+  x86) inflates the residual **~20×: pb_row3_single went 0.0098 (same-arch, cluster x86) → 0.197
+  (Mac ARM)**. The fixture records `meta["machine"]`; the parity test skips on mismatch. The reference
+  fixture is cluster-x86 (`gammaweb10`, venv_neobert_ref); the vendored same-arch run used venv3.
+
+- **Forward-looking, for the Phase 7 probe (bf16).** At intermediate magnitude ~1330 the **bf16 ulp is
+  ~8** on those channels — precision the massive activations barely tolerate. The probe inherits the
+  baseline's bf16, so watch specifically for **P6-style low-precision norm/softmax trouble** (Appendix
+  A). If the probe **NaNs in bf16 while fp32 is clean, F11 is the first suspect** — not a regression in
+  the port, but the massive channels losing precision; localise with a fp32 rerun before anything else.

@@ -42,6 +42,12 @@ def build_inputs(tokenizer):
     cases["medium"] = tokenizer(medium, truncation=True, max_length=256, return_tensors="pt")
     cases["long"] = tokenizer(long, truncation=True, max_length=2048, return_tensors="pt")
     cases["padded_batch"] = tokenizer(padded_batch, padding=True, truncation=True, max_length=512, return_tensors="pt")
+    # Per-row SINGLE (batch=1, no padding) of each padded_batch text. Gives an apples-to-apples
+    # single-vs-single reference (no reference-side batching floor). Comparing ref pb_row{i}_single
+    # against ref padded_batch row i also directly MEASURES the reference's own batch floor
+    # (esp. the unpadded longest row) — the control the vendored-side 0.045 measurement couldn't give.
+    for i, text in enumerate(padded_batch):
+        cases[f"pb_row{i}_single"] = tokenizer(text, truncation=True, max_length=512, return_tensors="pt")
     return cases
 
 
@@ -92,6 +98,8 @@ def main() -> None:
     except Exception:
         xformers_version = None
 
+    import platform
+
     fixture = {
         "cases": results,
         "meta": {
@@ -99,6 +107,7 @@ def main() -> None:
             "transformers_version": transformers.__version__,
             "torch_version": torch.__version__,
             "xformers_version": xformers_version,
+            "machine": platform.machine(),  # parity must run same-arch (F11: cross-arch inflates ~20x)
             "dtype": "float32",
             "has_per_layer_hidden_states": has_hidden_states,
             # The original appends one hidden state PER LAYER (no embedding output); the vendored
