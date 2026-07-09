@@ -72,6 +72,7 @@ from .loss import (
     SupervisedMarginMSE,
 )
 from .main import LightningIRTrainer, LightningIRWandbLogger
+from .models.register_backbones import _register_backbones
 from .models.register_external_models import _register_external_models
 from .models.register_internal_models import _register_internal_models
 from .retrieve import (
@@ -115,6 +116,7 @@ __version__ = importlib.metadata.version("lightning-ir")
 
 _register_internal_models()
 _register_external_models()
+_register_backbones()
 _register_external_datasets()
 
 
