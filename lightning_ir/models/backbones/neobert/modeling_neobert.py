@@ -28,9 +28,12 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 from transformers import PreTrainedModel
-from transformers import initialization as init
-from transformers.modeling_layers import GradientCheckpointingLayer
 from transformers.modeling_outputs import BaseModelOutput, MaskedLMOutput
+
+try:  # v5 API; fall back so the module still imports under the transformers-4.x reference venv
+    from transformers.modeling_layers import GradientCheckpointingLayer
+except ImportError:  # pragma: no cover - reference venv only (parity-dump / SwiGLU-equivalence)
+    GradientCheckpointingLayer = nn.Module
 
 from .configuration_neobert import NeoBERTConfig
 
@@ -214,6 +217,10 @@ class NeoBERTPreTrainedModel(PreTrainedModel):
         # Uses the guarded ``transformers.initialization`` functions (operating on the Parameter,
         # not ``.data``): under v5 these skip parameters already flagged ``_is_hf_initialized``, so
         # weights loaded by ``from_pretrained`` are never clobbered on (re)load (the F2 regression).
+        # Lazy import: v5-only module, and this path only runs under the v5 runtime (never in the
+        # transformers-4.x reference venv, which only instantiates SwiGLU for the equivalence test).
+        from transformers import initialization as init
+
         if isinstance(module, nn.Linear):
             init.uniform_(module.weight, a=-self.config.decoder_init_range, b=self.config.decoder_init_range)
             if module.bias is not None:
