@@ -167,3 +167,8 @@ tests/data/indexes
 third_party/neobert_original/
 checkpoints/
 tests/test_models/fixtures/reference_outputs.pt
+
+
+lightning_logs/
+.vscode/
+*.run
