@@ -119,10 +119,20 @@ regularization loss with a warmup schedule:
        - class_path: lightning_ir.GenericConstantSchedulerWithLinearWarmup
          init_args:
            keys:
-             - loss_functions.1.query_weight
-             - loss_functions.1.doc_weight
+             - loss_functions.1.0.query_weight
+             - loss_functions.1.0.doc_weight
            num_warmup_steps: 20_000
            num_delay_steps: 50_000
+
+.. note::
+
+   The scheduler key needs **two** indices: ``loss_functions.1.0.query_weight``, not
+   ``loss_functions.1.query_weight``. :py:class:`~lightning_ir.base.module.LightningIRModule`
+   normalizes ``loss_functions`` to a list of ``[loss_function, weight]`` pairs, so ``1`` selects
+   the pair and the trailing ``0`` selects the loss function within it. Omitting the ``0`` raises
+   ``AttributeError: 'list' object has no attribute 'query_weight'`` at the start of training.
+   The ``1`` is the position of :py:class:`~lightning_ir.loss.regularization.FLOPSRegularization`
+   in ``loss_functions`` — adjust it if you reorder the losses.
 
 .. code-block:: python
 
@@ -149,7 +159,7 @@ regularization loss with a warmup schedule:
        train_batch_size=32,
    )
    scheduler = GenericConstantSchedulerWithLinearWarmup(
-       keys=["loss_functions.1.query_weight", "loss_functions.1.doc_weight"],
+       keys=["loss_functions.1.0.query_weight", "loss_functions.1.0.doc_weight"],
        num_warmup_steps=20_000,
        num_delay_steps=50_000,
    )

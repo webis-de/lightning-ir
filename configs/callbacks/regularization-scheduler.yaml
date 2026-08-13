@@ -1,10 +1,12 @@
 trainer:
   callbacks+:
-  - class_path: ConstantSchedulerWithWarmup
+  - class_path: GenericConstantSchedulerWithLinearWarmup
     init_args:
+      # Two indices: `1` selects the [loss_function, weight] pair (LightningIRModule normalizes
+      # loss_functions to pairs), `0` selects the loss function within it. Adjust `1` if
+      # FLOPSRegularization is not the second entry in your loss_functions list.
       keys:
-      - loss_functions.1.query_weight
-      - loss_functions.1.doc_weight
+      - loss_functions.1.0.query_weight
+      - loss_functions.1.0.doc_weight
       num_warmup_steps: 20_000
       num_delay_steps: 50_000
-  

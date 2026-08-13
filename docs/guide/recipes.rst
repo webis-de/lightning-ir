@@ -286,8 +286,8 @@ and retrieve.
           - class_path: lightning_ir.GenericConstantSchedulerWithLinearWarmup
             init_args:
               keys:
-                - loss_functions.1.query_weight
-                - loss_functions.1.doc_weight
+                - loss_functions.1.0.query_weight
+                - loss_functions.1.0.doc_weight
               num_warmup_steps: 20_000
               num_delay_steps: 50_000
       model:
@@ -343,8 +343,8 @@ and retrieve.
       )
       scheduler = GenericConstantSchedulerWithLinearWarmup(
           keys=[
-              "loss_functions.1.query_weight",
-              "loss_functions.1.doc_weight",
+              "loss_functions.1.0.query_weight",
+              "loss_functions.1.0.doc_weight",
           ],
           num_warmup_steps=20_000,
           num_delay_steps=50_000,
