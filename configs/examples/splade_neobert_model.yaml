@@ -1,0 +1,43 @@
+# SPLADE over the vendored NeoBERT backbone.
+#
+# Mirrors the known-good BERT SPLADE config. Changed ONLY:
+#   - model_name_or_path: bert-base-uncased -> the vendored NeoBERT checkpoint
+# Everything else — SpladeConfig settings, SupervisedMarginMSE, the FLOPS weights (3e-3/1e-3)
+# and the 30k quadratic warmup — is kept identical so the run is comparable to the BERT baseline.
+#
+# LAMBDA — 3e-3/1e-3 are the BERT-tuned values, kept as-is deliberately. NeoBERT's MLM head runs
+# much hotter at init: ~30k nonzeros/doc vs BERT's ~7k, and at equal lambda the reg/ranking ratio
+# is ~6.6x weaker (measured at step 0: NeoBERT 1.7e-6 vs BERT 1.1e-5). The quadratic warmup keeps
+# lambda near zero for the first few thousand steps, so that init-time gap is not the whole story
+# — but if `doc_num_nonzero` / `query_num_nonzero` (both logged by the module) are still near-dense
+# once the ramp completes at step 30k, lambda is the knob, and ~6.6x is the scale the init-time
+# measurement suggests.
+model:
+  class_path: BiEncoderModule
+  init_args:
+    model_name_or_path: /mnt/ceph/storage/data-tmp/current/willy/generalisin_bi_encoders/experiments/col/neobert/neobert-vendored
+    config:
+      class_path: SpladeConfig
+      init_args:
+        similarity_function: dot
+        pooling_strategy: max
+        query_length: 32
+        doc_length: 256
+        sparsification_strategy: relu_log
+    loss_functions:
+    - - class_path: SupervisedMarginMSE
+      - 1.0
+    - class_path: FLOPSRegularization
+      init_args:
+        query_weight: 0.003
+        doc_weight: 0.001
+    evaluation_metrics:
+      - nDCG@10
+trainer:
+  callbacks+:
+  - class_path: GenericConstantSchedulerWithQuadraticWarmup
+    init_args:
+      keys:
+      - loss_functions.1.0.query_weight
+      - loss_functions.1.0.doc_weight
+      num_warmup_steps: 30_000

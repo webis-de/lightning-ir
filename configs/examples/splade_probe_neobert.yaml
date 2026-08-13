@@ -1,0 +1,93 @@
+# 20-step SPLADE probe over the VENDORED NeoBERT backbone.
+#
+# Mirrors colbert_probe_neobert.yaml exactly (same trainer/data/optimizer/scheduler block, same
+# 20-step horizon and scratch output dir); only the `model` section differs: ColConfig -> SpladeConfig,
+# plus the two FLOPS regularization terms SPLADE needs on top of the ranking loss.
+#
+# SCALE NOTE — NeoBERT's MLM head runs much hotter at init than BERT's: its pre-trained head is a
+# bare vocabulary projection over an RMSNorm'd hidden state (no dense/act/norm transform) and its
+# decoder bias is only mildly negative (mean -0.97), so ~45% of vocab logits start positive vs ~9%
+# for BERT. Measured at step 0 on the same batch, with FLOPS weights at the lightning-ir default 1e-4:
+#
+#                     ranking loss   FLOPS term   reg/ranking   doc nnz (of 30522)
+#   bert-base-uncased        6.5e4         0.73       1.1e-5     7268
+#   neobert-vendored         2.4e7        40.9        1.7e-6    30104
+#
+# Note both terms scale quadratically with embedding magnitude, so they move *together* — the
+# regularizer does not need scaling down. It comes out ~6.6x weaker relative to the ranking loss on
+# NeoBERT, hence the ~6.6e-4 below (1e-4 * 6.6), which reproduces BERT-SPLADE's step-0 balance.
+#
+# That is a starting point, not a tuned value: this 20-step probe validates that NeoBERT trains
+# clean under bf16 (loss decreases, no NaN), it cannot tune a sparsity schedule. NeoBERT starts
+# ~4x denser than BERT, so watch the `doc_num_nonzero` / `query_num_nonzero` metrics lightning-ir
+# already logs and re-tune the weights over a longer run before committing to a full training.
+seed_everything: 0
+trainer:
+  precision: bf16-mixed
+  default_root_dir: probe_neobert_splade_logs
+  logger:
+    class_path: lightning.pytorch.loggers.CSVLogger
+    init_args:
+      save_dir: probe_neobert_splade_logs
+  callbacks:
+  - class_path: ModelCheckpoint
+    init_args:
+      dirpath: probe_neobert_splade_logs/ckpt
+      save_last: true
+  max_epochs: null
+  max_steps: 20
+  log_every_n_steps: 1
+  val_check_interval: null
+  check_val_every_n_epoch: null
+  accumulate_grad_batches: 4
+  gradient_clip_val: 1
+  inference_mode: true
+  enable_progress_bar: true
+data:
+  class_path: LightningIRDataModule
+  init_args:
+    num_workers: 8
+    train_batch_size: 16
+    train_dataset:
+      class_path: RunDataset
+      init_args:
+        run_path_or_id: msmarco-passage/train/rank-distillm-set-encoder
+        depth: 100
+        sample_size: 8
+        sampling_strategy: random
+        targets: score
+optimizer:
+  class_path: torch.optim.AdamW
+  init_args:
+    lr: 2.0e-5
+lr_scheduler:
+  class_path: ConstantLRSchedulerWithLinearWarmup
+  init_args:
+    num_warmup_steps: 5
+model:
+  class_path: lightning_ir.BiEncoderModule
+  init_args:
+    model_name_or_path: neobert-vendored
+    config:
+      class_path: SpladeConfig
+      init_args:
+        query_length: 32
+        doc_length: 256
+        similarity_function: dot
+        sparsification_strategy: relu_log
+        pooling_strategy: max
+        query_weighting: contextualized
+        query_expansion: true
+        doc_weighting: contextualized
+        doc_expansion: true
+        add_marker_tokens: false
+    loss_functions:
+    - - class_path: lightning_ir.SupervisedMarginMSE
+      - 1.0
+    - - class_path: lightning_ir.FLOPSRegularization
+        init_args:
+          query_weight: 6.6e-4
+          doc_weight: 6.6e-4
+      - 1.0
+    evaluation_metrics:
+    - nDCG@10

@@ -28,6 +28,25 @@ class LMHead(torch.nn.Module):
         return self.decoder(self.norm(self.act(self.dense(hidden_states))))
 
 
+class LinearLMHead(torch.nn.Module):
+    """Transform-free masked language modeling head: a single vocabulary projection.
+
+    Used by backbones whose pre-trained MLM head is a bare ``nn.Linear`` over the final hidden state,
+    with no dense/activation/norm transform block. NeoBERT is such a backbone — its encoder already
+    applies a final ``RMSNorm``, and ``NeoBERTForMaskedLM`` projects that output straight to the
+    vocabulary. The ``decoder`` attribute name matches :class:`LMHead` so that
+    :meth:`~lightning_ir.models.bi_encoders.splade.SpladeModel.get_output_embeddings` and the
+    checkpoint key mappings below work unchanged.
+    """
+
+    def __init__(self, config: PretrainedConfig, hidden_dim_key: str = "hidden_size"):
+        super().__init__()
+        self.decoder = torch.nn.Linear(getattr(config, hidden_dim_key), config.vocab_size)
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        return self.decoder(hidden_states)
+
+
 MODEL_TYPE_TO_LM_HEAD = {
     "bert": partial(LMHead, hidden_dim_key="hidden_size", activation_key="hidden_act"),
     "distilbert": partial(LMHead, hidden_dim_key="hidden_size", activation_key="activation"),
@@ -38,6 +57,8 @@ MODEL_TYPE_TO_LM_HEAD = {
         classifier_bias_key="classifier_bias",
         norm_bias_key="norm_bias",
     ),
+    # NeoBERT's pre-trained MLM head is a plain vocabulary projection (no transform block).
+    "neobert": partial(LinearLMHead, hidden_dim_key="hidden_size"),
     "roberta": partial(LMHead, hidden_dim_key="hidden_size", activation_key="hidden_act"),
 }
 
@@ -58,6 +79,13 @@ MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
         "head.norm": "model.projection.norm",
         "decoder": "model.projection.decoder",
     },
+    # ``NeoBERTForMaskedLM`` keeps the encoder under ``model.`` and the MLM projection at the top
+    # level (``decoder.weight`` / ``decoder.bias``), same layout as ModernBERT. Re-homing it under
+    # the ``model.`` prefix lets the usual base-model-prefix stripping land it on
+    # ``projection.decoder``. Anchored so it cannot match ``model.transformer_encoder.*``.
+    "neobert": {
+        r"^decoder\.": "model.projection.decoder.",
+    },
     "roberta": {
         "lm_head.dense": "roberta.projection.dense",
         "lm_head.layer_norm": "roberta.projection.norm",
@@ -68,10 +96,15 @@ MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
 
 # Path (relative to the backbone) of the input word-embedding weight that the SPLADE
 # MLM projection decoder is tied to. ModernBERT names this ``tok_embeddings`` instead of
-# the ``word_embeddings`` used by the BERT-family encoders.
+# the ``word_embeddings`` used by the BERT-family encoders; NeoBERT's word embedding is a
+# bare ``nn.Embedding`` named ``encoder``.
+#
+# Only consulted for backbones that actually tie the two (``config.tie_word_embeddings``);
+# NeoBERT pre-trains an *untied* decoder, so the entry below is unused in practice.
 MODEL_TYPE_TO_INPUT_EMBEDDINGS_KEY = {
     "bert": "embeddings.word_embeddings.weight",
     "distilbert": "embeddings.word_embeddings.weight",
     "modernbert": "embeddings.tok_embeddings.weight",
+    "neobert": "encoder.weight",
     "roberta": "embeddings.word_embeddings.weight",
 }

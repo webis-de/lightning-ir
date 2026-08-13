@@ -119,21 +119,26 @@ class SpladeModel(SingleVectorBiEncoderModel):
         backbone_model_type = config.get_backbone_model_type() or config.model_type
         layer_cls = MODEL_TYPE_TO_LM_HEAD[backbone_model_type]
         self.projection = layer_cls(config)
-        input_embeddings_key = MODEL_TYPE_TO_INPUT_EMBEDDINGS_KEY[backbone_model_type]
-        tied_weights_keys = getattr(self, "_tied_weights_keys", None)
-        if not isinstance(tied_weights_keys, dict):
-            tied_weights_keys = {}
-        else:
-            tied_weights_keys = dict(tied_weights_keys)
-        tied_weights_keys["projection.decoder.weight"] = input_embeddings_key
-        self._tied_weights_keys = tied_weights_keys
-        all_tied_weights_keys = getattr(self, "all_tied_weights_keys", None)
-        if not isinstance(all_tied_weights_keys, dict):
-            all_tied_weights_keys = {}
-        else:
-            all_tied_weights_keys = dict(all_tied_weights_keys)
-        all_tied_weights_keys["projection.decoder.weight"] = input_embeddings_key
-        self.all_tied_weights_keys = all_tied_weights_keys
+        # Only register the decoder <-> input-embedding tie for backbones that actually tie the two.
+        # NeoBERT pre-trains an *untied* MLM decoder (``tie_word_embeddings=False``); registering the
+        # tie there would silently overwrite the pre-trained decoder with the word embeddings, which
+        # is exactly the head SPLADE needs to start from.
+        if getattr(config, "tie_word_embeddings", True):
+            input_embeddings_key = MODEL_TYPE_TO_INPUT_EMBEDDINGS_KEY[backbone_model_type]
+            tied_weights_keys = getattr(self, "_tied_weights_keys", None)
+            if not isinstance(tied_weights_keys, dict):
+                tied_weights_keys = {}
+            else:
+                tied_weights_keys = dict(tied_weights_keys)
+            tied_weights_keys["projection.decoder.weight"] = input_embeddings_key
+            self._tied_weights_keys = tied_weights_keys
+            all_tied_weights_keys = getattr(self, "all_tied_weights_keys", None)
+            if not isinstance(all_tied_weights_keys, dict):
+                all_tied_weights_keys = {}
+            else:
+                all_tied_weights_keys = dict(all_tied_weights_keys)
+            all_tied_weights_keys["projection.decoder.weight"] = input_embeddings_key
+            self.all_tied_weights_keys = all_tied_weights_keys
         self.query_weights = None
         if config.query_weighting == "static":
             self.query_weights = torch.nn.Embedding(config.vocab_size, 1)
