@@ -5,7 +5,7 @@ from __future__ import annotations
 import csv
 import gc
 import itertools
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import is_dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -713,3 +713,171 @@ class MvrViewCollapseCallback(Callback):
             return
         for name, tensor in debug.items():
             pl_module.log(f"train/vie_cos_{name}", self._mean_off_diag_cos(tensor), on_step=True)
+
+
+class SparsityCollapseCallback(Callback):
+    """Stops training when a sparse (SPLADE-style) representation collapses to near-empty vectors.
+
+    SPLADE's ``relu`` sparsification is effectively one-way at the extreme: once a vocabulary
+    dimension's logit is negative for *every* input in the batch it receives no gradient, so a
+    representation that has decayed to a handful of live terms cannot recover. Run ``v5kd0g11``
+    (NeoBERT) reached exactly one nonzero dimension per vector at step 7999 and then burned 13650
+    further steps going nowhere, because a degenerate vector trivially minimizes the FLOPS penalty
+    while ``MarginMSE`` sits at the score for predicting nothing.
+
+    This callback watches the ``query_num_nonzero`` / ``doc_num_nonzero`` metrics that
+    :class:`~lightning_ir.bi_encoder.bi_encoder_module.BiEncoderModule` already logs whenever
+    ``sparsification_strategy`` is set, and requests a graceful stop once either stays below its
+    floor for ``patience`` consecutive checks. Stopping via ``trainer.should_stop`` (rather than
+    raising) lets ``ModelCheckpoint`` write ``last.ckpt``, so the pre-collapse weights survive.
+
+    Read-only with respect to the model: it never modifies parameters or gradients.
+    """
+
+    def __init__(
+        self,
+        min_query_nonzero: float = 5.0,
+        min_doc_nonzero: float = 20.0,
+        patience: int = 3,
+        check_every_n_steps: int = 50,
+        warmup_steps: int = 200,
+    ) -> None:
+        """Initializes the sparsity collapse guard.
+
+        Args:
+            min_query_nonzero (float): Floor for the mean number of nonzero query dimensions.
+                Defaults to 5.0.
+            min_doc_nonzero (float): Floor for the mean number of nonzero document dimensions.
+                Defaults to 20.0.
+            patience (int): Number of consecutive checks below a floor before stopping. Defaults to 3.
+            check_every_n_steps (int): How often to check, in optimizer steps. Defaults to 50.
+            warmup_steps (int): Number of initial steps to ignore, so a model that has not yet
+                sparsified from its dense initialization is not mistaken for a collapsed one.
+                Defaults to 200.
+        """
+        super().__init__()
+        self.min_query_nonzero = min_query_nonzero
+        self.min_doc_nonzero = min_doc_nonzero
+        self.patience = patience
+        self.check_every_n_steps = check_every_n_steps
+        self.warmup_steps = warmup_steps
+        self._strikes = 0
+        self._last_checked = -1
+
+    def on_train_batch_end(
+        self, trainer: Trainer, pl_module: LightningIRModule, outputs: Any, batch: Any, batch_idx: int
+    ) -> None:
+        step = trainer.global_step
+        # Elapsed-since-last-check rather than ``step % n``: ``on_train_batch_end`` fires once per
+        # microbatch, so with gradient accumulation ``global_step`` repeats and can also skip
+        # values -- a modulo test silently never matches for some cadences.
+        if step < self.warmup_steps or step - self._last_checked < self.check_every_n_steps:
+            return
+        self._last_checked = step
+
+        metrics = trainer.callback_metrics
+        query_nonzero = metrics.get("query_num_nonzero")
+        doc_nonzero = metrics.get("doc_num_nonzero")
+        if query_nonzero is None or doc_nonzero is None:
+            return  # not a sparse model, or sparsification_strategy is None
+        query_nonzero = float(query_nonzero)
+        doc_nonzero = float(doc_nonzero)
+
+        if query_nonzero >= self.min_query_nonzero and doc_nonzero >= self.min_doc_nonzero:
+            self._strikes = 0
+            return
+
+        self._strikes += 1
+        print(
+            f"[sparsity guard] step {step}: query_num_nonzero={query_nonzero:.1f} "
+            f"(floor {self.min_query_nonzero}), doc_num_nonzero={doc_nonzero:.1f} "
+            f"(floor {self.min_doc_nonzero}) -- strike {self._strikes}/{self.patience}"
+        )
+        if self._strikes >= self.patience:
+            print(
+                f"[sparsity guard] representation collapsed at step {step}; stopping. "
+                "The sparsity penalty is too strong for this backbone, or the ranking loss "
+                "is not sparsifying it -- see docs on run v5kd0g11."
+            )
+            trainer.should_stop = True
+
+
+class MeanValidationMetricCallback(Callback):
+    """Logs the mean of one evaluation metric across the validation datasets.
+
+    :meth:`~lightning_ir.base.module.LightningIRModule.validation_step` logs every metric once per
+    dataset, e.g. ``msmarco-passage/trec-dl-2019/judged/nDCG@10/dataloader_idx_0``. Lightning's
+    :class:`~lightning.pytorch.callbacks.ModelCheckpoint` can only monitor a single key, so
+    selecting the checkpoint that is best *on average* over several datasets requires that average
+    to exist as a logged scalar in its own right. This callback computes it.
+
+    It logs in ``on_validation_epoch_end``, which Lightning runs after the per-dataset metrics have
+    been reduced to epoch values and before ``ModelCheckpoint.on_validation_end``, so the mean is
+    always available to the checkpoint monitor within the same validation pass.
+    """
+
+    def __init__(
+        self,
+        metric: str = "nDCG@10",
+        name: str | None = None,
+        datasets: Sequence[str] | None = None,
+    ) -> None:
+        """Initializes the callback.
+
+        Args:
+            metric (str): Name of the per-dataset metric to average, as it appears after the dataset
+                id, e.g. ``nDCG@10``. Defaults to ``"nDCG@10"``.
+            name (str | None): Key to log the mean under; this is what ``ModelCheckpoint`` monitors.
+                Defaults to ``f"val_mean_{metric}"``.
+            datasets (Sequence[str] | None): Dataset ids to average over. If given, every one of them
+                must report the metric or a ``ValueError`` is raised — this keeps the monitored
+                quantity from silently changing meaning when a dataset drops out. If ``None``, every
+                dataset reporting the metric is averaged.
+        """
+        super().__init__()
+        self.metric = metric
+        self.name = f"val_mean_{metric}" if name is None else name
+        self.datasets = None if datasets is None else list(datasets)
+
+    def _collect(self, callback_metrics: Mapping[str, Any]) -> dict[str, torch.Tensor]:
+        """Picks the per-dataset values of ``self.metric`` out of the logged metrics.
+
+        Args:
+            callback_metrics (Mapping[str, Any]): The trainer's callback metrics.
+        Returns:
+            dict[str, torch.Tensor]: Mapping of dataset id to metric value.
+        """
+        values: dict[str, torch.Tensor] = {}
+        for key, value in callback_metrics.items():
+            parts = key.split("/")
+            if parts[-1].startswith("dataloader_idx_"):
+                parts = parts[:-1]
+            if len(parts) < 2 or parts[-1] != self.metric:
+                continue
+            dataset_id = "/".join(parts[:-1])
+            if self.datasets is not None and dataset_id not in self.datasets:
+                continue
+            values[dataset_id] = torch.as_tensor(value, dtype=torch.float32)
+        return values
+
+    def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        """Logs the mean of ``self.metric`` over the validation datasets.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+        """
+        if trainer.sanity_checking:
+            return
+        values = self._collect(trainer.callback_metrics)
+        if self.datasets is not None:
+            missing = [dataset for dataset in self.datasets if dataset not in values]
+            if missing:
+                raise ValueError(
+                    f"No '{self.metric}' was logged for {missing}. Either the dataset ids do not "
+                    f"match `inference_datasets`, or `evaluation_metrics` does not include the "
+                    f"metric. Logged keys: {sorted(trainer.callback_metrics)}"
+                )
+        if not values:
+            return
+        pl_module.log(self.name, torch.stack(list(values.values())).mean())

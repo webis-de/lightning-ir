@@ -25,11 +25,13 @@ from .bi_encoder import (
 )
 from .callbacks import (
     IndexCallback,
+    MeanValidationMetricCallback,
     MvrViewCollapseCallback,
     RankCallback,
     RegisterLocalDatasetCallback,
     ReRankCallback,
     SearchCallback,
+    SparsityCollapseCallback,
 )
 from .cross_encoder import (
     CrossEncoderConfig,
@@ -176,6 +178,7 @@ __all__ = [
     "LightningIRTrainer",
     "LightningIRWandbLogger",
     "LinearLRSchedulerWithLinearWarmup",
+    "MeanValidationMetricCallback",
     "MultiVectorBiEncoderConfig",
     "MultiVectorBiEncoderModel",
     "MvrViewCollapseCallback",
@@ -201,6 +204,7 @@ __all__ = [
     "SeismicSearcher",
     "SingleVectorBiEncoderConfig",
     "SingleVectorBiEncoderModel",
+    "SparsityCollapseCallback",
     "SupervisedMarginMSE",
     "TorchDenseIndexConfig",
     "TorchDenseIndexer",

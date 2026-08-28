@@ -9,18 +9,22 @@ execute code at specific points during the training loop, such as after each epo
 
 from .callbacks import (
     IndexCallback,
+    MeanValidationMetricCallback,
     MvrViewCollapseCallback,
     RankCallback,
     RegisterLocalDatasetCallback,
     ReRankCallback,
     SearchCallback,
+    SparsityCollapseCallback,
 )
 
 __all__ = [
     "IndexCallback",
+    "MeanValidationMetricCallback",
     "MvrViewCollapseCallback",
     "RankCallback",
     "RegisterLocalDatasetCallback",
     "ReRankCallback",
     "SearchCallback",
+    "SparsityCollapseCallback",
 ]
