@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import pandas as pd
 import torch
 from lightning import Trainer
-from lightning.pytorch.callbacks import Callback, TQDMProgressBar
+from lightning.pytorch.callbacks import Callback, ModelCheckpoint, TQDMProgressBar
 
 from ..base.validation_utils import evaluate_run
 from ..data import LightningIRDataModule, RankBatch, SearchBatch
@@ -838,6 +838,7 @@ class MeanValidationMetricCallback(Callback):
         self.metric = metric
         self.name = f"val_mean_{metric}" if name is None else name
         self.datasets = None if datasets is None else list(datasets)
+        self._history: list[tuple[int, float, dict[str, float]]] = []
 
     def _collect(self, callback_metrics: Mapping[str, Any]) -> dict[str, torch.Tensor]:
         """Picks the per-dataset values of ``self.metric`` out of the logged metrics.
@@ -880,4 +881,84 @@ class MeanValidationMetricCallback(Callback):
                 )
         if not values:
             return
-        pl_module.log(self.name, torch.stack(list(values.values())).mean())
+        mean = torch.stack(list(values.values())).mean()
+        self._history.append(
+            (int(trainer.global_step), float(mean), {ds: float(v) for ds, v in values.items()})
+        )
+        pl_module.log(self.name, mean)
+
+    def _monitoring_checkpoint_callback(self, trainer: Trainer) -> ModelCheckpoint | None:
+        """Finds the ``ModelCheckpoint`` that selects on this callback's metric.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+        Returns:
+            ModelCheckpoint | None: The checkpoint callback monitoring ``self.name``, if any.
+        """
+        for callback in trainer.callbacks:
+            if isinstance(callback, ModelCheckpoint) and callback.monitor == self.name:
+                return callback
+        return None
+
+    def on_fit_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        """Prints which checkpoint the run selected, and whether the exported model matches it.
+
+        The exported ``huggingface_checkpoint/`` is what the evaluation pipeline consumes, but
+        :meth:`~lightning_ir.base.module.LightningIRModule.on_save_checkpoint` rewrites it on every
+        checkpoint write. This summary states, at the end of the run, which step actually ended up
+        in that directory, so a mismatch is visible in the log instead of being discovered later as
+        an unexplained evaluation number.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+        """
+        if not trainer.is_global_zero:
+            return
+        rule = "=" * 78
+        lines = ["", rule, f"CHECKPOINT SELECTION  --  monitor: {self.name}  (mode: max)", rule]
+        if not self._history:
+            lines += [
+                "No validation ever completed, so NO checkpoint was selected on this metric.",
+                "Whatever is in huggingface_checkpoint/ is simply the last write.",
+                rule,
+                "",
+            ]
+            print("\n".join(lines))
+            return
+
+        best_step, best_mean, best_parts = max(self._history, key=lambda entry: entry[1])
+        last_step, last_mean, _ = self._history[-1]
+        lines.append(f"validations completed : {len(self._history)}")
+        lines.append(f"BEST  {self.name} = {best_mean:.4f}  at global step {best_step}")
+        for dataset, value in best_parts.items():
+            lines.append(f"          {dataset}: {value:.4f}")
+        lines.append(f"final validation      : {last_mean:.4f}  at global step {last_step}")
+
+        checkpoint_callback = self._monitoring_checkpoint_callback(trainer)
+        if checkpoint_callback is None:
+            lines.append("")
+            lines.append(f"WARNING: no ModelCheckpoint monitors {self.name!r}, so nothing was")
+            lines.append("         selected on it. Checkpoints reflect some other rule.")
+        else:
+            score = checkpoint_callback.best_model_score
+            score = None if score is None else float(score)
+            lines.append("")
+            lines.append(f"best checkpoint       : {checkpoint_callback.best_model_path or '<none written>'}")
+            lines.append(f"ModelCheckpoint score : {'<none>' if score is None else f'{score:.4f}'}")
+            agrees = score is not None and abs(score - best_mean) < 1e-6
+            lines.append(f"agrees with monitor   : {'YES' if agrees else 'NO   <-- INVESTIGATE'}")
+
+        save_step = getattr(getattr(pl_module, "config", None), "save_step", None)
+        if trainer.log_dir is not None:
+            lines.append(f"huggingface_checkpoint: {Path(trainer.log_dir) / 'huggingface_checkpoint'}")
+        lines.append(f"  exported at step    : {save_step if save_step is not None else '<unknown>'}")
+        if save_step is None:
+            verdict = "UNKNOWN -- could not read config.save_step; check the export by hand"
+        elif int(save_step) == best_step:
+            verdict = "YES -- this export IS the best checkpoint; evaluate it"
+        else:
+            verdict = f"NO (best was step {best_step}) <-- do NOT evaluate this export as-is"
+        lines.append(f"  is the best step    : {verdict}")
+        lines += [rule, ""]
+        print("\n".join(lines))
