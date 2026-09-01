@@ -462,6 +462,16 @@ class RunDataset(IRDataset, Dataset):
         self.prepare_constituent("qrels")
         return self
 
+    @staticmethod
+    def _combine_chunks(df: pd.DataFrame) -> pd.DataFrame:
+        """Compacts every arrow-backed column of ``df`` into a single chunk."""
+        for column in df.columns:
+            array = df[column].array
+            pa_array = getattr(array, "_pa_array", None)
+            if pa_array is not None and getattr(pa_array, "num_chunks", 1) > 1:
+                df[column] = pd.arrays.ArrowExtensionArray(pa_array.combine_chunks())
+        return df
+
     def _setup(self):
         if self.run is not None:
             return
@@ -489,8 +499,18 @@ class RunDataset(IRDataset, Dataset):
             self.run = self.run[num_docs_per_query >= self.sample_size]
 
         self.run = self.run.sort_values(["query_id", "rank"])
-        self.run_groups = self.run.groupby("query_id")
-        self.query_ids = list(self.run_groups.groups.keys())
+        # drop_duplicates/merge/sort_values leave the arrow-backed columns split over many
+        # chunks, and pyarrow's take is linear in the chunk count -- 100 chunks is already
+        # enough to turn a single group lookup into ~50 ms. Compact once, here, so that
+        # __getitem__ never pays it.
+        self.run = self._combine_chunks(self.run)
+        # the run is sorted by query_id, so every group is a contiguous range of rows.
+        # Recording the bounds lets __getitem__ slice instead of calling
+        # GroupBy.get_group, which takes (copies) rather than slices.
+        group_sizes = self.run.groupby("query_id", sort=True).size()
+        self.query_ids = list(group_sizes.index)
+        self.group_ends = group_sizes.to_numpy().cumsum()
+        self.group_starts = self.group_ends - group_sizes.to_numpy()
 
         if self.depth != -1 and self.run["rank"].max() < self.depth:
             warnings.warn("Depth is greater than the maximum rank in the run file.", stacklevel=2)
@@ -630,7 +650,7 @@ class RunDataset(IRDataset, Dataset):
         """
         self._setup()
         query_id = str(self.query_ids[idx])
-        group = self.run_groups.get_group(query_id).copy()
+        group = self.run.iloc[self.group_starts[idx] : self.group_ends[idx]].copy()
         query = self.queries[query_id]
         group = Sampler.sample(group, self.sample_size, self.sampling_strategy)
 
