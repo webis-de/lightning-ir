@@ -28,7 +28,14 @@ dependencies = [
     "ir_datasets",
     "ir-measures",
     "lightning",
-    "pandas",
+    # UPPER BOUND IS DELIBERATE. pandas 3.0 made arrow-backed strings the default,
+    # which turned RunDataset's GroupBy.get_group into a pyarrow take that is linear
+    # in the arrow CHUNK count -- a silent ~200x regression on the training
+    # dataloader (0.26 ms -> 54.75 ms per group lookup; fixed in a72273f). Because
+    # this was unpinned, nothing in any install log recorded that pandas had changed,
+    # and the symptom looked like cluster contention for weeks. Cap the minor so the
+    # next default change is a resolver error instead of a halving of throughput.
+    "pandas>=2.0,<3.1",
     "jsonargparse[signatures]>=4.27.7",
     "sentencepiece",
     "protobuf",
