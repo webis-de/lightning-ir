@@ -60,6 +60,12 @@ MODEL_TYPE_TO_LM_HEAD = {
     # NeoBERT's pre-trained MLM head is a plain vocabulary projection (no transform block).
     "neobert": partial(LinearLMHead, hidden_dim_key="hidden_size"),
     "roberta": partial(LMHead, hidden_dim_key="hidden_size", activation_key="hidden_act"),
+    # DeBERTa(-v2/-v3). Structurally BERT-shaped (dense -> act -> LayerNorm -> tied decoder),
+    # so no new head class is needed. BUT: the released microsoft/deberta-v3-* checkpoints do
+    # NOT carry a usable pre-trained MLM head -- see the note on the key mapping below. SPLADE
+    # over this backbone therefore starts from an effectively randomly-initialised vocabulary
+    # projection, unlike every other backbone in the grid.
+    "deberta-v2": partial(LMHead, hidden_dim_key="hidden_size", activation_key="hidden_act"),
 }
 
 MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
@@ -86,6 +92,23 @@ MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
     "neobert": {
         r"^decoder\.": "model.projection.decoder.",
     },
+    # DeBERTa-v3 (model_type "deberta-v2"). The checkpoint carries `lm_predictions.lm_head.*`,
+    # left over from the ELECTRA-style RTD pre-training in which the released base model is the
+    # DISCRIMINATOR (`mask_predictions.classifier` is (1, 768), a binary real/fake head) and the
+    # MLM head belonged to the discarded generator.
+    #
+    # `dense.weight` is DELIBERATELY NOT MAPPED. Measured on microsoft/deberta-v3-base:
+    #   * the checkpoint's copy has std 0.000994 -- two orders below a trained 768x768 layer;
+    #   * injecting it by hand into DebertaV2ForMaskedLM leaves masked-token prediction as
+    #     nonsense ("The capital of France is [MASK]." -> Brack, caine, aksh, Callan), i.e. no
+    #     better than the random init transformers falls back to.
+    # So a "correct" mapping does not rescue this head, and loading a dead matrix is worse than
+    # a fresh one. LayerNorm and the vocabulary bias ARE mapped: they are real trained statistics
+    # (the vocab bias encodes token-frequency priors, which SPLADE can use).
+    "deberta-v2": {
+        "lm_predictions.lm_head.LayerNorm": "deberta.projection.norm",
+        "lm_predictions.lm_head.bias": "deberta.projection.decoder.bias",
+    },
     "roberta": {
         "lm_head.dense": "roberta.projection.dense",
         "lm_head.layer_norm": "roberta.projection.norm",
@@ -103,6 +126,10 @@ MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
 # NeoBERT pre-trains an *untied* decoder, so the entry below is unused in practice.
 MODEL_TYPE_TO_INPUT_EMBEDDINGS_KEY = {
     "bert": "embeddings.word_embeddings.weight",
+    # deberta-v3 ties the decoder to the word embeddings (config.tie_word_embeddings=True),
+    # so this IS consulted -- and the tie is the only genuinely pre-trained part of the
+    # SPLADE projection for this backbone.
+    "deberta-v2": "embeddings.word_embeddings.weight",
     "distilbert": "embeddings.word_embeddings.weight",
     "modernbert": "embeddings.tok_embeddings.weight",
     "neobert": "encoder.weight",
