@@ -1,6 +1,8 @@
 import importlib.util
+import json
 from collections.abc import Sequence
 from pathlib import Path
+from types import SimpleNamespace
 
 import ir_datasets
 import pandas as pd
@@ -8,7 +10,14 @@ import pytest
 from _pytest.fixtures import SubRequest
 
 from lightning_ir import BiEncoderModule, LightningIRDataModule, LightningIRModule, LightningIRTrainer, RunDataset
-from lightning_ir.callbacks import IndexCallback, RegisterLocalDatasetCallback, ReRankCallback, SearchCallback
+from lightning_ir.callbacks import (
+    HuggingFaceExportCallback,
+    IndexCallback,
+    MeanValidationMetricCallback,
+    RegisterLocalDatasetCallback,
+    ReRankCallback,
+    SearchCallback,
+)
 from lightning_ir.models import DprConfig
 from lightning_ir.retrieve import (
     FaissFlatIndexConfig,
@@ -231,3 +240,138 @@ def test_register_local_dataset_callback(model_name_or_path: str):
     trainer.test(module, datamodule)
 
     assert ir_datasets.registry._registered.get("test") is not None
+
+
+class _StubTrainer:
+    """Minimal stand-in for the parts of ``Trainer`` the export callback touches.
+
+    A real ``fit`` would need a downloaded backbone; the callback only reads ``global_step``,
+    ``callback_metrics``, ``log_dir`` and the two flags, so a stub keeps this test offline.
+    """
+
+    def __init__(self, log_dir: Path):
+        self.log_dir = str(log_dir)
+        self.global_step = 0
+        self.sanity_checking = False
+        self.is_global_zero = True
+        self.callback_metrics: dict[str, float] = {}
+        self.callbacks: list = []
+
+
+class _StubModule:
+    def __init__(self):
+        self.config = SimpleNamespace(save_step=None)
+        self.saved_steps: list[int] = []
+
+    def save_pretrained(self, save_path: str | Path) -> None:
+        save_path = Path(save_path)
+        save_path.mkdir(parents=True, exist_ok=True)
+        (save_path / "config.json").write_text(json.dumps({"save_step": self.config.save_step}))
+        self.saved_steps.append(self.config.save_step)
+
+
+def _validate(callback: HuggingFaceExportCallback, trainer: _StubTrainer, module: _StubModule, step: int, **metrics):
+    trainer.global_step = step
+    trainer.callback_metrics.update(metrics)
+    callback.on_validation_end(trainer, module)
+
+
+def test_hugging_face_export_callback_selects_best(tmp_path: Path):
+    trainer = _StubTrainer(tmp_path)
+    module = _StubModule()
+    callback = HuggingFaceExportCallback(dirpath="hf_best", monitor="val_mean_nDCG@10", mode="max")
+
+    _validate(callback, trainer, module, 1000, **{"val_mean_nDCG@10": 0.30})
+    _validate(callback, trainer, module, 2000, **{"val_mean_nDCG@10": 0.50})
+    _validate(callback, trainer, module, 3000, **{"val_mean_nDCG@10": 0.40})
+
+    # relative dirpath resolves against log_dir, and only improvements are exported
+    export_dir = tmp_path / "hf_best"
+    assert callback.best_step == 2000
+    assert callback.best_model_score == 0.50
+    assert callback.num_exports == 2
+    assert module.saved_steps == [1000, 2000]
+
+    info = json.loads((export_dir / "export_info.json").read_text())
+    assert info == {
+        "monitor": "val_mean_nDCG@10",
+        "mode": "max",
+        "score": 0.50,
+        "global_step": 2000,
+        "selection": "best",
+    }
+    # the exported config carries the step it was exported at, as the built-in export does
+    assert json.loads((export_dir / "config.json").read_text())["save_step"] == 2000
+    # but the in-memory value is left alone: it reports the step of the shared
+    # huggingface_checkpoint/ export, which only a .ckpt write updates
+    assert module.config.save_step is None
+
+    # a further, non-improving validation must not overwrite the export
+    trainer.global_step = 4000
+    callback.on_fit_end(trainer, module)
+    assert callback.best_step == 2000
+    assert module.saved_steps == [1000, 2000]
+
+
+def test_hugging_face_export_callback_min_mode_and_sanity_check(tmp_path: Path):
+    trainer = _StubTrainer(tmp_path)
+    module = _StubModule()
+    callback = HuggingFaceExportCallback(dirpath=tmp_path / "hf_min", monitor="loss", mode="min")
+
+    trainer.sanity_checking = True
+    _validate(callback, trainer, module, 0, loss=99.0)
+    assert callback.num_exports == 0
+
+    trainer.sanity_checking = False
+    _validate(callback, trainer, module, 500, loss=2.0)
+    _validate(callback, trainer, module, 1000, loss=3.0)
+    _validate(callback, trainer, module, 1500, loss=1.0)
+    assert callback.best_step == 1500
+    assert callback.best_model_score == 1.0
+    assert module.saved_steps == [500, 1500]
+
+
+def test_hugging_face_export_callback_final_export(tmp_path: Path):
+    trainer = _StubTrainer(tmp_path)
+    module = _StubModule()
+    callback = HuggingFaceExportCallback(dirpath="hf_final")
+
+    # no monitor: validations export nothing, on_fit_end exports the final weights
+    _validate(callback, trainer, module, 1000, **{"val_mean_nDCG@10": 0.9})
+    assert callback.num_exports == 0
+
+    trainer.global_step = 50100
+    callback.on_fit_end(trainer, module)
+    assert callback.num_exports == 1
+    assert callback.best_step == 50100
+    info = json.loads((tmp_path / "hf_final" / "export_info.json").read_text())
+    assert info["selection"] == "final" and info["monitor"] is None and info["global_step"] == 50100
+
+
+def test_hugging_face_export_callback_missing_monitor(tmp_path: Path):
+    trainer = _StubTrainer(tmp_path)
+    module = _StubModule()
+    callback = HuggingFaceExportCallback(dirpath="hf_best", monitor="val_mean_nDCG@10")
+
+    # failing loudly on the first validation beats discovering after 50 hours that the run
+    # exported nothing at all
+    with pytest.raises(ValueError, match="val_mean_nDCG@10"):
+        _validate(callback, trainer, module, 1000, other_metric=0.5)
+
+
+def test_hugging_face_export_callback_bad_mode():
+    with pytest.raises(ValueError, match="mode must be"):
+        HuggingFaceExportCallback(dirpath="hf", monitor="m", mode="maximum")
+
+
+def test_mean_validation_metric_callback_finds_export_callback(tmp_path: Path):
+    trainer = _StubTrainer(tmp_path)
+    mean_callback = MeanValidationMetricCallback(name="val_mean_robust_nDCG@10")
+    export_callback = HuggingFaceExportCallback(dirpath="hf_best_robust", monitor="val_mean_robust_nDCG@10")
+    other_export = HuggingFaceExportCallback(dirpath="hf_final")
+    trainer.callbacks = [mean_callback, export_callback, other_export]
+
+    # the end-of-run summary must not claim "nothing was selected" when an export callback is
+    # the thing selecting on the metric
+    assert mean_callback._monitoring_export_callbacks(trainer) == [export_callback]
+    assert mean_callback._monitoring_checkpoint_callback(trainer) is None

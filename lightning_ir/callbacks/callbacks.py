@@ -5,10 +5,11 @@ from __future__ import annotations
 import csv
 import gc
 import itertools
+import json
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import is_dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import pandas as pd
 import torch
@@ -900,6 +901,23 @@ class MeanValidationMetricCallback(Callback):
                 return callback
         return None
 
+    def _monitoring_export_callbacks(self, trainer: Trainer) -> list[HuggingFaceExportCallback]:
+        """Finds the :class:`HuggingFaceExportCallback` instances that select on this metric.
+
+        A metric can be selected on without any ``ModelCheckpoint`` monitoring it, so the summary
+        has to consider these too before concluding that nothing was selected.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+        Returns:
+            list[HuggingFaceExportCallback]: Export callbacks monitoring ``self.name``.
+        """
+        return [
+            callback
+            for callback in trainer.callbacks
+            if isinstance(callback, HuggingFaceExportCallback) and callback.monitor == self.name
+        ]
+
     def on_fit_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         """Prints which checkpoint the run selected, and whether the exported model matches it.
 
@@ -936,11 +954,13 @@ class MeanValidationMetricCallback(Callback):
         lines.append(f"final validation      : {last_mean:.4f}  at global step {last_step}")
 
         checkpoint_callback = self._monitoring_checkpoint_callback(trainer)
-        if checkpoint_callback is None:
+        export_callbacks = self._monitoring_export_callbacks(trainer)
+        if checkpoint_callback is None and not export_callbacks:
             lines.append("")
-            lines.append(f"WARNING: no ModelCheckpoint monitors {self.name!r}, so nothing was")
-            lines.append("         selected on it. Checkpoints reflect some other rule.")
-        else:
+            lines.append(f"WARNING: nothing monitors {self.name!r} -- no ModelCheckpoint and no")
+            lines.append("         HuggingFaceExportCallback selects on it, so no model was kept")
+            lines.append("         for this metric. Checkpoints reflect some other rule.")
+        if checkpoint_callback is not None:
             score = checkpoint_callback.best_model_score
             score = None if score is None else float(score)
             lines.append("")
@@ -949,16 +969,190 @@ class MeanValidationMetricCallback(Callback):
             agrees = score is not None and abs(score - best_mean) < 1e-6
             lines.append(f"agrees with monitor   : {'YES' if agrees else 'NO   <-- INVESTIGATE'}")
 
-        save_step = getattr(getattr(pl_module, "config", None), "save_step", None)
-        if trainer.log_dir is not None:
-            lines.append(f"huggingface_checkpoint: {Path(trainer.log_dir) / 'huggingface_checkpoint'}")
-        lines.append(f"  exported at step    : {save_step if save_step is not None else '<unknown>'}")
-        if save_step is None:
-            verdict = "UNKNOWN -- could not read config.save_step; check the export by hand"
-        elif int(save_step) == best_step:
-            verdict = "YES -- this export IS the best checkpoint; evaluate it"
-        else:
-            verdict = f"NO (best was step {best_step}) <-- do NOT evaluate this export as-is"
-        lines.append(f"  is the best step    : {verdict}")
+            # The shared huggingface_checkpoint/ export is only meaningful for a metric that a
+            # ModelCheckpoint monitors: it mirrors the last .ckpt write, whoever caused it.
+            save_step = getattr(getattr(pl_module, "config", None), "save_step", None)
+            if trainer.log_dir is not None:
+                lines.append(f"huggingface_checkpoint: {Path(trainer.log_dir) / 'huggingface_checkpoint'}")
+            lines.append(f"  exported at step    : {save_step if save_step is not None else '<unknown>'}")
+            if save_step is None:
+                verdict = "UNKNOWN -- could not read config.save_step; check the export by hand"
+            elif int(save_step) == best_step:
+                verdict = "YES -- this export IS the best checkpoint; evaluate it"
+            else:
+                verdict = f"NO (best was step {best_step}) <-- evaluate a named HF export instead"
+            lines.append(f"  is the best step    : {verdict}")
+        for export_callback in export_callbacks:
+            score = export_callback.best_model_score
+            lines.append("")
+            lines.append(f"HF export (this metric): {export_callback.best_model_path or '<none written>'}")
+            lines.append(f"  exported at step     : {export_callback.best_step}")
+            lines.append(f"  export score         : {'<none>' if score is None else f'{score:.4f}'}")
+            agrees = export_callback.best_step == best_step
+            lines.append(f"  is the best step     : {'YES -- evaluate this' if agrees else 'NO   <-- INVESTIGATE'}")
         lines += [rule, ""]
         print("\n".join(lines))
+
+
+class HuggingFaceExportCallback(Callback):
+    """Exports a HuggingFace snapshot of the model into a directory of its own.
+
+    :meth:`~lightning_ir.base.module.LightningIRModule.on_save_checkpoint` re-exports
+    ``<log_dir>/huggingface_checkpoint`` on *every* ``.ckpt`` write, no matter which
+    :class:`~lightning.pytorch.callbacks.ModelCheckpoint` triggered it. That single directory can
+    therefore only ever hold one model, which makes it impossible to keep several selections from
+    one run -- e.g. the best checkpoint on one validation metric, the best on another, and the final
+    weights. This callback writes its own directory instead, so one instance per selection gives one
+    ready-to-evaluate model per selection.
+
+    With ``monitor`` set it exports whenever the monitored metric improves, which mirrors
+    ``ModelCheckpoint(save_top_k=1)``: the directory ends up holding the best step. With ``monitor``
+    left at ``None`` it exports once, at the end of ``fit``, i.e. the final weights.
+
+    The exported ``config.json`` carries ``save_step``, exactly as the built-in export does, and an
+    ``export_info.json`` records what the selection was, so a directory is self-describing.
+    """
+
+    def __init__(
+        self,
+        dirpath: str | Path,
+        monitor: str | None = None,
+        mode: Literal["min", "max"] = "max",
+    ) -> None:
+        """Initializes the callback.
+
+        Args:
+            dirpath (str | Path): Directory to export to. A relative path is resolved against the
+                trainer's ``log_dir``, which is where the built-in ``huggingface_checkpoint`` export
+                also lands.
+            monitor (str | None): Metric to select on. If None, the model is exported once at the end
+                of training instead of on improvement. Defaults to None.
+            mode (Literal["min", "max"]): Whether a higher or lower value of ``monitor`` is better.
+                Defaults to ``"max"``.
+        Raises:
+            ValueError: If ``mode`` is neither ``"min"`` nor ``"max"``.
+        """
+        super().__init__()
+        if mode not in ("min", "max"):
+            raise ValueError(f"mode must be 'min' or 'max', got {mode!r}")
+        self.dirpath = str(dirpath)
+        self.monitor = monitor
+        self.mode = mode
+        self.best_model_score: float | None = None
+        self.best_model_path: str = ""
+        self.best_step: int | None = None
+        self.num_exports: int = 0
+
+    def _resolve_dirpath(self, trainer: Trainer) -> Path:
+        """Resolves :py:attr:`dirpath` against the trainer's log directory.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+        Returns:
+            Path: Absolute export directory.
+        """
+        path = Path(self.dirpath)
+        if not path.is_absolute() and trainer.log_dir is not None:
+            path = Path(trainer.log_dir) / path
+        return path
+
+    def _is_improvement(self, value: float) -> bool:
+        """Whether ``value`` beats the best value seen so far.
+
+        Args:
+            value (float): Current value of the monitored metric.
+        Returns:
+            bool: True if this is the first value or an improvement.
+        """
+        if self.best_model_score is None:
+            return True
+        if self.mode == "max":
+            return value > self.best_model_score
+        return value < self.best_model_score
+
+    def _export(self, trainer: Trainer, pl_module: LightningIRModule, score: float | None = None) -> None:
+        """Writes the HuggingFace snapshot and its provenance file.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+            score (float | None): Value of the monitored metric, if any. Defaults to None.
+        """
+        path = self._resolve_dirpath(trainer)
+        path.mkdir(parents=True, exist_ok=True)
+        step = int(trainer.global_step)
+        config = getattr(pl_module, "config", None)
+        previous_save_step = getattr(config, "save_step", None)
+        if config is not None:
+            # Same provenance marker the built-in export writes, so config.save_step in the exported
+            # config.json remains the ground truth for "which step is this".
+            config.save_step = step
+        pl_module.save_pretrained(path)
+        if config is not None:
+            # Restore it: the in-memory value is what reports the step of the *shared*
+            # huggingface_checkpoint/ export, which only a .ckpt write updates. Leaving our step
+            # behind would make that report claim a step it does not hold.
+            config.save_step = previous_save_step
+        (path / "export_info.json").write_text(
+            json.dumps(
+                {
+                    "monitor": self.monitor,
+                    "mode": self.mode if self.monitor is not None else None,
+                    "score": score,
+                    "global_step": step,
+                    "selection": "final" if self.monitor is None else "best",
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+        self.best_model_path = str(path)
+        self.best_step = step
+        self.num_exports += 1
+
+    def on_validation_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        """Exports the model if the monitored metric improved.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+        Raises:
+            ValueError: If ``monitor`` was never logged, which would otherwise silently export
+                nothing for the whole run.
+        """
+        if self.monitor is None or trainer.sanity_checking or not trainer.is_global_zero:
+            return
+        if self.monitor not in trainer.callback_metrics:
+            raise ValueError(
+                f"{type(self).__name__} monitors '{self.monitor}', which was not logged. Either the "
+                f"metric name is wrong or the callback logging it did not run. Logged keys: "
+                f"{sorted(trainer.callback_metrics)}"
+            )
+        value = float(trainer.callback_metrics[self.monitor])
+        if not self._is_improvement(value):
+            return
+        self.best_model_score = value
+        self._export(trainer, pl_module, score=value)
+
+    def on_fit_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        """Exports the final weights if this callback selects on nothing, and prints what it wrote.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+        """
+        if not trainer.is_global_zero:
+            return
+        if self.monitor is None:
+            self._export(trainer, pl_module)
+        path = self._resolve_dirpath(trainer)
+        if self.monitor is None:
+            selection = f"final weights at global step {self.best_step}"
+        elif self.num_exports:
+            selection = (
+                f"best {self.monitor} = {self.best_model_score:.4f} ({self.mode}) "
+                f"at global step {self.best_step}, {self.num_exports} export(s)"
+            )
+        else:
+            selection = f"NOTHING EXPORTED -- {self.monitor} never improved, no validation completed"
+        print(f"\nHF EXPORT  --  {path}\n  {selection}\n")

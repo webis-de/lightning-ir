@@ -24,6 +24,7 @@ from .bi_encoder import (
     SingleVectorBiEncoderModel,
 )
 from .callbacks import (
+    HuggingFaceExportCallback,
     IndexCallback,
     MeanValidationMetricCallback,
     MvrViewCollapseCallback,
@@ -156,6 +157,7 @@ __all__ = [
     "GenericConstantSchedulerWithLinearWarmup",
     "GenericConstantSchedulerWithQuadraticWarmup",
     "GenericLinearSchedulerWithLinearWarmup",
+    "HuggingFaceExportCallback",
     "InBatchCrossEntropy",
     "IndexBatch",
     "IndexCallback",

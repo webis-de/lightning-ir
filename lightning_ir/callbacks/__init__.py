@@ -8,6 +8,7 @@ execute code at specific points during the training loop, such as after each epo
 """
 
 from .callbacks import (
+    HuggingFaceExportCallback,
     IndexCallback,
     MeanValidationMetricCallback,
     MvrViewCollapseCallback,
@@ -19,6 +20,7 @@ from .callbacks import (
 )
 
 __all__ = [
+    "HuggingFaceExportCallback",
     "IndexCallback",
     "MeanValidationMetricCallback",
     "MvrViewCollapseCallback",
