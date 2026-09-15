@@ -1134,6 +1134,50 @@ class HuggingFaceExportCallback(Callback):
         self.best_model_score = value
         self._export(trainer, pl_module, score=value)
 
+    def on_exception(self, trainer: Trainer, pl_module: LightningIRModule, exception: BaseException) -> None:
+        """Exports the final weights on a crash or a SIGTERM, if nothing was exported yet.
+
+        A run cancelled at the partition's time limit never reaches ``on_fit_end``, so an
+        unmonitored export -- the whole point of which is "the weights this run ended on" --
+        would otherwise not exist at all. A monitored export is left alone: its directory
+        already holds the best step seen so far.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+            exception (BaseException): The exception that ended the run.
+        """
+        self._export_final_if_missing(trainer, pl_module)
+
+    def teardown(self, trainer: Trainer, pl_module: LightningIRModule, stage: str) -> None:
+        """Last-resort export, for shutdown paths that reach neither hook above.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+            stage (str): Trainer stage; only ``"fit"`` is of interest.
+        """
+        if stage == "fit":
+            self._export_final_if_missing(trainer, pl_module)
+
+    def _export_final_if_missing(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
+        """Exports the final weights unless this callback has already written something.
+
+        Idempotent, so the normal path (``on_fit_end``) and the two abnormal ones cannot
+        produce a double export.
+
+        Args:
+            trainer (Trainer): Lightning trainer.
+            pl_module (LightningIRModule): Lightning IR module.
+        """
+        if self.monitor is not None or self.num_exports or not trainer.is_global_zero:
+            return
+        self._export(trainer, pl_module)
+        print(
+            f"\nHF EXPORT  --  {self._resolve_dirpath(trainer)}\n  run ended early; exported "
+            f"the weights at global step {self.best_step}\n"
+        )
+
     def on_fit_end(self, trainer: Trainer, pl_module: LightningIRModule) -> None:
         """Exports the final weights if this callback selects on nothing, and prints what it wrote.
 
@@ -1143,7 +1187,10 @@ class HuggingFaceExportCallback(Callback):
         """
         if not trainer.is_global_zero:
             return
-        if self.monitor is None:
+        # `not self.num_exports` matters: on_exception/teardown may already have written this
+        # directory on an early exit, and a second write would bump save_step to a later step
+        # than the weights actually came from.
+        if self.monitor is None and not self.num_exports:
             self._export(trainer, pl_module)
         path = self._resolve_dirpath(trainer)
         if self.monitor is None:

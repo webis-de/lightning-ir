@@ -375,3 +375,40 @@ def test_mean_validation_metric_callback_finds_export_callback(tmp_path: Path):
     # the thing selecting on the metric
     assert mean_callback._monitoring_export_callbacks(trainer) == [export_callback]
     assert mean_callback._monitoring_checkpoint_callback(trainer) is None
+
+
+def test_hugging_face_export_callback_exports_on_early_exit(tmp_path: Path):
+    trainer = _StubTrainer(tmp_path)
+    module = _StubModule()
+    callback = HuggingFaceExportCallback(dirpath="hf_final")
+
+    # a walltime kill never reaches on_fit_end, so the unmonitored export has to happen here
+    trainer.global_step = 45000
+    callback.on_exception(trainer, module, KeyboardInterrupt())
+    assert callback.num_exports == 1 and callback.best_step == 45000
+
+    # and it must not double-export if a later hook still runs
+    callback.on_fit_end(trainer, module)
+    callback.teardown(trainer, module, "fit")
+    assert callback.num_exports == 1
+    assert module.saved_steps == [45000]
+
+
+def test_hugging_face_export_callback_teardown_is_a_last_resort(tmp_path: Path):
+    trainer = _StubTrainer(tmp_path)
+    module = _StubModule()
+    final = HuggingFaceExportCallback(dirpath="hf_final")
+    monitored = HuggingFaceExportCallback(dirpath="hf_best", monitor="val_mean_nDCG@10")
+
+    trainer.global_step = 30000
+    final.teardown(trainer, module, "test")
+    assert final.num_exports == 0, "only the fit stage should trigger the fallback"
+    final.teardown(trainer, module, "fit")
+    assert final.num_exports == 1
+
+    # a monitored export already holds the best step; an early exit must not overwrite it
+    _validate(monitored, trainer, module, 10000, **{"val_mean_nDCG@10": 0.5})
+    trainer.global_step = 45000
+    monitored.on_exception(trainer, module, RuntimeError("walltime"))
+    monitored.teardown(trainer, module, "fit")
+    assert monitored.best_step == 10000 and monitored.num_exports == 1
