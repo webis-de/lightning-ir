@@ -32,6 +32,55 @@ from ...modeling_utils.lm_head import (
     MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING,
 )
 
+DEFAULT_MAX_ENCODE_CHUNK_ELEMENTS = 2**30
+"""Default budget, in tensor elements, for one chunk of :meth:`SpladeModel.encode`.
+
+SPLADE is the only bi-encoder here whose per-token embedding is VOCABULARY-sized rather than
+hidden-size-sized, so the intermediate it builds is ``[batch, seq_len, vocab_size]`` -- 40x a
+768-dim model for BERT, 167x for deberta-v3. A reranking batch is one query's whole candidate
+pool, and a Robust04 topic pool can exceed 2,400 documents, so that intermediate reaches
+hundreds of GiB and no single card can hold it.
+
+Chunking bounds it. The budget is expressed in ELEMENTS rather than documents so that one
+value is correct for every backbone: the document count is derived per call as
+``budget // (seq_len * vocab_size)``. A document count could not be, because the same memory
+buys ~137 documents on BERT and ~32 on deberta-v3.
+
+Elements convert to bytes at a factor of 8, which is the peak of the encode pipeline::
+
+    e0 = projection(h)        [B,L,V] bf16  -.
+    r  = relu(e0)             [B,L,V] bf16   +- live together, 8 B/element
+    s  = log1p(r)             [B,L,V] fp32  -'                  (note: torch autocasts
+    m  = s.masked_fill(...)   [B,L,V] fp32  -.                   log1p to fp32 on CUDA,
+    out = m.amax(1)           [B,1,V]        +- live together, 8 B/element   which is why
+                                            -'                   the fp32 rows appear)
+
+So 2**30 elements is an ~8 GiB peak, which leaves ample headroom on a 40 GiB A100.
+"""
+
+
+def _slice_encoding(encoding: BatchEncoding, start: int, stop: int) -> BatchEncoding:
+    """Slices the batch dimension of an already-padded encoding.
+
+    Slicing the PADDED tensors rather than re-tokenizing is what keeps chunked encoding equivalent
+    to unchunked encoding: every chunk keeps the batch's sequence length, so padding, position ids
+    and the attention mask are bit-identical to what the full batch would have seen.
+
+    Args:
+        encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+        start (int): First sequence of the slice.
+        stop (int): One past the last sequence of the slice.
+    Returns:
+        BatchEncoding: Encoding holding only the requested sequences.
+    """
+    batch_size = encoding["input_ids"].shape[0]
+    return BatchEncoding(
+        {
+            key: value[start:stop] if isinstance(value, torch.Tensor) and value.shape[:1] == (batch_size,) else value
+            for key, value in encoding.items()
+        }
+    )
+
 
 class SpladeConfig(SingleVectorBiEncoderConfig):
     """Configuration class for a SPLADE model."""
@@ -50,6 +99,7 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
         query_expansion: bool = True,
         doc_weighting: Literal["contextualized", "static"] | None = "contextualized",
         doc_expansion: bool = True,
+        max_encode_chunk_elements: int | None = DEFAULT_MAX_ENCODE_CHUNK_ELEMENTS,
         **kwargs,
     ) -> None:
         """A SPLADE model encodes queries and documents separately. Before computing the similarity score, the
@@ -72,6 +122,10 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
             doc_weighting (Literal["contextualized", "static"] | None): Whether to reweight document embeddings.
                 Defaults to "contextualized".
             doc_expansion (bool): Whether to allow document expansion. Defaults to True.
+            max_encode_chunk_elements (int | None): Budget, in tensor elements, for a single chunk of
+                :meth:`SpladeModel.encode`. Only applies when gradients are disabled; training is never
+                chunked. ``None`` disables chunking entirely. Defaults to
+                :data:`DEFAULT_MAX_ENCODE_CHUNK_ELEMENTS`.
         """
         super().__init__(
             query_length=query_length,
@@ -89,6 +143,7 @@ class SpladeConfig(SingleVectorBiEncoderConfig):
         self.query_expansion = query_expansion
         self.doc_weighting = doc_weighting
         self.doc_expansion = doc_expansion
+        self.max_encode_chunk_elements = max_encode_chunk_elements
 
     @property
     def embedding_dim(self) -> int:
@@ -149,8 +204,65 @@ class SpladeModel(SingleVectorBiEncoderModel):
         self.pooler = Pooler(config)
         self.sparsifier = Sparsifier(config)
 
+    def _encode_chunk_size(self, encoding: BatchEncoding) -> int | None:
+        """Number of sequences to encode at a time, or None to encode the batch in one go.
+
+        Derived from the configured element budget and the shape this call would actually build, so
+        that a single configured value is correct for every backbone and every sequence length. See
+        :data:`DEFAULT_MAX_ENCODE_CHUNK_ELEMENTS`.
+
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+        Returns:
+            int | None: Chunk size in sequences, or None if the batch should not be chunked.
+        """
+        budget = getattr(self.config, "max_encode_chunk_elements", None)
+        if budget is None:
+            return None
+        # Chunking under autograd saves nothing -- every chunk's activations are kept alive for the
+        # backward pass anyway -- and would additionally cost a cat. Skipping it here also means
+        # training stays numerically identical to the unchunked implementation, so SPLADE runs
+        # remain comparable to those produced before this change.
+        if torch.is_grad_enabled():
+            return None
+        batch_size, seq_len = encoding["input_ids"].shape
+        per_sequence = seq_len * self.config.embedding_dim
+        chunk_size = max(1, budget // max(per_sequence, 1))
+        if chunk_size >= batch_size:
+            return None
+        return chunk_size
+
     def encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
         """Encodes a batched tokenized text sequences and returns the embeddings and scoring mask.
+
+        Encodes the batch in chunks when it would otherwise build a vocabulary-sized intermediate
+        larger than the configured budget. Chunking is applied only when gradients are disabled, and
+        is mathematically transparent: the already-padded encoding is sliced, so every chunk sees the
+        same sequence length, attention never crosses sequences, and pooling is per-sequence.
+
+        Args:
+            encoding (BatchEncoding): Tokenizer encodings for the text sequence.
+            input_type (Literal["query", "doc"]): type of input, either "query" or "doc".
+        Returns:
+            BiEncoderEmbedding: Embeddings and scoring mask.
+        """
+        chunk_size = self._encode_chunk_size(encoding)
+        if chunk_size is None:
+            return self._encode(encoding, input_type)
+        batch_size = encoding["input_ids"].shape[0]
+        embeddings = torch.cat(
+            [
+                self._encode(_slice_encoding(encoding, start, start + chunk_size), input_type).embeddings
+                for start in range(0, batch_size, chunk_size)
+            ],
+            dim=0,
+        )
+        # The FULL encoding, not the last chunk's: callers treat this as the encoding that produced
+        # the embeddings, and it is what an unchunked call would have returned.
+        return BiEncoderEmbedding(embeddings, None, encoding)
+
+    def _encode(self, encoding: BatchEncoding, input_type: Literal["query", "doc"]) -> BiEncoderEmbedding:
+        """Encodes a single chunk of tokenized text sequences.
 
         Args:
             encoding (BatchEncoding): Tokenizer encodings for the text sequence.
