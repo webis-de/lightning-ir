@@ -69,8 +69,21 @@ MODEL_TYPE_TO_LM_HEAD = {
 }
 
 MODEL_TYPE_TO_STATE_DICT_KEY_MAPPING = {
+    # The gamma/beta entries are NOT redundant with the LayerNorm entry below them, and their
+    # ORDER matters. bert-base-uncased stores every LayerNorm as `.gamma`/`.beta` (52 such keys);
+    # transformers still renames those, but through a "legacy" rule in conversion_mapping.py that
+    # matches the literal substring `LayerNorm.gamma`. A user-supplied key_mapping is applied
+    # FIRST, so rewriting `...transform.LayerNorm` -> `bert.projection.norm` destroys that
+    # substring and the legacy rule can never fire -- the head's LayerNorm then silently arrives
+    # as MISSING and is freshly initialised to weight=1/bias=0, while the backbone's own
+    # LayerNorms (whose names survive intact) load fine. Mapping gamma/beta explicitly, and
+    # before the general rule so the general rule no longer matches, is what loads them.
+    # Only bert-base-uncased is affected: distilbert, roberta, deberta-v3, modernbert and neobert
+    # all ship zero gamma/beta keys.
     "bert": {
         "cls.predictions.transform.dense": "bert.projection.dense",
+        "cls.predictions.transform.LayerNorm.gamma": "bert.projection.norm.weight",
+        "cls.predictions.transform.LayerNorm.beta": "bert.projection.norm.bias",
         "cls.predictions.transform.LayerNorm": "bert.projection.norm",
         "cls.predictions.decoder": "bert.projection.decoder",
         "cls.predictions.bias": "bert.projection.decoder.bias",
